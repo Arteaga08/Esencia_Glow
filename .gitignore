@@ -1,0 +1,63 @@
+# --- Secrets and environment -------------------------------------------------
+# Deny every env file first, then re-allow ONLY the placeholder examples.
+# Order matters: the negations below must come after the broad patterns.
+.env
+.env.*
+*.env
+!.env.example
+!.env.*.example
+
+# Credential material that must never reach the repository.
+*.pem
+*.key
+*.p12
+*.pfx
+*.keystore
+*.jks
+secrets/
+credentials.json
+service-account*.json
+gha-creds-*.json
+
+# --- Dependencies ------------------------------------------------------------
+node_modules/
+.pnpm-store/
+.pnp.*
+.yarn/
+
+# --- Build output ------------------------------------------------------------
+dist/
+build/
+out/
+.next/
+.turbo/
+*.tsbuildinfo
+
+# --- Test and coverage -------------------------------------------------------
+coverage/
+.nyc_output/
+.vitest/
+
+# --- Logs --------------------------------------------------------------------
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --- Local tooling and caches ------------------------------------------------
+.cache/
+.eslintcache
+.mongodb-binaries/
+tmp/
+temp/
+
+# --- Editors and OS ----------------------------------------------------------
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+*.swo
