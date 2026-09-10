@@ -54,7 +54,8 @@ ignora cualquier `.env`/`.env.*` real y re-permite explícitamente los `.example
 | `ADMIN_ALERT_EMAIL` | Opcional, siempre | Canal secundario de alerta operativa |
 | `SENTRY_DSN` | Opcional, siempre | Error tracking. Su ausencia no bloquea nada |
 | `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` / `SEED_ADMIN_ROLE` | Opcional, siempre | Solo los lee `pnpm --filter @esencia-glow/api seed:admin`, nunca el server |
-| `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` | Placeholder | Reservadas para `uploadService` (Milestone 1.3); no se leen todavía |
+| `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` | Fail-fast en producción | `uploadService` (Milestone 1.3). En dev, su ausencia hace que los endpoints de imagen respondan `503` |
+| `CLOUDINARY_FOLDER` | Con default | Carpeta raíz en Cloudinary. Default `esencia-glow/<NODE_ENV>` |
 
 En **desarrollo**, las variables marcadas "fail-fast en producción" son opcionales: el server
 arranca sin ellas, y cualquier ruta que las necesite responde `503` explícito en vez de fingir
