@@ -1,20 +1,23 @@
 import { Schema, model, type HydratedDocument, type Model, type Types } from "mongoose";
-import { AuthAction } from "@esencia-glow/shared";
+import { AuthAction, InventoryAction } from "@esencia-glow/shared";
 
 /**
- * Audit trail append-only de acciones sensibles de auth (login, cambio de
- * contraseña, activar/desactivar 2FA, revocación de sesiones). Nunca guarda
- * PII ni secretos: ni email en claro, ni tokens, ni contraseñas — solo
- * identificadores y metadata acotada. El registro es best-effort (ver
- * services/audit.service.ts): un fallo aquí nunca debe tumbar la request que
- * lo originó.
+ * Audit trail append-only de acciones sensibles (auth: login, cambio de
+ * contraseña, 2FA, revocación de sesiones; inventario: ajustes manuales de
+ * stock, ciclo de vida de reservas). Nunca guarda PII ni secretos: ni email
+ * en claro, ni tokens, ni contraseñas — solo identificadores y metadata
+ * acotada. El registro es best-effort (ver services/audit.service.ts): un
+ * fallo aquí nunca debe tumbar la request que lo originó.
  *
- * `AuthAction` vive en `@esencia-glow/shared` para que el dashboard admin
- * (Milestone 2) muestre el audit trail con el mismo vocabulario del backend.
+ * `action` acepta la unión de `AuthAction` e `InventoryAction` — un solo
+ * trail para todo el backend en vez de una colección por dominio. `targetId`
+ * ya no fija `ref: "User"`: en inventario apunta a una reserva o una
+ * variante, no a un usuario, y ningún código hace `populate()` sobre él.
  */
+type AuditAction = AuthAction | InventoryAction;
 
 interface AuditLogAttrs {
-  action: AuthAction;
+  action: AuditAction;
   actorId?: Types.ObjectId;
   targetId?: Types.ObjectId;
   ipHash?: string;
@@ -24,11 +27,13 @@ interface AuditLogAttrs {
 type AuditLogDocument = HydratedDocument<AuditLogAttrs>;
 type AuditLogModel = Model<AuditLogAttrs>;
 
+const AUDIT_ACTIONS = [...Object.values(AuthAction), ...Object.values(InventoryAction)];
+
 const auditLogSchema = new Schema<AuditLogAttrs, AuditLogModel>(
   {
-    action: { type: String, enum: Object.values(AuthAction), required: true },
+    action: { type: String, enum: AUDIT_ACTIONS, required: true },
     actorId: { type: Schema.Types.ObjectId, ref: "User" },
-    targetId: { type: Schema.Types.ObjectId, ref: "User" },
+    targetId: { type: Schema.Types.ObjectId },
     ipHash: { type: String },
     metadata: { type: Schema.Types.Mixed },
   },
@@ -38,4 +43,4 @@ const auditLogSchema = new Schema<AuditLogAttrs, AuditLogModel>(
 const AuditLog = model<AuditLogAttrs, AuditLogModel>("AuditLog", auditLogSchema);
 
 export { AuditLog };
-export type { AuditLogDocument, AuditLogAttrs };
+export type { AuditLogDocument, AuditLogAttrs, AuditAction };
