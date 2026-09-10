@@ -102,11 +102,16 @@ function buildEnv() {
     seedAdminPassword: process.env.SEED_ADMIN_PASSWORD,
     seedAdminRole: process.env.SEED_ADMIN_ROLE,
 
-    // Placeholders documentados para el milestone 1.3 (uploadService); no se
-    // leen todavía en este milestone.
-    cloudinaryCloudName: process.env.CLOUDINARY_CLOUD_NAME,
-    cloudinaryApiKey: process.env.CLOUDINARY_API_KEY,
-    cloudinaryApiSecret: process.env.CLOUDINARY_API_SECRET,
+    // Media del catálogo (Milestone 1.3): mismo criterio que Stripe/Resend —
+    // requerida en producción, opcional en dev. Sin credenciales, las rutas
+    // de imagen responden 503 "no configurado" en vez de fingir éxito (ver
+    // services/media-provider.ts).
+    cloudinaryCloudName: requireInProduction("CLOUDINARY_CLOUD_NAME", nodeEnv),
+    cloudinaryApiKey: requireInProduction("CLOUDINARY_API_KEY", nodeEnv),
+    cloudinaryApiSecret: requireInProduction("CLOUDINARY_API_SECRET", nodeEnv),
+    // Carpeta raíz en Cloudinary. Con default por entorno para no sumar una
+    // variable requerida solo por separar dev de producción.
+    cloudinaryFolder: process.env.CLOUDINARY_FOLDER ?? `esencia-glow/${nodeEnv}`,
   });
 }
 
