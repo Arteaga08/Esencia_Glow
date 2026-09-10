@@ -227,5 +227,7 @@ export {
   buildPublicProduct,
   buildAdminVariant,
   buildPublicVariant,
+  buildImageDto,
+  buildAttributesDto,
 };
 export type { LeanCategory, LeanMediaImage, LeanProduct, LeanVariant, AdminCategory, AdminProduct };

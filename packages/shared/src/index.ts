@@ -13,6 +13,7 @@ export { AuthAction } from "./enums/auth-action.js";
 export { ProductStatus } from "./enums/product-status.js";
 export { ReservationStatus } from "./enums/reservation-status.js";
 export { InventoryAction } from "./enums/inventory-action.js";
+export { BundleStatus } from "./enums/bundle-status.js";
 export { CATALOG_CURRENCY } from "./constants/currency.js";
 export type { Currency } from "./constants/currency.js";
 export { DEFAULT_INVENTORY_SETTINGS, MAX_LINE_QUANTITY } from "./constants/inventory.js";
@@ -27,3 +28,4 @@ export type {
   PublicCategory,
   PublicCategoryNode,
 } from "./types/catalog.js";
+export type { PublicBundleItem, PublicBundle } from "./types/bundle.js";

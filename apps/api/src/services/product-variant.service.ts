@@ -1,6 +1,7 @@
 import type { ClientSession } from "mongoose";
 import { Product, type ProductDocument } from "../models/product.model.js";
 import { Inventory } from "../models/inventory.model.js";
+import { Bundle } from "../models/bundle.model.js";
 import type { ProductVariantAttrs } from "../models/product-variant.schema.js";
 import { AppError } from "../utils/app-error.js";
 import { withTransaction } from "../utils/with-transaction.js";
@@ -109,6 +110,12 @@ async function updateVariant(
  * podría colarse entre el check y la escritura. No es el hot path de compra
  * (es una acción rara de admin), así que pagar la transacción siempre —en
  * vez de solo cuando hace falta— es correcto aquí.
+ *
+ * También bloquea si algún `Bundle` (1.4.1) referencia esta variante: a
+ * diferencia de archivar un producto o desactivar una variante (que un
+ * bundle absorbe mostrándose sin disponibilidad), un hard delete dejaría el
+ * `items` del bundle apuntando a un `variantId` que ya no existe en ningún
+ * lado, para siempre — no hay `stockCache` que recalcular ahí.
  */
 async function removeVariant(productId: string, variantId: string): Promise<ProductDocument> {
   return withTransaction(async (session) => {
@@ -119,6 +126,11 @@ async function removeVariant(productId: string, variantId: string): Promise<Prod
     const row = await Inventory.findOne({ variantId }).session(session);
     if (row && row.reserved > 0) {
       throw new AppError("No puedes eliminar una variante con unidades apartadas", 409);
+    }
+
+    const referencedByBundle = await Bundle.exists({ "items.variantId": variantId }).session(session);
+    if (referencedByBundle) {
+      throw new AppError("No puedes eliminar una variante usada en un paquete", 409);
     }
 
     variant.deleteOne();

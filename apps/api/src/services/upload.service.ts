@@ -12,7 +12,7 @@ const MAX_INPUT_PIXELS = 40_000_000;
 
 interface UploadImageInput {
   buffer: Buffer;
-  folder: "products" | "categories";
+  folder: "products" | "categories" | "bundles";
 }
 
 /**
