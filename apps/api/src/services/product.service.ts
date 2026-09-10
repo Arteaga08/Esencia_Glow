@@ -2,12 +2,14 @@ import { Types } from "mongoose";
 import type { ListQuery, PaginationMeta, ProductStatus } from "@esencia-glow/shared";
 import { Product, type ProductDocument } from "../models/product.model.js";
 import { Category } from "../models/category.model.js";
+import { Inventory } from "../models/inventory.model.js";
 import type { DimensionsCmAttrs, VariantAttributesAttrs } from "../models/product-variant.schema.js";
 import { AppError } from "../utils/app-error.js";
 import { slugify } from "../utils/slugify.js";
 import { buildMeta } from "../utils/parse-list-query.js";
 import { resolveSort } from "../utils/resolve-sort.js";
 import { buildProductFilter } from "../utils/build-product-filter.js";
+import { withTransaction } from "../utils/with-transaction.js";
 import { buildAdminProduct, type AdminProduct, type LeanProduct } from "./catalog-dto.js";
 
 const PRODUCT_SORT_FIELDS = ["createdAt", "updatedAt", "name", "minPrice", "status"] as const;
@@ -61,19 +63,42 @@ async function resolveCategoryIds(categoryId: string): Promise<Types.ObjectId[]>
   return [id, ...children.map((child) => child._id)];
 }
 
+/**
+ * Crea el producto y la fila de inventario (0/0) de cada una de sus variantes
+ * en la misma transacción: si `Inventory.insertMany` fallara después de
+ * `product.save()` (por ejemplo, un SKU ya usado por una fila de inventario
+ * huérfana), el producto tampoco debe quedar creado — de lo contrario
+ * quedarían variantes que nunca podrán venderse, sin que nada lo señale.
+ */
 async function createProduct(input: CreateProductInput): Promise<ProductDocument> {
   await assertCategoryExists(input.categoryId);
 
-  const product = new Product({
-    name: input.name,
-    slug: slugify(input.name),
-    description: input.description,
-    shortDescription: input.shortDescription,
-    categoryId: input.categoryId,
-    variants: input.variants,
+  return withTransaction(async (session) => {
+    const product = new Product({
+      name: input.name,
+      slug: slugify(input.name),
+      description: input.description,
+      shortDescription: input.shortDescription,
+      categoryId: input.categoryId,
+      variants: input.variants,
+    });
+    await product.save({ session });
+
+    if (product.variants.length > 0) {
+      await Inventory.insertMany(
+        product.variants.map((variant) => ({
+          productId: product._id,
+          variantId: variant._id,
+          sku: variant.sku,
+          onHand: 0,
+          reserved: 0,
+        })),
+        { session, ordered: true },
+      );
+    }
+
+    return product;
   });
-  await product.save();
-  return product;
 }
 
 async function getProductDocument(id: string): Promise<ProductDocument> {

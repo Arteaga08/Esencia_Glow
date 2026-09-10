@@ -65,6 +65,9 @@ importers:
       multer:
         specifier: ^2.3.0
         version: 2.3.0
+      node-cron:
+        specifier: ^4.6.0
+        version: 4.6.0
       otplib:
         specifier: ^12.0.1
         version: 12.0.1
@@ -1779,6 +1782,10 @@ packages:
   node-addon-api@8.9.2:
     resolution: {integrity: sha512-VijLXbi3UACN69I0JVXJsX4tjACjNoQDgv2gTF6sx2wWEi8tkSg2eX8p5gSIFi8z2+DL3oHmY6OyKce38SDolg==}
     engines: {node: ^18 || ^20 || >= 21}
+
+  node-cron@4.6.0:
+    resolution: {integrity: sha512-Si/bzYiKRHOB8/a99T2+SDGN582ONDMSTlJr5oCkT6GtnqPjZ2s10eoQRYkW9ZHwjVxONL+W8Fb+qR0AHMQsdg==}
+    engines: {node: '>=20'}
 
   node-gyp-build@4.8.4:
     resolution: {integrity: sha512-LA4ZjwlnUblHVgq0oBF3Jl/6h/Nvs5fzBLwdEF4nuxnFdsfajde4WfxtJr3CaiH+F6ewcIB/q4jQ4UzPyid+CQ==}
@@ -3889,6 +3896,8 @@ snapshots:
       - supports-color
 
   node-addon-api@8.9.2: {}
+
+  node-cron@4.6.0: {}
 
   node-gyp-build@4.8.4: {}
 
