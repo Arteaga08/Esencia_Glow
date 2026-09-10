@@ -116,7 +116,10 @@ function assertLineQuantitiesWithinLimit(orderedLines: Map<string, number>): voi
   }
 }
 
-async function reserveStock(input: ReserveStockInput): Promise<StockReservationDocument> {
+async function reserveStock(
+  input: ReserveStockInput,
+  session?: ClientSession,
+): Promise<StockReservationDocument> {
   const orderedLines = normalizeLines(input.lines);
   assertLineQuantitiesWithinLimit(orderedLines);
 
@@ -165,7 +168,16 @@ async function reserveStock(input: ReserveStockInput): Promise<StockReservationD
       }
       throw error;
     }
-  });
+  }, session);
+}
+
+type CommitOutcome = "committed" | "already_committed" | "already_released";
+
+interface CommitResult {
+  reservation: StockReservationDocument;
+  /** true solo si ESTA llamada hizo la transición active -> committed. */
+  transitioned: boolean;
+  outcome: CommitOutcome;
 }
 
 /**
@@ -174,53 +186,103 @@ async function reserveStock(input: ReserveStockInput): Promise<StockReservationD
  * conflictúa y reintenta viendo ya el estado terminal, sin llegar a tocar
  * `Inventory`. Un `null` no es un no-op silencioso: se relee para ramificar
  * (ver tabla de estados en el plan de 1.4).
+ *
+ * A diferencia de la versión de 1.4, esta función NUNCA lanza para el caso
+ * `already_released` — devuelve el `outcome` para que el caller decida. Un
+ * `throw` aquí, cuando se compone dentro de la transacción de otro (p. ej.
+ * `markOrderPaid` en 1.5), abortaría TAMBIÉN la escritura del caller y
+ * dejaría una orden `pending` con el cliente ya cobrado. El wrapper
+ * `commitReservation` de abajo restaura ese throw para el uso standalone.
  */
-async function commitReservation(reservationId: string): Promise<StockReservationDocument> {
-  return withTransaction(async (session) => {
-    const claimed = await StockReservation.findOneAndUpdate(
-      { _id: reservationId, status: ReservationStatus.ACTIVE },
-      { $set: { status: ReservationStatus.COMMITTED, purgeAt: computePurgeAt() } },
-      { new: true, session },
-    );
+async function commitReservationCore(
+  reservationId: string,
+  session: ClientSession,
+): Promise<CommitResult> {
+  const claimed = await StockReservation.findOneAndUpdate(
+    { _id: reservationId, status: ReservationStatus.ACTIVE },
+    { $set: { status: ReservationStatus.COMMITTED, purgeAt: computePurgeAt() } },
+    { new: true, session },
+  );
 
-    if (claimed) {
-      for (const line of claimed.lines) {
-        const updated = await Inventory.findOneAndUpdate(
-          { variantId: line.variantId, reserved: { $gte: line.quantity } },
-          { $inc: { onHand: -line.quantity, reserved: -line.quantity } },
-          { new: true, session },
+  if (claimed) {
+    for (const line of claimed.lines) {
+      const updated = await Inventory.findOneAndUpdate(
+        { variantId: line.variantId, reserved: { $gte: line.quantity } },
+        { $inc: { onHand: -line.quantity, reserved: -line.quantity } },
+        { new: true, session },
+      );
+      if (!updated) {
+        throw new AppError(
+          `Inventario inconsistente al comprometer la variante ${line.variantId.toString()}`,
+          409,
         );
-        if (!updated) {
-          throw new AppError(
-            `Inventario inconsistente al comprometer la variante ${line.variantId.toString()}`,
-            409,
-          );
-        }
       }
-      return claimed;
     }
+    return { reservation: claimed, transitioned: true, outcome: "committed" };
+  }
 
-    const existing = await StockReservation.findById(reservationId).session(session);
-    if (!existing) throw new AppError("Reserva no encontrada", 404);
-    if (existing.status === ReservationStatus.COMMITTED) return existing;
+  const existing = await StockReservation.findById(reservationId).session(session);
+  if (!existing) throw new AppError("Reserva no encontrada", 404);
+  if (existing.status === ReservationStatus.COMMITTED) {
+    return { reservation: existing, transitioned: false, outcome: "already_committed" };
+  }
 
-    // existing.status === RELEASED: cobramos algo cuyo stock ya devolvimos.
-    // No es un no-op — es un incidente que requiere revisión (1.5 lo conecta
-    // a un flujo de reconciliación manual).
-    logger.error(
-      { reservationId },
-      "Intento de comprometer una reserva ya liberada — el stock ya fue devuelto",
-    );
-    await recordAudit({
-      action: InventoryAction.COMMIT_ON_RELEASED,
-      targetId: existing._id,
-      metadata: { cartRef: existing.cartRef },
-    });
-    throw new AppError(
-      "Esta reserva ya fue liberada: el stock ya no está apartado.",
-      409,
-    );
+  // existing.status === RELEASED: cobramos algo cuyo stock ya devolvimos.
+  // No es un no-op — es un incidente que requiere revisión. El log y la
+  // auditoría los decide el DUEÑO de la transacción (ver
+  // commitReservationDetailed), nunca este core.
+  return { reservation: existing, transitioned: false, outcome: "already_released" };
+}
+
+/** Efecto no-DB del outcome `already_released` — separado para que el
+ * DUEÑO de la transacción lo ejecute después de SU propio commit, nunca
+ * dentro de un callback que `session.withTransaction` puede reintentar. */
+async function auditCommitOnReleased(reservation: StockReservationDocument): Promise<void> {
+  logger.error(
+    { reservationId: reservation._id.toString() },
+    "Intento de comprometer una reserva ya liberada — el stock ya fue devuelto",
+  );
+  await recordAudit({
+    action: InventoryAction.COMMIT_ON_RELEASED,
+    targetId: reservation._id,
+    metadata: { cartRef: reservation.cartRef },
   });
+}
+
+/**
+ * Reusa una sesión ajena tal cual (§A del plan de 1.5): si `session` viene
+ * dada, el caller es dueño de la transacción y de sus efectos no-DB — esta
+ * función NO audita en ese caso. Sin `session`, se comporta como dueña de
+ * su propia transacción y audita el caso `already_released` ella misma.
+ */
+async function commitReservationDetailed(
+  reservationId: string,
+  session?: ClientSession,
+): Promise<CommitResult> {
+  const result = await withTransaction((s) => commitReservationCore(reservationId, s), session);
+
+  if (!session && result.outcome === "already_released") {
+    await auditCommitOnReleased(result.reservation);
+  }
+
+  return result;
+}
+
+/**
+ * Wrapper delgado que preserva el contrato de 1.4: lanza 409 para
+ * `already_released` en vez de devolver el outcome. Solo tiene sentido para
+ * el uso standalone (sin `session` ajena) — la composición transaccional de
+ * 1.5 usa `commitReservationDetailed` directo.
+ */
+async function commitReservation(
+  reservationId: string,
+  session?: ClientSession,
+): Promise<StockReservationDocument> {
+  const result = await commitReservationDetailed(reservationId, session);
+  if (result.outcome === "already_released") {
+    throw new AppError("Esta reserva ya fue liberada: el stock ya no está apartado.", 409);
+  }
+  return result.reservation;
 }
 
 interface InconsistentVariant {
@@ -242,65 +304,89 @@ interface ReleaseResult {
   inconsistentVariants: InconsistentVariant[];
 }
 
-async function releaseReservation(reservationId: string): Promise<StockReservationDocument> {
-  const { reservation } = await releaseReservationDetailed(reservationId);
+async function releaseReservation(
+  reservationId: string,
+  session?: ClientSession,
+): Promise<StockReservationDocument> {
+  const { reservation } = await releaseReservationDetailed(reservationId, session);
   return reservation;
 }
 
-async function releaseReservationDetailed(reservationId: string): Promise<ReleaseResult> {
-  const result = await withTransaction(async (session) => {
-    const claimed = await StockReservation.findOneAndUpdate(
-      { _id: reservationId, status: ReservationStatus.ACTIVE },
-      { $set: { status: ReservationStatus.RELEASED, purgeAt: computePurgeAt() } },
-      { new: true, session },
-    );
+async function releaseReservationCore(
+  reservationId: string,
+  session: ClientSession,
+): Promise<ReleaseResult> {
+  const claimed = await StockReservation.findOneAndUpdate(
+    { _id: reservationId, status: ReservationStatus.ACTIVE },
+    { $set: { status: ReservationStatus.RELEASED, purgeAt: computePurgeAt() } },
+    { new: true, session },
+  );
 
-    if (claimed) {
-      // Local a ESTA invocación del callback: un reintento por WriteConflict
-      // vuelve a empezar el `for` desde cero con un array fresco, así que
-      // nunca se acumulan incidentes de intentos abortados.
-      const inconsistentVariants: InconsistentVariant[] = [];
+  if (claimed) {
+    // Local a ESTA invocación del callback: un reintento por WriteConflict
+    // vuelve a empezar el `for` desde cero con un array fresco, así que
+    // nunca se acumulan incidentes de intentos abortados.
+    const inconsistentVariants: InconsistentVariant[] = [];
 
-      for (const line of claimed.lines) {
-        const updated = await Inventory.findOneAndUpdate(
-          { variantId: line.variantId, reserved: { $gte: line.quantity } },
-          { $inc: { reserved: -line.quantity } },
-          { new: true, session },
+    for (const line of claimed.lines) {
+      const updated = await Inventory.findOneAndUpdate(
+        { variantId: line.variantId, reserved: { $gte: line.quantity } },
+        { $inc: { reserved: -line.quantity } },
+        { new: true, session },
+      );
+      if (!updated) {
+        // Asimetría deliberada frente a commit: si no matchea, logueamos y
+        // seguimos. La reserva YA quedó marcada `released` arriba; si
+        // abortáramos aquí, quedaría irreleaseable para siempre y el cron
+        // la reintentaría cada minuto sin poder nunca completar el release.
+        logger.error(
+          { reservationId, variantId: line.variantId.toString() },
+          "No se pudo decrementar reserved al liberar — el inventario ya estaba por debajo de lo esperado",
         );
-        if (!updated) {
-          // Asimetría deliberada frente a commit: si no matchea, logueamos y
-          // seguimos. La reserva YA quedó marcada `released` arriba; si
-          // abortáramos aquí, quedaría irreleaseable para siempre y el cron
-          // la reintentaría cada minuto sin poder nunca completar el release.
-          logger.error(
-            { reservationId, variantId: line.variantId.toString() },
-            "No se pudo decrementar reserved al liberar — el inventario ya estaba por debajo de lo esperado",
-          );
-          inconsistentVariants.push({ variantId: line.variantId, sku: line.sku });
-        }
+        inconsistentVariants.push({ variantId: line.variantId, sku: line.sku });
       }
-      return { reservation: claimed, transitioned: true, inconsistentVariants };
     }
+    return { reservation: claimed, transitioned: true, inconsistentVariants };
+  }
 
-    const existing = await StockReservation.findById(reservationId).session(session);
-    if (!existing) throw new AppError("Reserva no encontrada", 404);
-    if (existing.status === ReservationStatus.RELEASED) {
-      return { reservation: existing, transitioned: false, inconsistentVariants: [] };
-    }
+  const existing = await StockReservation.findById(reservationId).session(session);
+  if (!existing) throw new AppError("Reserva no encontrada", 404);
+  if (existing.status === ReservationStatus.RELEASED) {
+    return { reservation: existing, transitioned: false, inconsistentVariants: [] };
+  }
 
-    // existing.status === COMMITTED: no se puede devolver stock ya vendido.
-    throw new AppError("Esta reserva ya fue comprometida: no se puede liberar.", 409);
-  });
+  // existing.status === COMMITTED: no se puede devolver stock ya vendido.
+  throw new AppError("Esta reserva ya fue comprometida: no se puede liberar.", 409);
+}
 
-  // La auditoría corre DESPUÉS de que la transacción resolvió — nunca dentro
-  // del callback (mismo motivo que arriba): así el registro refleja solo el
-  // intento que de verdad ganó, nunca uno que Mongo abortó y reintentó.
-  for (const variant of result.inconsistentVariants) {
+/** Efecto no-DB de los incidentes de release — separado por el mismo motivo
+ * que `auditCommitOnReleased`: solo lo ejecuta quien es dueño de la
+ * transacción, después de que resolvió. */
+async function auditReleaseMismatches(
+  reservationId: string,
+  inconsistentVariants: readonly InconsistentVariant[],
+): Promise<void> {
+  for (const variant of inconsistentVariants) {
     await recordAudit({
       action: InventoryAction.RELEASE_INVENTORY_MISMATCH,
       targetId: variant.variantId,
       metadata: { reservationId, sku: variant.sku },
     });
+  }
+}
+
+async function releaseReservationDetailed(
+  reservationId: string,
+  session?: ClientSession,
+): Promise<ReleaseResult> {
+  const result = await withTransaction((s) => releaseReservationCore(reservationId, s), session);
+
+  // La auditoría corre DESPUÉS de que la transacción resolvió, y SOLO
+  // cuando esta llamada es dueña de la transacción (sin `session` ajena) —
+  // el mismo criterio que `commitReservationDetailed`. Con una sesión
+  // ajena, el compositor decide cuándo y si auditar, tras SU propio commit.
+  if (!session) {
+    await auditReleaseMismatches(reservationId, result.inconsistentVariants);
   }
 
   return result;
@@ -340,9 +426,19 @@ async function listReservations(
 export {
   reserveStock,
   commitReservation,
+  commitReservationDetailed,
+  auditCommitOnReleased,
   releaseReservation,
   releaseReservationDetailed,
+  auditReleaseMismatches,
   getReservation,
   listReservations,
 };
-export type { ReserveStockInput, ReserveStockLineInput, ListReservationsInput, ReleaseResult };
+export type {
+  ReserveStockInput,
+  ReserveStockLineInput,
+  ListReservationsInput,
+  ReleaseResult,
+  CommitResult,
+  CommitOutcome,
+};

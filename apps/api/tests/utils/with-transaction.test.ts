@@ -83,4 +83,26 @@ describe("utils/withTransaction", () => {
     expect(endSessionSpy).toHaveBeenCalledTimes(1);
     startSessionSpy.mockRestore();
   });
+
+  it("acepta un maxAttempts propio, más bajo que el default de 50, para transacciones largas (checkout)", async () => {
+    const realSession = await mongoose.startSession();
+    const startSessionSpy = vi.spyOn(mongoose, "startSession").mockResolvedValueOnce(realSession);
+    const withTransactionSpy = vi
+      .spyOn(realSession, "withTransaction")
+      .mockImplementation(async (cb: () => Promise<unknown>) => {
+        // El driver real reintenta el callback ante un WriteConflict; lo
+        // simulamos invocándolo varias veces en la misma llamada.
+        for (let i = 0; i < 4; i++) {
+          await cb();
+        }
+      });
+
+    await expect(withTransaction(async () => "ok", undefined, 3)).rejects.toMatchObject({
+      statusCode: 409,
+    });
+
+    expect(withTransactionSpy).toHaveBeenCalledTimes(1);
+    withTransactionSpy.mockRestore();
+    startSessionSpy.mockRestore();
+  });
 });
