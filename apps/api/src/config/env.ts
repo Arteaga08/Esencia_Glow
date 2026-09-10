@@ -80,12 +80,33 @@ function buildEnv() {
     stripeSecretKey: requireInProduction("STRIPE_SECRET_KEY", nodeEnv),
     stripeWebhookSecret: requireInProduction("STRIPE_WEBHOOK_SECRET", nodeEnv),
     resendApiKey: requireInProduction("RESEND_API_KEY", nodeEnv),
+    // Remitente de correo transaccional. En dev, sin dominio verificado en
+    // Resend, se usa el remitente sandbox que Resend permite sin configurar.
+    resendFromEmail: process.env.RESEND_FROM_EMAIL ?? "onboarding@resend.dev",
+
+    // Vida de los tokens de sesión. El access token es corto porque no es
+    // revocable (es JWT); el refresh es largo pero vive hasheado en DB y
+    // es revocable de verdad (ver models/session.model.ts).
+    accessTokenTtl: process.env.ACCESS_TOKEN_TTL ?? "15m",
+    refreshTokenTtlDays: Number(process.env.REFRESH_TOKEN_TTL_DAYS ?? 30),
 
     // Integraciones puramente operativas/de notificación: opcionales siempre,
     // incluso en producción. Su ausencia se degrada a loguear, nunca a bloquear.
     telegramBotToken: process.env.TELEGRAM_BOT_TOKEN,
     adminAlertEmail: process.env.ADMIN_ALERT_EMAIL,
     sentryDsn: process.env.SENTRY_DSN,
+
+    // Solo leídas por src/scripts/seed-admin.ts, nunca por el server. Ausentes
+    // en producción salvo que se ejecute el seed explícitamente ahí.
+    seedAdminEmail: process.env.SEED_ADMIN_EMAIL,
+    seedAdminPassword: process.env.SEED_ADMIN_PASSWORD,
+    seedAdminRole: process.env.SEED_ADMIN_ROLE,
+
+    // Placeholders documentados para el milestone 1.3 (uploadService); no se
+    // leen todavía en este milestone.
+    cloudinaryCloudName: process.env.CLOUDINARY_CLOUD_NAME,
+    cloudinaryApiKey: process.env.CLOUDINARY_API_KEY,
+    cloudinaryApiSecret: process.env.CLOUDINARY_API_SECRET,
   });
 }
 

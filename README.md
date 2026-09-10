@@ -6,8 +6,8 @@ E-commerce de skincare y lifestyle. Monorepo pnpm: `apps/api` (Express 5 + TypeS
 ## Requisitos
 
 - Node ≥ 22, pnpm ≥ 10
-- MongoDB corriendo localmente (o una URI remota) para desarrollo — no se requiere para los
-  tests, que usan `mongodb-memory-server`.
+- Un cluster de **MongoDB Atlas** para desarrollo (base `esencia_glow_dev`) — no se requiere
+  para los tests, que usan `mongodb-memory-server`.
 
 ## Arranque en desarrollo
 
@@ -42,14 +42,19 @@ ignora cualquier `.env`/`.env.*` real y re-permite explícitamente los `.example
 | `JWT_SECRET` | Fail-fast, siempre | ≥ 48 caracteres — `openssl rand -base64 48` |
 | `JWT_REFRESH_SECRET` | Fail-fast, siempre | ≥ 48 caracteres, **distinto** de `JWT_SECRET` |
 | `ENCRYPTION_KEY` | Fail-fast, siempre | ≥ 32 caracteres. Cifra secretos at-rest (2FA, Milestone 1.2) |
-| `MONGODB_URI` | Fail-fast, siempre | Debe incluir el **nombre de base explícito** |
+| `MONGODB_URI` | Fail-fast, siempre | Atlas SRV (`mongodb+srv://…`). Debe incluir el **nombre de base explícito** en el path (`/esencia_glow_dev`), antes del `?` |
 | `CLIENT_URL` | Fail-fast en producción | Whitelist de CORS/CSRF. Default `localhost:3000` en dev |
 | `STRIPE_SECRET_KEY` | Fail-fast en producción | Requerida para el flujo de pagos (Milestone 1.6) |
 | `STRIPE_WEBHOOK_SECRET` | Fail-fast en producción | Verificación de firma del webhook de Stripe |
 | `RESEND_API_KEY` | Fail-fast en producción | Correo transaccional (verificación de email, reset) |
+| `RESEND_FROM_EMAIL` | Con default | Remitente. Default `onboarding@resend.dev` (sandbox); en producción requiere dominio verificado en Resend |
+| `ACCESS_TOKEN_TTL` | Con default | Vida del JWT de acceso. Default `15m` |
+| `REFRESH_TOKEN_TTL_DAYS` | Con default | Vida del refresh token (revocable, hasheado en DB). Default `30` |
 | `TELEGRAM_BOT_TOKEN` | Opcional, siempre | Alertas operativas. Su ausencia degrada a loguear |
 | `ADMIN_ALERT_EMAIL` | Opcional, siempre | Canal secundario de alerta operativa |
 | `SENTRY_DSN` | Opcional, siempre | Error tracking. Su ausencia no bloquea nada |
+| `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` / `SEED_ADMIN_ROLE` | Opcional, siempre | Solo los lee `pnpm --filter @esencia-glow/api seed:admin`, nunca el server |
+| `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` | Placeholder | Reservadas para `uploadService` (Milestone 1.3); no se leen todavía |
 
 En **desarrollo**, las variables marcadas "fail-fast en producción" son opcionales: el server
 arranca sin ellas, y cualquier ruta que las necesite responde `503` explícito en vez de fingir
