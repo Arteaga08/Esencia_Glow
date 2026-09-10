@@ -3,9 +3,11 @@ import { Badge } from "./badge.model.js";
 import { Bundle } from "./bundle.model.js";
 import { Category } from "./category.model.js";
 import { Inventory } from "./inventory.model.js";
+import { Order } from "./order.model.js";
 import { Product } from "./product.model.js";
 import { Session } from "./session.model.js";
 import { Settings } from "./settings.model.js";
+import { ShippingQuote } from "./shipping-quote.model.js";
 import { StockReservation } from "./stock-reservation.model.js";
 import { User } from "./user.model.js";
 import { VerificationToken } from "./verification-token.model.js";
@@ -28,9 +30,11 @@ const models = [
   Bundle,
   Category,
   Inventory,
+  Order,
   Product,
   Session,
   Settings,
+  ShippingQuote,
   StockReservation,
   User,
   VerificationToken,

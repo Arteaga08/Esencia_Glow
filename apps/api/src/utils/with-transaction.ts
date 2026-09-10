@@ -40,10 +40,16 @@ const TRANSACTION_OPTIONS = {
  * Cap de intentos: el driver no expone un máximo (solo corta a los 120s). Un
  * contador propio traduce el agotamiento a un 409 explícito en vez de dejar
  * que el caller vea un 500 después de más de un minuto de reintentos.
+ * `maxAttempts` es configurable (default 50) porque una transacción larga
+ * — el checkout de 1.5 toca varias colecciones y re-precia todo en cada
+ * reintento — puede acercarse al límite de vida de transacción del
+ * servidor mucho antes de agotar 50 intentos; ese caller pasa un techo
+ * más bajo.
  */
 async function withTransaction<T>(
   fn: (session: ClientSession) => Promise<T>,
   session?: ClientSession,
+  maxAttempts: number = MAX_ATTEMPTS,
 ): Promise<T> {
   if (session) {
     return fn(session);
@@ -56,7 +62,7 @@ async function withTransaction<T>(
   try {
     await ownSession.withTransaction(async () => {
       attempts += 1;
-      if (attempts > MAX_ATTEMPTS) {
+      if (attempts > maxAttempts) {
         throw new AppError("El inventario está siendo actualizado, intenta de nuevo.", 409);
       }
       result = await fn(ownSession);
