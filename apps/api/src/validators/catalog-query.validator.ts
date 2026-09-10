@@ -1,5 +1,5 @@
 import Joi from "joi";
-import { ProductStatus } from "@esencia-glow/shared";
+import { ProductStatus, BadgeColor } from "@esencia-glow/shared";
 import { listQueryBaseSchema } from "./list-query.validator.js";
 
 /**
@@ -21,6 +21,10 @@ const listProductsQuerySchema = listQueryBaseSchema.keys({
   maxPrice: Joi.number().integer().min(0),
 });
 
+const listBadgesQuerySchema = listQueryBaseSchema.keys({
+  color: Joi.string().valid(...Object.values(BadgeColor)),
+});
+
 const publicCategoryQuerySchema = Joi.object({});
 
 const publicProductQuerySchema = listQueryBaseSchema.keys({
@@ -32,6 +36,7 @@ const publicProductQuerySchema = listQueryBaseSchema.keys({
 export {
   listCategoriesQuerySchema,
   listProductsQuerySchema,
+  listBadgesQuerySchema,
   publicCategoryQuerySchema,
   publicProductQuerySchema,
 };

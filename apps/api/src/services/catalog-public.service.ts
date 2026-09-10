@@ -1,6 +1,8 @@
+import type { Types } from "mongoose";
 import type { ListQuery, PaginationMeta, PublicCategory, PublicCategoryNode, PublicProduct } from "@esencia-glow/shared";
 import { Product } from "../models/product.model.js";
 import { Category } from "../models/category.model.js";
+import { Badge } from "../models/badge.model.js";
 import { AppError } from "../utils/app-error.js";
 import { buildMeta } from "../utils/parse-list-query.js";
 import { resolveSort } from "../utils/resolve-sort.js";
@@ -10,6 +12,7 @@ import {
   buildPublicProduct,
   buildPublicCategory,
   buildCategoryTree,
+  type LeanBadge,
   type LeanCategory,
   type LeanProduct,
 } from "./catalog-dto.js";
@@ -28,6 +31,15 @@ async function resolveCategoryRef(categoryId: string): Promise<{ id: string; nam
   // pero si pasa, es mejor un 404 explícito que exponer un producto roto.
   if (!category) throw new AppError("Producto no encontrado", 404);
   return { id: category._id.toString(), name: category.name, slug: category.slug };
+}
+
+/** Batch por `Set` de ids (incluye `null` filtrado): una sola query, nunca N+1. */
+async function resolveBadgeRefs(badgeIds: (Types.ObjectId | null)[]): Promise<Map<string, LeanBadge>> {
+  const uniqueIds = [...new Set(badgeIds.filter((id): id is Types.ObjectId => id !== null).map((id) => id.toString()))];
+  if (uniqueIds.length === 0) return new Map();
+
+  const badges = await Badge.find({ _id: { $in: uniqueIds } }).lean<LeanBadge[]>();
+  return new Map(badges.map((badge) => [badge._id.toString(), badge]));
 }
 
 async function listPublicProducts(
@@ -62,10 +74,15 @@ async function listPublicProducts(
   const uniqueCategoryIds = [...new Set(documents.map((product) => product.categoryId.toString()))];
   const resolvedRefs = await Promise.all(uniqueCategoryIds.map((id) => resolveCategoryRef(id)));
   const categoryRefs = new Map(uniqueCategoryIds.map((id, index) => [id, resolvedRefs[index]!]));
+  const badgeRefs = await resolveBadgeRefs(documents.map((product) => product.badgeId));
 
   return {
     products: documents.map((product) =>
-      buildPublicProduct(product, categoryRefs.get(product.categoryId.toString())!),
+      buildPublicProduct(
+        product,
+        categoryRefs.get(product.categoryId.toString())!,
+        product.badgeId ? badgeRefs.get(product.badgeId.toString()) : undefined,
+      ),
     ),
     meta: buildMeta(total, input),
   };
@@ -80,7 +97,10 @@ async function getPublicProductBySlug(slug: string): Promise<PublicProduct> {
   if (!product) throw new AppError("Producto no encontrado", 404);
 
   const category = await resolveCategoryRef(product.categoryId.toString());
-  return buildPublicProduct(product, category);
+  const badge = product.badgeId
+    ? await Badge.findById(product.badgeId).lean<LeanBadge>()
+    : null;
+  return buildPublicProduct(product, category, badge ?? undefined);
 }
 
 async function getPublicCategoryTree(): Promise<PublicCategoryNode[]> {

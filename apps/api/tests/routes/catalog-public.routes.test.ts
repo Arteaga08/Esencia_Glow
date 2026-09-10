@@ -127,4 +127,32 @@ describe("routes/catalog-public — productos y categorías", () => {
     expect(response.status).toBe(200);
     expect(response.body.meta).toMatchObject({ page: 1, limit: 1, total: 1 });
   });
+
+  it("resuelve la badge del producto (texto + color) sin exponer su id", async () => {
+    const { agent } = await createAdminSession(app);
+    const { rootId } = await seedCatalog(agent);
+    const badge = await agent.post("/api/v1/admin/badges").send({ text: "Nuevo", color: "success" });
+
+    const withBadge = await agent.post("/api/v1/admin/products").send({
+      name: "Tónico Facial",
+      description: "Tónico hidratante",
+      categoryId: rootId,
+      badgeId: badge.body.data.id,
+      variants: [sampleVariant({ sku: "TON-100ML" })],
+    });
+    await agent.patch(`/api/v1/admin/products/${withBadge.body.data.id}`).send({ status: "active" });
+
+    const response = await request(app).get("/api/v1/products/tonico-facial");
+    expect(response.status).toBe(200);
+    expect(response.body.data.badge).toEqual({ text: "Nuevo", color: "success" });
+  });
+
+  it("un producto sin badge no trae la clave badge", async () => {
+    const { agent } = await createAdminSession(app);
+    await seedCatalog(agent);
+
+    const response = await request(app).get("/api/v1/products/serum-de-vitamina-c");
+    expect(response.status).toBe(200);
+    expect(response.body.data.badge).toBeUndefined();
+  });
 });

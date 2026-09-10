@@ -1,4 +1,5 @@
 import { AuditLog } from "./audit-log.model.js";
+import { Badge } from "./badge.model.js";
 import { Bundle } from "./bundle.model.js";
 import { Category } from "./category.model.js";
 import { Inventory } from "./inventory.model.js";
@@ -23,6 +24,7 @@ import { VerificationToken } from "./verification-token.model.js";
  */
 const models = [
   AuditLog,
+  Badge,
   Bundle,
   Category,
   Inventory,

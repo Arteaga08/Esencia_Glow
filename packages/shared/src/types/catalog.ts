@@ -1,4 +1,5 @@
 import type { Currency } from "../constants/currency.js";
+import type { PublicBadge } from "./badge.js";
 
 /**
  * DTOs públicos del catálogo. Los arma `catalog-dto.ts` en la API — es el
@@ -59,6 +60,8 @@ interface PublicProduct {
   /** Precio desde, derivado de las variantes activas. Centavos. */
   minPrice: number;
   currency: Currency;
+  /** A lo más una por producto (Product.badgeId). Ausente si no tiene. */
+  badge?: PublicBadge;
 }
 
 interface PublicCategory {

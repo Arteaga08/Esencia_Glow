@@ -1,6 +1,8 @@
 import type { Types } from "mongoose";
 import {
   CATALOG_CURRENCY,
+  type BadgeColor,
+  type PublicBadge,
   type PublicCategory,
   type PublicCategoryNode,
   type PublicProduct,
@@ -107,6 +109,26 @@ function buildCategoryTree(categories: LeanCategory[]): PublicCategoryNode[] {
   }));
 }
 
+interface LeanBadge {
+  _id: Types.ObjectId;
+  text: string;
+  color: BadgeColor;
+}
+
+interface AdminBadge {
+  id: string;
+  text: string;
+  color: BadgeColor;
+}
+
+function buildAdminBadge(badge: LeanBadge): AdminBadge {
+  return { id: badge._id.toString(), text: badge.text, color: badge.color };
+}
+
+function buildPublicBadge(badge: LeanBadge): PublicBadge {
+  return { text: badge.text, color: badge.color };
+}
+
 interface LeanVariant extends Omit<ProductVariantAttrs, "attributes" | "dimensionsCm"> {
   _id: Types.ObjectId;
   // Mongoose omite un subdocumento embebido vacío al guardar (`minimize`),
@@ -122,6 +144,7 @@ interface LeanProduct {
   description: string;
   shortDescription?: string;
   categoryId: Types.ObjectId;
+  badgeId: Types.ObjectId | null;
   status: string;
   images: LeanMediaImage[];
   variants: LeanVariant[];
@@ -139,6 +162,7 @@ interface AdminProduct {
   description: string;
   shortDescription?: string;
   categoryId: string;
+  badgeId: string | null;
   status: string;
   images: PublicProductImage[];
   variants: AdminVariant[];
@@ -190,6 +214,7 @@ function buildAdminProduct(product: LeanProduct): AdminProduct {
     description: product.description,
     ...(product.shortDescription ? { shortDescription: product.shortDescription } : {}),
     categoryId: product.categoryId.toString(),
+    badgeId: product.badgeId ? product.badgeId.toString() : null,
     status: product.status,
     images: product.images.map((image) => buildImageDto(image)!),
     variants: product.variants.map(buildAdminVariant),
@@ -204,6 +229,7 @@ function buildAdminProduct(product: LeanProduct): AdminProduct {
 function buildPublicProduct(
   product: LeanProduct,
   category: { id: string; name: string; slug: string },
+  badge?: LeanBadge,
 ): PublicProduct {
   return {
     id: product._id.toString(),
@@ -216,6 +242,7 @@ function buildPublicProduct(
     variants: product.variants.filter((variant) => variant.isActive).map(buildPublicVariant),
     minPrice: product.minPrice,
     currency: CATALOG_CURRENCY,
+    ...(badge ? { badge: buildPublicBadge(badge) } : {}),
   };
 }
 
@@ -223,6 +250,8 @@ export {
   buildAdminCategory,
   buildPublicCategory,
   buildCategoryTree,
+  buildAdminBadge,
+  buildPublicBadge,
   buildAdminProduct,
   buildPublicProduct,
   buildAdminVariant,
@@ -230,4 +259,13 @@ export {
   buildImageDto,
   buildAttributesDto,
 };
-export type { LeanCategory, LeanMediaImage, LeanProduct, LeanVariant, AdminCategory, AdminProduct };
+export type {
+  LeanCategory,
+  LeanMediaImage,
+  LeanProduct,
+  LeanVariant,
+  LeanBadge,
+  AdminCategory,
+  AdminProduct,
+  AdminBadge,
+};

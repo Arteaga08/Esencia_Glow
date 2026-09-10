@@ -39,6 +39,7 @@ const createProductSchema = Joi.object({
   description: Joi.string().trim().min(1).max(5000).required(),
   shortDescription: Joi.string().trim().max(300).allow(""),
   categoryId: Joi.string().hex().length(24).required(),
+  badgeId: Joi.string().hex().length(24).allow(null),
   variants: Joi.array()
     .items(variantSchema)
     .min(1)
@@ -55,6 +56,7 @@ const updateProductSchema = Joi.object({
   description: Joi.string().trim().min(1).max(5000),
   shortDescription: Joi.string().trim().max(300).allow(""),
   categoryId: Joi.string().hex().length(24),
+  badgeId: Joi.string().hex().length(24).allow(null),
   status: Joi.string().valid("draft", "active", "archived"),
 }).min(1);
 

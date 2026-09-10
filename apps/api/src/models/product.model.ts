@@ -20,6 +20,9 @@ interface ProductAttrs {
   description: string;
   shortDescription?: string;
   categoryId: Types.ObjectId;
+  // A lo más una badge por producto: asignar otra reemplaza esta referencia,
+  // nunca un arreglo (decisión 1.4.2, esencia-glow-decisiones).
+  badgeId: Types.ObjectId | null;
   status: ProductStatus;
   // `Types.DocumentArray` (no un array plano) para que `.id()` y el
   // `.deleteOne()` de cada elemento (usados en catalog-image.service.ts y
@@ -45,6 +48,7 @@ const productSchema = new Schema<ProductAttrs, ProductModel>(
     description: { type: String, required: true, maxlength: 5000 },
     shortDescription: { type: String, trim: true, maxlength: 300 },
     categoryId: { type: Schema.Types.ObjectId, ref: "Category", required: true },
+    badgeId: { type: Schema.Types.ObjectId, ref: "Badge", default: null },
     status: {
       type: String,
       enum: Object.values(ProductStatus),

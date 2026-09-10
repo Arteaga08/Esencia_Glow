@@ -2,6 +2,7 @@ import { Types } from "mongoose";
 import type { ListQuery, PaginationMeta, ProductStatus } from "@esencia-glow/shared";
 import { Product, type ProductDocument } from "../models/product.model.js";
 import { Category } from "../models/category.model.js";
+import { Badge } from "../models/badge.model.js";
 import { Inventory } from "../models/inventory.model.js";
 import type { DimensionsCmAttrs, VariantAttributesAttrs } from "../models/product-variant.schema.js";
 import { AppError } from "../utils/app-error.js";
@@ -29,6 +30,7 @@ interface CreateProductInput {
   description: string;
   shortDescription?: string;
   categoryId: string;
+  badgeId?: string | null;
   variants: ProductVariantInput[];
 }
 
@@ -37,6 +39,7 @@ interface UpdateProductInput {
   description?: string;
   shortDescription?: string;
   categoryId?: string;
+  badgeId?: string | null;
   status?: ProductStatus;
 }
 
@@ -50,6 +53,11 @@ interface ListProductsInput extends ListQuery {
 async function assertCategoryExists(categoryId: string): Promise<void> {
   const exists = await Category.exists({ _id: categoryId });
   if (!exists) throw new AppError("La categoría no existe", 400);
+}
+
+async function assertBadgeExists(badgeId: string): Promise<void> {
+  const exists = await Badge.exists({ _id: badgeId });
+  if (!exists) throw new AppError("La badge no existe", 400);
 }
 
 /**
@@ -72,6 +80,7 @@ async function resolveCategoryIds(categoryId: string): Promise<Types.ObjectId[]>
  */
 async function createProduct(input: CreateProductInput): Promise<ProductDocument> {
   await assertCategoryExists(input.categoryId);
+  if (input.badgeId) await assertBadgeExists(input.badgeId);
 
   return withTransaction(async (session) => {
     const product = new Product({
@@ -80,6 +89,7 @@ async function createProduct(input: CreateProductInput): Promise<ProductDocument
       description: input.description,
       shortDescription: input.shortDescription,
       categoryId: input.categoryId,
+      badgeId: input.badgeId ?? null,
       variants: input.variants,
     });
     await product.save({ session });
@@ -113,6 +123,10 @@ async function updateProduct(id: string, input: UpdateProductInput): Promise<Pro
   if (input.categoryId !== undefined) {
     await assertCategoryExists(input.categoryId);
     product.categoryId = input.categoryId as unknown as ProductDocument["categoryId"];
+  }
+  if (input.badgeId !== undefined) {
+    if (input.badgeId) await assertBadgeExists(input.badgeId);
+    product.badgeId = input.badgeId as unknown as ProductDocument["badgeId"];
   }
   if (input.name !== undefined) {
     product.name = input.name;
