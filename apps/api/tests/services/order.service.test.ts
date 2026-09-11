@@ -44,7 +44,11 @@ describe("services/order — createOrder", () => {
 
     const reservation = await StockReservation.findById(order.reservationId);
     expect(reservation).not.toBeNull();
-    expect(order.expiresAt?.getTime()).toBe(reservation!.expiresAt.getTime());
+    // Milestone 1.6: reservation.expiresAt = order.expiresAt + margen de
+    // seguridad (RESERVATION_SAFETY_MARGIN_MINUTES) — el cierre "Stripe-first"
+    // debe actuar antes que el barrendero ciego de reservas, cambio
+    // intencional respecto al `===` de 1.5 (ver plan de 1.6 §D).
+    expect(reservation!.expiresAt.getTime()).toBe(order.expiresAt!.getTime() + 15 * 60_000);
   });
 
   it("audita RESERVATION_CREATED (emisor pendiente de 1.4, conectado en 1.5 desde el checkout)", async () => {

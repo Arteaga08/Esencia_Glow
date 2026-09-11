@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { OrderPriority, OrderStatus, PaymentState } from "@esencia-glow/shared";
+import { OrderPriority, OrderStatus, PaymentMethod, PaymentState } from "@esencia-glow/shared";
 import { describe, expect, it } from "vitest";
 import { Order } from "../../src/models/order.model.js";
 
@@ -28,7 +28,7 @@ function buildOrderAttrs(overrides: Partial<Record<string, unknown>> = {}) {
     shippingCents: 12000,
     totalCents: 112000,
     currency: "MXN",
-    payment: { provider: "stripe", state: PaymentState.PENDING, captureMethod: "automatic" },
+    payment: { provider: "stripe", method: PaymentMethod.CARD, state: PaymentState.PENDING, captureMethod: "automatic", failedAttempts: 0 },
     shippingAddress: {
       fullName: "Ana Pérez",
       phone: "5512345678",
@@ -119,12 +119,12 @@ describe("models/Order", () => {
 
   it("rechaza un payment.intentId duplicado entre dos órdenes", async () => {
     await Order.create(
-      buildOrderAttrs({ orderNumber: "EG-GGGGGGGG", payment: { provider: "stripe", state: PaymentState.SUCCEEDED, captureMethod: "automatic", intentId: "pi_123" } }),
+      buildOrderAttrs({ orderNumber: "EG-GGGGGGGG", payment: { provider: "stripe", method: PaymentMethod.CARD, state: PaymentState.CAPTURED, captureMethod: "automatic", intentId: "pi_123", failedAttempts: 0 } }),
     );
 
     await expect(
       Order.create(
-        buildOrderAttrs({ orderNumber: "EG-HHHHHHHH", payment: { provider: "stripe", state: PaymentState.SUCCEEDED, captureMethod: "automatic", intentId: "pi_123" } }),
+        buildOrderAttrs({ orderNumber: "EG-HHHHHHHH", payment: { provider: "stripe", method: PaymentMethod.CARD, state: PaymentState.CAPTURED, captureMethod: "automatic", intentId: "pi_123", failedAttempts: 0 } }),
       ),
     ).rejects.toMatchObject({ code: 11000 });
   });

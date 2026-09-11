@@ -15,6 +15,15 @@ enum OrderAction {
   ORDER_NOTE_ADDED = "order_note_added",
   ORDER_STOCK_INCIDENT = "order_stock_incident",
   SHIPPING_QUOTED = "shipping_quoted",
+  // --- Milestone 1.6: pagos con Stripe ---
+  ORDER_PAYMENT_FAILED = "order_payment_failed",
+  ORDER_PAYMENT_ANOMALY = "order_payment_anomaly",
+  ORDER_RECONCILED = "order_reconciled",
+  ORDER_REFUND_REQUESTED = "order_refund_requested",
+  ORDER_REFUNDED = "order_refunded",
+  ORDER_REFUND_FAILED = "order_refund_failed",
+  ORDER_DISPUTED = "order_disputed",
+  ORDER_DISPUTE_CLOSED = "order_dispute_closed",
 }
 
 export { OrderAction };

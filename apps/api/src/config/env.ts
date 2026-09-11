@@ -90,6 +90,12 @@ function buildEnv() {
     accessTokenTtl: process.env.ACCESS_TOKEN_TTL ?? "15m",
     refreshTokenTtlDays: Number(process.env.REFRESH_TOKEN_TTL_DAYS ?? 30),
 
+    // Pagos (Milestone 1.6): tolerancia de firma del webhook (nunca 0 — ver
+    // stripe-webhook-translator.ts) y umbral del reconciliador de pagos
+    // pendientes sin webhook, ambos con default sano en vez de número mágico.
+    stripeWebhookToleranceSeconds: Number(process.env.STRIPE_WEBHOOK_TOLERANCE_SECONDS ?? 300),
+    paymentReconcileAfterMinutes: Number(process.env.PAYMENT_RECONCILE_AFTER_MINUTES ?? 10),
+
     // Integraciones puramente operativas/de notificación: opcionales siempre,
     // incluso en producción. Su ausencia se degrada a loguear, nunca a bloquear.
     telegramBotToken: process.env.TELEGRAM_BOT_TOKEN,

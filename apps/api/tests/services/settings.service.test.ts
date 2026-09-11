@@ -1,11 +1,16 @@
 import mongoose from "mongoose";
-import { DEFAULT_COMMERCE_SETTINGS, DEFAULT_INVENTORY_SETTINGS } from "@esencia-glow/shared";
+import {
+  DEFAULT_COMMERCE_SETTINGS,
+  DEFAULT_INVENTORY_SETTINGS,
+  DEFAULT_PAYMENT_SETTINGS,
+} from "@esencia-glow/shared";
 import { describe, expect, it } from "vitest";
 import { Settings } from "../../src/models/settings.model.js";
 import {
   getSettings,
   updateCommerceSettings,
   updateInventorySettings,
+  updatePaymentSettings,
 } from "../../src/services/settings.service.js";
 
 describe("services/settings", () => {
@@ -112,6 +117,50 @@ describe("services/settings", () => {
     });
     await expect(updateInventorySettings({ reservationTtlMinutes: 45 })).resolves.toMatchObject({
       reservationTtlMinutes: 45,
+    });
+  });
+
+  it("getSettings sin documento devuelve defaults de payments también", async () => {
+    const settings = await getSettings();
+    expect(settings.payments).toEqual(DEFAULT_PAYMENT_SETTINGS);
+  });
+
+  it("updatePaymentSettings parcial solo cambia lo enviado", async () => {
+    await updatePaymentSettings({ oxxoVoucherDays: 3 });
+
+    const settings = await getSettings();
+    expect(settings.payments.oxxoVoucherDays).toBe(3);
+    expect(settings.payments.oxxoConfirmationGraceHours).toBe(
+      DEFAULT_PAYMENT_SETTINGS.oxxoConfirmationGraceHours,
+    );
+  });
+
+  it("actualizar payments no pisa inventory ni commerce", async () => {
+    await updateInventorySettings({ lowStockThreshold: 9 });
+    await updateCommerceSettings({ taxRateBps: 900 });
+    await updatePaymentSettings({ oxxoConfirmationGraceHours: 48 });
+
+    const settings = await getSettings();
+    expect(settings.inventory.lowStockThreshold).toBe(9);
+    expect(settings.commerce.taxRateBps).toBe(900);
+    expect(settings.payments.oxxoConfirmationGraceHours).toBe(48);
+  });
+
+  it("rechaza oxxoVoucherDays fuera de rango (1-7) con 400", async () => {
+    await expect(updatePaymentSettings({ oxxoVoucherDays: 0 })).rejects.toMatchObject({
+      statusCode: 400,
+    });
+    await expect(updatePaymentSettings({ oxxoVoucherDays: 8 })).rejects.toMatchObject({
+      statusCode: 400,
+    });
+  });
+
+  it("rechaza oxxoConfirmationGraceHours fuera de rango (24-240) con 400", async () => {
+    await expect(updatePaymentSettings({ oxxoConfirmationGraceHours: 23 })).rejects.toMatchObject({
+      statusCode: 400,
+    });
+    await expect(updatePaymentSettings({ oxxoConfirmationGraceHours: 241 })).rejects.toMatchObject({
+      statusCode: 400,
     });
   });
 });

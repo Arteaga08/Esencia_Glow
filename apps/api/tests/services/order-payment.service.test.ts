@@ -42,7 +42,7 @@ describe("services/order-payment — markOrderPaid", () => {
 
     expect(result.outcome).toBe("paid");
     expect(result.order.status).toBe(OrderStatus.PAID);
-    expect(result.order.payment.state).toBe(PaymentState.SUCCEEDED);
+    expect(result.order.payment.state).toBe(PaymentState.CAPTURED);
 
     const inventory = await Inventory.findOne({ variantId });
     expect(inventory?.onHand).toBe(8);

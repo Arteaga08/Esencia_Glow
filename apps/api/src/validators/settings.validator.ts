@@ -16,4 +16,9 @@ const updateCommerceSettingsSchema = Joi.object({
   shippingQuoteTtlMinutes: Joi.number().integer().min(1),
 }).min(1);
 
-export { updateInventorySettingsSchema, updateCommerceSettingsSchema };
+const updatePaymentSettingsSchema = Joi.object({
+  oxxoVoucherDays: Joi.number().integer().min(1).max(7),
+  oxxoConfirmationGraceHours: Joi.number().integer().min(24).max(240),
+}).min(1);
+
+export { updateInventorySettingsSchema, updateCommerceSettingsSchema, updatePaymentSettingsSchema };

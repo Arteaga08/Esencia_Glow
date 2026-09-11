@@ -1,5 +1,5 @@
 import Joi from "joi";
-import { MAX_ORDER_LINES } from "@esencia-glow/shared";
+import { MAX_ORDER_LINES, PaymentMethod } from "@esencia-glow/shared";
 import { cartLineSchema } from "./shipping.validator.js";
 import { listQueryBaseSchema } from "./list-query.validator.js";
 
@@ -14,6 +14,9 @@ const createOrderSchema = Joi.object({
   lines: Joi.array().items(cartLineSchema).min(1).max(MAX_ORDER_LINES).required(),
   quoteId: Joi.string().hex().length(24).required(),
   rateId: Joi.string().trim().min(1).required(),
+  paymentMethod: Joi.string()
+    .valid(...Object.values(PaymentMethod))
+    .required(),
   termsAccepted: Joi.boolean().valid(true).required().messages({
     "any.only": "Debes aceptar los términos y condiciones.",
     "any.required": "Debes aceptar los términos y condiciones.",

@@ -59,6 +59,7 @@ describe("golden path — checkout completo hasta delivered", () => {
         lines: [{ itemType: "product", itemId: variant._id.toString(), quantity: 2 }],
         quoteId,
         rateId: rates[0].rateId,
+        paymentMethod: "card",
         termsAccepted: true,
       });
     expect(orderRes.status).toBe(201);

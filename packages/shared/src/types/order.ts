@@ -2,6 +2,8 @@ import type { Currency } from "../constants/currency.js";
 import type { OrderStatus } from "../enums/order-status.js";
 import type { OrderPriority } from "../enums/order-priority.js";
 import type { PaymentState } from "../enums/payment-state.js";
+import type { PaymentMethod } from "../enums/payment-method.js";
+import type { DisputeStatus } from "../enums/dispute-status.js";
 import type { ShippingCarrier } from "../enums/shipping-carrier.js";
 import type { ProductAttributes, PublicProductImage } from "./catalog.js";
 import type { PublicShippingAddress, PublicParcel } from "./shipping.js";
@@ -69,16 +71,20 @@ interface PublicShippingSelection {
 
 interface PublicOrderPayment {
   provider: "stripe";
+  method: PaymentMethod;
   state: PaymentState;
   captureMethod: "automatic";
   capturedAt?: string;
   card?: { brand: string; last4: string };
+  /** Solo presente en pedidos OXXO con ficha vigente. */
+  voucherExpiresAt?: string;
+  /** El cliente dueño de la orden debe ver su propio reembolso. */
+  refundedAmountCents?: number;
 }
 
 interface AdminOrderPayment extends PublicOrderPayment {
   intentId?: string;
   lastError?: string;
-  refundedAmountCents?: number;
   refundedAt?: string;
 }
 
@@ -134,12 +140,25 @@ interface AdminOrder extends Omit<PublicOrder, "payment" | "statusHistory"> {
   inventoryIncident: boolean;
   adminAlertedAt?: string;
   internalNotesCount: number;
+  disputedAt?: string;
+  disputeStatus?: DisputeStatus;
+  refundRequestedAt?: string;
+}
+
+/** Lo que el checkout necesita para cobrar: el widget de tarjeta (Payment
+ * Element) usa `clientSecret`; OXXO usa `oxxoVoucher`. Nunca ambos a la
+ * vez. Ninguna noción de "pagado" — eso lo decide únicamente el webhook. */
+interface CheckoutPaymentInfo {
+  method: PaymentMethod;
+  clientSecret?: string;
+  oxxoVoucher?: { hostedVoucherUrl: string; expiresAt: string };
 }
 
 /** Respuesta del checkout. Nótese lo que NO trae: ninguna noción de
  * "pagado" — eso lo decide únicamente el webhook (Milestone 1.6). */
 interface CheckoutResult {
   order: PublicOrder;
+  payment: CheckoutPaymentInfo;
 }
 
 /** Lo que el cliente manda en `POST /orders`. */
@@ -157,6 +176,7 @@ export type {
   PublicShippingSelection,
   PublicOrderPayment,
   AdminOrderPayment,
+  CheckoutPaymentInfo,
   OrderShipmentInfo,
   PublicOrderStatusHistoryEntry,
   AdminOrderStatusHistoryEntry,

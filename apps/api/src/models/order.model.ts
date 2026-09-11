@@ -1,5 +1,13 @@
 import { Schema, model, type HydratedDocument, type Model, type Types } from "mongoose";
-import { CATALOG_CURRENCY, OrderPriority, OrderStatus, PaymentState, ShippingCarrier } from "@esencia-glow/shared";
+import {
+  CATALOG_CURRENCY,
+  DisputeStatus,
+  OrderPriority,
+  OrderStatus,
+  PaymentMethod,
+  PaymentState,
+  ShippingCarrier,
+} from "@esencia-glow/shared";
 import { orderLineSchema, type OrderLineAttrs } from "./order-line.schema.js";
 import { shippingAddressSchema, type ShippingAddressAttrs } from "./shipping-address.schema.js";
 import { parcelSchema, type ParcelAttrs } from "./parcel.schema.js";
@@ -23,6 +31,9 @@ interface OrderPaymentCardAttrs {
 
 interface OrderPaymentAttrs {
   provider: "stripe";
+  /** Elegido por la clienta al hacer checkout (Milestone 1.6): decide el
+   * flujo de reserva/cierre (ver payment-deadlines.ts, order-closing.service.ts). */
+  method: PaymentMethod;
   state: PaymentState;
   captureMethod: "automatic";
   intentId?: string;
@@ -31,6 +42,17 @@ interface OrderPaymentAttrs {
   refundedAmountCents?: number;
   refundedAt?: Date;
   card?: OrderPaymentCardAttrs;
+  /** Solo OXXO: cuándo vence la ficha, según lo que devuelve Stripe. */
+  voucherExpiresAt?: Date;
+  /** Última vez que el reconciliador consultó a Stripe por este pago —
+   * evita re-consultar en el mismo tick (backoff simple). */
+  lastCheckedAt?: Date;
+  /** Sellado al pedir un reembolso (antes de que el webhook lo confirme). */
+  refundRequestedAt?: Date;
+  /** Rechazos de tarjeta consecutivos en este pedido — anti card-testing
+   * (decisión 10 del plan de 1.6): al llegar a MAX_CARD_FAILED_ATTEMPTS se
+   * cierra el pedido. Nunca se incrementa para OXXO. */
+  failedAttempts: number;
 }
 
 interface OrderShippingSelectionAttrs {
@@ -91,6 +113,11 @@ interface OrderAttrs {
   cancelReason?: string;
   inventoryIncident: boolean;
   adminAlertedAt?: Date;
+  /** Contracargo (Milestone 1.6): vive en la orden, no en `payment` — es un
+   * evento del ciclo de vida de la venta, no un atributo del cobro. Un
+   * contracargo perdido NO es `refunded`. */
+  disputedAt?: Date;
+  disputeStatus?: DisputeStatus;
 }
 
 type OrderDocument = HydratedDocument<OrderAttrs>;
@@ -99,6 +126,7 @@ type OrderModel = Model<OrderAttrs>;
 const orderPaymentSchema = new Schema<OrderPaymentAttrs>(
   {
     provider: { type: String, required: true, enum: ["stripe"] },
+    method: { type: String, required: true, enum: Object.values(PaymentMethod), default: PaymentMethod.CARD },
     state: { type: String, required: true, enum: Object.values(PaymentState) },
     captureMethod: { type: String, required: true, enum: ["automatic"] },
     intentId: { type: String, trim: true },
@@ -112,6 +140,10 @@ const orderPaymentSchema = new Schema<OrderPaymentAttrs>(
         { _id: false },
       ),
     },
+    voucherExpiresAt: { type: Date },
+    lastCheckedAt: { type: Date },
+    refundRequestedAt: { type: Date },
+    failedAttempts: { type: Number, required: true, default: 0, min: 0, validate: integerValidator },
   },
   { _id: false },
 );
@@ -207,6 +239,8 @@ const orderSchema = new Schema<OrderAttrs, OrderModel>(
     cancelReason: { type: String, trim: true, maxlength: 300 },
     inventoryIncident: { type: Boolean, default: false },
     adminAlertedAt: { type: Date },
+    disputedAt: { type: Date },
+    disputeStatus: { type: String, enum: Object.values(DisputeStatus) },
   },
   { timestamps: true },
 );
