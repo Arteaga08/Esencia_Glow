@@ -11,6 +11,8 @@ import { productRoutes } from "./product.routes.js";
 import { bundleRoutes } from "./bundle.routes.js";
 import { categoryRoutes } from "./category.routes.js";
 import { shippingRoutes } from "./shipping.routes.js";
+import { orderRoutes } from "./order.routes.js";
+import { adminOrderRoutes } from "./admin-order.routes.js";
 
 /**
  * Índice de routers de la API v1. Los módulos de dominio (auth, catálogo,
@@ -31,5 +33,7 @@ v1Router.use("/products", productRoutes);
 v1Router.use("/bundles", bundleRoutes);
 v1Router.use("/categories", categoryRoutes);
 v1Router.use("/shipping", shippingRoutes);
+v1Router.use("/orders", orderRoutes);
+v1Router.use("/admin/orders", adminOrderRoutes);
 
 export { v1Router };

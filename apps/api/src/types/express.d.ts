@@ -10,6 +10,8 @@ declare module "express-serve-static-core" {
       id: string;
       role: UserRole;
     };
+    /** Sellado por `requireIdempotencyKey` — un UUID v4 ya validado. */
+    idempotencyKey?: string;
   }
 }
 

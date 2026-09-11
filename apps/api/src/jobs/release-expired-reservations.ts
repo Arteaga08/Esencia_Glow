@@ -1,6 +1,7 @@
-import { ReservationStatus } from "@esencia-glow/shared";
+import { InventoryAction, ReservationStatus } from "@esencia-glow/shared";
 import { StockReservation } from "../models/stock-reservation.model.js";
 import { releaseReservationDetailed } from "../services/stock-reservation.service.js";
+import { recordAudit } from "../services/audit.service.js";
 import { logger } from "../config/logger.js";
 
 const DEFAULT_BATCH_SIZE = 100;
@@ -41,7 +42,13 @@ async function releaseExpiredReservations(
       // Solo cuenta si ESTA llamada hizo la transición: bajo dos ejecuciones
       // concurrentes del barrendero, la perdedora encuentra el estado ya
       // terminal y no debe inflar el conteo de liberaciones reales.
-      if (transitioned) released += 1;
+      if (transitioned) {
+        released += 1;
+        // Emisor pendiente de 1.4 (declarado sin actor humano al que
+        // atribuirlo); 1.5 lo conecta aquí — el cron SÍ tiene contexto
+        // (una reserva concreta que venció), aunque sin `actorId` (system).
+        await recordAudit({ action: InventoryAction.RESERVATION_EXPIRED, targetId: _id });
+      }
     } catch (error) {
       failed += 1;
       logger.error({ err: error, reservationId: _id.toString() }, "Fallo al liberar una reserva vencida");

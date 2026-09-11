@@ -62,4 +62,25 @@ const catalogRateLimiter = createRateLimiter({
   message: "Demasiadas solicitudes, intenta de nuevo más tarde.",
 });
 
-export { createRateLimiter, globalRateLimiter, loginRateLimiter, uploadRateLimiter, catalogRateLimiter };
+/**
+ * `POST /orders`: crear una orden abre una transacción de 6 colecciones y
+ * apalanca inventario real — más caro y más sensible a abuso que cotizar
+ * (`quoteRateLimiter`, en `shipping.routes.ts`). El índice único de "un
+ * pending por usuario" (§B del plan) ya topa el daño de un bot que
+ * insista, pero el límite evita que ni siquiera llegue a chocar con él en
+ * un burst.
+ */
+const checkoutRateLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: "Demasiados intentos de compra, intenta de nuevo más tarde.",
+});
+
+export {
+  createRateLimiter,
+  globalRateLimiter,
+  loginRateLimiter,
+  uploadRateLimiter,
+  catalogRateLimiter,
+  checkoutRateLimiter,
+};
