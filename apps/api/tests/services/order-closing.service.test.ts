@@ -165,6 +165,27 @@ describe("services/order-closing — closePendingOrder", () => {
     expect(reloaded?.status).toBe(OrderStatus.PAID);
   });
 
+  it("tarjeta con intent: already_captured pero el monto no cuadra -> payment_anomaly (NO already_paid), sigue pending", async () => {
+    const { order, userId } = await createPendingOrder(PaymentMethod.CARD);
+    const provider = buildFakePaymentProvider({
+      cancel: vi.fn().mockResolvedValue("already_captured"),
+      getAuthorization: vi.fn().mockResolvedValue({
+        intentId: "pi_mismatch",
+        status: "captured",
+        amountCents: order.totalCents + 100,
+        currency: order.currency,
+      }),
+    });
+    await ensurePaymentIntent(order._id.toString(), userId, { provider });
+
+    const result = await closePendingOrder(order._id.toString(), "customer", { userId, provider });
+
+    expect(result.outcome).toBe("payment_anomaly");
+    const reloaded = await Order.findById(order._id);
+    expect(reloaded?.status).toBe(OrderStatus.PENDING);
+    expect(reloaded?.adminAlertedAt).toBeInstanceOf(Date);
+  });
+
   it("un pedido ajeno responde 404 (anti-IDOR)", async () => {
     const { order } = await createPendingOrder(PaymentMethod.CARD);
     const provider = buildFakePaymentProvider();
@@ -172,6 +193,85 @@ describe("services/order-closing — closePendingOrder", () => {
     await expect(
       closePendingOrder(order._id.toString(), "customer", { userId: randomUserId(), provider }),
     ).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it("admin cierra un pendiente con intent de tarjeta: Stripe-first y actorId queda en statusHistory", async () => {
+    const { order, userId } = await createPendingOrder(PaymentMethod.CARD);
+    const provider = buildFakePaymentProvider();
+    await ensurePaymentIntent(order._id.toString(), userId, { provider });
+    const adminId = randomUserId();
+
+    const result = await closePendingOrder(order._id.toString(), "admin", {
+      actorId: adminId,
+      reason: "Cliente pidió cancelar por soporte",
+      provider,
+    });
+
+    expect(result.outcome).toBe("closed");
+    expect(provider.cancel).toHaveBeenCalledTimes(1);
+    const reloaded = await Order.findById(order._id);
+    const lastEntry = reloaded!.statusHistory[reloaded!.statusHistory.length - 1]!;
+    expect(lastEntry.actorId?.toString()).toBe(adminId);
+  });
+
+  it("OXXO antes de expiresAt, cerrado por 'system' (webhook payment_failed) con Stripe requires_new_method: cierra y libera", async () => {
+    const { order, userId, variantId } = await createPendingOrder(PaymentMethod.OXXO);
+    const futureExpiry = new Date(Date.now() + 60 * 60_000);
+    const provider = buildFakePaymentProvider({
+      authorize: vi.fn().mockResolvedValue({
+        intentId: "pi_oxxo_sys",
+        status: "awaiting_customer",
+        amountCents: 100000,
+        currency: "mxn",
+        voucher: { expiresAt: futureExpiry, hostedVoucherUrl: "https://x" },
+      }),
+      getAuthorization: vi.fn().mockResolvedValue({
+        intentId: "pi_oxxo_sys",
+        status: "requires_new_method",
+        amountCents: 100000,
+        currency: "mxn",
+      }),
+    });
+    await ensurePaymentIntent(order._id.toString(), userId, { provider });
+
+    const result = await closePendingOrder(order._id.toString(), "system", {
+      reason: "La ficha OXXO venció sin pago.",
+      provider,
+    });
+
+    expect(result.outcome).toBe("closed");
+    const reloaded = await Order.findById(order._id);
+    expect(reloaded?.status).toBe(OrderStatus.CANCELLED);
+    const inventory = await Inventory.findOne({ variantId });
+    expect(inventory?.reserved).toBe(0);
+  });
+
+  it("OXXO antes de expiresAt, cerrado por 'system' con Stripe awaiting_customer (transitorio): 409, sigue pending", async () => {
+    const { order, userId } = await createPendingOrder(PaymentMethod.OXXO);
+    const futureExpiry = new Date(Date.now() + 60 * 60_000);
+    const provider = buildFakePaymentProvider({
+      authorize: vi.fn().mockResolvedValue({
+        intentId: "pi_oxxo_sys2",
+        status: "awaiting_customer",
+        amountCents: 100000,
+        currency: "mxn",
+        voucher: { expiresAt: futureExpiry, hostedVoucherUrl: "https://x" },
+      }),
+      getAuthorization: vi.fn().mockResolvedValue({
+        intentId: "pi_oxxo_sys2",
+        status: "awaiting_customer",
+        amountCents: 100000,
+        currency: "mxn",
+      }),
+    });
+    await ensurePaymentIntent(order._id.toString(), userId, { provider });
+
+    await expect(
+      closePendingOrder(order._id.toString(), "system", { reason: "x", provider }),
+    ).rejects.toMatchObject({ statusCode: 409 });
+
+    const reloaded = await Order.findById(order._id);
+    expect(reloaded?.status).toBe(OrderStatus.PENDING);
   });
 
   it("tarjeta con intent: Stripe dice not_cancelable (PI en estado intermedio) -> NO cancela ni libera stock, marca para revisión", async () => {

@@ -157,21 +157,39 @@ describe("services/stripe-payment-provider — authorize", () => {
   });
 });
 
+const WEBHOOK_CONFIG = { secret: "whsec_test", toleranceSeconds: 300 };
+
 describe("services/stripe-payment-provider — getAuthorization", () => {
-  it("succeeded -> captured, expone card brand/last4", async () => {
+  it("succeeded -> captured, pide latest_charge expandido y expone card brand/last4", async () => {
     const retrieve = vi.fn().mockResolvedValue({
       id: "pi_1",
       status: "succeeded",
       amount: 50000,
       currency: "mxn",
-      charges: { data: [{ payment_method_details: { card: { brand: "visa", last4: "4242" } } }] },
+      latest_charge: { payment_method_details: { card: { brand: "visa", last4: "4242" } } },
     });
     const client = buildFakeClient({ paymentIntents: { create: vi.fn(), retrieve, cancel: vi.fn() } });
-    const provider = createStripePaymentProvider(client);
+    const provider = createStripePaymentProvider(client, WEBHOOK_CONFIG);
 
     const result = await provider.getAuthorization("pi_1");
+    expect(retrieve).toHaveBeenCalledWith("pi_1", { expand: ["latest_charge"] });
     expect(result.status).toBe("captured");
     expect(result.card).toEqual({ brand: "visa", last4: "4242" });
+  });
+
+  it("latest_charge sin expandir (viene como id) -> sin card", async () => {
+    const retrieve = vi.fn().mockResolvedValue({
+      id: "pi_1b",
+      status: "succeeded",
+      amount: 50000,
+      currency: "mxn",
+      latest_charge: "ch_sin_expandir",
+    });
+    const client = buildFakeClient({ paymentIntents: { create: vi.fn(), retrieve, cancel: vi.fn() } });
+    const provider = createStripePaymentProvider(client, WEBHOOK_CONFIG);
+
+    const result = await provider.getAuthorization("pi_1b");
+    expect(result.card).toBeUndefined();
   });
 
   it("requires_payment_method -> requires_new_method", async () => {
@@ -183,7 +201,7 @@ describe("services/stripe-payment-provider — getAuthorization", () => {
       last_payment_error: { message: "Tu tarjeta fue rechazada." },
     });
     const client = buildFakeClient({ paymentIntents: { create: vi.fn(), retrieve, cancel: vi.fn() } });
-    const provider = createStripePaymentProvider(client);
+    const provider = createStripePaymentProvider(client, WEBHOOK_CONFIG);
 
     const result = await provider.getAuthorization("pi_2");
     expect(result.status).toBe("requires_new_method");
@@ -193,7 +211,7 @@ describe("services/stripe-payment-provider — getAuthorization", () => {
   it("canceled -> canceled", async () => {
     const retrieve = vi.fn().mockResolvedValue({ id: "pi_3", status: "canceled", amount: 50000, currency: "mxn" });
     const client = buildFakeClient({ paymentIntents: { create: vi.fn(), retrieve, cancel: vi.fn() } });
-    const provider = createStripePaymentProvider(client);
+    const provider = createStripePaymentProvider(client, WEBHOOK_CONFIG);
 
     const result = await provider.getAuthorization("pi_3");
     expect(result.status).toBe("canceled");
@@ -204,7 +222,7 @@ describe("services/stripe-payment-provider — cancel", () => {
   it("cancela normalmente", async () => {
     const cancel = vi.fn().mockResolvedValue({ id: "pi_4", status: "canceled" });
     const client = buildFakeClient({ paymentIntents: { create: vi.fn(), retrieve: vi.fn(), cancel } });
-    const provider = createStripePaymentProvider(client);
+    const provider = createStripePaymentProvider(client, WEBHOOK_CONFIG);
 
     const outcome = await provider.cancel("pi_4", "order:1:cancel");
     expect(outcome).toBe("canceled");
@@ -221,9 +239,35 @@ describe("services/stripe-payment-provider — cancel", () => {
       }),
     );
     const client = buildFakeClient({ paymentIntents: { create: vi.fn(), retrieve: vi.fn(), cancel } });
-    const provider = createStripePaymentProvider(client);
+    const provider = createStripePaymentProvider(client, WEBHOOK_CONFIG);
 
     const outcome = await provider.cancel("pi_5", "order:2:cancel");
     expect(outcome).toBe("already_captured");
+  });
+
+  it("ya cancelado: Stripe rechaza el cancel con status canceled -> canceled (idempotente)", async () => {
+    const cancel = vi.fn().mockRejectedValue(
+      Object.assign(new Error("You cannot cancel this PaymentIntent because it has a status of canceled"), {
+        type: "StripeInvalidRequestError",
+        code: "payment_intent_unexpected_state",
+        payment_intent: { status: "canceled" },
+      }),
+    );
+    const client = buildFakeClient({ paymentIntents: { create: vi.fn(), retrieve: vi.fn(), cancel } });
+    const provider = createStripePaymentProvider(client, WEBHOOK_CONFIG);
+
+    const outcome = await provider.cancel("pi_6", "order:3:cancel");
+    expect(outcome).toBe("canceled");
+  });
+});
+
+describe("services/stripe-payment-provider — parseWebhookEvent", () => {
+  it("sin secreto configurado -> 503", () => {
+    const client = buildFakeClient();
+    const provider = createStripePaymentProvider(client, { secret: undefined, toleranceSeconds: 300 });
+
+    expect(() => provider.parseWebhookEvent(Buffer.from("{}"), "sig")).toThrow(
+      expect.objectContaining({ statusCode: 503 }),
+    );
   });
 });

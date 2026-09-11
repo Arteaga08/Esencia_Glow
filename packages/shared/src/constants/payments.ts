@@ -28,6 +28,13 @@ const RESERVATION_SAFETY_MARGIN_MINUTES = 15;
  * cancela el intento de pago y el pedido (decisión 10 del plan de 1.6). */
 const MAX_CARD_FAILED_ATTEMPTS = 5;
 
+/** Ventana del lease de `PaymentEvent.lockedAt` (Milestone 1.6.2): una
+ * entrega reclamada como `processing` que no termina en este tiempo (caída
+ * a medias del proceso) se vuelve reclamable por la siguiente reentrega —
+ * Stripe reintenta durante horas, así que 5 minutos es margen amplio para
+ * un handler que en el peor caso hace una llamada de red a Stripe. */
+const PAYMENT_EVENT_LEASE_MINUTES = 5;
+
 export {
   DEFAULT_PAYMENT_SETTINGS,
   OXXO_MIN_AMOUNT_CENTS,
@@ -35,4 +42,5 @@ export {
   PAYMENT_EVENT_RETENTION_DAYS,
   RESERVATION_SAFETY_MARGIN_MINUTES,
   MAX_CARD_FAILED_ATTEMPTS,
+  PAYMENT_EVENT_LEASE_MINUTES,
 };

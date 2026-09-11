@@ -53,6 +53,12 @@ interface OrderPaymentAttrs {
    * (decisión 10 del plan de 1.6): al llegar a MAX_CARD_FAILED_ATTEMPTS se
    * cierra el pedido. Nunca se incrementa para OXXO. */
   failedAttempts: number;
+  /** Ids de evento (`payment_intent.payment_failed`) ya contados hacia
+   * `failedAttempts`, acotado a los últimos 10 (Milestone 1.6.2, decisión
+   * 5 del plan): segunda guarda de idempotencia, independiente del dedupe
+   * de `PaymentEvent` — reprocesar el mismo evento nunca suma dos veces.
+   * Nunca expuesto en DTOs. */
+  failedEventIds?: string[];
 }
 
 interface OrderShippingSelectionAttrs {
@@ -144,6 +150,7 @@ const orderPaymentSchema = new Schema<OrderPaymentAttrs>(
     lastCheckedAt: { type: Date },
     refundRequestedAt: { type: Date },
     failedAttempts: { type: Number, required: true, default: 0, min: 0, validate: integerValidator },
+    failedEventIds: { type: [String], default: undefined },
   },
   { _id: false },
 );

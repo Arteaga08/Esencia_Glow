@@ -7,6 +7,7 @@ import { assertTransition, getTransitionInventoryEffect } from "./order-state.js
 import { releaseReservationDetailed, auditReleaseMismatches } from "./stock-reservation.service.js";
 import { recordAudit } from "./audit.service.js";
 import { logger } from "../config/logger.js";
+import { closePendingOrder } from "./order-closing.service.js";
 import type { LeanOrder } from "./order-dto.js";
 
 /**
@@ -101,7 +102,40 @@ async function changeOrderStatusCore(
   return { order: claimed, previousStatus: current.status, releasedInconsistentVariants: [] };
 }
 
+/**
+ * `pending -> cancelled` desde el admin delega en `closePendingOrder`
+ * (Milestone 1.6.2, decisión 1 del plan): "Stripe-first" — si el pedido ya
+ * tiene un PaymentIntent, se consulta/cancela en Stripe ANTES de liberar
+ * inventario, igual que la cancelación del cliente y el barrendero. Sin
+ * esto, un admin podía cancelar y liberar stock de un pedido cuyo cobro
+ * Stripe ya estaba procesando, dejando un pago capturado sobre un pedido
+ * `cancelled` (anomalía + reembolso manual). Se decide ANTES de abrir la
+ * transacción de `changeOrderStatusCore`: `closePendingOrder` administra
+ * su propia transacción, así que anidar sería doble transacción para nada.
+ */
 async function changeOrderStatus(input: ChangeOrderStatusInput): Promise<LeanOrder> {
+  if (input.targetStatus === OrderStatus.CANCELLED) {
+    const current = await Order.findById(input.orderId).select("status").lean();
+    if (!current) throw new AppError("Pedido no encontrado.", 404);
+    if (current.status === OrderStatus.PENDING) {
+      const result = await closePendingOrder(input.orderId, "admin", { actorId: input.adminId, reason: input.reason });
+      if (result.outcome === "already_paid") {
+        throw new AppError("El pago de este pedido ya se procesó; no se puede cancelar.", 409);
+      }
+      if (result.outcome === "payment_anomaly") {
+        // La orden sigue `pending` (no se pagó), marcada para revisión —
+        // ver `payment-settlement.service.ts`. Decirle al admin "ya se
+        // procesó" sería falso y le cerraría la única pista de por qué el
+        // pedido no se puede cancelar todavía.
+        throw new AppError(
+          "Este pedido tiene una anomalía de pago pendiente de revisión; no se puede cancelar hasta resolverla.",
+          409,
+        );
+      }
+      return result.order!.toObject() as unknown as LeanOrder;
+    }
+  }
+
   const result = await withTransaction((session) => changeOrderStatusCore(input, session));
 
   if (result.releasedInconsistentVariants.length > 0) {

@@ -1,10 +1,15 @@
 import { vi } from "vitest";
-import type { PaymentAuthorization, PaymentProvider } from "../../src/services/payment-provider.js";
+import type { PaymentAuthorization, PaymentProvider, PaymentWebhookEvent } from "../../src/services/payment-provider.js";
+import { parseStripeWebhookEvent } from "../../src/services/stripe-webhook-translator.js";
+import { TEST_STRIPE_WEBHOOK_SECRET } from "./stripe-webhook-fixtures.js";
 
 /**
  * Proveedor de pagos falso, determinista y sin red — inyectado en los
  * servicios que consumen `PaymentProvider` para testear sin llaves reales
- * de Stripe (ver plan de 1.6 §A).
+ * de Stripe (ver plan de 1.6 §A). `parseWebhookEvent` usa el traductor
+ * REAL con un secreto de prueba fijo (§9 del plan de 1.6.2): los tests de
+ * rutas firman con `stripe-webhook-fixtures.ts` y ejercitan la
+ * verificación de firma de verdad, sin red.
  */
 function buildFakePaymentProvider(overrides: Partial<PaymentProvider> = {}): PaymentProvider {
   let counter = 0;
@@ -29,6 +34,10 @@ function buildFakePaymentProvider(overrides: Partial<PaymentProvider> = {}): Pay
       clientSecret: `${intentId}_secret`,
     })),
     cancel: vi.fn().mockResolvedValue("canceled"),
+    parseWebhookEvent: vi.fn().mockImplementation(
+      (rawBody: Buffer, signature: string): PaymentWebhookEvent =>
+        parseStripeWebhookEvent(rawBody, signature, { secret: TEST_STRIPE_WEBHOOK_SECRET, toleranceSeconds: 300 }),
+    ),
     ...overrides,
   };
 }
