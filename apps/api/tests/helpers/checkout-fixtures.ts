@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import mongoose from "mongoose";
-import { BundleStatus, ProductStatus, type CartLineInput } from "@esencia-glow/shared";
+import { BundleStatus, PaymentMethod, ProductStatus, type CartLineInput } from "@esencia-glow/shared";
 import { Bundle } from "../../src/models/bundle.model.js";
 import { Category } from "../../src/models/category.model.js";
 import { Inventory } from "../../src/models/inventory.model.js";
@@ -107,6 +107,7 @@ async function buildCreateOrderInput(
     lines,
     quoteId,
     rateId,
+    paymentMethod: PaymentMethod.CARD,
     termsAccepted: true,
     idempotencyKey: randomUUID(),
     ...overrides,

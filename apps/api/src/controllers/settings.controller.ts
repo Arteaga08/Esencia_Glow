@@ -39,4 +39,17 @@ const updateCommerce = asyncHandler(async (req: Request, res: Response) => {
   sendResponse(res, 200, "Configuración de comercio actualizada.", commerce);
 });
 
-export { get, updateInventory, updateCommerce };
+/** Mismo `InventoryAction.SETTINGS_UPDATED` genérico que las demás secciones. */
+const updatePayments = asyncHandler(async (req: Request, res: Response) => {
+  const payments = await settingsService.updatePaymentSettings(req.body);
+
+  await recordAudit({
+    action: InventoryAction.SETTINGS_UPDATED,
+    actorId: req.user!.id,
+    metadata: req.body as Record<string, number>,
+  });
+
+  sendResponse(res, 200, "Configuración de pagos actualizada.", payments);
+});
+
+export { get, updateInventory, updateCommerce, updatePayments };

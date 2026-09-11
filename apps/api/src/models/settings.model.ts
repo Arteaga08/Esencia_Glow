@@ -26,10 +26,18 @@ interface CommerceSettingsAttrs {
   shippingQuoteTtlMinutes?: number;
 }
 
+/** Sección de negocio de pagos (Milestone 1.6): plazo de la ficha OXXO y su
+ * gracia de confirmación. Ver types/settings.ts en @esencia-glow/shared. */
+interface PaymentSettingsAttrs {
+  oxxoVoucherDays?: number;
+  oxxoConfirmationGraceHours?: number;
+}
+
 interface SettingsAttrs {
   _id: string;
   inventory?: InventorySettingsAttrs;
   commerce?: CommerceSettingsAttrs;
+  payments?: PaymentSettingsAttrs;
 }
 
 type SettingsDocument = HydratedDocument<SettingsAttrs>;
@@ -53,11 +61,20 @@ const commerceSettingsSchema = new Schema<CommerceSettingsAttrs>(
   { _id: false },
 );
 
+const paymentSettingsSchema = new Schema<PaymentSettingsAttrs>(
+  {
+    oxxoVoucherDays: { type: Number },
+    oxxoConfirmationGraceHours: { type: Number },
+  },
+  { _id: false },
+);
+
 const settingsSchema = new Schema<SettingsAttrs, SettingsModel>(
   {
     _id: { type: String },
     inventory: { type: inventorySettingsSchema },
     commerce: { type: commerceSettingsSchema },
+    payments: { type: paymentSettingsSchema },
   },
   { timestamps: true },
 );
@@ -65,4 +82,10 @@ const settingsSchema = new Schema<SettingsAttrs, SettingsModel>(
 const Settings = model<SettingsAttrs, SettingsModel>("Settings", settingsSchema);
 
 export { Settings };
-export type { SettingsAttrs, SettingsDocument, InventorySettingsAttrs, CommerceSettingsAttrs };
+export type {
+  SettingsAttrs,
+  SettingsDocument,
+  InventorySettingsAttrs,
+  CommerceSettingsAttrs,
+  PaymentSettingsAttrs,
+};

@@ -1,9 +1,11 @@
 import {
   DEFAULT_COMMERCE_SETTINGS,
   DEFAULT_INVENTORY_SETTINGS,
+  DEFAULT_PAYMENT_SETTINGS,
   type AppSettings,
   type CommerceSettings,
   type InventorySettings,
+  type PaymentSettings,
 } from "@esencia-glow/shared";
 import { Settings } from "../models/settings.model.js";
 import { AppError } from "../utils/app-error.js";
@@ -28,6 +30,15 @@ const COMMERCE_RANGES: Record<keyof CommerceSettings, { min: number; max: number
   shippingQuoteTtlMinutes: { min: 1, max: 1_440 },
 };
 
+/** Rangos de forma de `payments`: `oxxoVoucherDays` calca el límite real de
+ * Stripe (1-7 días); `oxxoConfirmationGraceHours` acota entre un día (24h) y
+ * diez días (240h) — más que eso ata stock por más tiempo del que Stripe
+ * tarda en confirmar o fallar definitivamente una ficha. */
+const PAYMENT_RANGES: Record<keyof PaymentSettings, { min: number; max: number }> = {
+  oxxoVoucherDays: { min: 1, max: 7 },
+  oxxoConfirmationGraceHours: { min: 24, max: 240 },
+};
+
 function assertValidInventorySettings(input: Partial<InventorySettings>): void {
   for (const [key, value] of Object.entries(input) as [keyof InventorySettings, number | undefined][]) {
     if (value === undefined) continue;
@@ -42,6 +53,16 @@ function assertValidCommerceSettings(input: Partial<CommerceSettings>): void {
   for (const [key, value] of Object.entries(input) as [keyof CommerceSettings, number | undefined][]) {
     if (value === undefined) continue;
     const range = COMMERCE_RANGES[key];
+    if (!Number.isInteger(value) || value < range.min || value > range.max) {
+      throw new AppError(`${key} debe ser un entero entre ${range.min} y ${range.max}.`, 400);
+    }
+  }
+}
+
+function assertValidPaymentSettings(input: Partial<PaymentSettings>): void {
+  for (const [key, value] of Object.entries(input) as [keyof PaymentSettings, number | undefined][]) {
+    if (value === undefined) continue;
+    const range = PAYMENT_RANGES[key];
     if (!Number.isInteger(value) || value < range.min || value > range.max) {
       throw new AppError(`${key} debe ser un entero entre ${range.min} y ${range.max}.`, 400);
     }
@@ -79,6 +100,7 @@ async function getSettings(): Promise<AppSettings> {
   return {
     inventory: { ...DEFAULT_INVENTORY_SETTINGS, ...doc?.inventory },
     commerce: { ...DEFAULT_COMMERCE_SETTINGS, ...doc?.commerce },
+    payments: { ...DEFAULT_PAYMENT_SETTINGS, ...doc?.payments },
   };
 }
 
@@ -138,4 +160,23 @@ async function updateCommerceSettings(input: Partial<CommerceSettings>): Promise
   return settings.commerce;
 }
 
-export { getSettings, updateInventorySettings, updateCommerceSettings };
+/** Mismo patrón de `$set` por rutas de punto que las demás secciones —
+ * sección propia, sin cruce con inventory/commerce (a diferencia del TTL de
+ * envío, el plazo de la ficha OXXO no depende de otro TTL del sistema). */
+async function updatePaymentSettings(input: Partial<PaymentSettings>): Promise<PaymentSettings> {
+  assertValidPaymentSettings(input);
+
+  const setFields: Record<string, number> = {};
+  for (const [key, value] of Object.entries(input)) {
+    if (value !== undefined) setFields[`payments.${key}`] = value;
+  }
+
+  if (Object.keys(setFields).length > 0) {
+    await Settings.findOneAndUpdate({ _id: SETTINGS_ID }, { $set: setFields }, { upsert: true });
+  }
+
+  const settings = await getSettings();
+  return settings.payments;
+}
+
+export { getSettings, updateInventorySettings, updateCommerceSettings, updatePaymentSettings };

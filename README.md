@@ -46,6 +46,8 @@ ignora cualquier `.env`/`.env.*` real y re-permite explícitamente los `.example
 | `CLIENT_URL` | Fail-fast en producción | Whitelist de CORS/CSRF. Default `localhost:3000` en dev |
 | `STRIPE_SECRET_KEY` | Fail-fast en producción | Requerida para el flujo de pagos (Milestone 1.6) |
 | `STRIPE_WEBHOOK_SECRET` | Fail-fast en producción | Verificación de firma del webhook de Stripe |
+| `STRIPE_WEBHOOK_TOLERANCE_SECONDS` | Con default | Tolerancia de timestamp del webhook (anti-replay). Default `300` (5 min), nunca `0` |
+| `PAYMENT_RECONCILE_AFTER_MINUTES` | Con default | Umbral del reconciliador: cuánto espera un pedido `pending` con PaymentIntent antes de que el cron le pregunte a Stripe. Default `10` |
 | `RESEND_API_KEY` | Fail-fast en producción | Correo transaccional (verificación de email, reset) |
 | `RESEND_FROM_EMAIL` | Con default | Remitente. Default `onboarding@resend.dev` (sandbox); en producción requiere dominio verificado en Resend |
 | `ACCESS_TOKEN_TTL` | Con default | Vida del JWT de acceso. Default `15m` |
@@ -60,6 +62,44 @@ ignora cualquier `.env`/`.env.*` real y re-permite explícitamente los `.example
 En **desarrollo**, las variables marcadas "fail-fast en producción" son opcionales: el server
 arranca sin ellas, y cualquier ruta que las necesite responde `503` explícito en vez de fingir
 éxito (se implementa junto con cada integración, en su propio milestone).
+
+## Pagos con Stripe (Milestone 1.6.1)
+
+`POST /api/v1/orders` suma `paymentMethod: "card" | "oxxo"` al body. El checkout crea la orden
+(transacción de 1.5, con el TTL de reserva según el método) y, **después** del commit, crea el
+`PaymentIntent` en Stripe (`ensurePaymentIntent`, idempotente hacia Stripe con
+`order:<id>:intent`). La respuesta de `POST /orders` incluye `payment.clientSecret` (tarjeta,
+para el Payment Element) o `payment.oxxoVoucher` (OXXO, con `hostedVoucherUrl` y `expiresAt`) —
+**nunca** una noción de "pagado": eso lo decide únicamente el webhook (1.6.2).
+
+`POST /api/v1/orders/:id/payment` reanuda el pago de un pedido `pending` propio (mismo
+`clientSecret`/ficha, sin crear otro PaymentIntent) — útil si el cliente cerró la pestaña antes
+de pagar o volvió desde el 409 de "ya tienes un pedido pendiente".
+
+**OXXO**: la ficha dura `Settings.payments.oxxoVoucherDays` (1-7, default 2) y el stock queda
+**apartado, no descontado**, hasta que Stripe confirma el pago (hasta el siguiente día hábil).
+Si no se paga, el pedido se cierra `oxxoConfirmationGraceHours` (default 96h) después de que la
+ficha vence — nunca antes, porque Stripe **no permite cancelar una ficha OXXO vigente ni
+reembolsar un pago OXXO**. Montos fuera de $10.00–$10,000.00 MXN se rechazan antes de reservar.
+
+**Cierre "Stripe-first"** (`closePendingOrder`, usado por la cancelación del cliente y el
+barrendero de expiración): si el pedido ya tiene un `PaymentIntent`, se consulta/cancela en
+Stripe **antes** de tocar inventario — nunca se cancela localmente un pedido cuyo pago Stripe ya
+procesó (en ese caso se liquida a `paid` y se responde 409 "tu pago ya se procesó").
+
+**Reconciliación** (mismo tick del cron): un pedido `pending` con `PaymentIntent` que lleva más
+de `PAYMENT_RECONCILE_AFTER_MINUTES` esperando se consulta directo a Stripe — respaldo para un
+webhook que nunca llega.
+
+**Sin `STRIPE_SECRET_KEY`** (dev sin configurar): el checkout verifica la configuración **antes**
+de reservar stock — responde `503` "Los pagos no están configurados" sin crear ninguna orden ni
+reserva. (Una llamada real a Stripe que falla en medio del checkout, en cambio, sí puede dejar un
+pedido `pending` sin `PaymentIntent`: el barrendero de expiración lo cierra al vencer.)
+
+Pendiente de 1.6.2/1.6.3: webhook (`payment_intent.succeeded/payment_failed/canceled`), dedupe
+por `event.id`, **anti card-testing** (5 rechazos de tarjeta cierran el pedido — el campo
+`payment.failedAttempts` ya existe en el modelo, falta conectarlo al webhook), reembolsos,
+disputas y correos transaccionales.
 
 ## Checkout — header `Idempotency-Key` (Milestone 1.5)
 
@@ -78,12 +118,12 @@ cliente (front, Milestone 2):
   `orderId` del pendiente (`errors.orderId`) — un cliente solo puede tener un checkout abierto
   a la vez.
 
-## Cron (Milestone 1.4 + 1.5)
+## Cron (Milestone 1.4 + 1.5 + 1.6.1)
 
 Un solo `node-cron` corre cada minuto (`jobs/index.ts`, nunca montado en `buildApp()`): libera
-reservas de stock vencidas, cancela pedidos `pending` cuya reserva ya venció (en ese orden) y
-refresca `Bundle.stockCache`. Todas las operaciones son idempotentes por documento — seguro
-correr varias instancias de la API sin lock distribuido.
+reservas de stock vencidas, cierra pedidos `pending` vencidos (Stripe-first, ver arriba),
+reconcilia pagos pendientes sin webhook y refresca `Bundle.stockCache`. Todas las operaciones son
+idempotentes por documento — seguro correr varias instancias de la API sin lock distribuido.
 
 ## Runbook de deploy (referencia — se completa en Milestone 1.10)
 

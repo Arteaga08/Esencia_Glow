@@ -2,7 +2,9 @@ import cron, { type ScheduledTask } from "node-cron";
 import { releaseExpiredReservations } from "./release-expired-reservations.js";
 import { refreshBundleStockCaches } from "./refresh-bundle-stock-cache.js";
 import { cancelExpiredOrders } from "./cancel-expired-orders.js";
+import { reconcilePendingPayments } from "./reconcile-pending-payments.js";
 import { getSettings } from "../services/settings.service.js";
+import { env } from "../config/env.js";
 import { logger } from "../config/logger.js";
 
 /**
@@ -45,15 +47,30 @@ function startCronJobs(): void {
     "* * * * *",
     async () => {
       const settings = await getSettings();
+      // Independiente de los barridos de reserva/orden de abajo (una
+      // orden colgada no depende de que además haya vencido su reserva):
+      // arranca en paralelo con el refresco de bundles, no encadenada
+      // detrás de la cadena reserva->orden, para no sumar una llamada de
+      // red a Stripe por pedido al tiempo secuencial de cada tick.
       const bundleSummaryPromise = refreshBundleStockCaches(settings.inventory.sweepBatchSize);
+      const reconcileSummaryPromise = reconcilePendingPayments(
+        new Date(),
+        settings.inventory.sweepBatchSize,
+        undefined,
+        env.paymentReconcileAfterMinutes,
+      );
       const reservationSummary = await releaseExpiredReservations(new Date(), settings.inventory.sweepBatchSize);
       const orderSummary = await cancelExpiredOrders(new Date(), settings.inventory.sweepBatchSize);
       const bundleSummary = await bundleSummaryPromise;
+      const reconcileSummary = await reconcileSummaryPromise;
       if (reservationSummary.released > 0 || reservationSummary.failed > 0) {
         logger.info(reservationSummary, "Barrido de reservas vencidas");
       }
       if (orderSummary.cancelled > 0 || orderSummary.failed > 0) {
         logger.info(orderSummary, "Barrido de pedidos pending vencidos");
+      }
+      if (reconcileSummary.reconciled > 0 || reconcileSummary.failed > 0) {
+        logger.info(reconcileSummary, "Reconciliación de pagos pendientes");
       }
       if (bundleSummary.updated > 0 || bundleSummary.failed > 0) {
         logger.info(bundleSummary, "Refresco de stockCache de bundles");

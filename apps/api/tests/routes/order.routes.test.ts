@@ -9,6 +9,7 @@ import { Order } from "../../src/models/order.model.js";
 import { Product } from "../../src/models/product.model.js";
 import { createCustomerSession } from "../helpers/admin-session.js";
 import { CHECKOUT_DESTINATION, resetCheckoutFixtureCounter } from "../helpers/checkout-fixtures.js";
+import { __setPaymentProviderForTests } from "../../src/services/payment-provider.js";
 
 const app = buildApp();
 
@@ -57,7 +58,7 @@ async function quoteViaHttp(agent: ReturnType<typeof request.agent>, lines: unkn
 async function checkoutPayload(agent: ReturnType<typeof request.agent>, variantId: string, quantity = 1) {
   const lines = [{ itemType: "product", itemId: variantId, quantity }];
   const { quoteId, rateId } = await quoteViaHttp(agent, lines);
-  return { lines, quoteId, rateId, termsAccepted: true };
+  return { lines, quoteId, rateId, paymentMethod: "card", termsAccepted: true };
 }
 
 describe("routes/order — checkout, lectura y cancelación del cliente", () => {
@@ -196,5 +197,37 @@ describe("routes/order — checkout, lectura y cancelación del cliente", () => 
 
     const res = await agent.post(`/api/v1/orders/${orderId}/cancel`);
     expect(res.status).toBe(409);
+  });
+
+  it("cancelar dos veces la misma orden pending es idempotente (200 ambas), nunca 409", async () => {
+    // Decisión deliberada de 1.6 (closePendingOrder): dos cierres
+    // concurrentes/repetidos (doble clic, reintento de red) no deben
+    // tratarse como conflicto — el segundo encuentra el trabajo ya hecho.
+    const { variantId } = await seedProduct({ onHand: 10 });
+    const { agent } = await createCustomerSession(app);
+    const payload = await checkoutPayload(agent, variantId);
+    const created = await agent.post("/api/v1/orders").set("Idempotency-Key", randomUUID()).send(payload);
+    const orderId = created.body.data.order.id;
+
+    const first = await agent.post(`/api/v1/orders/${orderId}/cancel`);
+    const second = await agent.post(`/api/v1/orders/${orderId}/cancel`);
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    expect(second.body.data.status).toBe(OrderStatus.CANCELLED);
+  });
+
+  it("sin proveedor de pagos configurado responde 503 y no crea orden ni reserva", async () => {
+    const { agent } = await createCustomerSession(app);
+    const { variantId } = await seedProduct({ onHand: 5 });
+    const payload = await checkoutPayload(agent, variantId);
+
+    __setPaymentProviderForTests(undefined);
+    const res = await agent.post("/api/v1/orders").set("Idempotency-Key", randomUUID()).send(payload);
+    expect(res.status).toBe(503);
+
+    expect(await Order.countDocuments()).toBe(0);
+    const inventory = await Inventory.findOne({ variantId });
+    expect(inventory?.reserved).toBe(0);
   });
 });

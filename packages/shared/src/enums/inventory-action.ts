@@ -21,6 +21,10 @@ enum InventoryAction {
    * que este release causó. Ver stock-reservation.service.ts. */
   RELEASE_INVENTORY_MISMATCH = "release_inventory_mismatch",
   SETTINGS_UPDATED = "settings_updated",
+  /** Reembolso total sobre una orden `paid`/`processing` (nunca enviada):
+   * las unidades comprometidas vuelven a `onHand`. Ver
+   * reservation-restock.service.ts (Milestone 1.6). */
+  RESERVATION_RESTOCKED = "reservation_restocked",
 }
 
 export { InventoryAction };

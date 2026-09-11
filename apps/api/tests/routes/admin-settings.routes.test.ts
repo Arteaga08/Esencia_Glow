@@ -70,4 +70,23 @@ describe("routes/admin-settings", () => {
       .send({ shippingQuoteTtlMinutes: 5 });
     expect(response.status).toBe(400);
   });
+
+  it("PATCH /payments persiste y el GET siguiente lo refleja, sin pisar commerce", async () => {
+    const { agent } = await createAdminSession(app);
+
+    await agent.patch("/api/v1/admin/settings/commerce").send({ taxRateBps: 700 });
+    const patch = await agent.patch("/api/v1/admin/settings/payments").send({ oxxoVoucherDays: 4 });
+    expect(patch.status).toBe(200);
+    expect(patch.body.data.oxxoVoucherDays).toBe(4);
+
+    const get = await agent.get("/api/v1/admin/settings");
+    expect(get.body.data.payments.oxxoVoucherDays).toBe(4);
+    expect(get.body.data.commerce.taxRateBps).toBe(700);
+  });
+
+  it("PATCH /payments rechaza oxxoVoucherDays fuera de 1-7", async () => {
+    const { agent } = await createAdminSession(app);
+    const response = await agent.patch("/api/v1/admin/settings/payments").send({ oxxoVoucherDays: 10 });
+    expect(response.status).toBe(400);
+  });
 });

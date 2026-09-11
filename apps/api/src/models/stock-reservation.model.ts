@@ -41,6 +41,10 @@ interface StockReservationAttrs {
   status: ReservationStatus;
   expiresAt: Date;
   purgeAt?: Date;
+  /** Sellado por reservation-restock.service.ts (Milestone 1.6) al devolver
+   * las unidades comprometidas por un reembolso. Idempotencia del restock:
+   * una reserva ya restockeada no se vuelve a tocar. */
+  restockedAt?: Date;
 }
 
 type StockReservationDocument = HydratedDocument<StockReservationAttrs>;
@@ -85,6 +89,7 @@ const stockReservationSchema = new Schema<StockReservationAttrs, StockReservatio
     },
     expiresAt: { type: Date, required: true },
     purgeAt: { type: Date },
+    restockedAt: { type: Date },
   },
   { timestamps: true },
 );

@@ -1,10 +1,14 @@
-import { OrderStatus } from "@esencia-glow/shared";
+import { OrderStatus, PaymentMethod } from "@esencia-glow/shared";
 import { beforeEach, describe, expect, it } from "vitest";
 import { Inventory } from "../../src/models/inventory.model.js";
 import { Order } from "../../src/models/order.model.js";
 import { cancelExpiredOrders } from "../../src/jobs/cancel-expired-orders.js";
 import { createOrder } from "../../src/services/order.service.js";
 import { markOrderPaid } from "../../src/services/order-payment.service.js";
+import { ensurePaymentIntent } from "../../src/services/order-payment-intent.service.js";
+import { buildFakePaymentProvider } from "../helpers/fake-payment-provider.js";
+import { User } from "../../src/models/user.model.js";
+import { vi } from "vitest";
 import {
   buildCreateOrderInput,
   randomUserId,
@@ -75,5 +79,40 @@ describe("jobs/cancelExpiredOrders", () => {
     expect(reloaded!.status).toBe(OrderStatus.CANCELLED);
     const inventory = await Inventory.findOne({ variantId });
     expect(inventory?.reserved).toBe(0);
+  });
+
+  it("Stripe-first: una orden vencida cuyo pago YA se capturó del lado de Stripe no se cancela, se liquida a paid", async () => {
+    const userId = randomUserId();
+    await User.create({
+      _id: userId,
+      email: `${userId}@example.com`,
+      password: "P4ssword!!",
+      firstName: "Ana",
+      lastName: "Pérez",
+      emailVerified: true,
+    });
+    const { variantId } = await seedVariantWithStock({ price: 50000, onHand: 10 });
+    const input = await buildCreateOrderInput(userId, [
+      { itemType: "product", itemId: variantId.toString(), quantity: 1 },
+    ], { paymentMethod: PaymentMethod.CARD });
+    const { order } = await createOrder(input);
+
+    const provider = buildFakePaymentProvider({
+      cancel: vi.fn().mockResolvedValue("already_captured"),
+      getAuthorization: vi.fn().mockResolvedValue({
+        intentId: "pi_late",
+        status: "captured",
+        amountCents: order.totalCents,
+        currency: order.currency,
+      }),
+    });
+    await ensurePaymentIntent(order._id.toString(), userId, { provider });
+    await Order.updateOne({ _id: order._id }, { $set: { expiresAt: new Date(Date.now() - 60_000) } });
+
+    const summary = await cancelExpiredOrders(new Date(), 100, provider);
+
+    expect(summary.cancelled).toBe(0);
+    const reloaded = await Order.findById(order._id);
+    expect(reloaded!.status).toBe(OrderStatus.PAID);
   });
 });

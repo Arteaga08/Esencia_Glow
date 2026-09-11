@@ -24,9 +24,24 @@ interface CommerceSettings {
   shippingQuoteTtlMinutes: number;
 }
 
+/**
+ * Sección de negocio de pagos (Milestone 1.6). `oxxoVoucherDays` es el
+ * plazo que se le da a la ficha OXXO (Stripe acepta 1-7); mientras esté
+ * vigente el stock queda apartado (`reserved`), nunca descontado.
+ * `oxxoConfirmationGraceHours` es la gracia DESPUÉS de que la ficha vence:
+ * Stripe confirma un pago OXXO hasta el siguiente día hábil, así que soltar
+ * el stock justo al vencer dejaría sin producto a quien pagó a último
+ * momento (ver order-payment.md / plan de 1.6, decisión 1a).
+ */
+interface PaymentSettings {
+  oxxoVoucherDays: number;
+  oxxoConfirmationGraceHours: number;
+}
+
 interface AppSettings {
   inventory: InventorySettings;
   commerce: CommerceSettings;
+  payments: PaymentSettings;
 }
 
-export type { InventorySettings, CommerceSettings, AppSettings };
+export type { InventorySettings, CommerceSettings, PaymentSettings, AppSettings };

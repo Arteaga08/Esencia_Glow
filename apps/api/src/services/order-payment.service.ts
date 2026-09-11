@@ -60,7 +60,7 @@ async function markOrderPaidCore(
     {
       $set: {
         status: OrderStatus.PAID,
-        "payment.state": PaymentState.SUCCEEDED,
+        "payment.state": PaymentState.CAPTURED,
         "payment.capturedAt": now,
         ...(input.intentId ? { "payment.intentId": input.intentId } : {}),
         ...(input.card ? { "payment.card": input.card } : {}),

@@ -1,0 +1,38 @@
+import type { PaymentSettings } from "../types/settings.js";
+
+/**
+ * Defaults del singleton de Settings, sección `payments` (Milestone 1.6).
+ * Ver types/settings.ts para el razonamiento de cada campo.
+ */
+const DEFAULT_PAYMENT_SETTINGS: PaymentSettings = {
+  oxxoVoucherDays: 2,
+  oxxoConfirmationGraceHours: 96,
+};
+
+/** Límites de Stripe para OXXO (10.00–10,000.00 MXN), en centavos. */
+const OXXO_MIN_AMOUNT_CENTS = 1_000;
+const OXXO_MAX_AMOUNT_CENTS = 1_000_000;
+
+/** Ventana de retención de `PaymentEvent` = ventana de dedupe: Stripe
+ * reintenta webhooks hasta 3 días en vivo; 60 días deja margen amplio y
+ * sirve para investigar una disputa semanas después. */
+const PAYMENT_EVENT_RETENTION_DAYS = 60;
+
+/** Margen entre `order.expiresAt` (cuándo el sistema le pregunta a Stripe si
+ * cierra el pedido) y `reservation.expiresAt` (red de seguridad del
+ * barrendero ciego de 1.4) — el cierre "Stripe-first" debe actuar antes que
+ * el barrendero de reservas. */
+const RESERVATION_SAFETY_MARGIN_MINUTES = 15;
+
+/** Tope anti card-testing: al 5.º rechazo de tarjeta en el mismo pedido se
+ * cancela el intento de pago y el pedido (decisión 10 del plan de 1.6). */
+const MAX_CARD_FAILED_ATTEMPTS = 5;
+
+export {
+  DEFAULT_PAYMENT_SETTINGS,
+  OXXO_MIN_AMOUNT_CENTS,
+  OXXO_MAX_AMOUNT_CENTS,
+  PAYMENT_EVENT_RETENTION_DAYS,
+  RESERVATION_SAFETY_MARGIN_MINUTES,
+  MAX_CARD_FAILED_ATTEMPTS,
+};

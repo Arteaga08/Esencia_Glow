@@ -76,6 +76,30 @@ const checkoutRateLimiter = createRateLimiter({
   message: "Demasiados intentos de compra, intenta de nuevo más tarde.",
 });
 
+/**
+ * `POST /orders/:id/payment`: reanudar el pago de un pedido ya creado. Más
+ * permisivo que `checkoutRateLimiter` porque no reserva stock nuevo, pero
+ * sigue acotado — es la misma superficie que crearía un PaymentIntent.
+ */
+const paymentResumeRateLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: "Demasiados intentos de pago, intenta de nuevo más tarde.",
+});
+
+/**
+ * `POST /webhooks/stripe`: server-to-server, sin sesión de usuario detrás —
+ * su barrera es la firma, no el auth. Un burst de reentregas legítimas de
+ * Stripe no debe agotar la cuota de los usuarios reales (por eso NO hereda
+ * el limiter global), pero el endpoint tampoco puede quedar sin ningún
+ * límite.
+ */
+const webhookRateLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 600,
+  message: "Demasiadas solicitudes de webhook, intenta de nuevo más tarde.",
+});
+
 export {
   createRateLimiter,
   globalRateLimiter,
@@ -83,4 +107,6 @@ export {
   uploadRateLimiter,
   catalogRateLimiter,
   checkoutRateLimiter,
+  paymentResumeRateLimiter,
+  webhookRateLimiter,
 };

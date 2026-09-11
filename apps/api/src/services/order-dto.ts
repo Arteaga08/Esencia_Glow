@@ -88,10 +88,15 @@ function buildPublicOrder(order: LeanOrder): PublicOrder {
     },
     payment: {
       provider: order.payment.provider,
+      method: order.payment.method,
       state: order.payment.state,
       captureMethod: order.payment.captureMethod,
       ...(order.payment.capturedAt ? { capturedAt: order.payment.capturedAt.toISOString() } : {}),
       ...(order.payment.card ? { card: order.payment.card } : {}),
+      ...(order.payment.voucherExpiresAt ? { voucherExpiresAt: order.payment.voucherExpiresAt.toISOString() } : {}),
+      ...(order.payment.refundedAmountCents !== undefined
+        ? { refundedAmountCents: order.payment.refundedAmountCents }
+        : {}),
     },
     shippingAddress: order.shippingAddress,
     shippingSelection: order.shippingSelection,
@@ -128,10 +133,12 @@ function buildAdminStatusHistoryEntry(entry: OrderAttrs["statusHistory"][number]
 function buildAdminOrderPayment(payment: OrderAttrs["payment"]): AdminOrderPayment {
   return {
     provider: payment.provider,
+    method: payment.method,
     state: payment.state,
     captureMethod: payment.captureMethod,
     ...(payment.capturedAt ? { capturedAt: payment.capturedAt.toISOString() } : {}),
     ...(payment.card ? { card: payment.card } : {}),
+    ...(payment.voucherExpiresAt ? { voucherExpiresAt: payment.voucherExpiresAt.toISOString() } : {}),
     ...(payment.intentId ? { intentId: payment.intentId } : {}),
     ...(payment.lastError ? { lastError: payment.lastError } : {}),
     ...(payment.refundedAmountCents !== undefined ? { refundedAmountCents: payment.refundedAmountCents } : {}),
@@ -156,6 +163,9 @@ function buildAdminOrder(order: LeanOrder, customer: AdminOrderCustomer | null):
     inventoryIncident: order.inventoryIncident,
     ...(order.adminAlertedAt ? { adminAlertedAt: order.adminAlertedAt.toISOString() } : {}),
     internalNotesCount: order.internalNotes.length,
+    ...(order.disputedAt ? { disputedAt: order.disputedAt.toISOString() } : {}),
+    ...(order.disputeStatus ? { disputeStatus: order.disputeStatus } : {}),
+    ...(order.payment.refundRequestedAt ? { refundRequestedAt: order.payment.refundRequestedAt.toISOString() } : {}),
   };
 }
 

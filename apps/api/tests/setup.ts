@@ -1,6 +1,6 @@
 import { MongoMemoryReplSet } from "mongodb-memory-server";
 import mongoose from "mongoose";
-import { afterAll, afterEach, beforeAll } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach } from "vitest";
 import { models } from "../src/models/index.js";
 
 /**
@@ -34,6 +34,25 @@ beforeAll(async () => {
   // una colección o construir un índice dentro de una transacción no está
   // permitido, y Mongoose los crea de forma perezosa en el primer uso.
   await Promise.all(models.map((registeredModel) => registeredModel.init()));
+});
+
+/**
+ * Proveedor de pagos falso por defecto en TODA la suite (Milestone 1.6):
+ * sin esto, cualquier checkout de un test de rutas dispararía
+ * `ensurePaymentIntent` -> 503 "no configurado", porque no hay
+ * `STRIPE_SECRET_KEY` real en el entorno de tests. Un test que necesite un
+ * comportamiento específico (rechazo, ya capturado, etc.) llama de nuevo a
+ * `__setPaymentProviderForTests` con su propio fake dentro del test.
+ */
+beforeEach(async () => {
+  // Import dinámico A PROPÓSITO: cualquier import ESTÁTICO de un módulo que
+  // toque config/env.ts se evalúa (por hoisting) ANTES de las asignaciones
+  // de `process.env.*` de arriba, y `loadEnv()` explotaría por falta de
+  // JWT_SECRET. El import dinámico corre en este punto de la ejecución, ya
+  // con el entorno listo.
+  const { __setPaymentProviderForTests } = await import("../src/services/payment-provider.js");
+  const { buildFakePaymentProvider } = await import("./helpers/fake-payment-provider.js");
+  __setPaymentProviderForTests(buildFakePaymentProvider());
 });
 
 afterEach(async () => {
