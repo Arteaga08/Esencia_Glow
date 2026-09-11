@@ -1,18 +1,21 @@
 import type Stripe from "stripe";
 import { AppError } from "../utils/app-error.js";
 import { PaymentMethod } from "@esencia-glow/shared";
+import { parseStripeWebhookEvent } from "./stripe-webhook-translator.js";
 import type {
   AuthorizePaymentInput,
   CancelOutcome,
   PaymentAuthorization,
   PaymentAuthorizationStatus,
   PaymentProvider,
+  PaymentWebhookEvent,
 } from "./payment-provider.js";
 
 /**
- * Único archivo (junto a payment-provider.ts) donde puede aparecer
- * vocabulario crudo de Stripe. Traduce PaymentIntent -> `PaymentAuthorization`
- * en nuestro vocabulario, en centavos enteros, con `PaymentState` propio.
+ * Único archivo (junto a payment-provider.ts y stripe-webhook-translator.ts)
+ * donde puede aparecer vocabulario crudo de Stripe. Traduce PaymentIntent ->
+ * `PaymentAuthorization` en nuestro vocabulario, en centavos enteros, con
+ * `PaymentState` propio.
  *
  * Interfaz estructural angosta del cliente de Stripe que este adapter
  * necesita — permite testear el mapeo con un cliente falso sin depender del
@@ -24,6 +27,14 @@ interface StripeClientLike {
     retrieve: Stripe["paymentIntents"]["retrieve"];
     cancel: Stripe["paymentIntents"]["cancel"];
   };
+}
+
+/** Configuración del webhook — opcional porque en dev sin `STRIPE_WEBHOOK_SECRET`
+ * el provider real de checkout/reconciliación sigue funcionando; solo
+ * `parseWebhookEvent` responde 503 (ver resolvePaymentProvider). */
+interface StripeWebhookConfig {
+  secret?: string;
+  toleranceSeconds: number;
 }
 
 interface StripeErrorLike {
@@ -64,11 +75,19 @@ function mapPaymentIntentStatus(status: Stripe.PaymentIntent.Status): PaymentAut
   }
 }
 
+/**
+ * `PaymentIntent.latest_charge` es `string | Charge | null` — solo trae el
+ * objeto expandido si la llamada pidió `expand: ["latest_charge"]`
+ * (ver getAuthorization). Sin expandir, llega como id: no hay tarjeta que
+ * leer todavía en ese caso (nunca se lee antes de capturar — frontera
+ * PCI SAQ-A, igual que documenta payment-provider.ts).
+ */
 function extractCard(pi: Stripe.PaymentIntent): { brand: string; last4: string } | undefined {
-  const charge = (pi as unknown as { charges?: { data?: Array<{ payment_method_details?: { card?: { brand: string; last4: string } } }> } })
-    .charges?.data?.[0];
-  const card = charge?.payment_method_details?.card;
-  return card ? { brand: card.brand, last4: card.last4 } : undefined;
+  const latestCharge = pi.latest_charge;
+  if (!latestCharge || typeof latestCharge === "string") return undefined;
+  const card = latestCharge.payment_method_details?.card;
+  if (!card?.brand || !card.last4) return undefined;
+  return { brand: card.brand, last4: card.last4 };
 }
 
 function extractVoucher(pi: Stripe.PaymentIntent): { expiresAt: Date; hostedVoucherUrl: string } | undefined {
@@ -165,7 +184,12 @@ async function authorizeOxxo(
   return toPaymentAuthorization(pi);
 }
 
-function createStripePaymentProvider(client: StripeClientLike): PaymentProvider {
+const DEFAULT_WEBHOOK_TOLERANCE_SECONDS = 300;
+
+function createStripePaymentProvider(
+  client: StripeClientLike,
+  webhook: StripeWebhookConfig = { toleranceSeconds: DEFAULT_WEBHOOK_TOLERANCE_SECONDS },
+): PaymentProvider {
   return {
     async authorize(input: AuthorizePaymentInput): Promise<PaymentAuthorization> {
       try {
@@ -179,7 +203,9 @@ function createStripePaymentProvider(client: StripeClientLike): PaymentProvider 
 
     async getAuthorization(intentId: string): Promise<PaymentAuthorization> {
       try {
-        const pi = await client.paymentIntents.retrieve(intentId);
+        // `expand: ["latest_charge"]` es la única forma de leer la tarjeta
+        // (brand/last4): sin expandir, `latest_charge` llega como id crudo.
+        const pi = await client.paymentIntents.retrieve(intentId, { expand: ["latest_charge"] });
         return toPaymentAuthorization(pi);
       } catch (error) {
         translateStripeError(error);
@@ -196,13 +222,25 @@ function createStripePaymentProvider(client: StripeClientLike): PaymentProvider 
           error.type === "StripeInvalidRequestError" &&
           error.code === "payment_intent_unexpected_state"
         ) {
-          return error.payment_intent?.status === "succeeded" ? "already_captured" : "not_cancelable";
+          const piStatus = error.payment_intent?.status;
+          // Cancelar un PI que YA está cancelado es un resultado exitoso e
+          // idempotente (dos reentregas del webhook, o el reconciliador y el
+          // webhook compitiendo) — nunca un "no se puede cancelar".
+          if (piStatus === "canceled") return "canceled";
+          return piStatus === "succeeded" ? "already_captured" : "not_cancelable";
         }
         translateStripeError(error);
       }
+    },
+
+    parseWebhookEvent(rawBody: Buffer, signature: string): PaymentWebhookEvent {
+      if (!webhook.secret) {
+        throw new AppError("Los webhooks de pago no están configurados.", 503);
+      }
+      return parseStripeWebhookEvent(rawBody, signature, { secret: webhook.secret, toleranceSeconds: webhook.toleranceSeconds });
     },
   };
 }
 
 export { createStripePaymentProvider };
-export type { StripeClientLike };
+export type { StripeClientLike, StripeWebhookConfig };

@@ -46,8 +46,8 @@ ignora cualquier `.env`/`.env.*` real y re-permite explícitamente los `.example
 | `CLIENT_URL` | Fail-fast en producción | Whitelist de CORS/CSRF. Default `localhost:3000` en dev |
 | `STRIPE_SECRET_KEY` | Fail-fast en producción | Requerida para el flujo de pagos (Milestone 1.6) |
 | `STRIPE_WEBHOOK_SECRET` | Fail-fast en producción | Verificación de firma del webhook de Stripe |
-| `STRIPE_WEBHOOK_TOLERANCE_SECONDS` | Con default | Tolerancia de timestamp del webhook (anti-replay). Default `300` (5 min), nunca `0` |
-| `PAYMENT_RECONCILE_AFTER_MINUTES` | Con default | Umbral del reconciliador: cuánto espera un pedido `pending` con PaymentIntent antes de que el cron le pregunte a Stripe. Default `10` |
+| `STRIPE_WEBHOOK_TOLERANCE_SECONDS` | Con default, fail-fast si es inválida | Tolerancia de timestamp del webhook (anti-replay). Default `300` (5 min). Debe ser un entero positivo — `0` o negativo no arranca el server |
+| `PAYMENT_RECONCILE_AFTER_MINUTES` | Con default, fail-fast si es inválida | Umbral del reconciliador: cuánto espera un pedido `pending` con PaymentIntent antes de que el cron le pregunte a Stripe. Default `10`, mismo criterio de entero positivo |
 | `RESEND_API_KEY` | Fail-fast en producción | Correo transaccional (verificación de email, reset) |
 | `RESEND_FROM_EMAIL` | Con default | Remitente. Default `onboarding@resend.dev` (sandbox); en producción requiere dominio verificado en Resend |
 | `ACCESS_TOKEN_TTL` | Con default | Vida del JWT de acceso. Default `15m` |
@@ -63,7 +63,7 @@ En **desarrollo**, las variables marcadas "fail-fast en producción" son opciona
 arranca sin ellas, y cualquier ruta que las necesite responde `503` explícito en vez de fingir
 éxito (se implementa junto con cada integración, en su propio milestone).
 
-## Pagos con Stripe (Milestone 1.6.1)
+## Pagos con Stripe (Milestone 1.6.1 + 1.6.2)
 
 `POST /api/v1/orders` suma `paymentMethod: "card" | "oxxo"` al body. El checkout crea la orden
 (transacción de 1.5, con el TTL de reserva según el método) y, **después** del commit, crea el
@@ -96,10 +96,54 @@ de reservar stock — responde `503` "Los pagos no están configurados" sin crea
 reserva. (Una llamada real a Stripe que falla en medio del checkout, en cambio, sí puede dejar un
 pedido `pending` sin `PaymentIntent`: el barrendero de expiración lo cierra al vencer.)
 
-Pendiente de 1.6.2/1.6.3: webhook (`payment_intent.succeeded/payment_failed/canceled`), dedupe
-por `event.id`, **anti card-testing** (5 rechazos de tarjeta cierran el pedido — el campo
-`payment.failedAttempts` ya existe en el modelo, falta conectarlo al webhook), reembolsos,
-disputas y correos transaccionales.
+### Webhook (`POST /api/v1/webhooks/stripe`, Milestone 1.6.2)
+
+Único evento "pagado" real: **el estado lo decide solo el webhook**, nunca el redirect del
+navegador. Montado en `app.ts` **antes** de `cors`/`express.json`/`verifyOrigin`/el rate limiter
+global (con body crudo vía `express.raw`, porque la verificación de firma de Stripe necesita el
+Buffer tal cual, y un `JSON.parse`/re-serializado rompería el HMAC) — lleva su propio limiter
+(`webhookRateLimiter`, 600/15 min), no el de clientes reales.
+
+Eventos suscritos hasta 1.6.3 (configurar el endpoint en el Dashboard de Stripe o
+`stripe listen` con exactamente estos tres): `payment_intent.succeeded`,
+`payment_intent.payment_failed`, `payment_intent.canceled`. Cualquier otro tipo de evento
+(`charge.refunded`, `charge.dispute.*`, …) llega `ignored` — **no los suscribas todavía**: 1.6.3
+los procesa de verdad, y una fila `ignored` de hoy deduplicaría su reentrega real más adelante.
+
+**Dedupe persistido** (`PaymentEvent`, `eventId` único, TTL a `PAYMENT_EVENT_RETENTION_DAYS` días
+= la ventana de dedupe): el `insert` ocurre antes de despachar, así que dos reentregas
+simultáneas del mismo evento nunca se procesan ambas. Una fila `processing` cuyo lease
+(`PAYMENT_EVENT_LEASE_MINUTES`, 5 min) venció es reclamable por la siguiente reentrega — cubre
+una caída del proceso a medio despacho.
+
+**Localizar la orden**: por `payment.intentId` (índice único). Como respaldo, por
+`metadata.orderId` — solo para localizar, nunca para autorizar: si esa orden ya tiene OTRO
+intent, es una anomalía auditada, no un pago que se adopta a ciegas.
+
+**Clasificación de errores**: un rechazo de negocio (orden inexistente, monto que no cuadra, pago
+tardío sobre una orden ya cerrada) responde **200** con el evento marcado `failed` — reintentar
+no lo arregla. Cualquier excepción (Stripe caído, DB, timeout) responde **500** para que Stripe
+reintente la entrega.
+
+**Sin `STRIPE_WEBHOOK_SECRET`** (Stripe configurado pero sin secreto de webhook): el endpoint
+responde `503` "Los webhooks de pago no están configurados" sin escribir nada.
+
+**Anti card-testing**: cada `payment_intent.payment_failed` de tarjeta suma 1 a
+`payment.failedAttempts` (idempotente por evento — reprocesar el mismo no cuenta dos veces). Al
+5.º rechazo (`MAX_CARD_FAILED_ATTEMPTS`) se cancela el `PaymentIntent` en Stripe y se cierra el
+pedido, liberando el stock. Para OXXO, un `payment_failed` (ficha vencida sin pago, que Stripe
+entrega hasta 10 días después) cierra directo — no hay "otro intento" con la misma ficha.
+
+**Cancelación admin** (`PATCH /admin/orders/:id/status` a `cancelled`) también pasa por
+`closePendingOrder` (Stripe-first, decisión 1 de 1.6.2): un admin ya no puede liberar stock de un
+pedido cuyo cobro Stripe está procesando.
+
+**Verificación local** con `stripe listen --forward-to localhost:4000/api/v1/webhooks/stripe`:
+imprime el `whsec_...` que va en `STRIPE_WEBHOOK_SECRET` de `.env.development.local`. Con el
+server corriendo, `stripe trigger payment_intent.succeeded` o pagar de verdad con una tarjeta de
+prueba contra un pedido creado por la API ejercita el flujo completo.
+
+Pendiente de 1.6.3: reembolsos, disputas y correos transaccionales.
 
 ## Checkout — header `Idempotency-Key` (Milestone 1.5)
 

@@ -67,10 +67,32 @@ interface PaymentAuthorization {
 
 type CancelOutcome = "canceled" | "already_captured" | "not_cancelable";
 
+/**
+ * Evento de dominio traducido de un webhook de pago (Milestone 1.6.2). El
+ * `eventId`/`providerType` crudo del proveedor viaja para dedupe y logging,
+ * pero el resto del sistema despacha sobre `kind`, nunca sobre el tipo de
+ * evento de Stripe (ver stripe-webhook-translator.ts).
+ */
+type PaymentWebhookEvent =
+  | { kind: "payment.captured"; eventId: string; providerType: string; intentId: string; orderIdHint?: string }
+  | {
+      kind: "payment.failed";
+      eventId: string;
+      providerType: string;
+      intentId: string;
+      orderIdHint?: string;
+      lastError?: string;
+    }
+  | { kind: "payment.canceled"; eventId: string; providerType: string; intentId: string; orderIdHint?: string }
+  | { kind: "ignored"; eventId: string; providerType: string };
+
 interface PaymentProvider {
   authorize(input: AuthorizePaymentInput): Promise<PaymentAuthorization>;
   getAuthorization(intentId: string): Promise<PaymentAuthorization>;
   cancel(intentId: string, idempotencyKey: string): Promise<CancelOutcome>;
+  /** Lanza 503 si el webhook no está configurado (sin `STRIPE_WEBHOOK_SECRET`),
+   * 400 si la firma/timestamp no verifican (ver stripe-webhook-translator.ts). */
+  parseWebhookEvent(rawBody: Buffer, signature: string): PaymentWebhookEvent;
 }
 
 /**
@@ -97,7 +119,10 @@ function resolvePaymentProvider(): PaymentProvider | undefined {
   if (!isStripeConfigured()) return undefined;
   const client = getStripeClient();
   if (!client) return undefined;
-  return createStripePaymentProvider(client);
+  return createStripePaymentProvider(client, {
+    secret: env.stripeWebhookSecret,
+    toleranceSeconds: env.stripeWebhookToleranceSeconds,
+  });
 }
 
 export { resolvePaymentProvider, __setPaymentProviderForTests };
@@ -110,4 +135,5 @@ export type {
   PaymentCustomerInput,
   PaymentShippingInput,
   PaymentShippingAddressInput,
+  PaymentWebhookEvent,
 };

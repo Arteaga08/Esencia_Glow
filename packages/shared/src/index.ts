@@ -55,6 +55,7 @@ export {
   PAYMENT_EVENT_RETENTION_DAYS,
   RESERVATION_SAFETY_MARGIN_MINUTES,
   MAX_CARD_FAILED_ATTEMPTS,
+  PAYMENT_EVENT_LEASE_MINUTES,
 } from "./constants/payments.js";
 export { MEXICAN_STATES } from "./constants/mexican-states.js";
 export type { MexicanState } from "./constants/mexican-states.js";

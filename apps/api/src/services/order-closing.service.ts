@@ -7,7 +7,7 @@ import { assertTransition } from "./order-state.js";
 import { releaseReservationDetailed, auditReleaseMismatches } from "./stock-reservation.service.js";
 import { recordAudit } from "./audit.service.js";
 import { resolvePaymentProvider, type PaymentProvider } from "./payment-provider.js";
-import { settleCapturedPayment } from "./payment-settlement.service.js";
+import { settleCapturedPayment, type SettlementResult } from "./payment-settlement.service.js";
 
 /**
  * `closePendingOrder` — único camino para cerrar un pedido `pending`
@@ -18,12 +18,25 @@ import { settleCapturedPayment } from "./payment-settlement.service.js";
  */
 
 type CloseActor = "customer" | "admin" | "system";
-type CloseOutcome = "closed" | "already_paid";
+/**
+ * `payment_anomaly` (Milestone 1.6.2, hallazgo de code review): antes,
+ * cualquier desenlace de `settleCapturedPayment` — incluidos
+ * `amount_mismatch`/`late_payment`, donde la orden NO se pagó y sigue
+ * `pending` marcada para revisión — se reportaba como `already_paid`. Un
+ * admin que intentara cancelar ese pedido (el remedio natural para esa
+ * misma anomalía) recibía "tu pago ya se procesó", falso y sin salida.
+ */
+type CloseOutcome = "closed" | "already_paid" | "payment_anomaly";
 
 interface ClosePendingOrderOptions {
   /** Requerido cuando `actor === "customer"` — anti-IDOR: filtro de
    * propiedad, nunca un check posterior. */
   userId?: string;
+  /** El admin que pidió el cierre (Milestone 1.6.2) — queda en
+   * `statusHistory`/audit. `claimAndRelease` usa `actorId ?? userId`, así
+   * que un cierre de cliente sigue atribuido a su propio `userId` sin que
+   * cada caller tenga que duplicarlo en ambos campos. */
+  actorId?: string;
   reason?: string;
   /** Inyectable para tests — en producción se resuelve por configuración. */
   provider?: PaymentProvider;
@@ -95,7 +108,15 @@ async function claimAndRelease(
   if (releaseResult.inconsistentVariants.length > 0) {
     await auditReleaseMismatches(claimed.reservationId.toString(), releaseResult.inconsistentVariants);
   }
-  await recordAudit({ action: OrderAction.ORDER_CANCELLED, ...(actorId ? { actorId } : {}), targetId: claimed._id });
+  // `metadata.from/to`, igual que cualquier otra transición admin
+  // (`order-admin-status.service.ts`) — el filtro de arriba ya exige
+  // `status: PENDING`, así que "from" siempre es ese estado en este punto.
+  await recordAudit({
+    action: OrderAction.ORDER_CANCELLED,
+    ...(actorId ? { actorId } : {}),
+    targetId: claimed._id,
+    metadata: { from: OrderStatus.PENDING, to: OrderStatus.CANCELLED },
+  });
 
   return { outcome: "closed", order: claimed, transitioned: true };
 }
@@ -110,6 +131,19 @@ async function flagOrderForReview(orderId: string, reason: string): Promise<void
     { $set: { adminAlertedAt: new Date() } },
   );
   await recordAudit({ action: OrderAction.ORDER_PAYMENT_ANOMALY, targetId: orderId, metadata: { reason } });
+}
+
+/** Traduce el desenlace REAL de `settleCapturedPayment` a `CloseOutcome`:
+ * solo `paid`/`already_paid`/`inventory_incident` significan "el dinero es
+ * real, no toques la orden" (`already_paid`). `amount_mismatch`/
+ * `late_payment` NO transicionaron nada — la orden sigue `pending`,
+ * marcada para revisión — así que el caller necesita distinguirlo para no
+ * responder "tu pago ya se procesó" sobre un pedido que en realidad no se
+ * pagó. */
+function outcomeFromSettlement(settlement: SettlementResult): CloseOutcome {
+  return settlement.outcome === "amount_mismatch" || settlement.outcome === "late_payment"
+    ? "payment_anomaly"
+    : "already_paid";
 }
 
 function buildOwnershipFilter(actor: CloseActor, orderId: string, userId?: string): FilterQuery<OrderAttrs> {
@@ -143,7 +177,7 @@ async function closePendingOrder(
   }
 
   if (!order.payment.intentId) {
-    return claimAndRelease(filter, actor, options.userId, options.reason);
+    return claimAndRelease(filter, actor, options.actorId ?? options.userId, options.reason);
   }
 
   const provider = "provider" in options ? options.provider : resolvePaymentProvider();
@@ -156,7 +190,7 @@ async function closePendingOrder(
     if (cancelOutcome === "already_captured") {
       const authorization = await provider.getAuthorization(order.payment.intentId);
       const settlement = await settleCapturedPayment(orderId, authorization);
-      return { outcome: "already_paid", order: settlement.order, transitioned: false };
+      return { outcome: outcomeFromSettlement(settlement), order: settlement.order, transitioned: false };
     }
     if (cancelOutcome === "not_cancelable") {
       // El PI está en un estado intermedio (p. ej. `processing`, una
@@ -171,14 +205,18 @@ async function closePendingOrder(
         409,
       );
     }
-    return claimAndRelease(filter, actor, options.userId, options.reason);
+    return claimAndRelease(filter, actor, options.actorId ?? options.userId, options.reason);
   }
 
   // OXXO: la ficha NO se puede cancelar antes de vencer (límite real de
   // Stripe) — un pedido con ficha vigente solo puede resolverse solo
-  // (el cliente paga o la ficha vence), nunca cancelarse a mano.
+  // (el cliente paga o la ficha vence), nunca cancelarse a mano. Este
+  // candado por `voucherExpiresAt` es exclusivo de customer/admin: `system`
+  // (webhook `payment_failed`/`canceled`, decisión 6 del plan de 1.6.2)
+  // consulta a Stripe sin importar la ficha — su propio candado, más abajo,
+  // usa `order.expiresAt` (con la gracia ya sumada), no `voucherExpiresAt`.
   const voucherExpiresAt = order.payment.voucherExpiresAt;
-  if (voucherExpiresAt && voucherExpiresAt.getTime() > Date.now()) {
+  if (actor !== "system" && voucherExpiresAt && voucherExpiresAt.getTime() > Date.now()) {
     throw new AppError(
       "No puedes cancelar un pedido con ficha OXXO vigente; si no la pagas, se cancelará sola.",
       409,
@@ -188,14 +226,27 @@ async function closePendingOrder(
   const authorization = await provider.getAuthorization(order.payment.intentId);
   if (authorization.status === "captured") {
     const settlement = await settleCapturedPayment(orderId, authorization);
-    return { outcome: "already_paid", order: settlement.order, transitioned: false };
+    return { outcome: outcomeFromSettlement(settlement), order: settlement.order, transitioned: false };
+  }
+
+  // `system` antes de la gracia (`order.expiresAt`, no la ficha): un estado
+  // transitorio de Stripe (`awaiting_customer`/`processing`) todavía puede
+  // resolverse a `captured` — cerrar aquí liberaría stock de un pago que
+  // podría llegar. Después de la gracia, se cierra sin importar el estado
+  // (decisión 1a del plan de 1.6: pasada la gracia, no confirmado = no
+  // pagado).
+  if (actor === "system" && order.expiresAt && order.expiresAt.getTime() > Date.now()) {
+    const isTransitory = authorization.status === "awaiting_customer" || authorization.status === "processing";
+    if (isTransitory) {
+      throw new AppError("El pago OXXO sigue vigente en el procesador de pagos.", 409);
+    }
   }
 
   // Best-effort: la ficha ya venció, Stripe normalmente rechaza el cancel
   // (PI ya no está en un estado cancelable) — el resultado no cambia el
   // cierre local, que es lo que de verdad importa aquí.
   await provider.cancel(order.payment.intentId, `order:${orderId}:cancel`).catch(() => undefined);
-  return claimAndRelease(filter, actor, options.userId, options.reason);
+  return claimAndRelease(filter, actor, options.actorId ?? options.userId, options.reason);
 }
 
 export { closePendingOrder };

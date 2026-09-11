@@ -1,12 +1,17 @@
 import { OrderStatus, ProductStatus, ShippingCarrier } from "@esencia-glow/shared";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { buildApp } from "../../src/app.js";
+import { AuditLog } from "../../src/models/audit-log.model.js";
 import { Category } from "../../src/models/category.model.js";
 import { Inventory } from "../../src/models/inventory.model.js";
 import { Order } from "../../src/models/order.model.js";
 import { Product } from "../../src/models/product.model.js";
+import { User } from "../../src/models/user.model.js";
 import { createOrder } from "../../src/services/order.service.js";
 import { markOrderPaid } from "../../src/services/order-payment.service.js";
+import { ensurePaymentIntent } from "../../src/services/order-payment-intent.service.js";
+import { __setPaymentProviderForTests } from "../../src/services/payment-provider.js";
+import { buildFakePaymentProvider } from "../helpers/fake-payment-provider.js";
 import { createAdminSession, createCustomerSession } from "../helpers/admin-session.js";
 import { buildCreateOrderInput, randomUserId, resetCheckoutFixtureCounter } from "../helpers/checkout-fixtures.js";
 
@@ -39,6 +44,18 @@ async function seedPendingOrder(onHand = 10) {
   await Inventory.create({ productId: product._id, variantId: variant._id, sku: variant.sku, onHand, reserved: 0 });
 
   const userId = randomUserId();
+  // Usuaria real (no solo un id al aire): `ensurePaymentIntent` (Milestone
+  // 1.6) hace `User.findById` para el `receipt_email` del PaymentIntent —
+  // sin esto, cancelar un pedido CON intent lanzaría 404 antes de siquiera
+  // tocar Stripe.
+  await User.create({
+    _id: userId,
+    email: `ao${suffix}@example.com`,
+    password: "P4ssword!!",
+    firstName: "Ana",
+    lastName: "Pérez",
+    emailVerified: true,
+  });
   const input = await buildCreateOrderInput(userId, [
     { itemType: "product", itemId: variant._id.toString(), quantity: 1 },
   ]);
@@ -127,5 +144,101 @@ describe("routes/admin-order — transiciones y guía", () => {
       .patch(`/api/v1/admin/orders/${order._id}/shipment`)
       .send({ trackingNumber: "TRACK-X" });
     expect(res.status).toBe(409);
+  });
+
+  it("cancelar pending con intent de tarjeta: Stripe-first, pasa por el adapter y libera stock", async () => {
+    const { order, variantId } = await seedPendingOrder();
+    const provider = buildFakePaymentProvider();
+    __setPaymentProviderForTests(provider);
+    await ensurePaymentIntent(order._id.toString(), order.userId.toString(), { provider });
+
+    const { agent } = await createAdminSession(app);
+    const res = await agent.patch(`/api/v1/admin/orders/${order._id}/status`).send({ status: OrderStatus.CANCELLED });
+
+    expect(res.status).toBe(200);
+    expect(provider.cancel).toHaveBeenCalledWith(expect.any(String), `order:${order._id.toString()}:cancel`);
+    const reloaded = await Order.findById(order._id);
+    expect(reloaded!.status).toBe(OrderStatus.CANCELLED);
+    const inventory = await Inventory.findOne({ variantId });
+    expect(inventory?.reserved).toBe(0);
+
+    // El audit de la cancelación lleva metadata.from/to, igual que
+    // cualquier otra transición admin (regresión detectada en code review).
+    const audit = await AuditLog.findOne({ action: "order_cancelled", targetId: order._id });
+    expect(audit?.metadata).toEqual({ from: OrderStatus.PENDING, to: OrderStatus.CANCELLED });
+  });
+
+  it("cancelar pending con anomalía de pago (monto no cuadra): 409 con mensaje de revisión, nunca 'ya se procesó'", async () => {
+    const { order } = await seedPendingOrder();
+    const provider = buildFakePaymentProvider({
+      cancel: vi.fn().mockResolvedValue("already_captured"),
+      getAuthorization: vi.fn().mockResolvedValue({
+        intentId: "pi_anomaly",
+        status: "captured",
+        amountCents: order.totalCents + 100,
+        currency: order.currency,
+      }),
+    });
+    __setPaymentProviderForTests(provider);
+    await ensurePaymentIntent(order._id.toString(), order.userId.toString(), { provider });
+
+    const { agent } = await createAdminSession(app);
+    const res = await agent.patch(`/api/v1/admin/orders/${order._id}/status`).send({ status: OrderStatus.CANCELLED });
+
+    expect(res.status).toBe(409);
+    expect(res.body.message).toMatch(/anomalía/i);
+    const reloaded = await Order.findById(order._id);
+    expect(reloaded!.status).toBe(OrderStatus.PENDING);
+  });
+
+  it("cancelar pending cuyo pago ya se capturó en Stripe: 409, la orden queda paid (nunca cancelada)", async () => {
+    const { order } = await seedPendingOrder();
+    const provider = buildFakePaymentProvider({
+      cancel: vi.fn().mockResolvedValue("already_captured"),
+      getAuthorization: vi.fn().mockResolvedValue({
+        intentId: "pi_captured",
+        status: "captured",
+        amountCents: order.totalCents,
+        currency: order.currency,
+        card: { brand: "visa", last4: "4242" },
+      }),
+    });
+    __setPaymentProviderForTests(provider);
+    await ensurePaymentIntent(order._id.toString(), order.userId.toString(), { provider });
+
+    const { agent } = await createAdminSession(app);
+    const res = await agent.patch(`/api/v1/admin/orders/${order._id}/status`).send({ status: OrderStatus.CANCELLED });
+
+    expect(res.status).toBe(409);
+    const reloaded = await Order.findById(order._id);
+    expect(reloaded!.status).toBe(OrderStatus.PAID);
+  });
+
+  it("bulk-status con pending sin intent sigue cancelando directo (sin llamar a Stripe)", async () => {
+    const { order } = await seedPendingOrder();
+    const { agent } = await createAdminSession(app);
+
+    const res = await agent.post("/api/v1/admin/orders/bulk-status").send({ orderIds: [order._id.toString()], status: OrderStatus.CANCELLED });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data[0]).toEqual({ orderId: order._id.toString(), ok: true });
+    const reloaded = await Order.findById(order._id);
+    expect(reloaded!.status).toBe(OrderStatus.CANCELLED);
+  });
+
+  it("bulk-status cancela un pending con intent de tarjeta pasando por Stripe", async () => {
+    const { order, variantId } = await seedPendingOrder();
+    const provider = buildFakePaymentProvider();
+    __setPaymentProviderForTests(provider);
+    await ensurePaymentIntent(order._id.toString(), order.userId.toString(), { provider });
+
+    const { agent } = await createAdminSession(app);
+    const res = await agent.post("/api/v1/admin/orders/bulk-status").send({ orderIds: [order._id.toString()], status: OrderStatus.CANCELLED });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data[0]).toEqual({ orderId: order._id.toString(), ok: true });
+    expect(provider.cancel).toHaveBeenCalledTimes(1);
+    const inventory = await Inventory.findOne({ variantId });
+    expect(inventory?.reserved).toBe(0);
   });
 });

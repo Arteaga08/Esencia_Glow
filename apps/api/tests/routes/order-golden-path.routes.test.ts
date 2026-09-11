@@ -1,22 +1,27 @@
 import { randomUUID } from "node:crypto";
 import { OrderStatus, ProductStatus, ShippingCarrier } from "@esencia-glow/shared";
-import { describe, expect, it } from "vitest";
+import request from "supertest";
+import { describe, expect, it, vi } from "vitest";
 import { buildApp } from "../../src/app.js";
 import { Category } from "../../src/models/category.model.js";
 import { Inventory } from "../../src/models/inventory.model.js";
+import { Order } from "../../src/models/order.model.js";
 import { Product } from "../../src/models/product.model.js";
-import { markOrderPaid } from "../../src/services/order-payment.service.js";
+import { __setPaymentProviderForTests } from "../../src/services/payment-provider.js";
 import { createAdminSession, createCustomerSession } from "../helpers/admin-session.js";
 import { CHECKOUT_DESTINATION } from "../helpers/checkout-fixtures.js";
+import { buildFakePaymentProvider } from "../helpers/fake-payment-provider.js";
+import { buildStripeEvent, signPayload } from "../helpers/stripe-webhook-fixtures.js";
 
 const app = buildApp();
 
 /**
- * Golden path de checkout (verificación de cierre del plan de 1.5): cotizar
- * envío -> crear orden -> `reserved` sube y los totales son los del
- * servidor -> `markOrderPaid` -> `onHand`/`reserved` bajan -> transiciones
- * admin hasta `delivered`. Cubre el flujo completo end-to-end sobre
- * `buildApp()`, en vez de una pieza aislada por test.
+ * Golden path de checkout (verificación de cierre de 1.5, extendido en
+ * 1.6.2 con el webhook real en vez de `markOrderPaid` directo): cotizar
+ * envío -> crear orden (con intent) -> `reserved` sube -> webhook
+ * `payment_intent.succeeded` firmado -> `onHand`/`reserved` bajan ->
+ * transiciones admin hasta `delivered`. Cubre el flujo completo end-to-end
+ * sobre `buildApp()`, en vez de una pieza aislada por test.
  */
 describe("golden path — checkout completo hasta delivered", () => {
   it("recorre cotización -> orden -> pago -> processing -> shipped -> delivered", async () => {
@@ -72,9 +77,30 @@ describe("golden path — checkout completo hasta delivered", () => {
     expect(inventory?.reserved).toBe(2);
     expect(inventory?.onHand).toBe(10);
 
-    // 4. Pago (gancho de 1.6, servicio interno — sin endpoint admin a `paid`).
-    const paidResult = await markOrderPaid({ orderId: order.id });
-    expect(paidResult.outcome).toBe("paid");
+    // 4. Pago vía webhook real de Stripe (Milestone 1.6.2): firma el
+    // evento con el mismo secreto que usa el proveedor falso por defecto
+    // de la suite, contra el `intentId` real que dejó el checkout.
+    const orderDoc = await Order.findById(order.id).lean();
+    const intentId = orderDoc!.payment.intentId!;
+    __setPaymentProviderForTests(
+      buildFakePaymentProvider({
+        getAuthorization: vi.fn().mockResolvedValue({
+          intentId,
+          status: "captured",
+          amountCents: order.totals.totalCents,
+          currency: orderDoc!.currency,
+          card: { brand: "visa", last4: "4242" },
+        }),
+      }),
+    );
+    const eventPayload = buildStripeEvent("payment_intent.succeeded", intentId);
+    const signature = signPayload(eventPayload);
+    const webhookRes = await request(app)
+      .post("/api/v1/webhooks/stripe")
+      .set("Content-Type", "application/json")
+      .set("stripe-signature", signature)
+      .send(eventPayload);
+    expect(webhookRes.status).toBe(200);
 
     // 5. onHand/reserved bajan tras el commit.
     inventory = await Inventory.findOne({ variantId: variant._id });

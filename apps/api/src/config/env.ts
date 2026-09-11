@@ -48,6 +48,22 @@ function requireInProduction(key: string, nodeEnv: NodeEnv): string | undefined 
   return value;
 }
 
+/**
+ * Entero positivo con default sano — para variables donde `0` o negativo
+ * sería un error silencioso disfrazado de configuración válida (Milestone
+ * 1.6.2: tolerancia del webhook "nunca 0" y umbral de reconciliación).
+ * `Number(process.env[key])` acepta `NaN`/`0` sin quejarse; esto no.
+ */
+function readPositiveInt(key: string, defaultValue: number): number {
+  const raw = process.env[key];
+  if (raw === undefined || raw.trim().length === 0) return defaultValue;
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error(`${key} debe ser un entero positivo (tiene "${raw}").`);
+  }
+  return parsed;
+}
+
 function buildEnv() {
   const nodeEnv = readNodeEnv();
 
@@ -93,8 +109,8 @@ function buildEnv() {
     // Pagos (Milestone 1.6): tolerancia de firma del webhook (nunca 0 — ver
     // stripe-webhook-translator.ts) y umbral del reconciliador de pagos
     // pendientes sin webhook, ambos con default sano en vez de número mágico.
-    stripeWebhookToleranceSeconds: Number(process.env.STRIPE_WEBHOOK_TOLERANCE_SECONDS ?? 300),
-    paymentReconcileAfterMinutes: Number(process.env.PAYMENT_RECONCILE_AFTER_MINUTES ?? 10),
+    stripeWebhookToleranceSeconds: readPositiveInt("STRIPE_WEBHOOK_TOLERANCE_SECONDS", 300),
+    paymentReconcileAfterMinutes: readPositiveInt("PAYMENT_RECONCILE_AFTER_MINUTES", 10),
 
     // Integraciones puramente operativas/de notificación: opcionales siempre,
     // incluso en producción. Su ausencia se degrada a loguear, nunca a bloquear.

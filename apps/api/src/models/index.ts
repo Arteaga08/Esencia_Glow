@@ -4,6 +4,7 @@ import { Bundle } from "./bundle.model.js";
 import { Category } from "./category.model.js";
 import { Inventory } from "./inventory.model.js";
 import { Order } from "./order.model.js";
+import { PaymentEvent } from "./payment-event.model.js";
 import { Product } from "./product.model.js";
 import { Session } from "./session.model.js";
 import { Settings } from "./settings.model.js";
@@ -31,6 +32,7 @@ const models = [
   Category,
   Inventory,
   Order,
+  PaymentEvent,
   Product,
   Session,
   Settings,

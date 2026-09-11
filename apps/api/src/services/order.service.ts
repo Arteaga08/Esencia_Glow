@@ -65,6 +65,13 @@ async function cancelMyOrder(orderId: string, userId: string): Promise<LeanOrder
   if (result.outcome === "already_paid") {
     throw new AppError("Tu pago ya se procesó, este pedido no se puede cancelar.", 409);
   }
+  if (result.outcome === "payment_anomaly") {
+    // La orden NO se pagó (monto/moneda no cuadran, o llegó sobre un pedido
+    // ya cerrado) — sigue `pending`, marcada para revisión humana. Decirle
+    // "ya se procesó" sería falso; el mensaje correcto es que hay que
+    // esperar a que se resuelva.
+    throw new AppError("Tu pago está en revisión, contacta a soporte para resolver tu pedido.", 409);
+  }
 
   return result.order!.toObject() as unknown as LeanOrder;
 }
