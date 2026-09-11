@@ -61,6 +61,30 @@ En **desarrollo**, las variables marcadas "fail-fast en producción" son opciona
 arranca sin ellas, y cualquier ruta que las necesite responde `503` explícito en vez de fingir
 éxito (se implementa junto con cada integración, en su propio milestone).
 
+## Checkout — header `Idempotency-Key` (Milestone 1.5)
+
+`POST /api/v1/orders` **exige** el header `Idempotency-Key` (UUID v4). Contrato para el
+cliente (front, Milestone 2):
+
+- Generar un UUID v4 nuevo por intento de compra (no por request) y reenviarlo tal cual en
+  cualquier reintento de ese mismo intento (doble clic, timeout de red, reintento del
+  navegador).
+- Mismo header + mismo body → **200** con la orden ya creada (replay, no una orden nueva).
+- Mismo header + body distinto → **409** (`"Esa clave ya se usó para otro pedido"`) — nunca
+  reusar una key para un carrito diferente.
+- Si el checkout falla por falta de stock u otra validación, la key **no se consume**:
+  reintentar con la misma key después de ajustar el carrito funciona normal.
+- Un segundo intento de compra mientras el primero sigue `pending` responde **409** con el
+  `orderId` del pendiente (`errors.orderId`) — un cliente solo puede tener un checkout abierto
+  a la vez.
+
+## Cron (Milestone 1.4 + 1.5)
+
+Un solo `node-cron` corre cada minuto (`jobs/index.ts`, nunca montado en `buildApp()`): libera
+reservas de stock vencidas, cancela pedidos `pending` cuya reserva ya venció (en ese orden) y
+refresca `Bundle.stockCache`. Todas las operaciones son idempotentes por documento — seguro
+correr varias instancias de la API sin lock distribuido.
+
 ## Runbook de deploy (referencia — se completa en Milestone 1.10)
 
 1. Configurar las variables de `apps/api/.env.production.example` en el secrets manager del

@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
-import { ProductStatus, ReservationStatus } from "@esencia-glow/shared";
+import { InventoryAction, ProductStatus, ReservationStatus } from "@esencia-glow/shared";
 import { describe, expect, it } from "vitest";
+import { AuditLog } from "../../src/models/audit-log.model.js";
 import { Category } from "../../src/models/category.model.js";
 import { Inventory } from "../../src/models/inventory.model.js";
 import { Product } from "../../src/models/product.model.js";
@@ -119,6 +120,16 @@ describe("jobs/releaseExpiredReservations", () => {
     expect(row?.reserved).toBe(0);
     const releasedCount = await StockReservation.countDocuments({ status: ReservationStatus.RELEASED });
     expect(releasedCount).toBe(10);
+  });
+
+  it("audita RESERVATION_EXPIRED cuando una reserva se libera por TTL (emisor pendiente de 1.4, conectado en 1.5)", async () => {
+    const { variantId } = await seedVariant(10);
+    const reservation = await seedExpiredReservation(variantId, 4, "cart-audit-expired");
+
+    await releaseExpiredReservations();
+
+    const entry = await AuditLog.findOne({ action: InventoryAction.RESERVATION_EXPIRED, targetId: reservation._id });
+    expect(entry).not.toBeNull();
   });
 
   it("una reserva cuya fila de Inventory ya no existe igual se marca released", async () => {

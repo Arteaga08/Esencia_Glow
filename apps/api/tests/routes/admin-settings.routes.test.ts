@@ -49,4 +49,25 @@ describe("routes/admin-settings", () => {
       .send({ unknownField: 1 });
     expect(response.status).toBe(400);
   });
+
+  it("PATCH /commerce persiste y el GET siguiente lo refleja, sin pisar inventory", async () => {
+    const { agent } = await createAdminSession(app);
+
+    await agent.patch("/api/v1/admin/settings/inventory").send({ lowStockThreshold: 15 });
+    const patch = await agent.patch("/api/v1/admin/settings/commerce").send({ taxRateBps: 800 });
+    expect(patch.status).toBe(200);
+    expect(patch.body.data.taxRateBps).toBe(800);
+
+    const get = await agent.get("/api/v1/admin/settings");
+    expect(get.body.data.commerce.taxRateBps).toBe(800);
+    expect(get.body.data.inventory.lowStockThreshold).toBe(15);
+  });
+
+  it("PATCH /commerce rechaza un shippingQuoteTtlMinutes menor o igual al TTL de reserva", async () => {
+    const { agent } = await createAdminSession(app);
+    const response = await agent
+      .patch("/api/v1/admin/settings/commerce")
+      .send({ shippingQuoteTtlMinutes: 5 });
+    expect(response.status).toBe(400);
+  });
 });

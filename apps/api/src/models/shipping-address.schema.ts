@@ -1,5 +1,5 @@
 import { Schema } from "mongoose";
-import { MEXICAN_STATES } from "@esencia-glow/shared";
+import { MEXICAN_STATES, type MexicanState } from "@esencia-glow/shared";
 
 /**
  * Snapshot de dirección de envío + contacto. Compartido por `Order`
@@ -20,7 +20,7 @@ interface ShippingAddressAttrs {
   interiorNumber?: string;
   neighborhood: string;
   city: string;
-  state: string;
+  state: MexicanState;
   postalCode: string;
   references?: string;
 }

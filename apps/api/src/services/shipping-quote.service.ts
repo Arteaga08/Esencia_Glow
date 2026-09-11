@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { Types } from "mongoose";
+import { Types, type ClientSession } from "mongoose";
 import { CATALOG_CURRENCY } from "@esencia-glow/shared";
 import type { PublicShippingAddress } from "@esencia-glow/shared";
 import { ShippingQuote, type ShippingQuoteDocument, type ShippingRateAttrs } from "../models/shipping-quote.model.js";
@@ -76,9 +76,14 @@ async function createShippingQuote(input: CreateShippingQuoteInput): Promise<Shi
  * confirmar cuál de las tres cosas pasó evita filtrar si una cotización
  * ajena existe. Un carrito que cambió desde que se cotizó tiene su propio
  * mensaje, más específico, porque no es un problema de autorización.
+ *
+ * `session` opcional: el checkout de 1.5 la compone dentro de la
+ * transacción de `createOrder` (mismo snapshot que la reserva de stock).
  */
-async function resolveUsableRate(input: ResolveUsableRateInput): Promise<UsableRate> {
-  const quote = await ShippingQuote.findOne({ _id: input.quoteId, userId: input.userId });
+async function resolveUsableRate(input: ResolveUsableRateInput, session?: ClientSession): Promise<UsableRate> {
+  const query = ShippingQuote.findOne({ _id: input.quoteId, userId: input.userId });
+  if (session) query.session(session);
+  const quote = await query;
   const rate = quote?.rates.find((r) => r.rateId === input.rateId);
   const isExpired = !quote || quote.expiresAt.getTime() < Date.now();
 

@@ -7,4 +7,13 @@ const updateInventorySettingsSchema = Joi.object({
   sweepBatchSize: Joi.number().integer().min(1),
 }).min(1);
 
-export { updateInventorySettingsSchema };
+/** El rango de forma se valida aquí (Joi); el cruce con el TTL de reserva
+ * (§ shippingQuoteTtlMinutes > reservationTtlMinutes) lo valida
+ * settings.service.ts, que es quien conoce ambas secciones a la vez. */
+const updateCommerceSettingsSchema = Joi.object({
+  taxRateBps: Joi.number().integer().min(0).max(10_000),
+  freeShippingThresholdCents: Joi.number().integer().min(0),
+  shippingQuoteTtlMinutes: Joi.number().integer().min(1),
+}).min(1);
+
+export { updateInventorySettingsSchema, updateCommerceSettingsSchema };
