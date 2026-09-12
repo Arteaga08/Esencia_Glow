@@ -5,7 +5,9 @@ import { Order } from "../../src/models/order.model.js";
 import { StockReservation } from "../../src/models/stock-reservation.model.js";
 import { createOrder } from "../../src/services/order.service.js";
 import { ensurePaymentIntent } from "../../src/services/order-payment-intent.service.js";
+import { __setMailProviderForTests } from "../../src/services/mail-provider.js";
 import { buildFakePaymentProvider } from "../helpers/fake-payment-provider.js";
+import { buildFakeMailProvider } from "../helpers/fake-mail-provider.js";
 import {
   buildCreateOrderInput,
   randomUserId,
@@ -94,6 +96,56 @@ describe("services/order-payment-intent — ensurePaymentIntent", () => {
     const reservation = await StockReservation.findById(reloaded!.reservationId);
     // reservation.expiresAt = order.expiresAt + margen de seguridad (15 min)
     expect(reservation?.expiresAt.getTime()).toBe(expectedOrderExpiresAt + 15 * 60_000);
+  });
+
+  it("OXXO: envía el correo de ficha (§8 del plan de 1.6.3), y un replay NO lo reenvía", async () => {
+    const { order, userId } = await createPendingOrder(PaymentMethod.OXXO);
+    const fake = buildFakeMailProvider();
+    __setMailProviderForTests(fake);
+    const provider = buildFakePaymentProvider({
+      authorize: vi.fn().mockResolvedValue({
+        intentId: "pi_oxxo_email",
+        status: "awaiting_customer",
+        amountCents: 100000,
+        currency: "mxn",
+        voucher: { expiresAt: new Date("2026-02-01T05:59:00.000Z"), hostedVoucherUrl: "https://payments.stripe.com/oxxo/voucher/abc" },
+      }),
+    });
+
+    await ensurePaymentIntent(order._id.toString(), userId, { provider });
+    // El correo se dispara `void` (fire-and-forget, a propósito: no debe
+    // alargar la respuesta del checkout) — se espera a que el efecto
+    // asíncrono termine en vez de asumir que ya corrió al volver el await.
+    await vi.waitFor(() => expect(fake.calls).toHaveLength(1));
+    expect(fake.calls[0]!.html).toContain("https://payments.stripe.com/oxxo/voucher/abc");
+
+    // Replay: la orden ya tiene intentId, así que esta llamada solo
+    // consulta (`getAuthorization`), nunca vuelve a llamar a
+    // `persistPaymentIntent` — el correo no se reenvía.
+    await ensurePaymentIntent(order._id.toString(), userId, { provider });
+    expect(fake.calls).toHaveLength(1);
+  });
+
+  it("🔀 dos ensurePaymentIntent OXXO concurrentes: un solo correo de ficha", async () => {
+    const { order, userId } = await createPendingOrder(PaymentMethod.OXXO);
+    const fake = buildFakeMailProvider();
+    __setMailProviderForTests(fake);
+    const provider = buildFakePaymentProvider({
+      authorize: vi.fn().mockResolvedValue({
+        intentId: "pi_oxxo_concurrent",
+        status: "awaiting_customer",
+        amountCents: 100000,
+        currency: "mxn",
+        voucher: { expiresAt: new Date("2026-02-01T05:59:00.000Z"), hostedVoucherUrl: "https://payments.stripe.com/oxxo/voucher/xyz" },
+      }),
+    });
+
+    await Promise.all([
+      ensurePaymentIntent(order._id.toString(), userId, { provider }),
+      ensurePaymentIntent(order._id.toString(), userId, { provider }),
+    ]);
+
+    await vi.waitFor(() => expect(fake.calls).toHaveLength(1));
   });
 
   it("🔀 dos llamadas concurrentes guardan un solo intentId (Stripe ya devolvió el mismo PI por la idempotency key)", async () => {

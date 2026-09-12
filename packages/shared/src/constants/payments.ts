@@ -35,6 +35,17 @@ const MAX_CARD_FAILED_ATTEMPTS = 5;
  * un handler que en el peor caso hace una llamada de red a Stripe. */
 const PAYMENT_EVENT_LEASE_MINUTES = 5;
 
+/** Ventana del mutex con lease de `payment.refundRequestedAt` (Milestone
+ * 1.6.3, decisión 3 del plan): mientras una solicitud de reembolso está
+ * "en vuelo" hacia Stripe, una segunda solicitud concurrente (doble clic,
+ * dos pestañas) la ve ocupada y responde 409 en vez de disparar dos
+ * reembolsos. Si la llamada a Stripe nunca vuelve (proceso caído a medio
+ * camino), el lease vence y una nueva solicitud puede reclamarlo — igual
+ * que `PAYMENT_EVENT_LEASE_MINUTES`, pero más largo porque el paso
+ * bloqueante (verificar 2FA + esperar la respuesta de Stripe) es más lento
+ * que despachar un webhook. */
+const REFUND_REQUEST_LEASE_MINUTES = 30;
+
 export {
   DEFAULT_PAYMENT_SETTINGS,
   OXXO_MIN_AMOUNT_CENTS,
@@ -43,4 +54,5 @@ export {
   RESERVATION_SAFETY_MARGIN_MINUTES,
   MAX_CARD_FAILED_ATTEMPTS,
   PAYMENT_EVENT_LEASE_MINUTES,
+  REFUND_REQUEST_LEASE_MINUTES,
 };

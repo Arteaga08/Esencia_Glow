@@ -7,6 +7,7 @@ import { withTransaction } from "../utils/with-transaction.js";
 import { getSettings } from "./settings.service.js";
 import { computeOrderExpiresAt, computeReservationExpiresAt } from "./payment-deadlines.js";
 import { resolvePaymentProvider, type PaymentAuthorization, type PaymentProvider } from "./payment-provider.js";
+import { sendOxxoVoucherEmail } from "./order-email.service.js";
 
 /**
  * `ensurePaymentIntent` — gancho de checkout de 1.6 (§B del plan): crea el
@@ -93,7 +94,7 @@ async function persistPaymentIntent(
     setFields.expiresAt = newOrderExpiresAt;
   }
 
-  await withTransaction(async (session) => {
+  const claimed = await withTransaction(async (session) => {
     const claimed = await Order.findOneAndUpdate(
       { _id: order._id, status: OrderStatus.PENDING, "payment.intentId": { $exists: false } },
       { $set: setFields },
@@ -110,7 +111,16 @@ async function persistPaymentIntent(
         { session },
       );
     }
+    return claimed;
   });
+
+  // Solo la llamada que GANÓ el claim envía la ficha (decisión del plan de
+  // 1.6): dos `ensurePaymentIntent` concurrentes reciben el mismo PI de
+  // Stripe por la idempotency key, pero solo uno debe avisarle a la
+  // clienta. Efecto no-DB, después del commit de la transacción.
+  if (claimed && order.payment.method === PaymentMethod.OXXO && authorization.voucher) {
+    void sendOxxoVoucherEmail(String(order._id), authorization.voucher);
+  }
 }
 
 async function ensurePaymentIntent(

@@ -6,6 +6,10 @@ interface RateLimiterConfig {
   windowMs: number;
   max: number;
   message: string;
+  /** Por defecto el limiter cuenta por IP. Un limiter que necesita contar
+   * por identidad autenticada (`refundRateLimiter`) pasa esto — nunca al
+   * revés, porque un endpoint público sin sesión no tiene con qué. */
+  keyGenerator?: (req: Request) => string;
 }
 
 /**
@@ -28,6 +32,7 @@ function createRateLimiter(config: RateLimiterConfig) {
     legacyHeaders: false,
     store: new MemoryStore(),
     message: { status: "fail", message: config.message },
+    ...(config.keyGenerator ? { keyGenerator: config.keyGenerator } : {}),
   } satisfies Partial<Options>);
 }
 
@@ -100,6 +105,23 @@ const webhookRateLimiter = createRateLimiter({
   message: "Demasiadas solicitudes de webhook, intenta de nuevo más tarde.",
 });
 
+/**
+ * `POST /admin/orders/:id/refund` (Milestone 1.6.3): SEGUNDA excepción a
+ * "las rutas admin no llevan throttling" (la primera es `uploadRateLimiter`).
+ * El step-up 2FA (decisión 9 del plan de 1.6) solo protege si alguien no
+ * puede probar códigos TOTP de 6 dígitos sin límite — una sesión admin
+ * robada tiene 1 en un millón por intento, pero sin este limiter tendría
+ * intentos ilimitados para acercarse a esa probabilidad. Cuenta por
+ * ADMIN (`req.user.id`), no por IP: dos admins detrás del mismo NAT de
+ * oficina no deben compartir la cuota.
+ */
+const refundRateLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: "Demasiados intentos de reembolso, intenta de nuevo más tarde.",
+  keyGenerator: (req) => req.user?.id ?? req.ip ?? "unknown",
+});
+
 export {
   createRateLimiter,
   globalRateLimiter,
@@ -109,4 +131,5 @@ export {
   checkoutRateLimiter,
   paymentResumeRateLimiter,
   webhookRateLimiter,
+  refundRateLimiter,
 };

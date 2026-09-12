@@ -1,4 +1,4 @@
-import type { PaymentMethod } from "@esencia-glow/shared";
+import type { DisputeStatus, PaymentMethod } from "@esencia-glow/shared";
 import { env } from "../config/env.js";
 import { isStripeConfigured, getStripeClient } from "../config/stripe.js";
 import { createStripePaymentProvider } from "./stripe-payment-provider.js";
@@ -67,11 +67,40 @@ interface PaymentAuthorization {
 
 type CancelOutcome = "canceled" | "already_captured" | "not_cancelable";
 
+interface RefundPaymentInput {
+  orderId: string;
+  intentId: string;
+  amountCents: number;
+  idempotencyKey: string;
+  /** `payment.refundRequestedAt.getTime()` del mutex que reclamó esta
+   * solicitud (ver order-refund.service.ts) — viaja como metadata hacia
+   * Stripe para que un `charge.refund.updated` (`refund.failed`) tardío
+   * pueda liberar EXACTAMENTE ese mutex y no uno más reciente de un
+   * reintento posterior (fencing por valor, igual que el resto del
+   * módulo de reembolsos). */
+  requestedAtMs: number;
+}
+
+type RefundOutcome = "pending" | "succeeded" | "failed";
+
+interface RefundResult {
+  refundId: string;
+  status: RefundOutcome;
+}
+
 /**
- * Evento de dominio traducido de un webhook de pago (Milestone 1.6.2). El
- * `eventId`/`providerType` crudo del proveedor viaja para dedupe y logging,
- * pero el resto del sistema despacha sobre `kind`, nunca sobre el tipo de
- * evento de Stripe (ver stripe-webhook-translator.ts).
+ * Evento de dominio traducido de un webhook de pago (Milestone 1.6.2, +
+ * reembolsos/disputas en 1.6.3). El `eventId`/`providerType` crudo del
+ * proveedor viaja para dedupe y logging, pero el resto del sistema despacha
+ * sobre `kind`, nunca sobre el tipo de evento de Stripe (ver
+ * stripe-webhook-translator.ts).
+ *
+ * `payment.refunded`/`refund.failed`/`dispute.*` NO llevan `orderIdHint`:
+ * a diferencia de `payment.captured` (que puede llegar antes de que
+ * `persistPaymentIntent` alcance a guardar el `intentId`), un reembolso o
+ * una disputa solo existen sobre un pago YA capturado — para ese momento
+ * `payment.intentId` ya está en la orden, así que localizar solo por
+ * intent basta (ver payment-post-capture-handlers.ts).
  */
 type PaymentWebhookEvent =
   | { kind: "payment.captured"; eventId: string; providerType: string; intentId: string; orderIdHint?: string }
@@ -84,12 +113,46 @@ type PaymentWebhookEvent =
       lastError?: string;
     }
   | { kind: "payment.canceled"; eventId: string; providerType: string; intentId: string; orderIdHint?: string }
+  | {
+      kind: "payment.refunded";
+      eventId: string;
+      providerType: string;
+      intentId: string;
+      amountRefundedCents: number;
+      currency: string;
+    }
+  | {
+      kind: "refund.failed";
+      eventId: string;
+      providerType: string;
+      intentId: string;
+      refundId: string;
+      reason?: string;
+      /** `RefundPaymentInput.requestedAtMs` de vuelta, leído de
+       * `Refund.metadata` — presente solo si el reembolso se originó por
+       * nuestro endpoint (uno hecho a mano desde el Dashboard no lo trae).
+       * `recordRefundFailure` lo usa para el fencing del `$unset`. */
+      requestedAtMs?: number;
+    }
+  | { kind: "dispute.opened"; eventId: string; providerType: string; intentId: string; disputeId: string }
+  | {
+      kind: "dispute.closed";
+      eventId: string;
+      providerType: string;
+      intentId: string;
+      disputeId: string;
+      outcome: DisputeStatus;
+    }
   | { kind: "ignored"; eventId: string; providerType: string };
 
 interface PaymentProvider {
   authorize(input: AuthorizePaymentInput): Promise<PaymentAuthorization>;
   getAuthorization(intentId: string): Promise<PaymentAuthorization>;
   cancel(intentId: string, idempotencyKey: string): Promise<CancelOutcome>;
+  /** Reembolso TOTAL (§E del plan de 1.6): el monto lo decide el caller
+   * (el remanente `totalCents - refundedAmountCents`), nunca un parcial
+   * iniciado desde nuestra API. */
+  refund(input: RefundPaymentInput): Promise<RefundResult>;
   /** Lanza 503 si el webhook no está configurado (sin `STRIPE_WEBHOOK_SECRET`),
    * 400 si la firma/timestamp no verifican (ver stripe-webhook-translator.ts). */
   parseWebhookEvent(rawBody: Buffer, signature: string): PaymentWebhookEvent;
@@ -132,6 +195,9 @@ export type {
   PaymentAuthorization,
   PaymentAuthorizationStatus,
   CancelOutcome,
+  RefundPaymentInput,
+  RefundOutcome,
+  RefundResult,
   PaymentCustomerInput,
   PaymentShippingInput,
   PaymentShippingAddressInput,

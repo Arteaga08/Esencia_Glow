@@ -4,6 +4,7 @@ import * as orderAdminController from "../controllers/order-admin.controller.js"
 import { protect } from "../middlewares/protect.js";
 import { restrictTo } from "../middlewares/restrict-to.js";
 import { validate } from "../middlewares/validate.js";
+import { refundRateLimiter } from "../middlewares/rate-limit.js";
 import { objectIdParamSchema } from "../validators/media.validator.js";
 import {
   addInternalNoteSchema,
@@ -12,6 +13,7 @@ import {
   changeOrderStatusSchema,
   correctShippingAddressSchema,
   listAdminOrdersQuerySchema,
+  refundOrderSchema,
   updateOrderShipmentSchema,
 } from "../validators/order-admin.validator.js";
 
@@ -64,6 +66,13 @@ router.post(
   validate(objectIdParamSchema, "params"),
   validate(addInternalNoteSchema),
   orderAdminController.addNote,
+);
+router.post(
+  "/:id/refund",
+  validate(objectIdParamSchema, "params"),
+  refundRateLimiter,
+  validate(refundOrderSchema),
+  orderAdminController.refund,
 );
 
 export { router as adminOrderRoutes };

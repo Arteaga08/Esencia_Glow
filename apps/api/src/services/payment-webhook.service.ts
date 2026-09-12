@@ -1,6 +1,12 @@
 import { logger } from "../config/logger.js";
 import { claimPaymentEvent, completePaymentEvent, failPaymentEvent } from "./payment-event.service.js";
 import { handleCaptured, handleFailed, handleCanceled, type HandlerOutcome } from "./payment-event-handlers.js";
+import {
+  handleRefunded,
+  handleRefundFailed,
+  handleDisputeOpened,
+  handleDisputeClosed,
+} from "./payment-post-capture-handlers.js";
 import type { PaymentProvider, PaymentWebhookEvent } from "./payment-provider.js";
 
 /**
@@ -27,6 +33,14 @@ async function dispatchPaymentEvent(event: PaymentWebhookEvent, provider: Paymen
       return handleFailed(event, provider);
     case "payment.canceled":
       return handleCanceled(event, provider);
+    case "payment.refunded":
+      return handleRefunded(event);
+    case "refund.failed":
+      return handleRefundFailed(event);
+    case "dispute.opened":
+      return handleDisputeOpened(event);
+    case "dispute.closed":
+      return handleDisputeClosed(event);
     case "ignored":
       return { status: "ignored" };
   }

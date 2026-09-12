@@ -7,6 +7,7 @@ import { listAdminOrders, getAdminOrderById, getOrderActivity } from "../service
 import { getOrderStatusSummary } from "../services/order-summary.service.js";
 import { changeOrderStatus, updateOrderShipment, bulkChangeStatus } from "../services/order-admin-status.service.js";
 import { correctShippingAddress, changeOrderPriority, addInternalNote } from "../services/order-admin-fields.service.js";
+import { requestOrderRefund } from "../services/order-refund.service.js";
 
 const list = asyncHandler(async (req: Request, res: Response) => {
   const query = parseListQuery(req.query);
@@ -69,4 +70,35 @@ const bulkStatus = asyncHandler(async (req: Request, res: Response) => {
   sendResponse(res, 200, "Cambio de estatus en lote procesado.", results);
 });
 
-export { list, summary, getOne, activity, changeStatus, updateShipment, correctAddress, changePriority, addNote, bulkStatus };
+/** `POST /:id/refund` (Milestone 1.6.3, §5 del plan): step-up 2FA + siempre
+ * el remanente total — la orden se actualiza de verdad cuando el webhook
+ * confirma `charge.refunded` (`applyProviderRefund`), así que la respuesta
+ * es 202, no 200. */
+const refund = asyncHandler(async (req: Request<{ id: string }>, res: Response) => {
+  await requestOrderRefund({
+    orderId: req.params.id,
+    adminId: req.user!.id,
+    twoFactorCode: req.body.twoFactorCode,
+    reason: req.body.reason,
+  });
+  sendResponse(
+    res,
+    202,
+    "Reembolso solicitado; el pedido se actualizará cuando Stripe lo confirme.",
+    await getAdminOrderById(req.params.id),
+  );
+});
+
+export {
+  list,
+  summary,
+  getOne,
+  activity,
+  changeStatus,
+  updateShipment,
+  correctAddress,
+  changePriority,
+  addNote,
+  bulkStatus,
+  refund,
+};

@@ -9,9 +9,15 @@ import { AppError } from "../utils/app-error.js";
  *
  * `refunded` NO es un `releaseReservation`: para cuando se llega ahí, la
  * reserva de stock ya está `committed` (el dinero se cobró). Devolver
- * inventario en ese punto es un movimiento de `adjustStock` con delta
- * positivo (restock), no una liberación de reserva — dejarlo escrito aquí
- * para que 1.6 no lo confunda.
+ * inventario en ese punto es un movimiento de restock (ver
+ * reservation-restock.service.ts, Milestone 1.6.3), no una liberación de
+ * reserva.
+ *
+ * `restock` solo aplica desde `paid`/`processing` (el pedido no se ha
+ * enviado): desde `shipped`/`delivered` el efecto es `none` — el paquete ya
+ * puede estar en tránsito o en manos de la clienta, así que el stock NO
+ * vuelve solo; si el producto regresa en buen estado, el admin lo ajusta a
+ * mano con `adjustStock` (decisión 3 del plan de 1.6).
  */
 
 type OrderActor = "customer" | "admin" | "system";
@@ -65,9 +71,18 @@ const TRANSITION_INVENTORY_EFFECT: Readonly<Record<string, InventoryEffect>> = {
   [`${OrderStatus.SHIPPED}->${OrderStatus.DELIVERED}`]: "none",
   [`${OrderStatus.PAID}->${OrderStatus.REFUNDED}`]: "restock",
   [`${OrderStatus.PROCESSING}->${OrderStatus.REFUNDED}`]: "restock",
-  [`${OrderStatus.SHIPPED}->${OrderStatus.REFUNDED}`]: "restock",
-  [`${OrderStatus.DELIVERED}->${OrderStatus.REFUNDED}`]: "restock",
+  [`${OrderStatus.SHIPPED}->${OrderStatus.REFUNDED}`]: "none",
+  [`${OrderStatus.DELIVERED}->${OrderStatus.REFUNDED}`]: "none",
 };
+
+/** Estados desde los que existe una arista hacia `refunded` — derivado de
+ * `ORDER_TRANSITIONS`, nunca una lista aparte a mano: `order-refund.service.ts`
+ * (qué puede pedirse) y `order-refund-settlement.service.ts` (qué puede
+ * transicionar al confirmar) la usan como la MISMA fuente, así que no
+ * pueden desincronizarse (hallazgo de code review de 1.6.3). */
+const REFUNDABLE_ORDER_STATUSES: readonly OrderStatus[] = ALL_ORDER_STATUSES.filter((status) =>
+  ORDER_TRANSITIONS[status].includes(OrderStatus.REFUNDED),
+);
 
 /** `canTransition(x, x)` es siempre `false` — re-aplicar el estado actual
  * no es una transición. Los callers que necesitan idempotencia (webhooks
@@ -100,6 +115,7 @@ function getTransitionInventoryEffect(from: OrderStatus, to: OrderStatus): Inven
 export {
   ALL_ORDER_STATUSES,
   ORDER_TRANSITIONS,
+  REFUNDABLE_ORDER_STATUSES,
   canTransition,
   assertTransition,
   getTransitionInventoryEffect,

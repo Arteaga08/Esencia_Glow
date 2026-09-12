@@ -22,6 +22,7 @@ const logger = pino({
       "*.phone",
       "*.clientSecret",
       "*.client_secret",
+      "*.twoFactorCode",
       "req.headers[\"stripe-signature\"]",
     ],
     censor: "[redacted]",

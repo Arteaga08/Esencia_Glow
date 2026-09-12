@@ -34,6 +34,7 @@ function buildFakePaymentProvider(overrides: Partial<PaymentProvider> = {}): Pay
       clientSecret: `${intentId}_secret`,
     })),
     cancel: vi.fn().mockResolvedValue("canceled"),
+    refund: vi.fn().mockResolvedValue({ refundId: "re_fake_1", status: "succeeded" }),
     parseWebhookEvent: vi.fn().mockImplementation(
       (rawBody: Buffer, signature: string): PaymentWebhookEvent =>
         parseStripeWebhookEvent(rawBody, signature, { secret: TEST_STRIPE_WEBHOOK_SECRET, toleranceSeconds: 300 }),

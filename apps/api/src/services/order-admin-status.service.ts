@@ -1,9 +1,10 @@
 import { Types, type ClientSession } from "mongoose";
-import { MAX_STATUS_HISTORY, OrderAction, OrderStatus, type ShippingCarrier } from "@esencia-glow/shared";
+import { DisputeStatus, MAX_STATUS_HISTORY, OrderAction, OrderStatus, type ShippingCarrier } from "@esencia-glow/shared";
 import { Order } from "../models/order.model.js";
 import { AppError } from "../utils/app-error.js";
 import { withTransaction } from "../utils/with-transaction.js";
 import { assertTransition, getTransitionInventoryEffect } from "./order-state.js";
+import { assertNoOpenDispute, disputeClaimFilter } from "./order-dispute.service.js";
 import { releaseReservationDetailed, auditReleaseMismatches } from "./stock-reservation.service.js";
 import { recordAudit } from "./audit.service.js";
 import { logger } from "../config/logger.js";
@@ -55,6 +56,7 @@ async function changeOrderStatusCore(
   if (!current) throw new AppError("Pedido no encontrado.", 404);
 
   assertTransition(current.status, input.targetStatus, "admin");
+  assertNoOpenDispute(current.disputeStatus, current.status, input.targetStatus);
 
   if (input.targetStatus === OrderStatus.SHIPPED && !input.shipment) {
     throw new AppError("Debes indicar la guía (paquetería y número de rastreo) al marcar como enviado.", 400);
@@ -68,7 +70,7 @@ async function changeOrderStatusCore(
   }
 
   const claimed = await Order.findOneAndUpdate(
-    { _id: input.orderId, status: current.status },
+    { _id: input.orderId, status: current.status, ...disputeClaimFilter(current.status, input.targetStatus) },
     {
       $set: setFields,
       $push: {
@@ -90,6 +92,14 @@ async function changeOrderStatusCore(
   ).lean<LeanOrder>();
 
   if (!claimed) {
+    // El filtro perdió por dos motivos posibles: el `status` cambió entre
+    // la lectura y el claim (concurrencia genérica), o una disputa se abrió
+    // justo en esa ventana (el guard de `assertNoOpenDispute` de arriba ya
+    // no la vio). Se relee para dar el mensaje correcto en vez del genérico.
+    const reread = await Order.findById(input.orderId).session(session);
+    if (reread && reread.status === current.status && reread.disputeStatus === DisputeStatus.OPEN) {
+      throw new AppError("El pedido tiene un contracargo abierto.", 409);
+    }
     throw new AppError("El pedido cambió de estado antes de poder aplicar esta transición, intenta de nuevo.", 409);
   }
 

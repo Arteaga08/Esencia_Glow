@@ -9,6 +9,8 @@ import type {
   PaymentAuthorizationStatus,
   PaymentProvider,
   PaymentWebhookEvent,
+  RefundPaymentInput,
+  RefundResult,
 } from "./payment-provider.js";
 
 /**
@@ -26,6 +28,9 @@ interface StripeClientLike {
     create: Stripe["paymentIntents"]["create"];
     retrieve: Stripe["paymentIntents"]["retrieve"];
     cancel: Stripe["paymentIntents"]["cancel"];
+  };
+  refunds: {
+    create: Stripe["refunds"]["create"];
   };
 }
 
@@ -57,6 +62,23 @@ function translateStripeError(error: unknown): never {
     throw new AppError("Esa operación ya se procesó con datos distintos, intenta de nuevo.", 409);
   }
   throw new AppError("No pudimos comunicarnos con el procesador de pagos.", 502);
+}
+
+/** Códigos de error de `refunds.create` que son conflictos de NEGOCIO (409,
+ * el admin puede leer el mensaje y decidir), no un fallo del proveedor. Ver
+ * la documentación de errores de Stripe para la lista completa de `code`. */
+const REFUND_CONFLICT_MESSAGES: Record<string, string> = {
+  charge_already_refunded: "Este pago ya fue reembolsado.",
+  charge_disputed: "El pedido tiene un contracargo abierto.",
+  amount_too_large: "El monto supera lo disponible para reembolsar; espera la confirmación de Stripe e intenta de nuevo.",
+};
+
+function translateRefundError(error: unknown): never {
+  if (isStripeErrorLike(error) && error.code) {
+    const message = REFUND_CONFLICT_MESSAGES[error.code];
+    if (message) throw new AppError(message, 409);
+  }
+  translateStripeError(error);
 }
 
 function mapPaymentIntentStatus(status: Stripe.PaymentIntent.Status): PaymentAuthorizationStatus {
@@ -184,6 +206,16 @@ async function authorizeOxxo(
   return toPaymentAuthorization(pi);
 }
 
+/** `Stripe.Refund.status` tiene más matices (`requires_action`) que nuestro
+ * vocabulario (§A del plan de 1.6): cualquier cosa que no sea un desenlace
+ * terminal se lee como `pending` — el webhook (`charge.refunded`/
+ * `charge.refund.updated`) es la única fuente de verdad para el desenlace real. */
+function mapRefundStatus(status: Stripe.Refund["status"]): "pending" | "succeeded" | "failed" {
+  if (status === "succeeded") return "succeeded";
+  if (status === "failed" || status === "canceled") return "failed";
+  return "pending";
+}
+
 const DEFAULT_WEBHOOK_TOLERANCE_SECONDS = 300;
 
 function createStripePaymentProvider(
@@ -230,6 +262,26 @@ function createStripePaymentProvider(
           return piStatus === "succeeded" ? "already_captured" : "not_cancelable";
         }
         translateStripeError(error);
+      }
+    },
+
+    /** Reembolso TOTAL — el caller (`order-refund.service.ts`) decide el
+     * monto (siempre el remanente) y la llave; este adapter no vuelve a
+     * validar de negocio, solo traduce. Sin `reason`: Stripe la usa para
+     * disparar su propio flujo de disputas/impuestos y no la necesitamos. */
+    async refund(input: RefundPaymentInput): Promise<RefundResult> {
+      try {
+        const refund = await client.refunds.create(
+          {
+            payment_intent: input.intentId,
+            amount: input.amountCents,
+            metadata: { orderId: input.orderId, refundRequestedAtMs: String(input.requestedAtMs) },
+          },
+          { idempotencyKey: input.idempotencyKey },
+        );
+        return { refundId: refund.id, status: mapRefundStatus(refund.status) };
+      } catch (error) {
+        translateRefundError(error);
       }
     },
 
