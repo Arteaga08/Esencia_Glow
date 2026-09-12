@@ -63,7 +63,7 @@ En **desarrollo**, las variables marcadas "fail-fast en producción" son opciona
 arranca sin ellas, y cualquier ruta que las necesite responde `503` explícito en vez de fingir
 éxito (se implementa junto con cada integración, en su propio milestone).
 
-## Pagos con Stripe (Milestone 1.6.1 + 1.6.2)
+## Pagos con Stripe (Milestone 1.6)
 
 `POST /api/v1/orders` suma `paymentMethod: "card" | "oxxo"` al body. El checkout crea la orden
 (transacción de 1.5, con el TTL de reserva según el método) y, **después** del commit, crea el
@@ -104,11 +104,10 @@ global (con body crudo vía `express.raw`, porque la verificación de firma de S
 Buffer tal cual, y un `JSON.parse`/re-serializado rompería el HMAC) — lleva su propio limiter
 (`webhookRateLimiter`, 600/15 min), no el de clientes reales.
 
-Eventos suscritos hasta 1.6.3 (configurar el endpoint en el Dashboard de Stripe o
-`stripe listen` con exactamente estos tres): `payment_intent.succeeded`,
-`payment_intent.payment_failed`, `payment_intent.canceled`. Cualquier otro tipo de evento
-(`charge.refunded`, `charge.dispute.*`, …) llega `ignored` — **no los suscribas todavía**: 1.6.3
-los procesa de verdad, y una fila `ignored` de hoy deduplicaría su reentrega real más adelante.
+Eventos suscritos (configurar el endpoint en el Dashboard de Stripe o `stripe listen` con
+exactamente estos siete): `payment_intent.succeeded`, `payment_intent.payment_failed`,
+`payment_intent.canceled`, `charge.refunded`, `charge.refund.updated`, `charge.dispute.created`,
+`charge.dispute.closed`. Cualquier otro tipo de evento llega `ignored`.
 
 **Dedupe persistido** (`PaymentEvent`, `eventId` único, TTL a `PAYMENT_EVENT_RETENTION_DAYS` días
 = la ventana de dedupe): el `insert` ocurre antes de despachar, así que dos reentregas
@@ -139,11 +138,53 @@ entrega hasta 10 días después) cierra directo — no hay "otro intento" con la
 pedido cuyo cobro Stripe está procesando.
 
 **Verificación local** con `stripe listen --forward-to localhost:4000/api/v1/webhooks/stripe`:
-imprime el `whsec_...` que va en `STRIPE_WEBHOOK_SECRET` de `.env.development.local`. Con el
+imprime el `whsec_...` que va en `STRIPE_WEBHOOK_SECRET` de `.env.development.local` (tiene que
+ser el que imprime `stripe listen`, no el de un endpoint configurado en el Dashboard). Con el
 server corriendo, `stripe trigger payment_intent.succeeded` o pagar de verdad con una tarjeta de
 prueba contra un pedido creado por la API ejercita el flujo completo.
 
-Pendiente de 1.6.3: reembolsos, disputas y correos transaccionales.
+### Reembolsos (Milestone 1.6.3)
+
+`POST /admin/orders/:id/refund` (`{ twoFactorCode, reason? }`) — **siempre total**, nunca un
+parcial pedido desde la API. Exige **step-up 2FA** (código TOTP del admin) *antes* de tocar
+Stripe: sin código válido, `provider.refund` nunca se llama. Solo aplica a pedidos
+`paid`/`processing`/`shipped`/`delivered` pagados con **tarjeta** (OXXO responde 409: Stripe no
+permite reembolsarlo) y sin un contracargo abierto. El monto es siempre el remanente
+(`totalCents - refundedAmountCents`). Responde **202** — la orden pasa a `refunded` cuando el
+webhook `charge.refunded` lo confirma, nunca al llamar el endpoint. Mutex con lease de
+`REFUND_REQUEST_LEASE_MINUTES` (30 min) sobre `payment.refundRequestedAt`: dos solicitudes
+concurrentes para el mismo pedido nunca disparan dos reembolsos, y un fallo de Stripe libera el
+mutex para poder reintentar. Rate limit dedicado (`refundRateLimiter`, 5/15 min por admin) —
+segunda excepción a "las rutas admin no llevan throttling" (la primera es la subida de imágenes).
+
+Restock automático **solo si el pedido no se ha enviado** (`paid`/`processing`): las unidades
+comprometidas vuelven a `Inventory.onHand`. Desde `shipped`/`delivered`, sin restock automático —
+el admin ajusta el inventario a mano si el producto regresa en buen estado. Un reembolso **parcial**
+hecho desde el Dashboard de Stripe se refleja en `payment.refundedAmountCents` sin transicionar la
+orden (`$max`, así un evento fuera de orden nunca hace bajar el monto ya aplicado).
+
+### Disputas / contracargos (Milestone 1.6.3)
+
+`charge.dispute.created`/`.closed` traducen a `Order.disputeStatus` (`open` → `won`/`lost`/
+`withdrawn`) y `disputedAt`. Vive en la orden, no en `payment`: un contracargo perdido **nunca**
+es `refunded`, el dinero se fue por la vía de la disputa. Guard de estado terminal: una disputa
+`won`/`lost`/`withdrawn` no se reabre si un evento fuera de orden llega después. Mientras
+`disputeStatus: open`, `PATCH /admin/orders/:id/status` rechaza `paid → processing` y
+`processing → shipped` con 409 "El pedido tiene un contracargo abierto" — no despachar mercancía
+bajo contracargo.
+
+### Correos transaccionales (Milestone 1.6.3)
+
+Adapter `MailProvider` (`resolveMailProvider()`, mismo patrón que el de pagos) sobre **Resend**;
+sin `RESEND_API_KEY` los correos se loguean y no fingen éxito. Shell HTML compartido
+(`renderTransactionalEmail`) siguiendo las reglas de un cliente de correo real: tablas (no
+flex/grid), CSS inline, botón en una `<td>` (Outlook), preheader oculto y disclaimer siempre
+presente — usado también por los correos de auth (verificación, reset). Tres correos de pedido,
+cada uno con su propia `Idempotency-Key` hacia Resend: pago recibido (dispara cuando el pedido
+transiciona a `paid`, cubre webhook/reconciliador/`already_captured`), ficha OXXO (solo la
+llamada que gana el claim del `PaymentIntent` la envía) y reembolso confirmado (solo con el
+reembolso **total** — un parcial no envía correo). Todo texto que escribe la clienta
+(`shippingAddress.fullName`) se escapa antes de interpolarse.
 
 ## Checkout — header `Idempotency-Key` (Milestone 1.5)
 

@@ -2,6 +2,7 @@ import { OrderAction, OrderStatus } from "@esencia-glow/shared";
 import { Order, type OrderDocument } from "../models/order.model.js";
 import { recordAudit } from "./audit.service.js";
 import { markOrderPaid } from "./order-payment.service.js";
+import { sendPaymentReceivedEmail } from "./order-email.service.js";
 import type { PaymentAuthorization } from "./payment-provider.js";
 
 /**
@@ -64,6 +65,13 @@ async function settleCapturedPayment(
     intentId: authorization.intentId,
     ...(authorization.card ? { card: authorization.card } : {}),
   });
+
+  // Correo de pago recibido (§8 del plan de 1.6.3): cubre webhook,
+  // reconciliador y el `already_captured` de `closePendingOrder` — los tres
+  // llaman aquí. Un replay (`already_paid`) NO reenvía.
+  if (result.outcome !== "already_paid") {
+    void sendPaymentReceivedEmail(orderId);
+  }
 
   return { outcome: result.outcome as SettlementOutcome, order: result.order };
 }

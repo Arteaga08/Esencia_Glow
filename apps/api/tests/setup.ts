@@ -53,6 +53,13 @@ beforeEach(async () => {
   const { __setPaymentProviderForTests } = await import("../src/services/payment-provider.js");
   const { buildFakePaymentProvider } = await import("./helpers/fake-payment-provider.js");
   __setPaymentProviderForTests(buildFakePaymentProvider());
+
+  // Mismo criterio que el proveedor de pagos de arriba (Milestone 1.6.3):
+  // sin esto, cualquier correo transaccional (registro, pago recibido,
+  // ficha OXXO, reembolso) intentaría hablar con Resend.
+  const { __setMailProviderForTests } = await import("../src/services/mail-provider.js");
+  const { buildFakeMailProvider } = await import("./helpers/fake-mail-provider.js");
+  __setMailProviderForTests(buildFakeMailProvider());
 });
 
 afterEach(async () => {

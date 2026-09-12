@@ -2,7 +2,7 @@ import { v2 as cloudinary } from "cloudinary";
 import { env } from "./env.js";
 
 /**
- * Cliente perezoso de Cloudinary, mismo patrón que config/resend.ts: no
+ * Cliente perezoso de Cloudinary, mismo patrón que services/mail-provider.ts: no
  * lanza al importarse (las credenciales pueden faltar en dev), solo cuando
  * de verdad se intenta usar sin configurar — y ahí responde 503, nunca finge
  * éxito (ver services/media-provider.ts).

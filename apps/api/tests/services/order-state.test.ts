@@ -3,6 +3,7 @@ import { OrderStatus } from "@esencia-glow/shared";
 import {
   ALL_ORDER_STATUSES,
   ORDER_TRANSITIONS,
+  REFUNDABLE_ORDER_STATUSES,
   canTransition,
   assertTransition,
   getTransitionInventoryEffect,
@@ -89,17 +90,26 @@ describe("services/order-state", () => {
     expect(getTransitionInventoryEffect(OrderStatus.PENDING, OrderStatus.CANCELLED)).toBe("release");
   });
 
-  it("mapa de efecto de inventario: cualquier ->refunded es restock, NUNCA release", () => {
+  it("mapa de efecto de inventario: paid/processing ->refunded es restock (aún no se ha enviado)", () => {
     expect(getTransitionInventoryEffect(OrderStatus.PAID, OrderStatus.REFUNDED)).toBe("restock");
     expect(getTransitionInventoryEffect(OrderStatus.PROCESSING, OrderStatus.REFUNDED)).toBe("restock");
-    expect(getTransitionInventoryEffect(OrderStatus.SHIPPED, OrderStatus.REFUNDED)).toBe("restock");
-    expect(getTransitionInventoryEffect(OrderStatus.DELIVERED, OrderStatus.REFUNDED)).toBe("restock");
+  });
+
+  it("mapa de efecto de inventario: shipped/delivered ->refunded es 'none' (decisión 3 de 1.6, sin restock automático — el admin ajusta a mano)", () => {
+    expect(getTransitionInventoryEffect(OrderStatus.SHIPPED, OrderStatus.REFUNDED)).toBe("none");
+    expect(getTransitionInventoryEffect(OrderStatus.DELIVERED, OrderStatus.REFUNDED)).toBe("none");
   });
 
   it("mapa de efecto de inventario: transiciones administrativas sin efecto son 'none'", () => {
     expect(getTransitionInventoryEffect(OrderStatus.PAID, OrderStatus.PROCESSING)).toBe("none");
     expect(getTransitionInventoryEffect(OrderStatus.PROCESSING, OrderStatus.SHIPPED)).toBe("none");
     expect(getTransitionInventoryEffect(OrderStatus.SHIPPED, OrderStatus.DELIVERED)).toBe("none");
+  });
+
+  it("REFUNDABLE_ORDER_STATUSES: exactamente los estados con una arista hacia refunded (paid/processing/shipped/delivered) — fuente única para order-refund*.service.ts", () => {
+    expect([...REFUNDABLE_ORDER_STATUSES].sort()).toEqual(
+      [OrderStatus.PAID, OrderStatus.PROCESSING, OrderStatus.SHIPPED, OrderStatus.DELIVERED].sort(),
+    );
   });
 
   it("ORDER_TRANSITIONS es exhaustivo: tiene una entrada para cada OrderStatus", () => {

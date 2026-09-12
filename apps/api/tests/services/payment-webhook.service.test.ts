@@ -78,6 +78,52 @@ describe("services/payment-webhook — processPaymentWebhook", () => {
     };
   }
 
+  function refundedEvent(
+    intentId: string,
+    opts: { amountRefundedCents: number; currency?: string },
+  ): PaymentWebhookEvent {
+    return {
+      kind: "payment.refunded",
+      eventId: `evt_${randomUUID()}`,
+      providerType: "charge.refunded",
+      intentId,
+      amountRefundedCents: opts.amountRefundedCents,
+      currency: opts.currency ?? "mxn",
+    };
+  }
+
+  function refundFailedEvent(intentId: string, opts: { refundId?: string; reason?: string } = {}): PaymentWebhookEvent {
+    return {
+      kind: "refund.failed",
+      eventId: `evt_${randomUUID()}`,
+      providerType: "charge.refund.updated",
+      intentId,
+      refundId: opts.refundId ?? "re_fake",
+      ...(opts.reason ? { reason: opts.reason } : {}),
+    };
+  }
+
+  function disputeOpenedEvent(intentId: string): PaymentWebhookEvent {
+    return {
+      kind: "dispute.opened",
+      eventId: `evt_${randomUUID()}`,
+      providerType: "charge.dispute.created",
+      intentId,
+      disputeId: "dp_fake",
+    };
+  }
+
+  function disputeClosedEvent(intentId: string, outcome: "won" | "lost" | "withdrawn"): PaymentWebhookEvent {
+    return {
+      kind: "dispute.closed",
+      eventId: `evt_${randomUUID()}`,
+      providerType: "charge.dispute.closed",
+      intentId,
+      disputeId: "dp_fake",
+      outcome,
+    };
+  }
+
   it("payment.captured -> paid, stock comprometido, tarjeta guardada; reentrega no duplica ORDER_PAID", async () => {
     const { order, userId, variantId } = await createPendingOrder(PaymentMethod.CARD);
     const provider = buildFakePaymentProvider({
@@ -319,5 +365,121 @@ describe("services/payment-webhook — processPaymentWebhook", () => {
 
     const storedEvent = await PaymentEvent.findOne({ eventId: event.eventId });
     expect(storedEvent?.status).toBe("failed");
+  });
+
+  async function createPaidOrder() {
+    const { order, userId, variantId } = await createPendingOrder(PaymentMethod.CARD);
+    const provider = buildFakePaymentProvider({
+      getAuthorization: vi.fn().mockResolvedValue({
+        intentId: "pi_refund_target",
+        status: "captured",
+        amountCents: order.totalCents,
+        currency: order.currency,
+      }),
+    });
+    await ensurePaymentIntent(order._id.toString(), userId, { provider });
+    await Order.updateOne({ _id: order._id }, { $set: { "payment.intentId": "pi_refund_target" } });
+    await processPaymentWebhook(capturedEvent("pi_refund_target"), provider);
+    const paid = await Order.findById(order._id);
+    return { order: paid!, provider, variantId };
+  }
+
+  it("payment.refunded total -> refunded + onHand restaurado", async () => {
+    const { order, provider, variantId } = await createPaidOrder();
+
+    const event = refundedEvent("pi_refund_target", { amountRefundedCents: order.totalCents });
+    await processPaymentWebhook(event, provider);
+
+    const reloaded = await Order.findById(order._id);
+    expect(reloaded?.status).toBe(OrderStatus.REFUNDED);
+    const inventory = await Inventory.findOne({ variantId });
+    expect(inventory?.onHand).toBe(10);
+    const storedEvent = await PaymentEvent.findOne({ eventId: event.eventId });
+    expect(storedEvent?.status).toBe("processed");
+  });
+
+  it("payment.refunded sin orden que tenga ese intentId -> PaymentEvent failed 'order_not_found'", async () => {
+    const provider = buildFakePaymentProvider();
+    const event = refundedEvent("pi_sin_orden_refund", { amountRefundedCents: 1000 });
+
+    await expect(processPaymentWebhook(event, provider)).resolves.toBeUndefined();
+
+    const storedEvent = await PaymentEvent.findOne({ eventId: event.eventId });
+    expect(storedEvent?.status).toBe("failed");
+    expect(storedEvent?.error).toBe("order_not_found");
+  });
+
+  it("payment.refunded con moneda distinta -> anomalía, PaymentEvent failed, sin transición", async () => {
+    const { order, provider } = await createPaidOrder();
+
+    const event = refundedEvent("pi_refund_target", { amountRefundedCents: order.totalCents, currency: "usd" });
+    await expect(processPaymentWebhook(event, provider)).resolves.toBeUndefined();
+
+    const reloaded = await Order.findById(order._id);
+    expect(reloaded?.status).toBe(OrderStatus.PAID);
+    const storedEvent = await PaymentEvent.findOne({ eventId: event.eventId });
+    expect(storedEvent?.status).toBe("failed");
+    expect(storedEvent?.error).toBe("amount_anomaly");
+  });
+
+  it("refund.failed desmarca refundRequestedAt y alerta", async () => {
+    const { order, provider } = await createPaidOrder();
+    await Order.updateOne({ _id: order._id }, { $set: { "payment.refundRequestedAt": new Date() } });
+
+    const event = refundFailedEvent("pi_refund_target", { reason: "insufficient_funds" });
+    await processPaymentWebhook(event, provider);
+
+    const reloaded = await Order.findById(order._id).lean();
+    expect(reloaded?.payment.refundRequestedAt).toBeUndefined();
+    expect(reloaded?.adminAlertedAt).toBeInstanceOf(Date);
+    const storedEvent = await PaymentEvent.findOne({ eventId: event.eventId });
+    expect(storedEvent?.status).toBe("processed");
+  });
+
+  it("refund.failed sin orden que tenga ese intentId -> PaymentEvent failed 'order_not_found'", async () => {
+    const provider = buildFakePaymentProvider();
+    const event = refundFailedEvent("pi_sin_orden_refund_failed");
+
+    await expect(processPaymentWebhook(event, provider)).resolves.toBeUndefined();
+
+    const storedEvent = await PaymentEvent.findOne({ eventId: event.eventId });
+    expect(storedEvent?.status).toBe("failed");
+    expect(storedEvent?.error).toBe("order_not_found");
+  });
+
+  it("dispute.opened -> disputeStatus:open, PaymentEvent processed", async () => {
+    const { order, provider } = await createPaidOrder();
+
+    const event = disputeOpenedEvent("pi_refund_target");
+    await processPaymentWebhook(event, provider);
+
+    const reloaded = await Order.findById(order._id).lean();
+    expect(reloaded?.disputeStatus).toBe("open");
+    expect(reloaded?.status).toBe(OrderStatus.PAID);
+    const storedEvent = await PaymentEvent.findOne({ eventId: event.eventId });
+    expect(storedEvent?.status).toBe("processed");
+  });
+
+  it("dispute.closed(lost) -> disputeStatus:lost, status de la orden intacto", async () => {
+    const { order, provider } = await createPaidOrder();
+    await processPaymentWebhook(disputeOpenedEvent("pi_refund_target"), provider);
+
+    const event = disputeClosedEvent("pi_refund_target", "lost");
+    await processPaymentWebhook(event, provider);
+
+    const reloaded = await Order.findById(order._id).lean();
+    expect(reloaded?.disputeStatus).toBe("lost");
+    expect(reloaded?.status).toBe(OrderStatus.PAID);
+  });
+
+  it("dispute.opened sin orden que tenga ese intentId -> PaymentEvent failed 'order_not_found'", async () => {
+    const provider = buildFakePaymentProvider();
+    const event = disputeOpenedEvent("pi_sin_orden_dispute");
+
+    await expect(processPaymentWebhook(event, provider)).resolves.toBeUndefined();
+
+    const storedEvent = await PaymentEvent.findOne({ eventId: event.eventId });
+    expect(storedEvent?.status).toBe("failed");
+    expect(storedEvent?.error).toBe("order_not_found");
   });
 });

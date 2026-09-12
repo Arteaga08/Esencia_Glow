@@ -75,6 +75,17 @@ const bulkChangeStatusSchema = Joi.object({
   reason: Joi.string().trim().max(300),
 });
 
+/** `POST /:id/refund` (§5 del plan de 1.6.3): el código TOTP siempre son 6
+ * dígitos — el mismo patrón que valida el login de dos pasos. Sin código
+ * -> 400 aquí, antes de que el servicio siquiera lea la orden. */
+const refundOrderSchema = Joi.object({
+  twoFactorCode: Joi.string()
+    .pattern(/^\d{6}$/)
+    .required()
+    .messages({ "string.pattern.base": "El código de verificación debe tener 6 dígitos" }),
+  reason: Joi.string().trim().max(300),
+});
+
 /** Reusa el shape completo de `shipping.validator.ts` (todos los campos
  * obligatorios): la corrección es un reemplazo, no un parche. */
 const correctShippingAddressSchema = shippingAddressSchema;
@@ -87,4 +98,5 @@ export {
   changeOrderPrioritySchema,
   addInternalNoteSchema,
   bulkChangeStatusSchema,
+  refundOrderSchema,
 };

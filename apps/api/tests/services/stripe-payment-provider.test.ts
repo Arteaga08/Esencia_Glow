@@ -17,6 +17,9 @@ function buildFakeClient(overrides: Partial<StripeClientLike> = {}): StripeClien
       retrieve: vi.fn(),
       cancel: vi.fn(),
     },
+    refunds: {
+      create: vi.fn(),
+    },
     ...overrides,
   } as StripeClientLike;
 }
@@ -258,6 +261,102 @@ describe("services/stripe-payment-provider — cancel", () => {
 
     const outcome = await provider.cancel("pi_6", "order:3:cancel");
     expect(outcome).toBe("canceled");
+  });
+});
+
+describe("services/stripe-payment-provider — refund", () => {
+  it("reembolsa el monto pedido, con payment_intent + metadata.orderId + idempotencyKey", async () => {
+    const create = vi.fn().mockResolvedValue({ id: "re_1", status: "succeeded" });
+    const client = buildFakeClient({ refunds: { create } });
+    const provider = createStripePaymentProvider(client, WEBHOOK_CONFIG);
+
+    const result = await provider.refund({
+      orderId: "order-9",
+      intentId: "pi_9",
+      amountCents: 50000,
+      idempotencyKey: "order:order-9:refund:123",
+      requestedAtMs: 123,
+    });
+
+    expect(create).toHaveBeenCalledTimes(1);
+    const [params, options] = create.mock.calls[0];
+    expect(params).toEqual({
+      payment_intent: "pi_9",
+      amount: 50000,
+      metadata: { orderId: "order-9", refundRequestedAtMs: "123" },
+    });
+    expect(options.idempotencyKey).toBe("order:order-9:refund:123");
+    expect(result).toEqual({ refundId: "re_1", status: "succeeded" });
+  });
+
+  it("Stripe devuelve el reembolso en pending -> status pending", async () => {
+    const create = vi.fn().mockResolvedValue({ id: "re_2", status: "pending" });
+    const client = buildFakeClient({ refunds: { create } });
+    const provider = createStripePaymentProvider(client, WEBHOOK_CONFIG);
+
+    const result = await provider.refund({
+      orderId: "order-10",
+      intentId: "pi_10",
+      amountCents: 50000,
+      idempotencyKey: "k",
+      requestedAtMs: 1,
+    });
+    expect(result.status).toBe("pending");
+  });
+
+  it("cargo ya reembolsado -> AppError 409", async () => {
+    const create = vi.fn().mockRejectedValue(
+      Object.assign(new Error("Charge has already been fully refunded"), {
+        type: "StripeInvalidRequestError",
+        code: "charge_already_refunded",
+      }),
+    );
+    const client = buildFakeClient({ refunds: { create } });
+    const provider = createStripePaymentProvider(client, WEBHOOK_CONFIG);
+
+    await expect(
+      provider.refund({ orderId: "order-11", intentId: "pi_11", amountCents: 50000, idempotencyKey: "k", requestedAtMs: 1 }),
+    ).rejects.toMatchObject({ statusCode: 409 });
+  });
+
+  it("cargo en disputa -> AppError 409", async () => {
+    const create = vi.fn().mockRejectedValue(
+      Object.assign(new Error("Charge already has a dispute"), {
+        type: "StripeInvalidRequestError",
+        code: "charge_disputed",
+      }),
+    );
+    const client = buildFakeClient({ refunds: { create } });
+    const provider = createStripePaymentProvider(client, WEBHOOK_CONFIG);
+
+    await expect(
+      provider.refund({ orderId: "order-12", intentId: "pi_12", amountCents: 50000, idempotencyKey: "k", requestedAtMs: 1 }),
+    ).rejects.toMatchObject({ statusCode: 409 });
+  });
+
+  it("monto mayor al remanente -> AppError 409", async () => {
+    const create = vi.fn().mockRejectedValue(
+      Object.assign(new Error("Refund amount is greater than unrefunded amount"), {
+        type: "StripeInvalidRequestError",
+        code: "amount_too_large",
+      }),
+    );
+    const client = buildFakeClient({ refunds: { create } });
+    const provider = createStripePaymentProvider(client, WEBHOOK_CONFIG);
+
+    await expect(
+      provider.refund({ orderId: "order-13", intentId: "pi_13", amountCents: 999999, idempotencyKey: "k", requestedAtMs: 1 }),
+    ).rejects.toMatchObject({ statusCode: 409 });
+  });
+
+  it("cualquier otro fallo de Stripe -> AppError 502", async () => {
+    const create = vi.fn().mockRejectedValue(Object.assign(new Error("API down"), { type: "StripeAPIError" }));
+    const client = buildFakeClient({ refunds: { create } });
+    const provider = createStripePaymentProvider(client, WEBHOOK_CONFIG);
+
+    await expect(
+      provider.refund({ orderId: "order-14", intentId: "pi_14", amountCents: 50000, idempotencyKey: "k", requestedAtMs: 1 }),
+    ).rejects.toMatchObject({ statusCode: 502 });
   });
 });
 

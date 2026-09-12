@@ -117,13 +117,239 @@ describe("services/stripe-webhook-translator — parseStripeWebhookEvent", () =>
     expect(event).toEqual(expect.objectContaining({ kind: "payment.canceled", intentId: "pi_cancel" }));
   });
 
-  it("charge.refunded (fuera de alcance hasta 1.6.3) -> ignored", () => {
-    const payload = JSON.stringify({
-      id: "evt_refund",
+  function buildChargeEvent(
+    type: string,
+    overrides: Partial<{ payment_intent: string | null; amount_refunded: number; currency: string }> = {},
+  ): string {
+    return JSON.stringify({
+      id: `evt_${Math.random().toString(36).slice(2)}`,
       object: "event",
-      type: "charge.refunded",
-      data: { object: { id: "ch_1", object: "charge" } },
+      type,
+      data: {
+        object: {
+          id: "ch_1",
+          object: "charge",
+          payment_intent: overrides.payment_intent === undefined ? "pi_refunded" : overrides.payment_intent,
+          amount_refunded: overrides.amount_refunded ?? 50000,
+          currency: overrides.currency ?? "mxn",
+        },
+      },
     });
+  }
+
+  function buildRefundEvent(
+    type: string,
+    overrides: Partial<{ payment_intent: string | null; status: string; metadata: Record<string, string> }> = {},
+  ): string {
+    return JSON.stringify({
+      id: `evt_${Math.random().toString(36).slice(2)}`,
+      object: "event",
+      type,
+      data: {
+        object: {
+          id: "re_1",
+          object: "refund",
+          payment_intent: overrides.payment_intent === undefined ? "pi_refund_failed" : overrides.payment_intent,
+          status: overrides.status ?? "failed",
+          metadata: overrides.metadata ?? {},
+        },
+      },
+    });
+  }
+
+  function buildDisputeEvent(
+    type: string,
+    overrides: Partial<{ payment_intent: string | null; status: string }> = {},
+  ): string {
+    return JSON.stringify({
+      id: `evt_${Math.random().toString(36).slice(2)}`,
+      object: "event",
+      type,
+      data: {
+        object: {
+          id: "dp_1",
+          object: "dispute",
+          payment_intent: overrides.payment_intent === undefined ? "pi_disputed" : overrides.payment_intent,
+          status: overrides.status ?? "needs_response",
+        },
+      },
+    });
+  }
+
+  it("charge.refunded -> kind payment.refunded con el intent, amountRefundedCents y currency del cargo", () => {
+    const payload = buildChargeEvent("charge.refunded", { amount_refunded: 75000, currency: "mxn" });
+    const signature = sign(payload);
+
+    const event = parseStripeWebhookEvent(Buffer.from(payload), signature, {
+      secret: SECRET,
+      toleranceSeconds: TOLERANCE_SECONDS,
+    });
+
+    expect(event).toEqual(
+      expect.objectContaining({
+        kind: "payment.refunded",
+        intentId: "pi_refunded",
+        amountRefundedCents: 75000,
+        currency: "mxn",
+      }),
+    );
+  });
+
+  it("charge.refunded sin payment_intent (null) -> ignored", () => {
+    const payload = buildChargeEvent("charge.refunded", { payment_intent: null });
+    const signature = sign(payload);
+
+    const event = parseStripeWebhookEvent(Buffer.from(payload), signature, {
+      secret: SECRET,
+      toleranceSeconds: TOLERANCE_SECONDS,
+    });
+
+    expect(event.kind).toBe("ignored");
+  });
+
+  it("charge.refund.updated con status failed -> kind refund.failed", () => {
+    const payload = buildRefundEvent("charge.refund.updated", { status: "failed" });
+    const signature = sign(payload);
+
+    const event = parseStripeWebhookEvent(Buffer.from(payload), signature, {
+      secret: SECRET,
+      toleranceSeconds: TOLERANCE_SECONDS,
+    });
+
+    expect(event).toEqual(
+      expect.objectContaining({ kind: "refund.failed", intentId: "pi_refund_failed", refundId: "re_1" }),
+    );
+  });
+
+  it("charge.refund.updated trae metadata.refundRequestedAtMs -> lo expone como requestedAtMs (fencing en recordRefundFailure)", () => {
+    const payload = buildRefundEvent("charge.refund.updated", { status: "failed", metadata: { refundRequestedAtMs: "1700000000000" } });
+    const signature = sign(payload);
+
+    const event = parseStripeWebhookEvent(Buffer.from(payload), signature, {
+      secret: SECRET,
+      toleranceSeconds: TOLERANCE_SECONDS,
+    });
+
+    expect(event).toEqual(expect.objectContaining({ kind: "refund.failed", requestedAtMs: 1700000000000 }));
+  });
+
+  it("charge.refund.updated SIN metadata.refundRequestedAtMs (reembolso hecho a mano en el Dashboard) -> sin requestedAtMs", () => {
+    const payload = buildRefundEvent("charge.refund.updated", { status: "failed" });
+    const signature = sign(payload);
+
+    const event = parseStripeWebhookEvent(Buffer.from(payload), signature, {
+      secret: SECRET,
+      toleranceSeconds: TOLERANCE_SECONDS,
+    });
+
+    expect((event as { requestedAtMs?: number }).requestedAtMs).toBeUndefined();
+  });
+
+  it("charge.refund.updated con status canceled -> kind refund.failed", () => {
+    const payload = buildRefundEvent("charge.refund.updated", { status: "canceled" });
+    const signature = sign(payload);
+
+    const event = parseStripeWebhookEvent(Buffer.from(payload), signature, {
+      secret: SECRET,
+      toleranceSeconds: TOLERANCE_SECONDS,
+    });
+
+    expect(event.kind).toBe("refund.failed");
+  });
+
+  it("charge.refund.updated con status succeeded (en curso, no fallo) -> ignored", () => {
+    const payload = buildRefundEvent("charge.refund.updated", { status: "succeeded" });
+    const signature = sign(payload);
+
+    const event = parseStripeWebhookEvent(Buffer.from(payload), signature, {
+      secret: SECRET,
+      toleranceSeconds: TOLERANCE_SECONDS,
+    });
+
+    expect(event.kind).toBe("ignored");
+  });
+
+  it("charge.dispute.created con status needs_response -> kind dispute.opened", () => {
+    const payload = buildDisputeEvent("charge.dispute.created", { status: "needs_response" });
+    const signature = sign(payload);
+
+    const event = parseStripeWebhookEvent(Buffer.from(payload), signature, {
+      secret: SECRET,
+      toleranceSeconds: TOLERANCE_SECONDS,
+    });
+
+    expect(event).toEqual(
+      expect.objectContaining({ kind: "dispute.opened", intentId: "pi_disputed", disputeId: "dp_1" }),
+    );
+  });
+
+  it.each(["under_review", "warning_needs_response", "warning_under_review"])(
+    "charge.dispute.created/closed con status %s -> también dispute.opened",
+    (status) => {
+      const payload = buildDisputeEvent("charge.dispute.closed", { status });
+      const signature = sign(payload);
+
+      const event = parseStripeWebhookEvent(Buffer.from(payload), signature, {
+        secret: SECRET,
+        toleranceSeconds: TOLERANCE_SECONDS,
+      });
+
+      expect(event.kind).toBe("dispute.opened");
+    },
+  );
+
+  it("charge.dispute.closed con status won -> kind dispute.closed con outcome won", () => {
+    const payload = buildDisputeEvent("charge.dispute.closed", { status: "won" });
+    const signature = sign(payload);
+
+    const event = parseStripeWebhookEvent(Buffer.from(payload), signature, {
+      secret: SECRET,
+      toleranceSeconds: TOLERANCE_SECONDS,
+    });
+
+    expect(event).toEqual(
+      expect.objectContaining({ kind: "dispute.closed", intentId: "pi_disputed", disputeId: "dp_1", outcome: "won" }),
+    );
+  });
+
+  it("charge.dispute.closed con status lost -> outcome lost", () => {
+    const payload = buildDisputeEvent("charge.dispute.closed", { status: "lost" });
+    const signature = sign(payload);
+
+    const event = parseStripeWebhookEvent(Buffer.from(payload), signature, {
+      secret: SECRET,
+      toleranceSeconds: TOLERANCE_SECONDS,
+    });
+
+    expect(event).toEqual(expect.objectContaining({ kind: "dispute.closed", outcome: "lost" }));
+  });
+
+  it.each(["warning_closed", "prevented", "charge_refunded"])("charge.dispute.closed con status %s -> outcome withdrawn", (status) => {
+    const payload = buildDisputeEvent("charge.dispute.closed", { status });
+    const signature = sign(payload);
+
+    const event = parseStripeWebhookEvent(Buffer.from(payload), signature, {
+      secret: SECRET,
+      toleranceSeconds: TOLERANCE_SECONDS,
+    });
+
+    expect(event).toEqual(expect.objectContaining({ kind: "dispute.closed", outcome: "withdrawn" }));
+  });
+
+  it("dispute con status desconocido -> ignored", () => {
+    const payload = buildDisputeEvent("charge.dispute.created", { status: "algo_nuevo_de_stripe" });
+    const signature = sign(payload);
+
+    const event = parseStripeWebhookEvent(Buffer.from(payload), signature, {
+      secret: SECRET,
+      toleranceSeconds: TOLERANCE_SECONDS,
+    });
+
+    expect(event.kind).toBe("ignored");
+  });
+
+  it("dispute sin payment_intent (null) -> ignored", () => {
+    const payload = buildDisputeEvent("charge.dispute.created", { payment_intent: null });
     const signature = sign(payload);
 
     const event = parseStripeWebhookEvent(Buffer.from(payload), signature, {
