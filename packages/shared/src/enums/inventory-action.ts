@@ -5,6 +5,11 @@
  */
 enum InventoryAction {
   STOCK_ADJUSTED = "stock_adjusted",
+  /** Alta de una fila de inventario al vuelo desde el panel, para una
+   * variante `in_stock` que nunca tuvo una (ver §"Alta de stock híbrida"). */
+  INVENTORY_ITEM_CREATED = "inventory_item_created",
+  /** Set/unset del override de `lowStockThreshold` por SKU. */
+  LOW_STOCK_THRESHOLD_UPDATED = "low_stock_threshold_updated",
   /** Declaradas para el ciclo de vida de reserva/commit/expiración, pero SIN
    * emisor todavía: 1.4 no expone `reserve`/`commit` por HTTP (no hay
    * carrito ni webhook de pago que las dispare) y el cron de expiración

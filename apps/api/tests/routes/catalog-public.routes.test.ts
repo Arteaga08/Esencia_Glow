@@ -1,6 +1,7 @@
 import request from "supertest";
 import { describe, expect, it } from "vitest";
 import { buildApp } from "../../src/app.js";
+import { Inventory } from "../../src/models/inventory.model.js";
 import { createAdminSession } from "../helpers/admin-session.js";
 
 const app = buildApp();
@@ -154,5 +155,46 @@ describe("routes/catalog-public — productos y categorías", () => {
     const response = await request(app).get("/api/v1/products/serum-de-vitamina-c");
     expect(response.status).toBe(200);
     expect(response.body.data.badge).toBeUndefined();
+  });
+
+  describe("GET /:slug/availability", () => {
+    it("responde isAvailable: true cuando hay stock disponible, sin exponer onHand/reserved", async () => {
+      const { agent } = await createAdminSession(app);
+      await seedCatalog(agent);
+      const product = await request(app).get("/api/v1/products/serum-de-vitamina-c");
+      const variantId = product.body.data.variants[0].id as string;
+      await Inventory.create({
+        productId: product.body.data.id,
+        variantId,
+        sku: product.body.data.variants[0].sku,
+        onHand: 10,
+        reserved: 3,
+      });
+
+      const response = await request(app).get("/api/v1/products/serum-de-vitamina-c/availability");
+
+      expect(response.status).toBe(200);
+      const line = response.body.data.find((l: { variantId: string }) => l.variantId === variantId);
+      expect(line).toMatchObject({ isAvailable: true });
+      expect(JSON.stringify(response.body.data)).not.toMatch(/onHand|reserved/);
+    });
+
+    it("responde isAvailable: false para una variante sin fila de inventario", async () => {
+      const { agent } = await createAdminSession(app);
+      await seedCatalog(agent);
+
+      const response = await request(app).get("/api/v1/products/serum-de-vitamina-c/availability");
+
+      expect(response.status).toBe(200);
+      expect(response.body.data[0]).toMatchObject({ isAvailable: false });
+    });
+
+    it("un producto en borrador responde 404", async () => {
+      const { agent } = await createAdminSession(app);
+      await seedCatalog(agent);
+
+      const response = await request(app).get("/api/v1/products/crema-en-borrador/availability");
+      expect(response.status).toBe(404);
+    });
   });
 });

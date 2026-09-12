@@ -200,7 +200,13 @@ async function commitReservationCore(
 ): Promise<CommitResult> {
   const claimed = await StockReservation.findOneAndUpdate(
     { _id: reservationId, status: ReservationStatus.ACTIVE },
-    { $set: { status: ReservationStatus.COMMITTED, purgeAt: computePurgeAt() } },
+    {
+      $set: {
+        status: ReservationStatus.COMMITTED,
+        purgeAt: computePurgeAt(),
+        committedAt: new Date(),
+      },
+    },
     { new: true, session },
   );
 
@@ -318,7 +324,13 @@ async function releaseReservationCore(
 ): Promise<ReleaseResult> {
   const claimed = await StockReservation.findOneAndUpdate(
     { _id: reservationId, status: ReservationStatus.ACTIVE },
-    { $set: { status: ReservationStatus.RELEASED, purgeAt: computePurgeAt() } },
+    {
+      $set: {
+        status: ReservationStatus.RELEASED,
+        purgeAt: computePurgeAt(),
+        releasedAt: new Date(),
+      },
+    },
     { new: true, session },
   );
 

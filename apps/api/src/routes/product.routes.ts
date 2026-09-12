@@ -20,5 +20,11 @@ router.get(
   validate(slugParamSchema, "params"),
   catalogPublicController.getProduct,
 );
+router.get(
+  "/:slug/availability",
+  catalogRateLimiter,
+  validate(slugParamSchema, "params"),
+  catalogPublicController.getAvailability,
+);
 
 export { router as productRoutes };

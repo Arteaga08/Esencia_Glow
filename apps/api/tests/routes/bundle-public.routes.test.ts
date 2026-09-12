@@ -1,6 +1,7 @@
 import request from "supertest";
 import { describe, expect, it } from "vitest";
 import { buildApp } from "../../src/app.js";
+import { Inventory } from "../../src/models/inventory.model.js";
 import { createAdminSession } from "../helpers/admin-session.js";
 
 const app = buildApp();
@@ -36,7 +37,7 @@ async function seedActiveBundle(agent: ReturnType<typeof request.agent>) {
   const bundleId = bundle.body.data.id as string;
   await agent.patch(`/api/v1/admin/bundles/${bundleId}`).send({ status: "active" });
 
-  return { bundleId };
+  return { bundleId, productId, variantId };
 }
 
 describe("routes/bundle-public — listado y detalle", () => {
@@ -103,5 +104,38 @@ describe("routes/bundle-public — listado y detalle", () => {
 
     const response = await request(app).get("/api/v1/bundles/rutina-completa");
     expect(response.status).toBe(404);
+  });
+
+  describe("GET /:slug/availability", () => {
+    it("responde isAvailable: true cuando el stock alcanza para armar al menos uno", async () => {
+      const { agent } = await createAdminSession(app);
+      const { productId, variantId } = await seedActiveBundle(agent);
+      await agent.patch(`/api/v1/admin/products/${productId}`).send({ status: "active" });
+      await Inventory.create({ productId, variantId, sku: "SER-30ML", onHand: 10, reserved: 0 });
+
+      const response = await request(app).get("/api/v1/bundles/rutina-completa/availability");
+
+      expect(response.status).toBe(200);
+      expect(response.body.data).toEqual({ isAvailable: true });
+    });
+
+    it("responde isAvailable: false sin stock de sus componentes", async () => {
+      const { agent } = await createAdminSession(app);
+      await seedActiveBundle(agent);
+
+      const response = await request(app).get("/api/v1/bundles/rutina-completa/availability");
+
+      expect(response.status).toBe(200);
+      expect(response.body.data).toEqual({ isAvailable: false });
+    });
+
+    it("un bundle archivado responde 404", async () => {
+      const { agent } = await createAdminSession(app);
+      const { bundleId } = await seedActiveBundle(agent);
+      await agent.delete(`/api/v1/admin/bundles/${bundleId}`);
+
+      const response = await request(app).get("/api/v1/bundles/rutina-completa/availability");
+      expect(response.status).toBe(404);
+    });
   });
 });

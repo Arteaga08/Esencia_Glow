@@ -34,6 +34,17 @@ const variantSchema = Joi.object({
   isActive: Joi.boolean(),
 });
 
+/**
+ * `initialStock` es WRITE-ONLY y solo existe en esta variante del schema
+ * (creación de producto): nunca se admite al agregar/editar una variante por
+ * separado (`createVariantSchema`/`updateVariantSchema`, sin esta clave, la
+ * descartan por `stripUnknown`) ni se devuelve en ninguna lectura — ver
+ * §"Alta de stock híbrida" de ECOMMERCE_ARCHITECTURE_GUIDELINES.md.
+ */
+const createProductVariantSchema = variantSchema.keys({
+  initialStock: Joi.number().integer().min(0).max(100_000),
+});
+
 const createProductSchema = Joi.object({
   name: Joi.string().trim().min(1).max(160).required(),
   description: Joi.string().trim().min(1).max(5000).required(),
@@ -41,7 +52,7 @@ const createProductSchema = Joi.object({
   categoryId: Joi.string().hex().length(24).required(),
   badgeId: Joi.string().hex().length(24).allow(null),
   variants: Joi.array()
-    .items(variantSchema)
+    .items(createProductVariantSchema)
     .min(1)
     .unique((a, b) => a.sku === b.sku)
     .required()

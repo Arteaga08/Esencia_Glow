@@ -13,6 +13,7 @@ export { AuthAction } from "./enums/auth-action.js";
 export { ProductStatus } from "./enums/product-status.js";
 export { ReservationStatus } from "./enums/reservation-status.js";
 export { InventoryAction } from "./enums/inventory-action.js";
+export { StockStatus } from "./enums/stock-status.js";
 export { BundleStatus } from "./enums/bundle-status.js";
 export { BadgeColor } from "./enums/badge-color.js";
 export { OrderAction } from "./enums/order-action.js";
@@ -75,8 +76,9 @@ export type {
   PublicProduct,
   PublicCategory,
   PublicCategoryNode,
+  PublicVariantAvailability,
 } from "./types/catalog.js";
-export type { PublicBundleItem, PublicBundle } from "./types/bundle.js";
+export type { PublicBundleItem, PublicBundle, PublicBundleAvailability } from "./types/bundle.js";
 export type { PublicBadge } from "./types/badge.js";
 export type {
   PublicShippingAddress,

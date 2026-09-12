@@ -7,16 +7,20 @@ import { restrictTo } from "../middlewares/restrict-to.js";
 import { objectIdParamSchema } from "../validators/media.validator.js";
 import {
   adjustStockSchema,
+  createInventoryItemSchema,
   listInventoryQuerySchema,
   listReservationsQuerySchema,
+  productIdParamSchema,
+  updateThresholdSchema,
   variantIdParamSchema,
 } from "../validators/inventory.validator.js";
 
 /**
  * Router de /api/v1/admin/inventory. Sin superficie HTTP para reserve/commit:
- * en 1.4 no hay carrito ni webhook de pago que las dispare — se prueban a
- * nivel de service y las conecta 1.5. `/reservations*` va ANTES de
- * `/:variantId` para que Express no confunda "reservations" con un id.
+ * no hay carrito ni webhook de pago que las dispare desde aquí — se prueban a
+ * nivel de service y las conecta 1.5. `/reservations*` y `/products/:productId`
+ * van ANTES de `/:variantId` para que Express no confunda esos segmentos con
+ * un id de variante.
  */
 const router = Router();
 
@@ -33,12 +37,24 @@ router.post(
   validate(objectIdParamSchema, "params"),
   inventoryController.forceRelease,
 );
+router.get(
+  "/products/:productId",
+  validate(productIdParamSchema, "params"),
+  inventoryController.getProductDetail,
+);
+router.post("/", validate(createInventoryItemSchema), inventoryController.create);
 router.get("/:variantId", validate(variantIdParamSchema, "params"), inventoryController.getOne);
-router.post(
-  "/:variantId/adjust",
+router.patch(
+  "/:variantId/stock",
   validate(variantIdParamSchema, "params"),
   validate(adjustStockSchema),
-  inventoryController.adjust,
+  inventoryController.adjustStock,
+);
+router.patch(
+  "/:variantId",
+  validate(variantIdParamSchema, "params"),
+  validate(updateThresholdSchema),
+  inventoryController.updateThreshold,
 );
 
 export { router as adminInventoryRoutes };

@@ -15,4 +15,9 @@ const getBundle = asyncHandler(async (req: Request<{ slug: string }>, res: Respo
   sendResponse(res, 200, "Paquete obtenido.", bundle);
 });
 
-export { listBundles, getBundle };
+const getAvailability = asyncHandler(async (req: Request<{ slug: string }>, res: Response) => {
+  const availability = await bundlePublicService.getPublicBundleAvailability(req.params.slug);
+  sendResponse(res, 200, "Disponibilidad obtenida.", availability);
+});
+
+export { listBundles, getBundle, getAvailability };

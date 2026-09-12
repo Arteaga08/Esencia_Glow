@@ -1,5 +1,7 @@
 import type { Types } from "mongoose";
-import type { ReservationStatus } from "@esencia-glow/shared";
+import type { StockStatus} from "@esencia-glow/shared";
+import { type ReservationStatus } from "@esencia-glow/shared";
+import { resolveEffectiveThreshold, resolveStockStatus } from "./inventory-status.js";
 
 /**
  * DTO de inventario/reservas para el dashboard admin. Igual que
@@ -13,6 +15,8 @@ interface LeanInventoryRow {
   sku: string;
   onHand: number;
   reserved: number;
+  lowStockThreshold?: number;
+  lastRestockedAt?: Date;
 }
 
 interface AdminInventoryRow {
@@ -24,6 +28,12 @@ interface AdminInventoryRow {
   reserved: number;
   /** onHand - reserved. Derivado siempre, nunca persistido. */
   available: number;
+  /** Override por SKU, o `null` si no tiene (usa el default global). */
+  lowStockThreshold: number | null;
+  /** Override si existe, si no el default global de Settings — resuelto en el servidor. */
+  effectiveLowStockThreshold: number;
+  status: StockStatus;
+  lastRestockedAt: string | null;
 }
 
 interface LeanReservationLine {
@@ -40,6 +50,8 @@ interface LeanReservation {
   status: ReservationStatus;
   expiresAt: Date;
   purgeAt?: Date;
+  committedAt?: Date;
+  releasedAt?: Date;
 }
 
 interface AdminReservation {
@@ -50,9 +62,24 @@ interface AdminReservation {
   status: ReservationStatus;
   expiresAt: string;
   purgeAt?: string;
+  committedAt?: string;
+  releasedAt?: string;
 }
 
-function buildAdminInventoryRow(row: LeanInventoryRow): AdminInventoryRow {
+/**
+ * `globalLowStockThreshold` viene del caller (settings.service.ts) — este DTO
+ * nunca lee Settings por su cuenta.
+ */
+function buildAdminInventoryRow(
+  row: LeanInventoryRow,
+  globalLowStockThreshold: number,
+): AdminInventoryRow {
+  const available = row.onHand - row.reserved;
+  const effectiveLowStockThreshold = resolveEffectiveThreshold(
+    row.lowStockThreshold,
+    globalLowStockThreshold,
+  );
+
   return {
     id: row._id.toString(),
     productId: row.productId.toString(),
@@ -60,7 +87,11 @@ function buildAdminInventoryRow(row: LeanInventoryRow): AdminInventoryRow {
     sku: row.sku,
     onHand: row.onHand,
     reserved: row.reserved,
-    available: row.onHand - row.reserved,
+    available,
+    lowStockThreshold: row.lowStockThreshold ?? null,
+    effectiveLowStockThreshold,
+    status: resolveStockStatus(available, effectiveLowStockThreshold),
+    lastRestockedAt: row.lastRestockedAt ? row.lastRestockedAt.toISOString() : null,
   };
 }
 
@@ -77,6 +108,8 @@ function buildAdminReservation(reservation: LeanReservation): AdminReservation {
     status: reservation.status,
     expiresAt: reservation.expiresAt.toISOString(),
     ...(reservation.purgeAt ? { purgeAt: reservation.purgeAt.toISOString() } : {}),
+    ...(reservation.committedAt ? { committedAt: reservation.committedAt.toISOString() } : {}),
+    ...(reservation.releasedAt ? { releasedAt: reservation.releasedAt.toISOString() } : {}),
   };
 }
 

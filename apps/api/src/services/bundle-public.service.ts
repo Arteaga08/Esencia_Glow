@@ -1,9 +1,16 @@
-import { BundleStatus, type ListQuery, type PaginationMeta, type PublicBundle } from "@esencia-glow/shared";
+import {
+  BundleStatus,
+  type ListQuery,
+  type PaginationMeta,
+  type PublicBundle,
+  type PublicBundleAvailability,
+} from "@esencia-glow/shared";
 import { Bundle } from "../models/bundle.model.js";
 import { Product } from "../models/product.model.js";
 import { AppError } from "../utils/app-error.js";
 import { buildMeta, escapeRegex } from "../utils/parse-list-query.js";
 import { resolveSort } from "../utils/resolve-sort.js";
+import { computeBundleAvailability } from "./bundle-availability.service.js";
 import { buildPublicBundle, type LeanBundle } from "./bundle-dto.js";
 import type { LeanProduct } from "./catalog-dto.js";
 
@@ -60,4 +67,19 @@ async function getPublicBundleBySlug(slug: string): Promise<PublicBundle> {
   return buildPublicBundle(bundle, productById);
 }
 
-export { listPublicBundles, getPublicBundleBySlug };
+/**
+ * Señal booleana, nunca el conteo — mismo criterio que
+ * `getPublicVariantAvailability` (catalog-public.service.ts), extendido a
+ * paquetes: la PDP de un bundle necesita la misma señal que la de un
+ * producto. Se calcula EN VIVO con `computeBundleAvailability` (nunca desde
+ * `Bundle.stockCache`, que es solo una caché de display para el dashboard).
+ */
+async function getPublicBundleAvailability(slug: string): Promise<PublicBundleAvailability> {
+  const bundle = await Bundle.findOne({ slug, status: BundleStatus.ACTIVE }).lean<LeanBundle>();
+  if (!bundle) throw new AppError("Paquete no encontrado", 404);
+
+  const possible = await computeBundleAvailability(bundle.items);
+  return { isAvailable: possible > 0 };
+}
+
+export { listPublicBundles, getPublicBundleBySlug, getPublicBundleAvailability };

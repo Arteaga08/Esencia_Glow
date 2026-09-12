@@ -3,7 +3,6 @@ import type { ListQuery, PaginationMeta, ProductStatus } from "@esencia-glow/sha
 import { Product, type ProductDocument } from "../models/product.model.js";
 import { Category } from "../models/category.model.js";
 import { Badge } from "../models/badge.model.js";
-import { Inventory } from "../models/inventory.model.js";
 import type { DimensionsCmAttrs, VariantAttributesAttrs } from "../models/product-variant.schema.js";
 import { AppError } from "../utils/app-error.js";
 import { slugify } from "../utils/slugify.js";
@@ -11,6 +10,7 @@ import { buildMeta } from "../utils/parse-list-query.js";
 import { resolveSort } from "../utils/resolve-sort.js";
 import { buildProductFilter } from "../utils/build-product-filter.js";
 import { withTransaction } from "../utils/with-transaction.js";
+import { seedInitialStock } from "./inventory.service.js";
 import { buildAdminProduct, type AdminProduct, type LeanProduct } from "./catalog-dto.js";
 
 const PRODUCT_SORT_FIELDS = ["createdAt", "updatedAt", "name", "minPrice", "status"] as const;
@@ -25,13 +25,23 @@ interface ProductVariantInput {
   isActive?: boolean;
 }
 
+/**
+ * Solo válido en la creación del producto: `initialStock` es write-only (ver
+ * §"Alta de stock híbrida" de ECOMMERCE_ARCHITECTURE_GUIDELINES.md), nunca se
+ * persiste en `Product.variants` ni se devuelve en una lectura — el stock se
+ * lee siempre del inventario.
+ */
+interface CreateProductVariantInput extends ProductVariantInput {
+  initialStock?: number;
+}
+
 interface CreateProductInput {
   name: string;
   description: string;
   shortDescription?: string;
   categoryId: string;
   badgeId?: string | null;
-  variants: ProductVariantInput[];
+  variants: CreateProductVariantInput[];
 }
 
 interface UpdateProductInput {
@@ -72,15 +82,23 @@ async function resolveCategoryIds(categoryId: string): Promise<Types.ObjectId[]>
 }
 
 /**
- * Crea el producto y la fila de inventario (0/0) de cada una de sus variantes
- * en la misma transacción: si `Inventory.insertMany` fallara después de
- * `product.save()` (por ejemplo, un SKU ya usado por una fila de inventario
- * huérfana), el producto tampoco debe quedar creado — de lo contrario
- * quedarían variantes que nunca podrán venderse, sin que nada lo señale.
+ * Crea el producto y, en la misma transacción, siembra el inventario SOLO de
+ * las variantes que llegaron con `initialStock > 0` (ver §"Alta de stock
+ * híbrida"): si `seedInitialStock` fallara después de `product.save()` (por
+ * ejemplo, un SKU ya usado por una fila de inventario huérfana), el producto
+ * tampoco debe quedar creado. `initialStock` nunca llega a `Product.variants`
+ * — se extrae del input antes de construir el documento.
  */
 async function createProduct(input: CreateProductInput): Promise<ProductDocument> {
   await assertCategoryExists(input.categoryId);
   if (input.badgeId) await assertBadgeExists(input.badgeId);
+
+  const stockBySku = new Map(
+    input.variants
+      .filter((variant) => (variant.initialStock ?? 0) > 0)
+      .map((variant) => [variant.sku, variant.initialStock!]),
+  );
+  const variants: ProductVariantInput[] = input.variants.map(({ initialStock: _initialStock, ...variant }) => variant);
 
   return withTransaction(async (session) => {
     const product = new Product({
@@ -90,22 +108,11 @@ async function createProduct(input: CreateProductInput): Promise<ProductDocument
       shortDescription: input.shortDescription,
       categoryId: input.categoryId,
       badgeId: input.badgeId ?? null,
-      variants: input.variants,
+      variants,
     });
     await product.save({ session });
 
-    if (product.variants.length > 0) {
-      await Inventory.insertMany(
-        product.variants.map((variant) => ({
-          productId: product._id,
-          variantId: variant._id,
-          sku: variant.sku,
-          onHand: 0,
-          reserved: 0,
-        })),
-        { session, ordered: true },
-      );
-    }
+    await seedInitialStock(product, stockBySku, session);
 
     return product;
   });
@@ -187,4 +194,10 @@ export {
   getProductDocument,
   resolveCategoryIds,
 };
-export type { CreateProductInput, UpdateProductInput, ListProductsInput, ProductVariantInput };
+export type {
+  CreateProductInput,
+  CreateProductVariantInput,
+  UpdateProductInput,
+  ListProductsInput,
+  ProductVariantInput,
+};

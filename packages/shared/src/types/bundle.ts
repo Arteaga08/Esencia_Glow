@@ -29,4 +29,10 @@ interface PublicBundle {
   items: PublicBundleItem[];
 }
 
-export type { PublicBundleItem, PublicBundle };
+/** Señal de disponibilidad de un paquete — igual criterio que
+ * `PublicVariantAvailability`, nunca el conteo real. */
+interface PublicBundleAvailability {
+  isAvailable: boolean;
+}
+
+export type { PublicBundleItem, PublicBundle, PublicBundleAvailability };

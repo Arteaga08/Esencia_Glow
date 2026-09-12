@@ -5,7 +5,6 @@ import { Inventory } from "../../src/models/inventory.model.js";
 import { Product } from "../../src/models/product.model.js";
 import { createProduct } from "../../src/services/product.service.js";
 import { addVariant, removeVariant, updateVariant } from "../../src/services/product-variant.service.js";
-import { backfillInventory } from "../../src/scripts/backfill-inventory.js";
 
 function sampleVariant(overrides: Partial<Record<string, unknown>> = {}) {
   return {
@@ -23,8 +22,8 @@ async function seedCategory(suffix: string) {
 }
 
 describe("product <-> inventory (ciclo de vida)", () => {
-  describe("createProduct", () => {
-    it("crea una fila de inventario en 0/0 por cada variante", async () => {
+  describe("createProduct — alta de stock híbrida", () => {
+    it("sin initialStock, ninguna variante siembra fila de inventario", async () => {
       const category = await seedCategory("create-1");
 
       const product = await createProduct({
@@ -39,17 +38,46 @@ describe("product <-> inventory (ciclo de vida)", () => {
       });
 
       const rows = await Inventory.find({ productId: product._id }).lean();
-      expect(rows).toHaveLength(3);
-      for (const row of rows) {
-        expect(row.onHand).toBe(0);
-        expect(row.reserved).toBe(0);
-      }
-      const skus = rows.map((r) => r.sku).sort();
-      expect(skus).toEqual(["RC-A", "RC-B", "RC-C"]);
+      expect(rows).toHaveLength(0);
     });
 
-    it("si la creación de inventario falla, no queda ni producto ni filas (todo revierte)", async () => {
+    it("solo siembra fila para las variantes con initialStock > 0, y con ese onHand", async () => {
       const category = await seedCategory("create-2");
+
+      const product = await createProduct({
+        name: "Rutina Parcial",
+        description: "desc",
+        categoryId: category._id.toString(),
+        variants: [
+          sampleVariant({ sku: "RP-A", initialStock: 10 }),
+          sampleVariant({ sku: "RP-B", initialStock: 0 }),
+          sampleVariant({ sku: "RP-C" }),
+        ],
+      });
+
+      const rows = await Inventory.find({ productId: product._id }).lean();
+      expect(rows).toHaveLength(1);
+      expect(rows[0]?.sku).toBe("RP-A");
+      expect(rows[0]?.onHand).toBe(10);
+      expect(rows[0]?.reserved).toBe(0);
+    });
+
+    it("initialStock nunca se persiste en Product.variants", async () => {
+      const category = await seedCategory("create-3");
+
+      const product = await createProduct({
+        name: "Producto Write Only",
+        description: "desc",
+        categoryId: category._id.toString(),
+        variants: [sampleVariant({ sku: "WO-A", initialStock: 5 })],
+      });
+
+      const reloaded = await Product.findById(product._id).lean();
+      expect(reloaded?.variants[0]).not.toHaveProperty("initialStock");
+    });
+
+    it("si la siembra de inventario falla, no queda ni producto ni filas (todo revierte)", async () => {
+      const category = await seedCategory("create-4");
       // Fila de inventario preexistente con un sku que una nueva variante
       // reutilizará — sin producto dueño, simula una inconsistencia que hace
       // fallar la unicidad DESPUÉS de que product.save() ya tuvo éxito.
@@ -66,7 +94,7 @@ describe("product <-> inventory (ciclo de vida)", () => {
           name: "Producto Conflictivo",
           description: "desc",
           categoryId: category._id.toString(),
-          variants: [sampleVariant({ sku: "DUP-SKU" })],
+          variants: [sampleVariant({ sku: "DUP-SKU", initialStock: 3 })],
         }),
       ).rejects.toBeDefined();
 
@@ -75,7 +103,7 @@ describe("product <-> inventory (ciclo de vida)", () => {
   });
 
   describe("addVariant", () => {
-    it("crea la fila de inventario de la variante nueva", async () => {
+    it("no siembra fila de inventario para la variante nueva", async () => {
       const category = await seedCategory("add-1");
       const product = await createProduct({
         name: "Producto Base",
@@ -88,19 +116,18 @@ describe("product <-> inventory (ciclo de vida)", () => {
       const newVariant = updated.variants.find((v) => v.sku === "BASE-B")!;
 
       const row = await Inventory.findOne({ variantId: newVariant._id });
-      expect(row).not.toBeNull();
-      expect(row?.onHand).toBe(0);
+      expect(row).toBeNull();
     });
   });
 
   describe("updateVariant", () => {
-    it("propaga un cambio de sku a la fila de inventario", async () => {
+    it("propaga un cambio de sku a la fila de inventario si existe", async () => {
       const category = await seedCategory("upd-1");
       const product = await createProduct({
         name: "Producto Sku",
         description: "desc",
         categoryId: category._id.toString(),
-        variants: [sampleVariant({ sku: "OLD-SKU" })],
+        variants: [sampleVariant({ sku: "OLD-SKU", initialStock: 1 })],
       });
       const variantId = product.variants[0]!._id;
 
@@ -139,7 +166,7 @@ describe("product <-> inventory (ciclo de vida)", () => {
         variants: [sampleVariant({ sku: "RES-SKU" })],
       });
       const variantId = product.variants[0]!._id;
-      await Inventory.updateOne({ variantId }, { $set: { onHand: 5, reserved: 2 } });
+      await Inventory.create({ productId: product._id, variantId, sku: "RES-SKU", onHand: 5, reserved: 2 });
 
       await expect(
         removeVariant(product._id.toString(), variantId.toString()),
@@ -156,7 +183,10 @@ describe("product <-> inventory (ciclo de vida)", () => {
         name: "Producto Dos Variantes",
         description: "desc",
         categoryId: category._id.toString(),
-        variants: [sampleVariant({ sku: "CHEAP", price: 100 }), sampleVariant({ sku: "PRICEY", price: 999 })],
+        variants: [
+          sampleVariant({ sku: "CHEAP", price: 100, initialStock: 1 }),
+          sampleVariant({ sku: "PRICEY", price: 999 }),
+        ],
       });
       const cheapVariantId = product.variants.find((v) => v.sku === "CHEAP")!._id;
 
@@ -166,28 +196,20 @@ describe("product <-> inventory (ciclo de vida)", () => {
       expect(await Inventory.findOne({ variantId: cheapVariantId })).toBeNull();
       expect(updated.minPrice).toBe(999);
     });
-  });
 
-  describe("backfillInventory", () => {
-    it("crea una fila por variante para productos preexistentes sin inventario, y es idempotente", async () => {
-      const category = await seedCategory("backfill-1");
-      // Producto insertado sin pasar por createProduct (simula datos previos
-      // a 1.4, sin ninguna fila de Inventory asociada).
-      await Product.create({
-        name: "Producto Legado",
-        slug: "producto-legado",
+    it("elimina la variante sin fila de inventario sin fallar", async () => {
+      const category = await seedCategory("rm-3");
+      const product = await createProduct({
+        name: "Producto Sin Fila",
         description: "desc",
-        categoryId: category._id,
-        variants: [sampleVariant({ sku: "LEGACY-A" }), sampleVariant({ sku: "LEGACY-B" })],
+        categoryId: category._id.toString(),
+        variants: [sampleVariant({ sku: "NOROW", price: 100 }), sampleVariant({ sku: "OTHER", price: 200 })],
       });
+      const variantId = product.variants.find((v) => v.sku === "NOROW")!._id;
 
-      const first = await backfillInventory();
-      expect(first.rowsEnsured).toBe(2);
-      expect(await Inventory.countDocuments()).toBe(2);
+      const updated = await removeVariant(product._id.toString(), variantId.toString());
 
-      const second = await backfillInventory();
-      expect(second.rowsEnsured).toBe(2);
-      expect(await Inventory.countDocuments()).toBe(2);
+      expect(updated.variants.id(variantId)).toBeNull();
     });
   });
 });

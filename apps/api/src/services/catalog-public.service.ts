@@ -1,8 +1,16 @@
 import type { Types } from "mongoose";
-import type { ListQuery, PaginationMeta, PublicCategory, PublicCategoryNode, PublicProduct } from "@esencia-glow/shared";
+import type {
+  ListQuery,
+  PaginationMeta,
+  PublicCategory,
+  PublicCategoryNode,
+  PublicProduct,
+  PublicVariantAvailability,
+} from "@esencia-glow/shared";
 import { Product } from "../models/product.model.js";
 import { Category } from "../models/category.model.js";
 import { Badge } from "../models/badge.model.js";
+import { Inventory } from "../models/inventory.model.js";
 import { AppError } from "../utils/app-error.js";
 import { buildMeta } from "../utils/parse-list-query.js";
 import { resolveSort } from "../utils/resolve-sort.js";
@@ -103,6 +111,38 @@ async function getPublicProductBySlug(slug: string): Promise<PublicProduct> {
   return buildPublicProduct(product, category, badge ?? undefined);
 }
 
+/**
+ * Señal booleana por variante activa — nunca el número (`onHand`/`reserved`
+ * es información de negocio, ver §"Disponibilidad pública" de
+ * ECOMMERCE_ARCHITECTURE_GUIDELINES.md). Mismo criterio de existencia que el
+ * PDP: 404 si el producto no está activo o no tiene ninguna variante activa.
+ */
+async function getPublicVariantAvailability(slug: string): Promise<PublicVariantAvailability[]> {
+  const product = await Product.findOne({
+    slug,
+    status: "active",
+    variants: { $elemMatch: { isActive: true } },
+  })
+    .select("variants")
+    .lean<LeanProduct>();
+  if (!product) throw new AppError("Producto no encontrado", 404);
+
+  const activeVariants = product.variants.filter((variant) => variant.isActive);
+  const rows = await Inventory.find({ variantId: { $in: activeVariants.map((v) => v._id) } })
+    .select("variantId onHand reserved")
+    .lean();
+  const rowByVariant = new Map(rows.map((row) => [row.variantId.toString(), row]));
+
+  return activeVariants.map((variant) => {
+    const row = rowByVariant.get(variant._id.toString());
+    return {
+      variantId: variant._id.toString(),
+      sku: variant.sku,
+      isAvailable: row !== undefined && row.onHand - row.reserved > 0,
+    };
+  });
+}
+
 async function getPublicCategoryTree(): Promise<PublicCategoryNode[]> {
   const categories = await Category.find({ isActive: true })
     .sort({ parentId: 1, sortOrder: 1, name: 1 })
@@ -116,5 +156,11 @@ async function getPublicCategoryBySlug(slug: string): Promise<PublicCategory> {
   return buildPublicCategory(category);
 }
 
-export { listPublicProducts, getPublicProductBySlug, getPublicCategoryTree, getPublicCategoryBySlug };
+export {
+  listPublicProducts,
+  getPublicProductBySlug,
+  getPublicVariantAvailability,
+  getPublicCategoryTree,
+  getPublicCategoryBySlug,
+};
 export type { ListPublicProductsInput };
