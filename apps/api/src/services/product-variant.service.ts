@@ -5,7 +5,7 @@ import { Bundle } from "../models/bundle.model.js";
 import type { ProductVariantAttrs } from "../models/product-variant.schema.js";
 import { AppError } from "../utils/app-error.js";
 import { withTransaction } from "../utils/with-transaction.js";
-import { ensureInventoryRow, removeInventoryRow } from "./inventory.service.js";
+import { removeInventoryRow } from "./inventory.service.js";
 import type { ProductVariantInput } from "./product.service.js";
 
 /**
@@ -46,26 +46,24 @@ function applyVariantFields(variant: ProductVariantAttrs, input: Partial<Product
   if (input.isActive !== undefined) variant.isActive = input.isActive;
 }
 
-/** Crea la variante y su fila de inventario (0/0) en una sola transacción. */
+/**
+ * Crea la variante SIN sembrar fila de inventario: `initialStock` es
+ * write-only del `POST` de creación del producto (ver product.service.ts),
+ * y esta subruta no lo acepta. "Sin registro" ≠ "agotado" — la fila se crea
+ * al vuelo desde el panel (`createInventoryItem`) la primera vez que se
+ * captura stock de esta variante.
+ */
 async function addVariant(
   productId: string,
   input: ProductVariantInput,
 ): Promise<ProductDocument> {
-  return withTransaction(async (session) => {
-    const product = await getProductOrThrow(productId, session);
-    assertNoDuplicateSkuInDocument(product, input.sku);
+  const product = await getProductOrThrow(productId);
+  assertNoDuplicateSkuInDocument(product, input.sku);
 
-    product.variants.push(input);
-    await product.save({ session });
+  product.variants.push(input);
+  await product.save();
 
-    const newVariant = product.variants[product.variants.length - 1]!;
-    await ensureInventoryRow(
-      { productId: product._id, variantId: newVariant._id, sku: newVariant.sku },
-      session,
-    );
-
-    return product;
-  });
+  return product;
 }
 
 /**

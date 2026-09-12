@@ -77,6 +77,17 @@ interface PublicCategoryNode extends PublicCategory {
   children: PublicCategory[];
 }
 
+/**
+ * Señal de disponibilidad por variante — nunca el número de `onHand`/
+ * `reserved` (información de negocio, ver §"Disponibilidad pública" de
+ * ECOMMERCE_ARCHITECTURE_GUIDELINES.md).
+ */
+interface PublicVariantAvailability {
+  variantId: string;
+  sku: string;
+  isAvailable: boolean;
+}
+
 export type {
   ProductAttributes,
   PublicProductImage,
@@ -86,4 +97,5 @@ export type {
   PublicProduct,
   PublicCategory,
   PublicCategoryNode,
+  PublicVariantAvailability,
 };

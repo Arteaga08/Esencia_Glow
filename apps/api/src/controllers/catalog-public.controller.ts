@@ -25,6 +25,11 @@ const getProduct = asyncHandler(async (req: Request<{ slug: string }>, res: Resp
   sendResponse(res, 200, "Producto obtenido.", product);
 });
 
+const getAvailability = asyncHandler(async (req: Request<{ slug: string }>, res: Response) => {
+  const availability = await catalogPublicService.getPublicVariantAvailability(req.params.slug);
+  sendResponse(res, 200, "Disponibilidad obtenida.", availability);
+});
+
 const getCategoryTree = asyncHandler(async (_req: Request, res: Response) => {
   const tree = await catalogPublicService.getPublicCategoryTree();
   sendResponse(res, 200, "Categorías obtenidas.", tree);
@@ -35,4 +40,4 @@ const getCategory = asyncHandler(async (req: Request<{ slug: string }>, res: Res
   sendResponse(res, 200, "Categoría obtenida.", category);
 });
 
-export { listProducts, getProduct, getCategoryTree, getCategory };
+export { listProducts, getProduct, getAvailability, getCategoryTree, getCategory };

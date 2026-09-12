@@ -249,6 +249,34 @@ describe("services/stock-reservation", () => {
       expect(row?.reserved).toBe(0);
     });
 
+    it("commit deja committedAt definido y releasedAt ausente", async () => {
+      const { variantId } = await seedVariant({ onHand: 10 });
+      const reservation = await reserveStock({
+        cartRef: "cart-committed-at",
+        lines: [{ variantId: variantId.toString(), quantity: 1 }],
+        ttlMinutes: 30,
+      });
+
+      const committed = await commitReservation(reservation._id.toString());
+
+      expect(committed.committedAt).toBeInstanceOf(Date);
+      expect(committed.releasedAt).toBeUndefined();
+    });
+
+    it("release deja releasedAt definido y committedAt ausente", async () => {
+      const { variantId } = await seedVariant({ onHand: 10 });
+      const reservation = await reserveStock({
+        cartRef: "cart-released-at",
+        lines: [{ variantId: variantId.toString(), quantity: 1 }],
+        ttlMinutes: 30,
+      });
+
+      const released = await releaseReservation(reservation._id.toString());
+
+      expect(released.releasedAt).toBeInstanceOf(Date);
+      expect(released.committedAt).toBeUndefined();
+    });
+
     it("commit dos veces en serie es idempotente y no vuelve a mover contadores", async () => {
       const { variantId } = await seedVariant({ onHand: 10 });
       const reservation = await reserveStock({

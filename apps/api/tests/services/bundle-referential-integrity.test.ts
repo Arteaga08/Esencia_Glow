@@ -27,7 +27,7 @@ describe("product-variant <-> bundle (integridad referencial)", () => {
       name: "Producto Referenciado",
       description: "desc",
       categoryId: category._id.toString(),
-      variants: [sampleVariant()],
+      variants: [sampleVariant({ initialStock: 5 })],
     });
     const variantId = product.variants[0]!._id;
 

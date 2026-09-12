@@ -1,6 +1,7 @@
 import request from "supertest";
 import { describe, expect, it } from "vitest";
 import { buildApp } from "../../src/app.js";
+import { Inventory } from "../../src/models/inventory.model.js";
 import { createAdminSession, createCustomerSession } from "../helpers/admin-session.js";
 
 const app = buildApp();
@@ -61,6 +62,47 @@ describe("routes/admin-product — CRUD, variantes y filtros", () => {
 
     const afterArchive = await agent.get(`/api/v1/admin/products/${id}`);
     expect(afterArchive.body.data.status).toBe("archived");
+  });
+
+  it("initialStock es write-only: se acepta al crear pero nunca se devuelve en una lectura", async () => {
+    const { agent } = await createAdminSession(app);
+    const categoryId = await createCategory(agent);
+
+    const create = await agent.post("/api/v1/admin/products").send({
+      name: "Producto Con Stock Inicial",
+      description: "desc",
+      categoryId,
+      variants: [sampleVariant({ sku: "IS-A", initialStock: 15 })],
+    });
+
+    expect(create.status).toBe(201);
+    expect(create.body.data.variants[0]).not.toHaveProperty("initialStock");
+
+    const getOne = await agent.get(`/api/v1/admin/products/${create.body.data.id}`);
+    expect(getOne.body.data.variants[0]).not.toHaveProperty("initialStock");
+
+    const variantId = create.body.data.variants[0].id as string;
+    const row = await Inventory.findOne({ variantId });
+    expect(row?.onHand).toBe(15);
+  });
+
+  it("la subruta de agregar variante ignora initialStock (no crea fila de inventario)", async () => {
+    const { agent } = await createAdminSession(app);
+    const categoryId = await createCategory(agent);
+    const create = await agent.post("/api/v1/admin/products").send({
+      name: "Producto Base Variante",
+      description: "desc",
+      categoryId,
+      variants: [sampleVariant({ sku: "SUB-A" })],
+    });
+
+    const response = await agent
+      .post(`/api/v1/admin/products/${create.body.data.id}/variants`)
+      .send(sampleVariant({ sku: "SUB-B", initialStock: 10 }));
+
+    expect(response.status).toBe(201);
+    const newVariant = response.body.data.variants.find((v: { sku: string }) => v.sku === "SUB-B");
+    expect(newVariant).not.toHaveProperty("initialStock");
   });
 
   it("un slug duplicado (mismo nombre) responde 409", async () => {

@@ -33,11 +33,12 @@ async function createProductWithVariant(
   const productId = product.body.data.id as string;
   const variantId = product.body.data.variants[0].id as string;
 
-  // El producto nace en draft (no vende) y la variante en 0/0 de stock: se
-  // publica y se sube onHand vía los endpoints admin, igual que un admin real.
+  // El producto nace en draft (no vende) y su variante sin fila de inventario
+  // (alta híbrida: nadie siembra 0/0 automáticamente) — se publica y se crea
+  // la fila vía los endpoints admin, igual que un admin real.
   await agent.patch(`/api/v1/admin/products/${productId}`).send({ status: "active" });
   if (onHand > 0) {
-    await agent.post(`/api/v1/admin/inventory/${variantId}/adjust`).send({ delta: onHand, reason: "seed de prueba" });
+    await agent.post("/api/v1/admin/inventory").send({ productId, variantId, onHand });
   }
 
   return { productId, variantId };

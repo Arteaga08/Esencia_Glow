@@ -41,6 +41,11 @@ interface StockReservationAttrs {
   status: ReservationStatus;
   expiresAt: Date;
   purgeAt?: Date;
+  /** Rastro de auditoría + ventana de estadísticas: cuándo se hizo la
+   * transición terminal, escrito en el MISMO `$set` que el claim de
+   * `status` (ver stock-reservation.service.ts). */
+  committedAt?: Date;
+  releasedAt?: Date;
   /** Sellado por reservation-restock.service.ts (Milestone 1.6) al devolver
    * las unidades comprometidas por un reembolso. Idempotencia del restock:
    * una reserva ya restockeada no se vuelve a tocar. */
@@ -89,6 +94,8 @@ const stockReservationSchema = new Schema<StockReservationAttrs, StockReservatio
     },
     expiresAt: { type: Date, required: true },
     purgeAt: { type: Date },
+    committedAt: { type: Date },
+    releasedAt: { type: Date },
     restockedAt: { type: Date },
   },
   { timestamps: true },

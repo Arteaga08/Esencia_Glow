@@ -20,6 +20,12 @@ import { Schema, model, type HydratedDocument, type Model, type Types } from "mo
  * bajo es un `$expr` (onHand - reserved <= threshold) y no puede usar índice;
  * con una fila por variante (cientos, no millones), el collscan es la
  * respuesta correcta — no lo "optimices" con un índice inútil.
+ *
+ * `lowStockThreshold` es el override POR SKU del umbral global de
+ * `Settings.inventory.lowStockThreshold`; ausente = usar ese default (ver
+ * inventory-status.ts, que resuelve el efectivo — nunca el cliente del API).
+ * `lastRestockedAt` solo se mueve con un `delta` POSITIVO en `adjustStock`:
+ * un recuento absoluto o una baja no son "llegó mercancía".
  */
 interface InventoryAttrs {
   productId: Types.ObjectId;
@@ -27,6 +33,8 @@ interface InventoryAttrs {
   sku: string;
   onHand: number;
   reserved: number;
+  lowStockThreshold?: number;
+  lastRestockedAt?: Date;
 }
 
 type InventoryDocument = HydratedDocument<InventoryAttrs>;
@@ -41,6 +49,8 @@ const inventorySchema = new Schema<InventoryAttrs, InventoryModel>(
     sku: { type: String, required: true, trim: true, uppercase: true, unique: true },
     onHand: { type: Number, required: true, default: 0, min: 0, validate: integerValidator },
     reserved: { type: Number, required: true, default: 0, min: 0, validate: integerValidator },
+    lowStockThreshold: { type: Number, min: 0, validate: integerValidator },
+    lastRestockedAt: { type: Date },
   },
   { timestamps: true },
 );
