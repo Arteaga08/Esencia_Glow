@@ -1,9 +1,11 @@
 import { authenticator } from "otplib";
 import request from "supertest";
+import { SubscriptionStatus } from "@esencia-glow/shared";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { buildApp } from "../../src/app.js";
 import { User } from "../../src/models/user.model.js";
 import { VerificationToken } from "../../src/models/verification-token.model.js";
+import { SubscriptionAccount } from "../../src/models/subscription-account.model.js";
 import { hashToken } from "../../src/utils/crypto.js";
 import * as emailService from "../../src/services/email.service.js";
 
@@ -134,6 +136,36 @@ describe("routes/auth — golden path", () => {
   it("GET /me sin cookie responde 401", async () => {
     const response = await request(app).get("/api/v1/auth/me");
     expect(response.status).toBe(401);
+  });
+
+  it("GET /me devuelve el usuario completo (no solo id/role) y capabilities.subscriber: null sin cuenta", async () => {
+    const { email } = await registerAndVerify();
+    const agent = request.agent(app);
+    await agent.post("/api/v1/auth/login").send({ email, password: "Contrasena1" });
+
+    const response = await agent.get("/api/v1/auth/me");
+    expect(response.status).toBe(200);
+    expect(response.body.data.user).toMatchObject({ email, firstName: "Ana", lastName: "Pérez" });
+    expect(response.body.data.capabilities).toEqual({ subscriber: null });
+  });
+
+  it("GET /me con una cuenta de suscripción ACTIVE trae capabilities.subscriber poblado", async () => {
+    const { email, userId } = await registerAndVerify();
+    const agent = request.agent(app);
+    await agent.post("/api/v1/auth/login").send({ email, password: "Contrasena1" });
+    await SubscriptionAccount.create({
+      userId,
+      planId: userId, // cualquier ObjectId sirve para esta aserción
+      status: SubscriptionStatus.ACTIVE,
+      cancelAtPeriodEnd: false,
+      providerCustomerId: "cus_no_filtrar",
+    });
+
+    const response = await agent.get("/api/v1/auth/me");
+    expect(response.body.data.capabilities.subscriber.status).toBe("active");
+    const raw = JSON.stringify(response.body.data);
+    expect(raw).not.toContain("password");
+    expect(raw).not.toContain("cus_no_filtrar");
   });
 
   it("PATCH /password reemite el access token: /me sigue funcionando de inmediato con la misma sesión", async () => {

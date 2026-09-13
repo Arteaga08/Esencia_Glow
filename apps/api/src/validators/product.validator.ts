@@ -1,4 +1,5 @@
 import Joi from "joi";
+import { ProductChannel } from "@esencia-glow/shared";
 import { SKU_PATTERN } from "../models/product-variant.schema.js";
 
 /**
@@ -51,6 +52,7 @@ const createProductSchema = Joi.object({
   shortDescription: Joi.string().trim().max(300).allow(""),
   categoryId: Joi.string().hex().length(24).required(),
   badgeId: Joi.string().hex().length(24).allow(null),
+  channel: Joi.string().valid(...Object.values(ProductChannel)),
   variants: Joi.array()
     .items(createProductVariantSchema)
     .min(1)
@@ -69,6 +71,7 @@ const updateProductSchema = Joi.object({
   categoryId: Joi.string().hex().length(24),
   badgeId: Joi.string().hex().length(24).allow(null),
   status: Joi.string().valid("draft", "active", "archived"),
+  channel: Joi.string().valid(...Object.values(ProductChannel)),
 }).min(1);
 
 const createVariantSchema = variantSchema;

@@ -1,5 +1,5 @@
 import { Types, type FilterQuery } from "mongoose";
-import { BundleStatus, type ListQuery, type PaginationMeta } from "@esencia-glow/shared";
+import { BundleStatus, ProductChannel, type ListQuery, type PaginationMeta } from "@esencia-glow/shared";
 import { Bundle, type BundleAttrs, type BundleDocument } from "../models/bundle.model.js";
 import { Product } from "../models/product.model.js";
 import { AppError } from "../utils/app-error.js";
@@ -41,10 +41,15 @@ interface ListBundlesInput extends ListQuery {
  * existen y que la variante de verdad pertenezca a ese producto — sin esto,
  * un bundle podría "armarse" con un `variantId` de otro producto por error de
  * captura, y solo se descubriría al intentar venderlo.
+ *
+ * También rechaza componentes de canal `SUBSCRIPTION` (Milestone 1.7.1): el
+ * admin se entera al curar el bundle, no la clienta al pagar (el bloqueo
+ * real, para cualquier bundle ya existente, vive en
+ * cart-resolution.service.ts).
  */
 async function assertItemsValid(items: BundleItemInput[]): Promise<void> {
   const productIds = [...new Set(items.map((item) => item.productId))];
-  const products = await Product.find({ _id: { $in: productIds } }).select("variants").lean();
+  const products = await Product.find({ _id: { $in: productIds } }).select("variants channel").lean();
   const productById = new Map(products.map((product) => [product._id.toString(), product]));
 
   for (const item of items) {
@@ -54,6 +59,13 @@ async function assertItemsValid(items: BundleItemInput[]): Promise<void> {
     const belongsToProduct = product.variants.some((variant) => variant._id.toString() === item.variantId);
     if (!belongsToProduct) {
       throw new AppError(`La variante ${item.variantId} no pertenece al producto ${item.productId}`, 400);
+    }
+
+    if (product.channel === ProductChannel.SUBSCRIPTION) {
+      throw new AppError(
+        `El producto ${item.productId} es exclusivo de la caja de suscripción y no puede usarse en un paquete`,
+        400,
+      );
     }
   }
 }

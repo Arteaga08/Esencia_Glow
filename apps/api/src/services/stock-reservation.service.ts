@@ -437,6 +437,7 @@ async function listReservations(
 
 export {
   reserveStock,
+  assertVariantsAvailable,
   commitReservation,
   commitReservationDetailed,
   auditCommitOnReleased,

@@ -1,5 +1,5 @@
 import Joi from "joi";
-import { ProductStatus, BadgeColor } from "@esencia-glow/shared";
+import { ProductChannel, ProductStatus, BadgeColor } from "@esencia-glow/shared";
 import { listQueryBaseSchema } from "./list-query.validator.js";
 
 /**
@@ -17,6 +17,9 @@ const listCategoriesQuerySchema = listQueryBaseSchema.keys({
 const listProductsQuerySchema = listQueryBaseSchema.keys({
   categoryId: objectId,
   status: Joi.string().valid(...Object.values(ProductStatus)),
+  // Solo el listado admin: el catálogo público (publicProductQuerySchema) no
+  // acepta esta llave, `stripUnknown` la borraría de todas formas.
+  channel: Joi.string().valid(...Object.values(ProductChannel)),
   minPrice: Joi.number().integer().min(0),
   maxPrice: Joi.number().integer().min(0),
 });

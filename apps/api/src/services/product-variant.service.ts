@@ -1,7 +1,9 @@
 import type { ClientSession } from "mongoose";
+import { EditionStatus } from "@esencia-glow/shared";
 import { Product, type ProductDocument } from "../models/product.model.js";
 import { Inventory } from "../models/inventory.model.js";
 import { Bundle } from "../models/bundle.model.js";
+import { SubscriptionEdition } from "../models/subscription-edition.model.js";
 import type { ProductVariantAttrs } from "../models/product-variant.schema.js";
 import { AppError } from "../utils/app-error.js";
 import { withTransaction } from "../utils/with-transaction.js";
@@ -114,6 +116,11 @@ async function updateVariant(
  * bundle absorbe mostrándose sin disponibilidad), un hard delete dejaría el
  * `items` del bundle apuntando a un `variantId` que ya no existe en ningún
  * lado, para siempre — no hay `stockCache` que recalcular ahí.
+ *
+ * Mismo criterio para una `SubscriptionEdition` (Milestone 1.7.1), pero
+ * solo si está `PUBLISHED`: una curaduría en `DRAFT` es provisional y el
+ * admin puede seguir ajustándola libremente, incluida la variante que
+ * `removeVariant` se lleva.
  */
 async function removeVariant(productId: string, variantId: string): Promise<ProductDocument> {
   return withTransaction(async (session) => {
@@ -129,6 +136,14 @@ async function removeVariant(productId: string, variantId: string): Promise<Prod
     const referencedByBundle = await Bundle.exists({ "items.variantId": variantId }).session(session);
     if (referencedByBundle) {
       throw new AppError("No puedes eliminar una variante usada en un paquete", 409);
+    }
+
+    const referencedByEdition = await SubscriptionEdition.exists({
+      "items.variantId": variantId,
+      status: EditionStatus.PUBLISHED,
+    }).session(session);
+    if (referencedByEdition) {
+      throw new AppError("No puedes eliminar una variante usada en una edición de suscripción publicada", 409);
     }
 
     variant.deleteOne();

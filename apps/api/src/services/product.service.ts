@@ -1,8 +1,10 @@
 import { Types } from "mongoose";
-import type { ListQuery, PaginationMeta, ProductStatus } from "@esencia-glow/shared";
+import { BundleStatus, EditionStatus, ProductChannel, type ListQuery, type PaginationMeta, type ProductStatus } from "@esencia-glow/shared";
 import { Product, type ProductDocument } from "../models/product.model.js";
 import { Category } from "../models/category.model.js";
 import { Badge } from "../models/badge.model.js";
+import { Bundle } from "../models/bundle.model.js";
+import { SubscriptionEdition } from "../models/subscription-edition.model.js";
 import type { DimensionsCmAttrs, VariantAttributesAttrs } from "../models/product-variant.schema.js";
 import { AppError } from "../utils/app-error.js";
 import { slugify } from "../utils/slugify.js";
@@ -41,6 +43,7 @@ interface CreateProductInput {
   shortDescription?: string;
   categoryId: string;
   badgeId?: string | null;
+  channel?: ProductChannel;
   variants: CreateProductVariantInput[];
 }
 
@@ -51,11 +54,13 @@ interface UpdateProductInput {
   categoryId?: string;
   badgeId?: string | null;
   status?: ProductStatus;
+  channel?: ProductChannel;
 }
 
 interface ListProductsInput extends ListQuery {
   categoryId?: string;
   status?: ProductStatus;
+  channel?: ProductChannel;
   minPrice?: number;
   maxPrice?: number;
 }
@@ -108,6 +113,7 @@ async function createProduct(input: CreateProductInput): Promise<ProductDocument
       shortDescription: input.shortDescription,
       categoryId: input.categoryId,
       badgeId: input.badgeId ?? null,
+      channel: input.channel,
       variants,
     });
     await product.save({ session });
@@ -122,6 +128,49 @@ async function getProductDocument(id: string): Promise<ProductDocument> {
   const product = await Product.findById(id);
   if (!product) throw new AppError("Producto no encontrado", 404);
   return product;
+}
+
+/**
+ * Bloquea STORE→SUBSCRIPTION mientras el producto siga en un `Bundle` vivo
+ * (`DRAFT` o `ACTIVE`, cualquiera menos `ARCHIVED`): un bundle no puede
+ * curarse con un componente exclusivo de la caja (ver
+ * bundle.service.ts::assertItemsValid) — permitir el cambio aquí dejaría un
+ * bundle ya existente apuntando a un componente que dejó de ser comprable
+ * suelto.
+ *
+ * Dirección inversa: bloquea SUBSCRIPTION→STORE mientras una
+ * `SubscriptionEdition` PUBLICADA use el producto — la caja ya vendida
+ * quedaría apuntando a un componente disponible en la tienda general. Una
+ * edición en `DRAFT` no bloquea: es curaduría provisional (mismo criterio
+ * que `removeVariant`, ver product-variant.service.ts).
+ *
+ * Ninguna de las dos direcciones corre en transacción: es una ventana de
+ * carrera admin-only (dos operaciones administrativas concurrentes), de
+ * impacto bajo comparado con el cupo de planes — riesgo aceptado
+ * explícitamente (hallazgo de code review de 1.7.1).
+ */
+async function assertChannelChangeAllowed(product: ProductDocument, nextChannel: ProductChannel): Promise<void> {
+  if (product.channel === ProductChannel.STORE && nextChannel === ProductChannel.SUBSCRIPTION) {
+    const referencedByLiveBundle = await Bundle.exists({
+      "items.productId": product._id,
+      status: { $ne: BundleStatus.ARCHIVED },
+    });
+    if (referencedByLiveBundle) {
+      throw new AppError("No puedes mover este producto a suscripción: está dentro de un paquete activo.", 409);
+    }
+  }
+  if (product.channel === ProductChannel.SUBSCRIPTION && nextChannel === ProductChannel.STORE) {
+    const referencedByPublishedEdition = await SubscriptionEdition.exists({
+      "items.productId": product._id,
+      status: EditionStatus.PUBLISHED,
+    });
+    if (referencedByPublishedEdition) {
+      throw new AppError(
+        "No puedes mover este producto a la tienda: una edición de suscripción publicada lo usa.",
+        409,
+      );
+    }
+  }
 }
 
 async function updateProduct(id: string, input: UpdateProductInput): Promise<ProductDocument> {
@@ -142,6 +191,10 @@ async function updateProduct(id: string, input: UpdateProductInput): Promise<Pro
   if (input.description !== undefined) product.description = input.description;
   if (input.shortDescription !== undefined) product.shortDescription = input.shortDescription;
   if (input.status !== undefined) product.status = input.status;
+  if (input.channel !== undefined) {
+    await assertChannelChangeAllowed(product, input.channel);
+    product.channel = input.channel;
+  }
 
   await product.save();
   return product;
@@ -162,6 +215,7 @@ async function listProducts(
     search: input.search,
     categoryIds,
     status: input.status,
+    channel: input.channel,
     minPrice: input.minPrice,
     maxPrice: input.maxPrice,
   });

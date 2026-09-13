@@ -15,6 +15,7 @@ import { signAccessToken, verifyPendingTwoFactorToken } from "../utils/jwt.js";
 import * as authService from "../services/auth.service.js";
 import * as accountService from "../services/account.service.js";
 import { rotateSession } from "../services/session.service.js";
+import { resolveCapabilities } from "../services/capabilities.service.js";
 import { User } from "../models/user.model.js";
 
 /**
@@ -99,8 +100,22 @@ const logoutAll = asyncHandler(async (req: Request, res: Response) => {
   sendResponse(res, 200, "Todas las sesiones fueron cerradas.", null);
 });
 
+/**
+ * A diferencia del resto de rutas protegidas (que solo necesitan `req.user`
+ * = {id, role}), `/auth/me` es la única que expone el usuario completo — por
+ * eso, y solo aquí, se recarga desde la DB y se pasa por `buildPublicUser`
+ * (Milestone 1.7.1). `login` no paga este costo: devuelve identidad, `/me`
+ * devuelve estado. Las capacidades NUNCA van en el JWT (no revocable) ni en
+ * `PublicUser` — se derivan en cada llamada.
+ */
 const me = asyncHandler(async (req: Request, res: Response) => {
-  sendResponse(res, 200, "OK", { user: req.user });
+  const [user, capabilities] = await Promise.all([
+    User.findById(req.user!.id),
+    resolveCapabilities(req.user!.id),
+  ]);
+  if (!user) throw new AppError("No autenticado", 401);
+
+  sendResponse(res, 200, "OK", { user: authService.buildPublicUser(user), capabilities });
 });
 
 const verifyEmail = asyncHandler(async (req: Request, res: Response) => {
