@@ -2,6 +2,7 @@ import type { Types } from "mongoose";
 import {
   CATALOG_CURRENCY,
   type BadgeColor,
+  type ProductChannel,
   type PublicBadge,
   type PublicCategory,
   type PublicCategoryNode,
@@ -146,6 +147,7 @@ interface LeanProduct {
   categoryId: Types.ObjectId;
   badgeId: Types.ObjectId | null;
   status: string;
+  channel: ProductChannel;
   images: LeanMediaImage[];
   variants: LeanVariant[];
   minPrice: number;
@@ -164,6 +166,7 @@ interface AdminProduct {
   categoryId: string;
   badgeId: string | null;
   status: string;
+  channel: ProductChannel;
   images: PublicProductImage[];
   variants: AdminVariant[];
   minPrice: number;
@@ -216,6 +219,7 @@ function buildAdminProduct(product: LeanProduct): AdminProduct {
     categoryId: product.categoryId.toString(),
     badgeId: product.badgeId ? product.badgeId.toString() : null,
     status: product.status,
+    channel: product.channel,
     images: product.images.map((image) => buildImageDto(image)!),
     variants: product.variants.map(buildAdminVariant),
     minPrice: product.minPrice,

@@ -1,5 +1,5 @@
 import { Types, type ClientSession } from "mongoose";
-import { BundleStatus, MAX_BUNDLE_QUANTITY, MAX_ORDER_LINES, ProductStatus } from "@esencia-glow/shared";
+import { BundleStatus, MAX_BUNDLE_QUANTITY, MAX_ORDER_LINES, ProductChannel, ProductStatus } from "@esencia-glow/shared";
 import { Bundle, type BundleAttrs } from "../models/bundle.model.js";
 import { Product, type ProductAttrs } from "../models/product.model.js";
 
@@ -90,6 +90,9 @@ async function resolveProductLine(
   if (!product || !variant || product.status !== ProductStatus.ACTIVE || !variant.isActive) {
     throw new AppError("Una o más variantes ya no están disponibles para la venta.", 409);
   }
+  if (product.channel === ProductChannel.SUBSCRIPTION) {
+    throw new AppError("Este producto solo está disponible dentro de la caja de suscripción.", 409);
+  }
 
   return {
     itemType: "product",
@@ -125,6 +128,9 @@ async function resolveBundleLine(
     const variant = product && findVariant(product, item.variantId.toString());
     if (!product || !variant || product.status !== ProductStatus.ACTIVE || !variant.isActive) {
       throw new AppError("El paquete no está disponible: uno de sus componentes ya no se vende.", 409);
+    }
+    if (product.channel === ProductChannel.SUBSCRIPTION) {
+      throw new AppError("Este producto solo está disponible dentro de la caja de suscripción.", 409);
     }
 
     const quantity = item.quantity * line.quantity;

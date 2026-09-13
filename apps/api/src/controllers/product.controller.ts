@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import type { ProductStatus } from "@esencia-glow/shared";
+import type { ProductChannel, ProductStatus } from "@esencia-glow/shared";
 import { asyncHandler } from "../utils/async-handler.js";
 import { sendResponse } from "../utils/send-response.js";
 import { parseListQuery } from "../utils/parse-list-query.js";
@@ -8,9 +8,10 @@ import * as variantService from "../services/product-variant.service.js";
 
 const list = asyncHandler(async (req: Request, res: Response) => {
   const query = parseListQuery(req.query);
-  const { categoryId, status, minPrice, maxPrice } = req.query as {
+  const { categoryId, status, channel, minPrice, maxPrice } = req.query as {
     categoryId?: string;
     status?: ProductStatus;
+    channel?: ProductChannel;
     minPrice?: number;
     maxPrice?: number;
   };
@@ -18,6 +19,7 @@ const list = asyncHandler(async (req: Request, res: Response) => {
     ...query,
     categoryId,
     status,
+    channel,
     minPrice,
     maxPrice,
   });

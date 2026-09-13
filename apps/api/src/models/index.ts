@@ -10,6 +10,10 @@ import { Session } from "./session.model.js";
 import { Settings } from "./settings.model.js";
 import { ShippingQuote } from "./shipping-quote.model.js";
 import { StockReservation } from "./stock-reservation.model.js";
+import { SubscriptionAccount } from "./subscription-account.model.js";
+import { SubscriptionEdition } from "./subscription-edition.model.js";
+import { SubscriptionPlan } from "./subscription-plan.model.js";
+import { SubscriptionShipment } from "./subscription-shipment.model.js";
 import { User } from "./user.model.js";
 import { VerificationToken } from "./verification-token.model.js";
 
@@ -38,6 +42,10 @@ const models = [
   Settings,
   ShippingQuote,
   StockReservation,
+  SubscriptionAccount,
+  SubscriptionEdition,
+  SubscriptionPlan,
+  SubscriptionShipment,
   User,
   VerificationToken,
 ];

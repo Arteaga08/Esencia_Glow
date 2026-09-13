@@ -1,5 +1,5 @@
 import type { FilterQuery, Types } from "mongoose";
-import { ProductStatus } from "@esencia-glow/shared";
+import { ProductChannel, ProductStatus } from "@esencia-glow/shared";
 import { escapeRegex } from "./parse-list-query.js";
 import type { ProductAttrs } from "../models/product.model.js";
 
@@ -13,20 +13,43 @@ interface ProductFilterInput {
   search?: string;
   categoryIds?: Types.ObjectId[];
   status?: ProductStatus;
-  /** true en el catálogo público: fuerza status=active y alguna variante activa. */
+  /** true en el catálogo público: fuerza status=active, alguna variante
+   * activa y excluye el canal de suscripción (ver buildPublicProductMatch). */
   publicOnly?: boolean;
+  /** Solo para el listado admin — el catálogo público nunca lo acepta. */
+  channel?: ProductChannel;
   minPrice?: number;
   maxPrice?: number;
 }
 
+/**
+ * Match del catálogo público, en un solo lugar (Milestone 1.7.1): además de
+ * `getPublicProductBySlug`/`getPublicVariantAvailability`, evita que cada
+ * consumidor futuro reescriba a mano la condición y se le olvide el canal.
+ *
+ * `channel: { $ne: SUBSCRIPTION }`, nunca `{ $eq: STORE }`: un producto
+ * creado antes de este milestone no tiene el campo `channel` (el `default`
+ * de Mongoose no aplica a un documento ya guardado ni a un `.lean()`), así
+ * que exigir `STORE` explícito borraría el catálogo entero de un día para
+ * otro. `$ne` lo incluye sin necesitar un backfill.
+ */
+function buildPublicProductMatch(extra: FilterQuery<ProductAttrs> = {}): FilterQuery<ProductAttrs> {
+  return {
+    status: ProductStatus.ACTIVE,
+    variants: { $elemMatch: { isActive: true } },
+    channel: { $ne: ProductChannel.SUBSCRIPTION },
+    ...extra,
+  };
+}
+
 function buildProductFilter(input: ProductFilterInput): FilterQuery<ProductAttrs> {
-  const filter: FilterQuery<ProductAttrs> = {};
+  let filter: FilterQuery<ProductAttrs> = {};
 
   if (input.publicOnly) {
-    filter.status = ProductStatus.ACTIVE;
-    filter.variants = { $elemMatch: { isActive: true } };
-  } else if (input.status) {
-    filter.status = input.status;
+    filter = buildPublicProductMatch();
+  } else {
+    if (input.status) filter.status = input.status;
+    if (input.channel) filter.channel = input.channel;
   }
 
   if (input.categoryIds && input.categoryIds.length > 0) {
@@ -48,5 +71,5 @@ function buildProductFilter(input: ProductFilterInput): FilterQuery<ProductAttrs
   return filter;
 }
 
-export { buildProductFilter };
+export { buildProductFilter, buildPublicProductMatch };
 export type { ProductFilterInput };

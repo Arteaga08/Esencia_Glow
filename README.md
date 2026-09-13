@@ -186,6 +186,45 @@ llamada que gana el claim del `PaymentIntent` la envía) y reembolso confirmado 
 reembolso **total** — un parcial no envía correo). Todo texto que escribe la clienta
 (`shippingAddress.fullName`) se escapa antes de interpolarse.
 
+## Suscripciones — cimientos (Milestone 1.7.1)
+
+Caja recurrente curada: `SubscriptionPlan` (precio fijo mensual + cupo `maxActiveSeats`),
+`SubscriptionAccount` (un documento por usuaria, para siempre — re-suscribirse reusa el mismo,
+nunca crea otro) y `SubscriptionEdition` (contenido curado por ciclo, identificado por
+`{planId, cycleYear, cycleMonth}`). **Sin Stripe Billing todavía** — eso es 1.7.2; esta sesión
+solo deja modelos, canal de catálogo, CRUD admin y `resolveCapabilities` listos y probados.
+
+**Canal de suscripción en el catálogo.** `Product.channel` (`store` | `subscription`, default
+`store`) separa la caja exclusiva del catálogo normal: mismas variantes/SKU/imágenes/`Inventory`,
+pero un producto `subscription` no aparece en `GET /products`, no resuelve por slug, y no se puede
+comprar suelto ni dentro de un bundle (`cart-resolution.service.ts`, `bundle.service.ts`). El
+filtro público usa `channel: { $ne: "subscription" }`, nunca `{ $eq: "store" }`: un producto
+creado antes de este milestone no tiene el campo, y exigir `store` explícito lo habría borrado del
+catálogo de un día para otro — no hace falta ningún backfill.
+
+**Cupo por plan.** `SubscriptionPlan.seatsTaken` es un contador denormalizado que decide en el
+mismo `findOneAndUpdate` que lo incrementa (`subscription-seat.service.ts::claimSeat`), nunca un
+`countDocuments` previo — mismo patrón que `Inventory.onHand/reserved`. Pausar una suscripción
+libera su lugar (decisión de negocio: mientras está pausada no se cobra nada, así que ese lugar no
+debe quedar congelado); reanudar vuelve a reclamarlo y puede responder 409 si el plan ya se llenó
+mientras tanto.
+
+**Capacidades derivadas en lectura.** `resolveCapabilities(userId)` (`capabilities.service.ts`)
+consulta `SubscriptionAccount` en una sola query — nunca se denormaliza en `User`. `GET /auth/me`
+las incluye junto al usuario completo. `requireCapability("subscriber")` existe y está probado,
+pero no se monta en ninguna ruta todavía: 1.7.3 lo conecta a los endpoints de la suscriptora.
+
+**Solo tarjeta.** El módulo de suscripciones no acepta OXXO: una ficha OXXO es un pago de un solo
+uso, no un método guardable para cobrar cada mes. La tienda normal sigue aceptando OXXO sin
+cambios.
+
+Endpoints admin: `/api/v1/admin/subscription-plans` y `/api/v1/admin/subscription-editions`
+(CRUD + `POST .../publish` y `POST .../unpublish`). Una edición se publica solo si tiene al menos
+un producto, todos de canal `subscription`, activos y con variante activa; publicada, sus
+`items`/`planId`/`cycleYear`/`cycleMonth` quedan inmutables. `removeVariant` bloquea el hard
+delete de una variante usada por una edición **publicada** (una en `draft` sigue siendo editable
+libremente).
+
 ## Checkout — header `Idempotency-Key` (Milestone 1.5)
 
 `POST /api/v1/orders` **exige** el header `Idempotency-Key` (UUID v4). Contrato para el

@@ -14,7 +14,7 @@ import { Inventory } from "../models/inventory.model.js";
 import { AppError } from "../utils/app-error.js";
 import { buildMeta } from "../utils/parse-list-query.js";
 import { resolveSort } from "../utils/resolve-sort.js";
-import { buildProductFilter } from "../utils/build-product-filter.js";
+import { buildProductFilter, buildPublicProductMatch } from "../utils/build-product-filter.js";
 import { resolveCategoryIds } from "./product.service.js";
 import {
   buildPublicProduct,
@@ -97,11 +97,7 @@ async function listPublicProducts(
 }
 
 async function getPublicProductBySlug(slug: string): Promise<PublicProduct> {
-  const product = await Product.findOne({
-    slug,
-    status: "active",
-    variants: { $elemMatch: { isActive: true } },
-  }).lean<LeanProduct>();
+  const product = await Product.findOne(buildPublicProductMatch({ slug })).lean<LeanProduct>();
   if (!product) throw new AppError("Producto no encontrado", 404);
 
   const category = await resolveCategoryRef(product.categoryId.toString());
@@ -118,11 +114,7 @@ async function getPublicProductBySlug(slug: string): Promise<PublicProduct> {
  * PDP: 404 si el producto no está activo o no tiene ninguna variante activa.
  */
 async function getPublicVariantAvailability(slug: string): Promise<PublicVariantAvailability[]> {
-  const product = await Product.findOne({
-    slug,
-    status: "active",
-    variants: { $elemMatch: { isActive: true } },
-  })
+  const product = await Product.findOne(buildPublicProductMatch({ slug }))
     .select("variants")
     .lean<LeanProduct>();
   if (!product) throw new AppError("Producto no encontrado", 404);

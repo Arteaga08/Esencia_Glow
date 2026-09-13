@@ -22,6 +22,11 @@ export { ShippingCarrier } from "./enums/shipping-carrier.js";
 export { PaymentState } from "./enums/payment-state.js";
 export { PaymentMethod } from "./enums/payment-method.js";
 export { DisputeStatus } from "./enums/dispute-status.js";
+export { ProductChannel } from "./enums/product-channel.js";
+export { SubscriptionStatus } from "./enums/subscription-status.js";
+export { EditionStatus } from "./enums/edition-status.js";
+export { SubscriptionShipmentStatus } from "./enums/subscription-shipment-status.js";
+export { SubscriptionAction } from "./enums/subscription-action.js";
 export { CATALOG_CURRENCY } from "./constants/currency.js";
 export type { Currency } from "./constants/currency.js";
 export { DEFAULT_INVENTORY_SETTINGS, MAX_LINE_QUANTITY } from "./constants/inventory.js";
@@ -106,3 +111,6 @@ export type {
   CheckoutResult,
   CreateOrderLineInput,
 } from "./types/order.js";
+export type { SubscriberCapability, UserCapabilities } from "./types/capabilities.js";
+export { MAX_EDITION_ITEMS } from "./constants/subscriptions.js";
+export { SUBSCRIPTION_STATUS_LABELS } from "./constants/subscription-labels.js";

@@ -1,5 +1,5 @@
 import { Schema, model, type HydratedDocument, type Model, type Types } from "mongoose";
-import { ProductStatus } from "@esencia-glow/shared";
+import { ProductChannel, ProductStatus } from "@esencia-glow/shared";
 import { mediaImageSchema, type MediaImageAttrs } from "./media-image.schema.js";
 import { productVariantSchema, type ProductVariantAttrs } from "./product-variant.schema.js";
 
@@ -13,6 +13,14 @@ import { productVariantSchema, type ProductVariantAttrs } from "./product-varian
  * precios debe pasar por `doc.save()` (ver product-variant.service.ts) — un
  * `findByIdAndUpdate` directo sobre `variants` deja `minPrice` desincronizado
  * sin que nada falle, y el listado por precio ordena mal en silencio.
+ *
+ * `channel` (Milestone 1.7.1) separa el catálogo normal de los productos
+ * exclusivos de la caja de suscripción — mismos variantes/SKU/imágenes/
+ * `Inventory`, pero fuera del catálogo público y del checkout de la tienda
+ * (ver cart-resolution.service.ts). `default: STORE` sin backfill: un
+ * producto creado antes de este milestone no trae el campo, y el filtro
+ * público usa `{ $ne: SUBSCRIPTION }` (no `{ $eq: STORE }`) para incluirlo de
+ * todas formas — ver build-product-filter.ts.
  */
 interface ProductAttrs {
   name: string;
@@ -24,6 +32,7 @@ interface ProductAttrs {
   // nunca un arreglo (decisión 1.4.2, esencia-glow-decisiones).
   badgeId: Types.ObjectId | null;
   status: ProductStatus;
+  channel: ProductChannel;
   // `Types.DocumentArray` (no un array plano) para que `.id()` y el
   // `.deleteOne()` de cada elemento (usados en catalog-image.service.ts y
   // product-variant.service.ts) queden tipados.
@@ -54,6 +63,11 @@ const productSchema = new Schema<ProductAttrs, ProductModel>(
       enum: Object.values(ProductStatus),
       default: ProductStatus.DRAFT,
     },
+    channel: {
+      type: String,
+      enum: Object.values(ProductChannel),
+      default: ProductChannel.STORE,
+    },
     images: { type: [mediaImageSchema], default: [] },
     variants: { type: [productVariantSchema], default: [] },
     minPrice: { type: Number, default: 0, min: 0 },
@@ -67,7 +81,7 @@ const productSchema = new Schema<ProductAttrs, ProductModel>(
 // (product.validator.ts) y en product-variant.service.ts. `sparse` evita que
 // dos productos sin variantes (borradores) choquen en la clave `undefined`.
 productSchema.index({ "variants.sku": 1 }, { unique: true, sparse: true });
-productSchema.index({ status: 1, createdAt: -1 });
+productSchema.index({ status: 1, channel: 1, createdAt: -1 });
 productSchema.index({ status: 1, categoryId: 1, minPrice: 1 });
 productSchema.index({ name: 1 });
 
