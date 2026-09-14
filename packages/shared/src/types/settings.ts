@@ -38,10 +38,29 @@ interface PaymentSettings {
   oxxoConfirmationGraceHours: number;
 }
 
+/**
+ * Sección de negocio de suscripciones (Milestone 1.7.2a). `billingAnchorDay`
+ * regulariza la fecha de cobro de TODAS las suscriptoras (1-28: 29/30/31 es
+ * indefinido en febrero) — decisión de Manuel para que la admin controle en
+ * un solo lote cuántas cajas arma cada ciclo, en vez de un aniversario por
+ * clienta. `enrollmentOpen`/`enrollmentOpenedAt`/`enrollmentClosesAt` los
+ * escribe la acción de abrir/cerrar inscripciones (nunca este PATCH
+ * genérico, ver subscription-enrollment.ts): solo `billingAnchorDay` es un
+ * ajuste libre. Fechas como ISO string, no `Date` — mismo criterio que
+ * `SubscriberCapability.currentPeriodEnd` en types/capabilities.ts.
+ */
+interface SubscriptionSettings {
+  billingAnchorDay: number;
+  enrollmentOpen: boolean;
+  enrollmentOpenedAt?: string;
+  enrollmentClosesAt?: string;
+}
+
 interface AppSettings {
   inventory: InventorySettings;
   commerce: CommerceSettings;
   payments: PaymentSettings;
+  subscriptions: SubscriptionSettings;
 }
 
-export type { InventorySettings, CommerceSettings, PaymentSettings, AppSettings };
+export type { InventorySettings, CommerceSettings, PaymentSettings, SubscriptionSettings, AppSettings };

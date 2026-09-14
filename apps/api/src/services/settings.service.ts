@@ -2,12 +2,14 @@ import {
   DEFAULT_COMMERCE_SETTINGS,
   DEFAULT_INVENTORY_SETTINGS,
   DEFAULT_PAYMENT_SETTINGS,
+  DEFAULT_SUBSCRIPTION_SETTINGS,
   type AppSettings,
   type CommerceSettings,
   type InventorySettings,
   type PaymentSettings,
+  type SubscriptionSettings,
 } from "@esencia-glow/shared";
-import { Settings } from "../models/settings.model.js";
+import { Settings, type SubscriptionSettingsAttrs } from "../models/settings.model.js";
 import { AppError } from "../utils/app-error.js";
 
 const SETTINGS_ID = "global";
@@ -39,6 +41,15 @@ const PAYMENT_RANGES: Record<keyof PaymentSettings, { min: number; max: number }
   oxxoConfirmationGraceHours: { min: 24, max: 240 },
 };
 
+/** Solo `billingAnchorDay` tiene rango: `enrollmentOpen`/`enrollmentOpenedAt`/
+ * `enrollmentClosesAt` no pasan por este PATCH genérico (ver
+ * `SubscriptionSettingsAttrs` en settings.model.ts) — 1-28, nunca 29/30/31,
+ * que es indefinido en febrero. */
+type SubscriptionSettingsUpdate = Pick<SubscriptionSettings, "billingAnchorDay">;
+const SUBSCRIPTION_RANGES: Record<keyof SubscriptionSettingsUpdate, { min: number; max: number }> = {
+  billingAnchorDay: { min: 1, max: 28 },
+};
+
 function assertValidInventorySettings(input: Partial<InventorySettings>): void {
   for (const [key, value] of Object.entries(input) as [keyof InventorySettings, number | undefined][]) {
     if (value === undefined) continue;
@@ -67,6 +78,34 @@ function assertValidPaymentSettings(input: Partial<PaymentSettings>): void {
       throw new AppError(`${key} debe ser un entero entre ${range.min} y ${range.max}.`, 400);
     }
   }
+}
+
+function assertValidSubscriptionSettings(input: SubscriptionSettingsUpdate): void {
+  for (const [key, value] of Object.entries(input) as [
+    keyof SubscriptionSettingsUpdate,
+    number | undefined,
+  ][]) {
+    if (value === undefined) continue;
+    const range = SUBSCRIPTION_RANGES[key];
+    if (!Number.isInteger(value) || value < range.min || value > range.max) {
+      throw new AppError(`${key} debe ser un entero entre ${range.min} y ${range.max}.`, 400);
+    }
+  }
+}
+
+/** Convierte las fechas del subdocumento crudo (`.lean()`) a ISO string — el
+ * contrato público de `SubscriptionSettings` usa `string`, mismo criterio
+ * que `SubscriberCapability.currentPeriodEnd` (capabilities.service.ts). */
+function serializeSubscriptionSettings(raw?: SubscriptionSettingsAttrs): SubscriptionSettings {
+  // Construido campo a campo, nunca `...raw`: el subdocumento crudo lleva
+  // `Date`, y esparcirlo directo filtraría ese tipo al contrato público
+  // (`string`), que es exactamente lo que este helper existe para evitar.
+  return {
+    billingAnchorDay: raw?.billingAnchorDay ?? DEFAULT_SUBSCRIPTION_SETTINGS.billingAnchorDay,
+    enrollmentOpen: raw?.enrollmentOpen ?? DEFAULT_SUBSCRIPTION_SETTINGS.enrollmentOpen,
+    ...(raw?.enrollmentOpenedAt ? { enrollmentOpenedAt: raw.enrollmentOpenedAt.toISOString() } : {}),
+    ...(raw?.enrollmentClosesAt ? { enrollmentClosesAt: raw.enrollmentClosesAt.toISOString() } : {}),
+  };
 }
 
 /**
@@ -101,6 +140,7 @@ async function getSettings(): Promise<AppSettings> {
     inventory: { ...DEFAULT_INVENTORY_SETTINGS, ...doc?.inventory },
     commerce: { ...DEFAULT_COMMERCE_SETTINGS, ...doc?.commerce },
     payments: { ...DEFAULT_PAYMENT_SETTINGS, ...doc?.payments },
+    subscriptions: serializeSubscriptionSettings(doc?.subscriptions),
   };
 }
 
@@ -179,4 +219,31 @@ async function updatePaymentSettings(input: Partial<PaymentSettings>): Promise<P
   return settings.payments;
 }
 
-export { getSettings, updateInventorySettings, updateCommerceSettings, updatePaymentSettings };
+/** Mismo patrón de `$set` por rutas de punto que las demás secciones. Solo
+ * `billingAnchorDay` — `enrollmentOpen`/`enrollmentOpenedAt`/`enrollmentClosesAt`
+ * los escribe subscription-enrollment.ts, nunca este PATCH genérico. */
+async function updateSubscriptionSettings(
+  input: SubscriptionSettingsUpdate,
+): Promise<SubscriptionSettings> {
+  assertValidSubscriptionSettings(input);
+
+  const setFields: Record<string, number> = {};
+  for (const [key, value] of Object.entries(input)) {
+    if (value !== undefined) setFields[`subscriptions.${key}`] = value;
+  }
+
+  if (Object.keys(setFields).length > 0) {
+    await Settings.findOneAndUpdate({ _id: SETTINGS_ID }, { $set: setFields }, { upsert: true });
+  }
+
+  const settings = await getSettings();
+  return settings.subscriptions;
+}
+
+export {
+  getSettings,
+  updateInventorySettings,
+  updateCommerceSettings,
+  updatePaymentSettings,
+  updateSubscriptionSettings,
+};

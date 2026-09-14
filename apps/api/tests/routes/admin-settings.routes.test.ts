@@ -89,4 +89,27 @@ describe("routes/admin-settings", () => {
     const response = await agent.patch("/api/v1/admin/settings/payments").send({ oxxoVoucherDays: 10 });
     expect(response.status).toBe(400);
   });
+
+  it("PATCH /subscriptions persiste y el GET siguiente lo refleja, sin pisar payments", async () => {
+    const { agent } = await createAdminSession(app);
+
+    await agent.patch("/api/v1/admin/settings/payments").send({ oxxoVoucherDays: 6 });
+    const patch = await agent
+      .patch("/api/v1/admin/settings/subscriptions")
+      .send({ billingAnchorDay: 20 });
+    expect(patch.status).toBe(200);
+    expect(patch.body.data.billingAnchorDay).toBe(20);
+
+    const get = await agent.get("/api/v1/admin/settings");
+    expect(get.body.data.subscriptions.billingAnchorDay).toBe(20);
+    expect(get.body.data.payments.oxxoVoucherDays).toBe(6);
+  });
+
+  it("PATCH /subscriptions rechaza billingAnchorDay fuera de 1-28", async () => {
+    const { agent } = await createAdminSession(app);
+    const response = await agent
+      .patch("/api/v1/admin/settings/subscriptions")
+      .send({ billingAnchorDay: 29 });
+    expect(response.status).toBe(400);
+  });
 });

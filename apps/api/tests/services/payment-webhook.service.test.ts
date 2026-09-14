@@ -482,4 +482,31 @@ describe("services/payment-webhook — processPaymentWebhook", () => {
     expect(storedEvent?.status).toBe("failed");
     expect(storedEvent?.error).toBe("order_not_found");
   });
+
+  /**
+   * Bifurcación por `kind` (Milestone 1.7.2a §B): un evento de suscripción
+   * nunca llega al switch de pagos (ambos switches son exhaustivos y no se
+   * conocen entre sí). Hoy se completa `ignored` — placeholder de Fase 2, la
+   * Fase 3 lo reemplaza con los 4 handlers reales.
+   */
+  it("un evento de suscripción se completa como 'ignored', nunca pasa por el switch de pagos", async () => {
+    const provider = buildFakePaymentProvider();
+    const event = {
+      kind: "subscription.invoice_paid" as const,
+      eventId: `evt_${randomUUID()}`,
+      providerType: "invoice.paid",
+      subscriptionRef: "sub_1",
+      invoiceRef: "in_1",
+      amountPaidCents: 59900,
+      currency: "mxn",
+      servicePeriodStart: new Date(),
+      servicePeriodEnd: new Date(),
+      billingReason: "subscription_cycle" as const,
+    };
+
+    await expect(processPaymentWebhook(event, provider)).resolves.toBeUndefined();
+
+    const storedEvent = await PaymentEvent.findOne({ eventId: event.eventId });
+    expect(storedEvent?.status).toBe("ignored");
+  });
 });

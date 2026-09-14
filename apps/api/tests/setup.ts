@@ -60,6 +60,13 @@ beforeEach(async () => {
   const { __setMailProviderForTests } = await import("../src/services/mail-provider.js");
   const { buildFakeMailProvider } = await import("./helpers/fake-mail-provider.js");
   __setMailProviderForTests(buildFakeMailProvider());
+
+  // Mismo criterio (Milestone 1.7.2a): sin esto, `createPlan` (que ahora
+  // sincroniza Product+Price con Stripe Billing antes de insertar el
+  // documento local) respondería 503 en cualquier test que cree un plan.
+  const { __setSubscriptionProviderForTests } = await import("../src/services/subscription-provider.js");
+  const { buildFakeSubscriptionProvider } = await import("./helpers/fake-subscription-provider.js");
+  __setSubscriptionProviderForTests(buildFakeSubscriptionProvider());
 });
 
 afterEach(async () => {

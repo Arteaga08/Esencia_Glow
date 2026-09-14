@@ -1,5 +1,6 @@
 import { Schema, model, type HydratedDocument, type Model, type Types } from "mongoose";
 import { SubscriptionShipmentStatus } from "@esencia-glow/shared";
+import { reservedShipmentItemSchema, type ReservedShipmentItemAttrs } from "./reserved-shipment-item.schema.js";
 
 /**
  * Envío de un ciclo de suscripción — documento propio, NUNCA una `Order`
@@ -25,6 +26,14 @@ import { SubscriptionShipmentStatus } from "@esencia-glow/shared";
  *
  * Solo el enum de estado en 1.7.1; la máquina de transiciones la escribe
  * 1.7.2 junto con el panel que la consume.
+ *
+ * `reservedItems`/`inventoryIncident` (Milestone 1.7.2a): al cobrarse el
+ * ciclo se reserva (`Inventory.reserved`, nunca `onHand` todavía) lo que
+ * alcance de cada ítem de la edición — "reserva al cobrar, salida al
+ * enviar". Un faltante NUNCA rechaza el envío (el cobro ya ocurrió): se
+ * reserva lo que sí hay y se sella `inventoryIncident`. Solo
+ * `Inventory.reserved`, nunca `StockReservation`: esa colección se barre por
+ * TTL, y una caja ya cobrada no debe soltarse en silencio por inactividad.
  */
 interface SubscriptionShipmentAttrs {
   accountId: Types.ObjectId;
@@ -37,6 +46,8 @@ interface SubscriptionShipmentAttrs {
   editionIncident: boolean;
   adminAlertedAt?: Date;
   invoiceId?: string;
+  reservedItems: ReservedShipmentItemAttrs[];
+  inventoryIncident: boolean;
 }
 
 type SubscriptionShipmentDocument = HydratedDocument<SubscriptionShipmentAttrs>;
@@ -61,6 +72,8 @@ const subscriptionShipmentSchema = new Schema<SubscriptionShipmentAttrs, Subscri
     editionIncident: { type: Boolean, required: true, default: false },
     adminAlertedAt: { type: Date },
     invoiceId: { type: String, trim: true },
+    reservedItems: { type: [reservedShipmentItemSchema], default: [] },
+    inventoryIncident: { type: Boolean, required: true, default: false },
   },
   { timestamps: true },
 );

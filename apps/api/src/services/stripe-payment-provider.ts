@@ -8,7 +8,7 @@ import type {
   PaymentAuthorization,
   PaymentAuthorizationStatus,
   PaymentProvider,
-  PaymentWebhookEvent,
+  ProviderWebhookEvent,
   RefundPaymentInput,
   RefundResult,
 } from "./payment-provider.js";
@@ -285,7 +285,7 @@ function createStripePaymentProvider(
       }
     },
 
-    parseWebhookEvent(rawBody: Buffer, signature: string): PaymentWebhookEvent {
+    parseWebhookEvent(rawBody: Buffer, signature: string): ProviderWebhookEvent {
       if (!webhook.secret) {
         throw new AppError("Los webhooks de pago no están configurados.", 503);
       }
@@ -294,5 +294,5 @@ function createStripePaymentProvider(
   };
 }
 
-export { createStripePaymentProvider };
+export { createStripePaymentProvider, translateStripeError };
 export type { StripeClientLike, StripeWebhookConfig };

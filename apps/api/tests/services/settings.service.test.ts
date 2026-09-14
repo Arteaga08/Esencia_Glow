@@ -3,6 +3,7 @@ import {
   DEFAULT_COMMERCE_SETTINGS,
   DEFAULT_INVENTORY_SETTINGS,
   DEFAULT_PAYMENT_SETTINGS,
+  DEFAULT_SUBSCRIPTION_SETTINGS,
 } from "@esencia-glow/shared";
 import { describe, expect, it } from "vitest";
 import { Settings } from "../../src/models/settings.model.js";
@@ -11,6 +12,7 @@ import {
   updateCommerceSettings,
   updateInventorySettings,
   updatePaymentSettings,
+  updateSubscriptionSettings,
 } from "../../src/services/settings.service.js";
 
 describe("services/settings", () => {
@@ -160,6 +162,37 @@ describe("services/settings", () => {
       statusCode: 400,
     });
     await expect(updatePaymentSettings({ oxxoConfirmationGraceHours: 241 })).rejects.toMatchObject({
+      statusCode: 400,
+    });
+  });
+
+  it("getSettings sin documento devuelve defaults de subscriptions también", async () => {
+    const settings = await getSettings();
+    expect(settings.subscriptions).toEqual(DEFAULT_SUBSCRIPTION_SETTINGS);
+  });
+
+  it("updateSubscriptionSettings parcial solo cambia billingAnchorDay", async () => {
+    await updateSubscriptionSettings({ billingAnchorDay: 15 });
+
+    const settings = await getSettings();
+    expect(settings.subscriptions.billingAnchorDay).toBe(15);
+    expect(settings.subscriptions.enrollmentOpen).toBe(DEFAULT_SUBSCRIPTION_SETTINGS.enrollmentOpen);
+  });
+
+  it("actualizar subscriptions no pisa payments ni las demás secciones", async () => {
+    await updatePaymentSettings({ oxxoVoucherDays: 5 });
+    await updateSubscriptionSettings({ billingAnchorDay: 10 });
+
+    const settings = await getSettings();
+    expect(settings.payments.oxxoVoucherDays).toBe(5);
+    expect(settings.subscriptions.billingAnchorDay).toBe(10);
+  });
+
+  it("rechaza billingAnchorDay fuera de rango (1-28) con 400", async () => {
+    await expect(updateSubscriptionSettings({ billingAnchorDay: 0 })).rejects.toMatchObject({
+      statusCode: 400,
+    });
+    await expect(updateSubscriptionSettings({ billingAnchorDay: 29 })).rejects.toMatchObject({
       statusCode: 400,
     });
   });

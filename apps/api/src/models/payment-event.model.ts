@@ -21,6 +21,12 @@ import { PAYMENT_EVENT_RETENTION_DAYS } from "@esencia-glow/shared";
  * ventana de retención ES la ventana de dedupe — purgado el renglón, una
  * reentrega de ese evento se procesaría de nuevo, y Stripe reintenta horas,
  * no meses.
+ *
+ * `accountId` (Milestone 1.7.2a) es el análogo de `orderId` para eventos de
+ * suscripción (`invoice.paid`, `customer.subscription.*`) — campo propio en
+ * vez de reusar `orderId`: ese campo se usa para soporte y es joinable
+ * contra `Order`, y guardar ahí un id de `SubscriptionAccount` lo haría
+ * mentir. Sin índice: las consultas de soporte van por `eventId`.
  */
 type PaymentEventStatus = "processing" | "processed" | "ignored" | "failed";
 
@@ -32,6 +38,7 @@ interface PaymentEventAttrs {
   lockedAt: Date;
   attempts: number;
   orderId?: string;
+  accountId?: string;
   error?: string;
   purgeAt: Date;
 }
@@ -50,6 +57,7 @@ const paymentEventSchema = new Schema<PaymentEventAttrs, PaymentEventModel>(
     lockedAt: { type: Date, required: true },
     attempts: { type: Number, required: true, default: 1, min: 1 },
     orderId: { type: String, trim: true },
+    accountId: { type: String, trim: true },
     error: { type: String, trim: true, maxlength: 500 },
     purgeAt: { type: Date, required: true },
   },

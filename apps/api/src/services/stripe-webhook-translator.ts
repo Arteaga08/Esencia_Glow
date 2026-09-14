@@ -2,7 +2,8 @@ import Stripe from "stripe";
 import { DisputeStatus } from "@esencia-glow/shared";
 import { AppError } from "../utils/app-error.js";
 import { logger } from "../config/logger.js";
-import type { PaymentWebhookEvent } from "./payment-provider.js";
+import type { PaymentWebhookEvent, ProviderWebhookEvent } from "./payment-provider.js";
+import { translateStripeSubscriptionEvent } from "./stripe-subscription-webhook-translator.js";
 
 /**
  * Traduce un webhook crudo de Stripe a `PaymentWebhookEvent` (vocabulario
@@ -158,10 +159,14 @@ function translateDisputeEvent(providerType: string, eventId: string, dispute: S
 
 /** `event.type` decide qué forma tiene `event.data.object` y a qué
  * traductor especializado delegar; el resto de campos se lee de ese mismo
- * objeto (ver cada `translate*Event` arriba). Cualquier tipo no cubierto
- * aquí llega `ignored` — el endpoint solo se suscribe a los 7 tipos de la
- * tabla del README. */
-function translateStripeEvent(event: Stripe.Event): PaymentWebhookEvent {
+ * objeto (ver cada `translate*Event` arriba). Los 4 tipos de Billing
+ * (Milestone 1.7.2a) se delegan a `translateStripeSubscriptionEvent` justo
+ * antes del `ignored` final — ese archivo aparte devuelve `undefined` para
+ * cualquier cosa que no reconoce, y este es el ÚNICO lugar que traduce eso a
+ * `{kind:"ignored"}`, nunca duplicado ahí. Cualquier tipo no cubierto por
+ * ninguno de los dos traductores llega `ignored` — el endpoint solo se
+ * suscribe a los 11 tipos de la tabla del README. */
+function translateStripeEvent(event: Stripe.Event): ProviderWebhookEvent {
   const eventId = event.id;
   const providerType = event.type;
 
@@ -177,6 +182,10 @@ function translateStripeEvent(event: Stripe.Event): PaymentWebhookEvent {
   if (providerType === "charge.dispute.created" || providerType === "charge.dispute.closed") {
     return translateDisputeEvent(providerType, eventId, event.data.object as Stripe.Dispute);
   }
+
+  const subscriptionEvent = translateStripeSubscriptionEvent(event);
+  if (subscriptionEvent) return subscriptionEvent;
+
   return { kind: "ignored", eventId, providerType };
 }
 
@@ -192,7 +201,7 @@ function parseStripeWebhookEvent(
   rawBody: Buffer,
   signature: string,
   options: ParseStripeWebhookEventOptions,
-): PaymentWebhookEvent {
+): ProviderWebhookEvent {
   let event: Stripe.Event;
   try {
     event = Stripe.webhooks.constructEvent(rawBody, signature, options.secret, options.toleranceSeconds);

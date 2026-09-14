@@ -63,9 +63,9 @@ describe("routes/admin-subscription-plan — CRUD de planes", () => {
 
     const update = await agent
       .patch(`/api/v1/admin/subscription-plans/${id}`)
-      .send({ priceCents: 59900 });
+      .send({ sortOrder: 5 });
     expect(update.status).toBe(200);
-    expect(update.body.data.priceCents).toBe(59900);
+    expect(update.body.data.sortOrder).toBe(5);
 
     const deactivate = await agent.delete(`/api/v1/admin/subscription-plans/${id}`);
     expect(deactivate.status).toBe(200);
@@ -82,6 +82,29 @@ describe("routes/admin-subscription-plan — CRUD de planes", () => {
 
     const malformed = await agent.get("/api/v1/admin/subscription-plans/not-an-id");
     expect(malformed.status).toBe(400);
+  });
+
+  it("PATCH con solo priceCents responde 400 (el precio es inmutable para siempre, decisión 1 de 1.7.2a)", async () => {
+    const { agent } = await createAdminSession(app);
+    const create = await agent.post("/api/v1/admin/subscription-plans").send(samplePlan());
+    const id = create.body.data.id as string;
+
+    const update = await agent
+      .patch(`/api/v1/admin/subscription-plans/${id}`)
+      .send({ priceCents: 59900 });
+    expect(update.status).toBe(400);
+
+    const unchanged = await agent.get(`/api/v1/admin/subscription-plans/${id}`);
+    expect(unchanged.body.data.priceCents).toBe(49900);
+  });
+
+  it("sin proveedor de suscripciones configurado, crear un plan responde 503", async () => {
+    const { __setSubscriptionProviderForTests } = await import("../../src/services/subscription-provider.js");
+    __setSubscriptionProviderForTests(undefined);
+
+    const { agent } = await createAdminSession(app);
+    const response = await agent.post("/api/v1/admin/subscription-plans").send(samplePlan());
+    expect(response.status).toBe(503);
   });
 
   it("paginación respeta page/limit", async () => {

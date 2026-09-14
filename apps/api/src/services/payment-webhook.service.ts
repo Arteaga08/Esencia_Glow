@@ -7,7 +7,8 @@ import {
   handleDisputeOpened,
   handleDisputeClosed,
 } from "./payment-post-capture-handlers.js";
-import type { PaymentProvider, PaymentWebhookEvent } from "./payment-provider.js";
+import type { PaymentProvider, PaymentWebhookEvent, ProviderWebhookEvent } from "./payment-provider.js";
+import type { SubscriptionWebhookEvent } from "./subscription-provider.js";
 
 /**
  * Orquestador del webhook (§C/§D del plan de 1.6.2): reclama el evento
@@ -23,6 +24,21 @@ import type { PaymentProvider, PaymentWebhookEvent } from "./payment-provider.js
  */
 function describeError(error: unknown): string {
   return error instanceof Error ? error.message : "Error desconocido";
+}
+
+const SUBSCRIPTION_EVENT_KINDS = new Set<SubscriptionWebhookEvent["kind"]>([
+  "subscription.invoice_paid",
+  "subscription.payment_failed",
+  "subscription.updated",
+  "subscription.canceled",
+]);
+
+/** Bifurcación por `kind` (Milestone 1.7.2a, §B del plan): los DOS switches
+ * exhaustivos existentes (este y el de `dispatchSubscriptionEvent`, cuando
+ * exista) nunca se conocen entre sí — cada uno sigue siendo exhaustivo sobre
+ * su propia unión y el compilador obliga a cubrir cada `kind` nuevo. */
+function isSubscriptionEvent(event: ProviderWebhookEvent): event is SubscriptionWebhookEvent {
+  return SUBSCRIPTION_EVENT_KINDS.has(event.kind as SubscriptionWebhookEvent["kind"]);
 }
 
 async function dispatchPaymentEvent(event: PaymentWebhookEvent, provider: PaymentProvider): Promise<HandlerOutcome> {
@@ -46,7 +62,17 @@ async function dispatchPaymentEvent(event: PaymentWebhookEvent, provider: Paymen
   }
 }
 
-async function processPaymentWebhook(event: PaymentWebhookEvent, provider: PaymentProvider): Promise<void> {
+/** Placeholder de Fase 2 (traductor): la Fase 3 reemplaza este cuerpo con
+ * los 4 handlers reales (crear la caja del ciclo, dunning, reconciliar
+ * estado, cancelación) — ver subscription-webhook-handlers.ts. Todo evento
+ * de suscripción hoy se completa como `ignored`, nunca como `rejected`
+ * (`rejected` marcaría el evento `failed` para triage, que sería engañoso
+ * para algo que simplemente no está implementado todavía). */
+function dispatchSubscriptionEvent(_event: SubscriptionWebhookEvent): Promise<HandlerOutcome> {
+  return Promise.resolve({ status: "ignored" });
+}
+
+async function processPaymentWebhook(event: ProviderWebhookEvent, provider: PaymentProvider): Promise<void> {
   const claim = await claimPaymentEvent({ eventId: event.eventId, type: event.providerType, now: new Date() });
   if (claim.outcome !== "claimed") {
     // `duplicate`: ya se procesó, 200 no-op. `in_flight`: otra entrega lo
@@ -55,7 +81,9 @@ async function processPaymentWebhook(event: PaymentWebhookEvent, provider: Payme
   }
 
   try {
-    const outcome = await dispatchPaymentEvent(event, provider);
+    const outcome = isSubscriptionEvent(event)
+      ? await dispatchSubscriptionEvent(event)
+      : await dispatchPaymentEvent(event, provider);
     if (outcome.status === "rejected") {
       await failPaymentEvent({
         eventId: event.eventId,

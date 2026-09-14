@@ -8,6 +8,7 @@ import {
   updateCommerceSettingsSchema,
   updateInventorySettingsSchema,
   updatePaymentSettingsSchema,
+  updateSubscriptionSettingsSchema,
 } from "../validators/settings.validator.js";
 
 const router = Router();
@@ -18,5 +19,10 @@ router.get("/", settingsController.get);
 router.patch("/inventory", validate(updateInventorySettingsSchema), settingsController.updateInventory);
 router.patch("/commerce", validate(updateCommerceSettingsSchema), settingsController.updateCommerce);
 router.patch("/payments", validate(updatePaymentSettingsSchema), settingsController.updatePayments);
+router.patch(
+  "/subscriptions",
+  validate(updateSubscriptionSettingsSchema),
+  settingsController.updateSubscriptions,
+);
 
 export { router as adminSettingsRoutes };
