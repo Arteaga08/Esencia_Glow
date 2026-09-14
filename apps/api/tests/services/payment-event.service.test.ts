@@ -91,4 +91,37 @@ describe("services/payment-event — claimPaymentEvent", () => {
     const ttlIndex = indexes.find((idx) => idx.key && "purgeAt" in idx.key);
     expect(ttlIndex?.expireAfterSeconds).toBe(0);
   });
+
+  it("completePaymentEvent persiste accountId (Milestone 1.7.2a, eventos de suscripción)", async () => {
+    const now = new Date();
+    const first = await claimPaymentEvent({ eventId: "evt_sub_1", type: "invoice.paid", now });
+    if (first.outcome !== "claimed") throw new Error("setup: se esperaba claimed");
+
+    await completePaymentEvent({
+      eventId: "evt_sub_1",
+      lockedAt: first.lockedAt,
+      status: "processed",
+      accountId: "acc_1",
+    });
+
+    const stored = await PaymentEvent.findOne({ eventId: "evt_sub_1" });
+    expect(stored?.accountId).toBe("acc_1");
+    expect(stored?.orderId).toBeUndefined();
+  });
+
+  it("failPaymentEvent persiste accountId", async () => {
+    const now = new Date();
+    const first = await claimPaymentEvent({ eventId: "evt_sub_2", type: "invoice.payment_failed", now });
+    if (first.outcome !== "claimed") throw new Error("setup: se esperaba claimed");
+
+    await failPaymentEvent({
+      eventId: "evt_sub_2",
+      lockedAt: first.lockedAt,
+      error: "fallo transitorio",
+      accountId: "acc_2",
+    });
+
+    const stored = await PaymentEvent.findOne({ eventId: "evt_sub_2" });
+    expect(stored?.accountId).toBe("acc_2");
+  });
 });

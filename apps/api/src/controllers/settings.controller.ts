@@ -52,4 +52,19 @@ const updatePayments = asyncHandler(async (req: Request, res: Response) => {
   sendResponse(res, 200, "Configuración de pagos actualizada.", payments);
 });
 
-export { get, updateInventory, updateCommerce, updatePayments };
+/** Mismo `InventoryAction.SETTINGS_UPDATED` genérico que las demás secciones
+ * — este PATCH solo toca `billingAnchorDay`, nunca la ventana de
+ * inscripciones (ver subscription-enrollment.ts). */
+const updateSubscriptions = asyncHandler(async (req: Request, res: Response) => {
+  const subscriptions = await settingsService.updateSubscriptionSettings(req.body);
+
+  await recordAudit({
+    action: InventoryAction.SETTINGS_UPDATED,
+    actorId: req.user!.id,
+    metadata: req.body as Record<string, number>,
+  });
+
+  sendResponse(res, 200, "Configuración de suscripciones actualizada.", subscriptions);
+});
+
+export { get, updateInventory, updateCommerce, updatePayments, updateSubscriptions };

@@ -76,6 +76,9 @@ interface CompletePaymentEventInput {
   lockedAt: Date;
   status: "processed" | "ignored";
   orderId?: string;
+  /** Análogo de `orderId` para eventos de suscripción (Milestone 1.7.2a) —
+   * nunca ambos a la vez, ver payment-event.model.ts. */
+  accountId?: string;
 }
 
 /** Filtro `{eventId, lockedAt, status: "processing"}` — el fencing: si el
@@ -85,7 +88,13 @@ interface CompletePaymentEventInput {
 async function completePaymentEvent(input: CompletePaymentEventInput): Promise<void> {
   await PaymentEvent.updateOne(
     { eventId: input.eventId, lockedAt: input.lockedAt, status: "processing" },
-    { $set: { status: input.status as PaymentEventStatus, ...(input.orderId ? { orderId: input.orderId } : {}) } },
+    {
+      $set: {
+        status: input.status as PaymentEventStatus,
+        ...(input.orderId ? { orderId: input.orderId } : {}),
+        ...(input.accountId ? { accountId: input.accountId } : {}),
+      },
+    },
   );
 }
 
@@ -94,6 +103,7 @@ interface FailPaymentEventInput {
   lockedAt: Date;
   error: string;
   orderId?: string;
+  accountId?: string;
 }
 
 async function failPaymentEvent(input: FailPaymentEventInput): Promise<void> {
@@ -104,6 +114,7 @@ async function failPaymentEvent(input: FailPaymentEventInput): Promise<void> {
         status: "failed" as PaymentEventStatus,
         error: input.error.slice(0, 500),
         ...(input.orderId ? { orderId: input.orderId } : {}),
+        ...(input.accountId ? { accountId: input.accountId } : {}),
       },
     },
   );

@@ -21,4 +21,17 @@ const updatePaymentSettingsSchema = Joi.object({
   oxxoConfirmationGraceHours: Joi.number().integer().min(24).max(240),
 }).min(1);
 
-export { updateInventorySettingsSchema, updateCommerceSettingsSchema, updatePaymentSettingsSchema };
+/** Solo `billingAnchorDay`: `enrollmentOpen`/`enrollmentOpenedAt`/
+ * `enrollmentClosesAt` no se aceptan aquí — los escriben los endpoints
+ * dedicados de abrir/cerrar inscripciones (acciones auditables, no ajustes
+ * libres de Settings). */
+const updateSubscriptionSettingsSchema = Joi.object({
+  billingAnchorDay: Joi.number().integer().min(1).max(28),
+}).min(1);
+
+export {
+  updateInventorySettingsSchema,
+  updateCommerceSettingsSchema,
+  updatePaymentSettingsSchema,
+  updateSubscriptionSettingsSchema,
+};

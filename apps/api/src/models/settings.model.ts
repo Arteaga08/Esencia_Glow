@@ -33,11 +33,26 @@ interface PaymentSettingsAttrs {
   oxxoConfirmationGraceHours?: number;
 }
 
+/**
+ * Sección de negocio de suscripciones (Milestone 1.7.2a). `billingAnchorDay`
+ * es un ajuste libre vía PATCH genérico; `enrollmentOpen`/`enrollmentOpenedAt`/
+ * `enrollmentClosesAt` los escribe la acción de abrir/cerrar inscripciones
+ * (subscription-enrollment.ts), nunca ese PATCH — son estado derivado de una
+ * acción auditable, no un ajuste. Ver types/settings.ts en @esencia-glow/shared.
+ */
+interface SubscriptionSettingsAttrs {
+  billingAnchorDay?: number;
+  enrollmentOpen?: boolean;
+  enrollmentOpenedAt?: Date;
+  enrollmentClosesAt?: Date;
+}
+
 interface SettingsAttrs {
   _id: string;
   inventory?: InventorySettingsAttrs;
   commerce?: CommerceSettingsAttrs;
   payments?: PaymentSettingsAttrs;
+  subscriptions?: SubscriptionSettingsAttrs;
 }
 
 type SettingsDocument = HydratedDocument<SettingsAttrs>;
@@ -69,12 +84,23 @@ const paymentSettingsSchema = new Schema<PaymentSettingsAttrs>(
   { _id: false },
 );
 
+const subscriptionSettingsSchema = new Schema<SubscriptionSettingsAttrs>(
+  {
+    billingAnchorDay: { type: Number },
+    enrollmentOpen: { type: Boolean },
+    enrollmentOpenedAt: { type: Date },
+    enrollmentClosesAt: { type: Date },
+  },
+  { _id: false },
+);
+
 const settingsSchema = new Schema<SettingsAttrs, SettingsModel>(
   {
     _id: { type: String },
     inventory: { type: inventorySettingsSchema },
     commerce: { type: commerceSettingsSchema },
     payments: { type: paymentSettingsSchema },
+    subscriptions: { type: subscriptionSettingsSchema },
   },
   { timestamps: true },
 );
@@ -88,4 +114,5 @@ export type {
   InventorySettingsAttrs,
   CommerceSettingsAttrs,
   PaymentSettingsAttrs,
+  SubscriptionSettingsAttrs,
 };

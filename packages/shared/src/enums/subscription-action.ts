@@ -26,6 +26,15 @@ enum SubscriptionAction {
   SUBSCRIPTION_PAST_DUE = "subscription_past_due",
   SUBSCRIPTION_SEAT_EXHAUSTED = "subscription_seat_exhausted",
   SHIPMENT_EDITION_MISSING = "subscription_shipment_edition_missing",
+  /** Conectadas en 1.7.2a: alta sobre Stripe Billing, webhook de renovación,
+   * ventana de inscripciones y generación de la caja del ciclo. */
+  SUBSCRIPTION_RENEWED = "subscription_renewed",
+  SUBSCRIPTION_PROVIDER_MISMATCH = "subscription_provider_mismatch",
+  SUBSCRIPTION_DUPLICATE_CYCLE_INVOICE = "subscription_duplicate_cycle_invoice",
+  SUBSCRIPTION_ENROLLMENT_OPENED = "subscription_enrollment_opened",
+  SUBSCRIPTION_ENROLLMENT_CLOSED = "subscription_enrollment_closed",
+  SHIPMENT_CREATED = "subscription_shipment_created",
+  SHIPMENT_INVENTORY_SHORTAGE = "subscription_shipment_inventory_shortage",
 }
 
 export { SubscriptionAction };

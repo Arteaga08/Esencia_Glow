@@ -70,6 +70,7 @@ export type {
   InventorySettings,
   CommerceSettings,
   PaymentSettings,
+  SubscriptionSettings,
   AppSettings,
 } from "./types/settings.js";
 export type {
@@ -112,5 +113,10 @@ export type {
   CreateOrderLineInput,
 } from "./types/order.js";
 export type { SubscriberCapability, UserCapabilities } from "./types/capabilities.js";
-export { MAX_EDITION_ITEMS } from "./constants/subscriptions.js";
+export {
+  MAX_EDITION_ITEMS,
+  DEFAULT_SUBSCRIPTION_SETTINGS,
+  SUBSCRIPTION_ENROLLMENT_DEFAULT_DAYS,
+  SUBSCRIPTION_ANCHOR_GAP_DAYS,
+} from "./constants/subscriptions.js";
 export { SUBSCRIPTION_STATUS_LABELS } from "./constants/subscription-labels.js";

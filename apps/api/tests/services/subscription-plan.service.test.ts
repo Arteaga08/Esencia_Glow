@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { SubscriptionPlan } from "../../src/models/subscription-plan.model.js";
 import {
   createPlan,
@@ -8,6 +8,8 @@ import {
   updatePlan,
 } from "../../src/services/subscription-plan.service.js";
 import { startSubscription } from "../../src/services/subscription-seat.service.js";
+import { __setSubscriptionProviderForTests } from "../../src/services/subscription-provider.js";
+import { buildFakeSubscriptionProvider } from "../helpers/fake-subscription-provider.js";
 
 function buildInput(overrides: Partial<Record<string, unknown>> = {}) {
   return {
@@ -43,21 +45,6 @@ describe("services/subscription-plan", () => {
 
     const updated = await updatePlan(plan._id.toString(), { maxActiveSeats: 5 });
     expect(updated.maxActiveSeats).toBe(5);
-  });
-
-  it("cambiar priceCents con suscriptoras activas responde 409", async () => {
-    const plan = await createPlan(buildInput());
-    await SubscriptionPlan.updateOne({ _id: plan._id }, { $set: { seatsTaken: 1 } });
-
-    await expect(updatePlan(plan._id.toString(), { priceCents: 59900 })).rejects.toMatchObject({
-      statusCode: 409,
-    });
-  });
-
-  it("cambiar priceCents sin suscriptoras se permite", async () => {
-    const plan = await createPlan(buildInput());
-    const updated = await updatePlan(plan._id.toString(), { priceCents: 59900 });
-    expect(updated.priceCents).toBe(59900);
   });
 
   it("desactivar un plan con suscriptoras activas responde 409", async () => {
@@ -96,5 +83,36 @@ describe("services/subscription-plan", () => {
     const invalidState = refreshed?.isActive === false && refreshed.seatsTaken > 0;
     expect(invalidState).toBe(false);
     void results;
+  });
+
+  it("crea el Product+Price en Stripe ANTES de insertar y persiste ambos refs (Milestone 1.7.2a)", async () => {
+    const provider = buildFakeSubscriptionProvider();
+    __setSubscriptionProviderForTests(provider);
+
+    const plan = await createPlan(buildInput({ name: "Caja Con Stripe" }));
+
+    expect(provider.createPlanProduct).toHaveBeenCalledTimes(1);
+    const [callInput] = vi.mocked(provider.createPlanProduct).mock.calls[0];
+    expect(callInput.planSlug).toBe("caja-con-stripe");
+    expect(callInput.priceCents).toBe(49900);
+
+    expect(plan.providerProductId).toBe("prod_fake_1");
+    expect(plan.providerPriceId).toBe("price_fake_1");
+  });
+
+  it("sin proveedor de suscripciones configurado responde 503 y no crea nada", async () => {
+    __setSubscriptionProviderForTests(undefined);
+
+    await expect(createPlan(buildInput())).rejects.toMatchObject({ statusCode: 503 });
+    expect(await SubscriptionPlan.countDocuments()).toBe(0);
+  });
+
+  it("el precio ya NO se puede actualizar vía updatePlan (decisión 1: Price de Stripe inmutable para siempre)", async () => {
+    const plan = await createPlan(buildInput());
+
+    // `priceCents` ya no es parte del tipo de entrada — un caller que lo
+    // mande de todas formas (p. ej. desde JS sin tipos) debe ser ignorado.
+    const updated = await updatePlan(plan._id.toString(), { priceCents: 59900 } as never);
+    expect(updated.priceCents).toBe(49900);
   });
 });

@@ -2,6 +2,7 @@ import type { DisputeStatus, PaymentMethod } from "@esencia-glow/shared";
 import { env } from "../config/env.js";
 import { isStripeConfigured, getStripeClient } from "../config/stripe.js";
 import { createStripePaymentProvider } from "./stripe-payment-provider.js";
+import type { SubscriptionWebhookEvent } from "./subscription-provider.js";
 
 /**
  * Interfaz angosta del proveedor de pagos — mismo patrón que
@@ -145,6 +146,18 @@ type PaymentWebhookEvent =
     }
   | { kind: "ignored"; eventId: string; providerType: string };
 
+/**
+ * Unión de los eventos de pago (arriba) y de suscripción (Milestone 1.7.2a,
+ * ver subscription-provider.ts) — hay un solo endpoint de webhook, un solo
+ * `STRIPE_WEBHOOK_SECRET`, y el controller no puede saber a qué dominio
+ * pertenece el evento ANTES de verificar la firma; por eso `parseWebhookEvent`
+ * sigue siendo un único método aquí en vez de duplicarse en
+ * `SubscriptionProvider`. `payment-webhook.service.ts` bifurca sobre `kind`
+ * hacia el despachador de cada dominio sin que ninguno de los dos switches
+ * exhaustivos existentes tenga que conocer al otro.
+ */
+type ProviderWebhookEvent = PaymentWebhookEvent | SubscriptionWebhookEvent;
+
 interface PaymentProvider {
   authorize(input: AuthorizePaymentInput): Promise<PaymentAuthorization>;
   getAuthorization(intentId: string): Promise<PaymentAuthorization>;
@@ -155,7 +168,7 @@ interface PaymentProvider {
   refund(input: RefundPaymentInput): Promise<RefundResult>;
   /** Lanza 503 si el webhook no está configurado (sin `STRIPE_WEBHOOK_SECRET`),
    * 400 si la firma/timestamp no verifican (ver stripe-webhook-translator.ts). */
-  parseWebhookEvent(rawBody: Buffer, signature: string): PaymentWebhookEvent;
+  parseWebhookEvent(rawBody: Buffer, signature: string): ProviderWebhookEvent;
 }
 
 /**
@@ -202,4 +215,5 @@ export type {
   PaymentShippingInput,
   PaymentShippingAddressInput,
   PaymentWebhookEvent,
+  ProviderWebhookEvent,
 };

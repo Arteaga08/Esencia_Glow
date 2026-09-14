@@ -47,4 +47,28 @@ describe("models/SubscriptionShipment", () => {
     await SubscriptionShipment.create(buildShipmentAttrs());
     await expect(SubscriptionShipment.create(buildShipmentAttrs())).resolves.toBeDefined();
   });
+
+  it("reservedItems e inventoryIncident por default: array vacío, false (Milestone 1.7.2a)", async () => {
+    const shipment = await SubscriptionShipment.create(buildShipmentAttrs());
+    expect(shipment.reservedItems).toEqual([]);
+    expect(shipment.inventoryIncident).toBe(false);
+  });
+
+  it("guarda el snapshot de lo reservado, para que 1.7.2b pueda comprometerlo al enviar", async () => {
+    const variantId = new mongoose.Types.ObjectId();
+    const shipment = await SubscriptionShipment.create(
+      buildShipmentAttrs({ reservedItems: [{ variantId, quantity: 2 }], inventoryIncident: true }),
+    );
+    expect(shipment.reservedItems).toHaveLength(1);
+    expect(shipment.reservedItems[0]?.variantId.toString()).toBe(variantId.toString());
+    expect(shipment.reservedItems[0]?.quantity).toBe(2);
+    expect(shipment.inventoryIncident).toBe(true);
+  });
+
+  it("rechaza una cantidad reservada no entera o menor a 1", async () => {
+    const variantId = new mongoose.Types.ObjectId();
+    await expect(
+      SubscriptionShipment.create(buildShipmentAttrs({ reservedItems: [{ variantId, quantity: 0 }] })),
+    ).rejects.toBeTruthy();
+  });
 });
