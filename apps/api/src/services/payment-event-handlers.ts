@@ -16,9 +16,9 @@ import type { PaymentProvider, PaymentWebhookEvent } from "./payment-provider.js
  */
 
 type HandlerOutcome =
-  | { status: "processed"; orderId?: string }
+  | { status: "processed"; orderId?: string; accountId?: string }
   | { status: "ignored" }
-  | { status: "rejected"; reason: string; orderId?: string };
+  | { status: "rejected"; reason: string; orderId?: string; accountId?: string };
 
 /** Sella `adminAlertedAt` (una sola vez) y audita — misma forma que
  * `payment-settlement.service.ts`/`order-closing.service.ts` para

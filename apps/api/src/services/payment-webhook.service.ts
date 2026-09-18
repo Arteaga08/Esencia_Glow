@@ -7,6 +7,12 @@ import {
   handleDisputeOpened,
   handleDisputeClosed,
 } from "./payment-post-capture-handlers.js";
+import {
+  handleInvoicePaid,
+  handlePaymentFailed,
+  handleSubscriptionUpdated,
+  handleSubscriptionCanceled,
+} from "./subscription-webhook-handlers.js";
 import type { PaymentProvider, PaymentWebhookEvent, ProviderWebhookEvent } from "./payment-provider.js";
 import type { SubscriptionWebhookEvent } from "./subscription-provider.js";
 
@@ -62,14 +68,21 @@ async function dispatchPaymentEvent(event: PaymentWebhookEvent, provider: Paymen
   }
 }
 
-/** Placeholder de Fase 2 (traductor): la Fase 3 reemplaza este cuerpo con
- * los 4 handlers reales (crear la caja del ciclo, dunning, reconciliar
- * estado, cancelación) — ver subscription-webhook-handlers.ts. Todo evento
- * de suscripción hoy se completa como `ignored`, nunca como `rejected`
- * (`rejected` marcaría el evento `failed` para triage, que sería engañoso
- * para algo que simplemente no está implementado todavía). */
-function dispatchSubscriptionEvent(_event: SubscriptionWebhookEvent): Promise<HandlerOutcome> {
-  return Promise.resolve({ status: "ignored" });
+/** Bifurcación por `kind` de los 4 eventos de Billing (Fase 3 de 1.7.2a,
+ * §D del plan) — switch exhaustivo, hermano de `dispatchPaymentEvent`: cada
+ * uno cubre su propia unión sin conocer al otro, y el compilador obliga a
+ * cubrir cada `kind` nuevo. */
+async function dispatchSubscriptionEvent(event: SubscriptionWebhookEvent): Promise<HandlerOutcome> {
+  switch (event.kind) {
+    case "subscription.invoice_paid":
+      return handleInvoicePaid(event);
+    case "subscription.payment_failed":
+      return handlePaymentFailed(event);
+    case "subscription.updated":
+      return handleSubscriptionUpdated(event);
+    case "subscription.canceled":
+      return handleSubscriptionCanceled(event);
+  }
 }
 
 async function processPaymentWebhook(event: ProviderWebhookEvent, provider: PaymentProvider): Promise<void> {
@@ -90,6 +103,7 @@ async function processPaymentWebhook(event: ProviderWebhookEvent, provider: Paym
         lockedAt: claim.lockedAt,
         error: outcome.reason,
         ...(outcome.orderId ? { orderId: outcome.orderId } : {}),
+        ...(outcome.accountId ? { accountId: outcome.accountId } : {}),
       });
       return;
     }
@@ -98,6 +112,7 @@ async function processPaymentWebhook(event: ProviderWebhookEvent, provider: Paym
       lockedAt: claim.lockedAt,
       status: outcome.status,
       ...(outcome.status === "processed" && outcome.orderId ? { orderId: outcome.orderId } : {}),
+      ...(outcome.status === "processed" && outcome.accountId ? { accountId: outcome.accountId } : {}),
     });
   } catch (error) {
     logger.error({ eventId: event.eventId, type: event.providerType, err: error }, "Fallo al procesar un evento de pago");

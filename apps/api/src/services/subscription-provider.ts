@@ -15,10 +15,12 @@ import { createStripeSubscriptionProvider } from "./stripe-subscription-provider
  * Vocabulario propio del dominio: nada llamado `price_id`/`product_id`
  * crudo debe escapar de este archivo ni de stripe-subscription-provider.ts.
  *
- * `createPlanProduct` es el único método que necesita 1.7.2a Fase 1
- * (sincronización del plan con Stripe al crearlo); `ensureCustomer`/
- * `startSubscription`/`getSubscription` se agregan cuando el endpoint de
- * alta los necesite (TDD: sin scaffolding sin test que lo exija).
+ * `createPlanProduct` sincroniza el plan con Stripe al crearlo (Fase 1).
+ * `ensureCustomer`/`startSubscription`/`getSubscription` (Fase 4) cubren el
+ * alta: `ensureCustomer` es idempotente por `idempotencyKey` (una re-alta
+ * reusa el mismo Customer si `SubscriptionAccount.providerCustomerId` ya
+ * existe, nunca crea un segundo); `getSubscription` es la rama replay del
+ * endpoint (`ensurePaymentIntent` es el precedente exacto).
  */
 interface CreatePlanProductInput {
   /** `slug` del plan, no el `_id` de Mongo: útil como referencia legible en
@@ -40,6 +42,46 @@ interface PlanProductRefs {
  * (`incomplete_expired`, `unpaid`, `trialing`) nunca sale del adapter ni del
  * traductor de webhooks (ver stripe-subscription-webhook-translator.ts). */
 type ProviderSubscriptionStatus = "incomplete" | "active" | "past_due" | "paused" | "canceled";
+
+interface EnsureCustomerInput {
+  email: string;
+  name: string;
+  idempotencyKey: string;
+}
+
+/**
+ * Alta sobre Billing (Fase 4 de 1.7.2a, §E del plan): `priceRef` viene del
+ * plan (`SubscriptionPlan.providerPriceId`), nunca un monto — el servidor no
+ * manda montos a Stripe, el Price ya los tiene. `billingAnchorDay` viaja
+ * suelto (no como Date) porque `billing_cycle_anchor_config` de Stripe pide
+ * el día del mes, no un timestamp — ver stripe-subscription-provider.ts.
+ */
+interface StartProviderSubscriptionInput {
+  customerRef: string;
+  priceRef: string;
+  billingAnchorDay: number;
+  metadata: { accountId: string; userId: string; planId: string };
+  idempotencyKey: string;
+}
+
+/**
+ * Snapshot YA traducido de una suscripción de Billing — lo que el endpoint
+ * de alta necesita para el DTO de la clienta (`clientSecret`,
+ * `firstChargeCents`, `currency`, `nextChargeAt`) y lo que el orquestador
+ * necesita para persistir el período. Campos opcionales porque
+ * `getSubscription` (rama replay) puede verla en un momento donde algunos ya
+ * no aplican (p. ej. `clientSecret` de una factura ya pagada).
+ */
+interface ProviderSubscription {
+  subscriptionRef: string;
+  status: ProviderSubscriptionStatus;
+  clientSecret?: string;
+  firstChargeCents?: number;
+  currency?: string;
+  nextChargeAt?: Date;
+  currentPeriodStart?: Date;
+  currentPeriodEnd?: Date;
+}
 
 /**
  * Evento de dominio traducido de un webhook de Billing (Milestone 1.7.2a) —
@@ -102,6 +144,9 @@ type SubscriptionWebhookEvent =
 
 interface SubscriptionProvider {
   createPlanProduct(input: CreatePlanProductInput): Promise<PlanProductRefs>;
+  ensureCustomer(input: EnsureCustomerInput): Promise<string>;
+  startSubscription(input: StartProviderSubscriptionInput): Promise<ProviderSubscription>;
+  getSubscription(subscriptionRef: string): Promise<ProviderSubscription>;
 }
 
 /**
@@ -134,4 +179,7 @@ export type {
   PlanProductRefs,
   ProviderSubscriptionStatus,
   SubscriptionWebhookEvent,
+  EnsureCustomerInput,
+  StartProviderSubscriptionInput,
+  ProviderSubscription,
 };

@@ -93,6 +93,20 @@ const paymentResumeRateLimiter = createRateLimiter({
 });
 
 /**
+ * `POST /subscriptions` (Milestone 1.7.2a, Fase 4): igual que
+ * `checkoutRateLimiter` — reclama cupo y crea Customer/Subscription en
+ * Stripe, más caro y más sensible a abuso que una lectura. El índice único
+ * `{userId}` de `SubscriptionAccount` ya topa el daño de un bot que
+ * insista, pero el límite evita que ni siquiera llegue a chocar con él en
+ * un burst.
+ */
+const subscribeRateLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: "Demasiados intentos de suscripción, intenta de nuevo más tarde.",
+});
+
+/**
  * `POST /webhooks/stripe`: server-to-server, sin sesión de usuario detrás —
  * su barrera es la firma, no el auth. Un burst de reentregas legítimas de
  * Stripe no debe agotar la cuota de los usuarios reales (por eso NO hereda
@@ -130,6 +144,7 @@ export {
   catalogRateLimiter,
   checkoutRateLimiter,
   paymentResumeRateLimiter,
+  subscribeRateLimiter,
   webhookRateLimiter,
   refundRateLimiter,
 };

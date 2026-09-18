@@ -109,12 +109,27 @@ function isEntitled(status: SubscriptionStatus): boolean {
   return ENTITLED_STATUSES.includes(status);
 }
 
+/**
+ * Versión de `assertTransition` que NUNCA lanza (Fase 3 de 1.7.2a) — el
+ * webhook de Billing no puede permitirse que un 409 esperado (`ACTIVE ->
+ * PAUSED` no es una transición de `system`) escale a excepción: el
+ * orquestador la marcaría `failed` + 500, y Stripe reintentaría para
+ * siempre un evento que simplemente no debe moverla. Reusa el mismo
+ * `TRANSITION_ACTORS`, nunca una segunda tabla.
+ */
+function canActorTransition(from: SubscriptionStatus, to: SubscriptionStatus, actor: SubscriptionActor): boolean {
+  if (!canTransition(from, to)) return false;
+  const allowedActors = TRANSITION_ACTORS[`${from}->${to}`] ?? [];
+  return allowedActors.includes(actor);
+}
+
 export {
   ALL_SUBSCRIPTION_STATUSES,
   SUBSCRIPTION_TRANSITIONS,
   SEAT_HOLDING_STATUSES,
   ENTITLED_STATUSES,
   canTransition,
+  canActorTransition,
   assertTransition,
   seatEffect,
   isEntitled,

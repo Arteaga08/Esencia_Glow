@@ -5,6 +5,7 @@ import {
   SUBSCRIPTION_TRANSITIONS,
   ENTITLED_STATUSES,
   canTransition,
+  canActorTransition,
   assertTransition,
   seatEffect,
   isEntitled,
@@ -126,5 +127,44 @@ describe("services/subscription-state", () => {
 
   it("ENTITLED_STATUSES es exactamente [ACTIVE, PAST_DUE]", () => {
     expect([...ENTITLED_STATUSES].sort()).toEqual([ACTIVE, PAST_DUE].sort());
+  });
+
+  /**
+   * `canActorTransition` (Fase 3 de 1.7.2a): versión que NUNCA lanza de
+   * `assertTransition`, para el webhook — que no puede permitirse convertir
+   * un 409 esperado (`ACTIVE->PAUSED` no es `system`) en una excepción que el
+   * orquestador traduciría a `failed` + 500 + reintentos infinitos de
+   * Stripe.
+   */
+  describe("canActorTransition", () => {
+    it("es equivalente a `!throws(assertTransition)` en toda la matriz 5x5x3", () => {
+      for (const from of ALL_SUBSCRIPTION_STATUSES) {
+        for (const to of ALL_SUBSCRIPTION_STATUSES) {
+          for (const actor of ["customer", "admin", "system"] as const) {
+            let threw = false;
+            try {
+              assertTransition(from, to, actor);
+            } catch {
+              threw = true;
+            }
+            expect(canActorTransition(from, to, actor)).toBe(!threw);
+          }
+        }
+      }
+    });
+
+    it("ACTIVE -> PAUSED: true para customer/admin, false para system", () => {
+      expect(canActorTransition(ACTIVE, PAUSED, "customer")).toBe(true);
+      expect(canActorTransition(ACTIVE, PAUSED, "admin")).toBe(true);
+      expect(canActorTransition(ACTIVE, PAUSED, "system")).toBe(false);
+    });
+
+    it("una transición inexistente en la tabla es false para cualquier actor", () => {
+      expect(canActorTransition(INCOMPLETE, PAUSED, "system")).toBe(false);
+    });
+
+    it("nunca lanza, ni con una arista fuera de la tabla de actores", () => {
+      expect(() => canActorTransition(CANCELED, ACTIVE, "system")).not.toThrow();
+    });
   });
 });
