@@ -86,7 +86,13 @@ function mapToInternalStatus(status: ProviderSubscriptionStatus): SubscriptionSt
  * construcción vía `applySystemStatus`. `PAUSED -> CANCELED` no es
  * expresable desde el webhook (riesgo #5 del plan) — la máquina de 1.7.1
  * solo permite esa arista para `customer`/`admin`, así que aquí es
- * `ignored`, nunca un 409 escalado a excepción. */
+ * `ignored`, nunca un 409 escalado a excepción.
+ *
+ * Apaga `cancelAtPeriodEnd` en la MISMA transacción que la transición: la
+ * cancelación ya se consumó, y `SubscriptionAccount` tiene índice único por
+ * `userId` — una re-alta (`CANCELED -> INCOMPLETE`) reusa el MISMO documento,
+ * así que la bandera heredada haría que la suscripción NUEVA naciera marcada
+ * para cancelarse al cierre del período. */
 async function handleCancellation(
   account: SubscriptionAccountDocument,
   canceledAt: Date,
@@ -97,6 +103,7 @@ async function handleCancellation(
   }
   await applySystemStatus(account, SubscriptionStatus.CANCELED, {
     canceledAt,
+    cancelAtPeriodEnd: false,
     ...(reason ? { cancelReason: reason } : {}),
   });
   return { status: "processed", accountId: account._id.toString() };
@@ -193,7 +200,7 @@ async function handlePaymentFailed(event: PaymentFailedEvent): Promise<HandlerOu
 
   const accountId = account._id.toString();
   await applySystemStatus(account, SubscriptionStatus.PAST_DUE);
-  await recordPaymentFailure(accountId, event.attemptCount);
+  await recordPaymentFailure(accountId, event.attemptCount, event.invoiceRef);
 
   // Dunning a la clienta (decisión 7 del plan) — best-effort, con su propia
   // `Idempotency-Key` por `invoiceRef`+`attemptCount`.

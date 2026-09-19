@@ -26,7 +26,15 @@ const SETTINGS_ID = "global";
 /** Construye el DTO de la clienta desde el snapshot ya traducido del
  * proveedor. Si falta algo (p. ej. una factura ya pagada sin
  * `confirmation_secret` en la rama replay), es un 502: no hay nada útil que
- * mostrarle a la clienta para confirmar una tarjeta. */
+ * mostrarle a la clienta para confirmar una tarjeta.
+ *
+ * NO valida `status`: esa guarda vive solo en la rama replay
+ * (`assertConfirmable`, abajo). En el camino de CREACIÓN lanzar aquí sería
+ * peor que el problema — el `catch` dispara `compensateFailedStart`, que
+ * cancela la cuenta local y libera el cupo pero deliberadamente NO cancela
+ * nada en Stripe: una suscripción que Stripe devolviera ya `active` (primera
+ * factura en cero) seguiría cobrando cada mes sin cuenta local que la
+ * represente. */
 function buildResult(subscription: ProviderSubscription): StartSubscriptionResult {
   if (
     !subscription.clientSecret ||
@@ -42,6 +50,20 @@ function buildResult(subscription: ProviderSubscription): StartSubscriptionResul
     currency: subscription.currency,
     nextChargeAt: subscription.nextChargeAt.toISOString(),
   };
+}
+
+/**
+ * Un `clientSecret` solo sirve mientras la suscripción sigue esperando la
+ * tarjeta (hallazgo de code review). En un REPLAY, Stripe pudo haberla
+ * activado, cancelado o dejado expirar desde el primer intento, y el secreto
+ * viejo puede seguir viajando en la respuesta: devolverlo mandaría a la
+ * clienta a confirmar contra un PaymentIntent muerto. Solo se aplica al
+ * replay — en la creación, ver el docstring de `buildResult`.
+ */
+function assertConfirmable(subscription: ProviderSubscription): void {
+  if (subscription.status !== "incomplete") {
+    throw new AppError("Esta suscripción ya no está esperando tu tarjeta, vuelve a intentarlo.", 409);
+  }
 }
 
 /**
@@ -149,12 +171,27 @@ async function startSubscriptionForUser(input: StartSubscriptionInput): Promise<
   // Rama replay (calco de `ensurePaymentIntent`): la respuesta se perdió o
   // el front reintenta, pero Stripe ya tiene la suscripción. Ni el cupo ni
   // Stripe se vuelven a tocar.
+  //
+  // El `planId` DEBE coincidir (hallazgo de code review): sin esa guarda, un
+  // doble-submit con un plan DISTINTO al del primer intento devolvía el
+  // `clientSecret` del plan viejo en silencio — la clienta pagaba el plan A
+  // creyendo haber contratado el B. No se cancela la suscripción vieja por
+  // cuenta propia: `jobs/expire-incomplete-subscriptions.ts` ya libera sola
+  // una cuenta INCOMPLETE abandonada, y cancelar aquí convertiría un
+  // reintento accidental en una pérdida de la suscripción en curso.
   const existingAccount = await SubscriptionAccount.findOne({ userId: input.userId });
   if (
     existingAccount?.status === SubscriptionStatus.INCOMPLETE &&
     existingAccount.providerSubscriptionId
   ) {
+    if (existingAccount.planId.toString() !== input.planId) {
+      throw new AppError(
+        "Ya tienes una suscripción en proceso con otro plan: complétala o espera a que expire para cambiarte.",
+        409,
+      );
+    }
     const subscription = await provider.getSubscription(existingAccount.providerSubscriptionId);
+    assertConfirmable(subscription);
     return buildResult(subscription);
   }
 

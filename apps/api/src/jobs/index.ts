@@ -4,6 +4,7 @@ import { refreshBundleStockCaches } from "./refresh-bundle-stock-cache.js";
 import { cancelExpiredOrders } from "./cancel-expired-orders.js";
 import { reconcilePendingPayments } from "./reconcile-pending-payments.js";
 import { expireIncompleteSubscriptions } from "./expire-incomplete-subscriptions.js";
+import { alertMissingEdition } from "./alert-missing-edition.js";
 import { getSettings } from "../services/settings.service.js";
 import { env } from "../config/env.js";
 import { logger } from "../config/logger.js";
@@ -39,7 +40,9 @@ import { logger } from "../config/logger.js";
  * `expireIncompleteSubscriptions` (Milestone 1.7.2a, Fase 5) es igual de
  * independiente: cuentas de suscripción, no órdenes/inventario, así que
  * arranca en paralelo con `refreshBundleStockCaches`/`reconcilePendingPayments`,
- * nunca encadenada detrás de la cadena reserva->orden.
+ * nunca encadenada detrás de la cadena reserva->orden. Lo mismo vale para
+ * `alertMissingEdition` (1.7.2b), que además se corta sola fuera de la
+ * ventana de aviso sin tocar la base.
  *
  * Nunca se monta en `buildApp()`: ningún test de supertest debe levantar
  * timers de cron.
@@ -70,11 +73,18 @@ function startCronJobs(): void {
         env.subscriptionIncompleteExpireMinutes,
         settings.inventory.sweepBatchSize,
       );
+      const missingEditionSummaryPromise = alertMissingEdition(
+        new Date(),
+        settings.subscriptions.billingAnchorDay,
+        env.subscriptionEditionAlertDays,
+        settings.inventory.sweepBatchSize,
+      );
       const reservationSummary = await releaseExpiredReservations(new Date(), settings.inventory.sweepBatchSize);
       const orderSummary = await cancelExpiredOrders(new Date(), settings.inventory.sweepBatchSize);
       const bundleSummary = await bundleSummaryPromise;
       const reconcileSummary = await reconcileSummaryPromise;
       const expireSubscriptionsSummary = await expireSubscriptionsSummaryPromise;
+      const missingEditionSummary = await missingEditionSummaryPromise;
       if (reservationSummary.released > 0 || reservationSummary.failed > 0) {
         logger.info(reservationSummary, "Barrido de reservas vencidas");
       }
@@ -89,6 +99,9 @@ function startCronJobs(): void {
       }
       if (expireSubscriptionsSummary.expired > 0 || expireSubscriptionsSummary.failed > 0) {
         logger.info(expireSubscriptionsSummary, "Barrido de suscripciones incompletas vencidas");
+      }
+      if (missingEditionSummary.alerted > 0 || missingEditionSummary.failed > 0) {
+        logger.info(missingEditionSummary, "Aviso preventivo de ediciones faltantes");
       }
     },
     { noOverlap: true, name: "release-expired-reservations" },

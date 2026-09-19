@@ -116,12 +116,28 @@ describe("services/stripe-webhook-translator — eventos de suscripción", () =>
 
   it("customer.subscription.updated con status desconocido -> se mapea a 'incomplete' (cauteloso, nunca lanza)", () => {
     const payload = buildStripeSubscriptionEvent("customer.subscription.updated", "sub_8", {
-      status: "trialing",
+      status: "un_status_que_stripe_todavia_no_inventa",
     });
     const event = JSON.parse(payload);
 
     const result = translateStripeEvent(event);
     expect(result).toMatchObject({ kind: "subscription.updated", status: "incomplete" });
+  });
+
+  it("customer.subscription.updated con status 'trialing' -> 'active', igual que el adapter", () => {
+    // `trialing` NO es un status desconocido: es un estado real de Stripe que
+    // `stripe-subscription-provider.ts` mapea a `active` (riesgo aceptado 🟡
+    // #4 del plan de 1.7.2a). Que el traductor lo mandara al `default` hacía
+    // que una suscripción puesta en trial desde el Dashboard intentara
+    // `ACTIVE -> INCOMPLETE`, una transición inexistente que el webhook
+    // simplemente ignoraba.
+    const payload = buildStripeSubscriptionEvent("customer.subscription.updated", "sub_trial", {
+      status: "trialing",
+    });
+    const event = JSON.parse(payload);
+
+    const result = translateStripeEvent(event);
+    expect(result).toMatchObject({ kind: "subscription.updated", status: "active" });
   });
 
   it("customer.subscription.deleted -> subscription.canceled con canceledAt y reason", () => {

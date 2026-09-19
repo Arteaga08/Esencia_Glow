@@ -565,3 +565,18 @@ describe("subscription-webhook-handlers — correos", () => {
     expect(fake.calls).toHaveLength(0);
   });
 });
+
+describe("subscription-webhook-handlers — cancelAtPeriodEnd al cancelar", () => {
+  it("apaga cancelAtPeriodEnd al cancelar: una re-alta reusa el MISMO documento y no debe heredar la bandera", async () => {
+    const { account, subscriptionRef } = await seedActiveAccountWithEdition();
+    // En 1.7.3 la marca la clienta; aquí se siembra directo porque el
+    // endpoint de autoservicio todavía no existe.
+    await SubscriptionAccount.updateOne({ _id: account._id }, { $set: { cancelAtPeriodEnd: true } });
+
+    await processPaymentWebhook(subscriptionCanceledEvent({ subscriptionRef }), provider);
+
+    const reloaded = await SubscriptionAccount.findById(account._id);
+    expect(reloaded?.status).toBe(SubscriptionStatus.CANCELED);
+    expect(reloaded?.cancelAtPeriodEnd).toBe(false);
+  });
+});

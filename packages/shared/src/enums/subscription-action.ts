@@ -39,6 +39,15 @@ enum SubscriptionAction {
    * `jobs/expire-incomplete-subscriptions.ts` libera el cupo de una cuenta
    * `INCOMPLETE` cuyo 3DS/checkout nunca se completó. */
   SUBSCRIPTION_INCOMPLETE_EXPIRED = "subscription_incomplete_expired",
+  /** Conectada en 1.7.2b: el panel mueve el envío del ciclo por su máquina de
+   * estados. UNA sola acción con `metadata.from/to`, nunca una por estado —
+   * mismo criterio que las transiciones de pedido (y el hallazgo de code
+   * review de 1.6.2 fue justamente una transición que perdía ese metadata). */
+  SHIPMENT_STATUS_CHANGED = "subscription_shipment_status_changed",
+  /** Conectada en 1.7.2b: el job preventivo avisa que se acerca el cobro
+   * anclado y el ciclo todavía no tiene edición publicada — el aviso que
+   * evita que la caja nazca con `editionIncident` y la clienta ya cobrada. */
+  SHIPMENT_EDITION_MISSING_UPCOMING = "subscription_shipment_edition_missing_upcoming",
 }
 
 export { SubscriptionAction };

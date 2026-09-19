@@ -15,6 +15,7 @@ import { orderRoutes } from "./order.routes.js";
 import { adminOrderRoutes } from "./admin-order.routes.js";
 import { adminSubscriptionPlanRoutes } from "./admin-subscription-plan.routes.js";
 import { adminSubscriptionEditionRoutes } from "./admin-subscription-edition.routes.js";
+import { adminSubscriptionShipmentRoutes } from "./admin-subscription-shipment.routes.js";
 import { adminSubscriptionRoutes } from "./admin-subscription.routes.js";
 import { subscriptionRoutes } from "./subscription.routes.js";
 
@@ -41,6 +42,7 @@ v1Router.use("/orders", orderRoutes);
 v1Router.use("/admin/orders", adminOrderRoutes);
 v1Router.use("/admin/subscription-plans", adminSubscriptionPlanRoutes);
 v1Router.use("/admin/subscription-editions", adminSubscriptionEditionRoutes);
+v1Router.use("/admin/subscription-shipments", adminSubscriptionShipmentRoutes);
 v1Router.use("/admin/subscriptions", adminSubscriptionRoutes);
 v1Router.use("/subscriptions", subscriptionRoutes);
 

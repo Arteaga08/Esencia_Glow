@@ -1,4 +1,5 @@
 import { SubscriptionStatus } from "../enums/subscription-status.js";
+import { SubscriptionShipmentStatus } from "../enums/subscription-shipment-status.js";
 
 /**
  * Etiquetas en español de cada estado, como `Record` exhaustivo — no una
@@ -15,4 +16,14 @@ const SUBSCRIPTION_STATUS_LABELS: Record<SubscriptionStatus, string> = {
   [SubscriptionStatus.CANCELED]: "Cancelada",
 };
 
-export { SUBSCRIPTION_STATUS_LABELS };
+/** Mismo criterio exhaustivo para el envío del ciclo: agregar un estado sin
+ * etiquetarlo aquí rompe el typecheck (Milestone 1.7.2b). */
+const SUBSCRIPTION_SHIPMENT_STATUS_LABELS: Record<SubscriptionShipmentStatus, string> = {
+  [SubscriptionShipmentStatus.PENDING]: "Pendiente",
+  [SubscriptionShipmentStatus.PROCESSING]: "En preparación",
+  [SubscriptionShipmentStatus.SHIPPED]: "Enviada",
+  [SubscriptionShipmentStatus.DELIVERED]: "Entregada",
+  [SubscriptionShipmentStatus.CANCELED]: "Cancelada",
+};
+
+export { SUBSCRIPTION_STATUS_LABELS, SUBSCRIPTION_SHIPMENT_STATUS_LABELS };

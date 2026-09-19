@@ -17,6 +17,7 @@ import { recordAudit } from "./audit.service.js";
 interface ApplySystemStatusFields {
   canceledAt?: Date;
   cancelReason?: string;
+  cancelAtPeriodEnd?: boolean;
 }
 
 type ApplySystemStatusResult =
@@ -140,7 +141,7 @@ async function recordPaidInvoice(accountId: string, input: RecordPaidInvoiceInpu
         currentPeriodEnd: input.periodEnd,
         dunningAttempts: 0,
       },
-      $unset: { pastDueSince: 1 },
+      $unset: { pastDueSince: 1, dunningInvoiceId: 1 },
     },
   );
 
@@ -157,9 +158,28 @@ async function recordPaidInvoice(accountId: string, input: RecordPaidInvoiceInpu
  * (`invoice.attempt_count`), no un contador que esta función incrementa —
  * idempotente por construcción: reentregar el mismo `invoice.payment_failed`
  * fija el mismo número, nunca lo duplica.
+ *
+ * MONOTÓNICO DENTRO DE LA MISMA FACTURA: Stripe no garantiza el orden de
+ * entrega, así que el `payment_failed` del intento 1 puede llegar DESPUÉS del
+ * intento 3 — sin guarda, ese evento viejo haría retroceder el dunning. Pero
+ * `attempt_count` es un contador POR FACTURA (reinicia en 1 cada ciclo), así
+ * que la guarda no puede ser sobre el número suelto: una factura que murió en
+ * el intento 3 dejaría el contador en 3 y descartaría los primeros intentos
+ * del ciclo siguiente (hallazgo de code review). De ahí `dunningInvoiceId`:
+ * el `$lte` solo aplica cuando el evento habla de la MISMA factura.
  */
-async function recordPaymentFailure(accountId: string, attemptCount: number): Promise<void> {
-  await SubscriptionAccount.updateOne({ _id: accountId }, { $set: { dunningAttempts: attemptCount } });
+async function recordPaymentFailure(
+  accountId: string,
+  attemptCount: number,
+  invoiceRef: string,
+): Promise<void> {
+  await SubscriptionAccount.updateOne(
+    {
+      _id: accountId,
+      $or: [{ dunningInvoiceId: { $ne: invoiceRef } }, { dunningAttempts: { $lte: attemptCount } }],
+    },
+    { $set: { dunningAttempts: attemptCount, dunningInvoiceId: invoiceRef } },
+  );
   await SubscriptionAccount.updateOne(
     { _id: accountId, pastDueSince: { $exists: false } },
     { $set: { pastDueSince: new Date() } },

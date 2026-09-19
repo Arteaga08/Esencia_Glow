@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { SubscriptionShipmentStatus } from "@esencia-glow/shared";
+import { ShippingCarrier, SubscriptionShipmentStatus } from "@esencia-glow/shared";
 import { describe, expect, it } from "vitest";
 import { SubscriptionShipment } from "../../src/models/subscription-shipment.model.js";
 
@@ -70,5 +70,38 @@ describe("models/SubscriptionShipment", () => {
     await expect(
       SubscriptionShipment.create(buildShipmentAttrs({ reservedItems: [{ variantId, quantity: 0 }] })),
     ).rejects.toBeTruthy();
+  });
+});
+
+describe("models/SubscriptionShipment — guía y sellos de envío (Milestone 1.7.2b)", () => {
+  it("guarda la guía con una paquetería del vocabulario cerrado y los sellos de cada transición", async () => {
+    const shipment = await SubscriptionShipment.create(
+      buildShipmentAttrs({
+        status: SubscriptionShipmentStatus.SHIPPED,
+        carrier: ShippingCarrier.ESTAFETA,
+        trackingNumber: "ES123456789MX",
+        shippedAt: new Date("2026-09-20T10:00:00Z"),
+        stockCommittedAt: new Date("2026-09-20T10:00:00Z"),
+      }),
+    );
+
+    expect(shipment.carrier).toBe(ShippingCarrier.ESTAFETA);
+    expect(shipment.trackingNumber).toBe("ES123456789MX");
+    expect(shipment.shippedAt).toBeInstanceOf(Date);
+    expect(shipment.stockCommittedAt).toBeInstanceOf(Date);
+  });
+
+  it("rechaza una paquetería fuera del enum: texto libre rompería la integración real de envíos", async () => {
+    await expect(
+      SubscriptionShipment.create(buildShipmentAttrs({ carrier: "mi-primo-con-una-moto" })),
+    ).rejects.toBeTruthy();
+  });
+
+  it("acepta el estado canceled con su sello", async () => {
+    const shipment = await SubscriptionShipment.create(
+      buildShipmentAttrs({ status: SubscriptionShipmentStatus.CANCELED, canceledAt: new Date() }),
+    );
+    expect(shipment.status).toBe(SubscriptionShipmentStatus.CANCELED);
+    expect(shipment.canceledAt).toBeInstanceOf(Date);
   });
 });

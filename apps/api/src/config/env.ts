@@ -118,6 +118,12 @@ function buildEnv() {
     // en línea del endpoint de alta falla.
     subscriptionIncompleteExpireMinutes: readPositiveInt("SUBSCRIPTION_INCOMPLETE_EXPIRE_MINUTES", 30),
 
+    // Suscripciones (Milestone 1.7.2b): días de anticipación con los que el
+    // job preventivo avisa al admin que falta la edición del ciclo que está
+    // por cobrarse — el aviso llega ANTES del cobro, no después de que la
+    // caja ya nació con `editionIncident`.
+    subscriptionEditionAlertDays: readPositiveInt("SUBSCRIPTION_EDITION_ALERT_DAYS", 7),
+
     // Integraciones puramente operativas/de notificación: opcionales siempre,
     // incluso en producción. Su ausencia se degrada a loguear, nunca a bloquear.
     telegramBotToken: process.env.TELEGRAM_BOT_TOKEN,

@@ -1,5 +1,5 @@
 import Joi from "joi";
-import { EditionStatus } from "@esencia-glow/shared";
+import { EditionStatus, SubscriptionShipmentStatus } from "@esencia-glow/shared";
 import { listQueryBaseSchema } from "./list-query.validator.js";
 
 /**
@@ -20,4 +20,16 @@ const listSubscriptionEditionsQuerySchema = listQueryBaseSchema.keys({
   status: Joi.string().valid(...Object.values(EditionStatus)),
 });
 
-export { listSubscriptionPlansQuerySchema, listSubscriptionEditionsQuerySchema };
+const listSubscriptionShipmentsQuerySchema = listQueryBaseSchema.keys({
+  planId: objectId,
+  cycleYear: Joi.number().integer().min(2024).max(2100),
+  cycleMonth: Joi.number().integer().min(1).max(12),
+  status: Joi.string().valid(...Object.values(SubscriptionShipmentStatus)),
+  incident: Joi.boolean(),
+});
+
+export {
+  listSubscriptionPlansQuerySchema,
+  listSubscriptionEditionsQuerySchema,
+  listSubscriptionShipmentsQuerySchema,
+};
