@@ -56,4 +56,13 @@ describe("config/env — tolerancia del webhook y umbral de reconciliación", ()
   it("PAYMENT_RECONCILE_AFTER_MINUTES='-5' -> lanza", async () => {
     await expect(importEnvWith({ PAYMENT_RECONCILE_AFTER_MINUTES: "-5" })).rejects.toThrow();
   });
+
+  it("SUBSCRIPTION_INCOMPLETE_EXPIRE_MINUTES ausente -> default 30", async () => {
+    const { env } = await importEnvWith({ SUBSCRIPTION_INCOMPLETE_EXPIRE_MINUTES: undefined });
+    expect(env.subscriptionIncompleteExpireMinutes).toBe(30);
+  });
+
+  it("SUBSCRIPTION_INCOMPLETE_EXPIRE_MINUTES='0' -> lanza", async () => {
+    await expect(importEnvWith({ SUBSCRIPTION_INCOMPLETE_EXPIRE_MINUTES: "0" })).rejects.toThrow();
+  });
 });

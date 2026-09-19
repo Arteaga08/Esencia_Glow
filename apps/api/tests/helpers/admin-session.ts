@@ -52,7 +52,7 @@ async function createCustomerSession(app: Express) {
   const email = `customer-${Date.now()}-${Math.random()}@example.com`;
   const password = "Contrasena1";
 
-  await User.create({
+  const customer = await User.create({
     email,
     password,
     firstName: "Cliente",
@@ -64,7 +64,7 @@ async function createCustomerSession(app: Express) {
   const agent = request.agent(app);
   await agent.post("/api/v1/auth/login").send({ email, password });
 
-  return { agent, email };
+  return { agent, email, userId: customer._id.toString() };
 }
 
 export { createAdminSession, createCustomerSession, enableAdminTwoFactor };

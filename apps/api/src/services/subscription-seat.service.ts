@@ -132,7 +132,14 @@ async function startSubscription(
           seatHeldAt: now,
           cancelAtPeriodEnd: false,
         },
-        $unset: { canceledAt: 1, cancelRequestedAt: 1, cancelReason: 1 },
+        // `providerSubscriptionId` se limpia (hallazgo de code review de la
+        // Fase 4): dejar el ref de la suscripción VIEJA de Stripe en un
+        // documento `INCOMPLETE` abre una ventana donde un webhook tardío de
+        // esa suscripción cancelada (`locateAccountForEvent` la encuentra por
+        // ese ref) puede mover el estado ANTES de que 1.7.2a Fase 4 persista
+        // el ref de la suscripción NUEVA — `providerCustomerId` sí se
+        // conserva a propósito (mismo Customer de Stripe, decisión del plan).
+        $unset: { canceledAt: 1, cancelRequestedAt: 1, cancelReason: 1, providerSubscriptionId: 1 },
         $push: { statusHistory: { $each: [historyEntry], $slice: -MAX_SUBSCRIPTION_STATUS_HISTORY } },
       },
       { new: true, session: s },

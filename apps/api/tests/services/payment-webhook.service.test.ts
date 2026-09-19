@@ -486,10 +486,15 @@ describe("services/payment-webhook — processPaymentWebhook", () => {
   /**
    * Bifurcación por `kind` (Milestone 1.7.2a §B): un evento de suscripción
    * nunca llega al switch de pagos (ambos switches son exhaustivos y no se
-   * conocen entre sí). Hoy se completa `ignored` — placeholder de Fase 2, la
-   * Fase 3 lo reemplaza con los 4 handlers reales.
+   * conocen entre sí). Los 4 handlers reales (Fase 3) tienen su propia suite
+   * completa en subscription-webhook-handlers.test.ts — este caso solo
+   * confirma la bifurcación en sí: el evento entra por el camino de
+   * suscripciones, no por `dispatchPaymentEvent`. Sin cuenta que lo
+   * respalde, el handler devuelve `rejected "account_not_found"` (`failed`,
+   * nunca `ignored`: el evento sí se entendió, solo no hay a quién
+   * aplicarlo).
    */
-  it("un evento de suscripción se completa como 'ignored', nunca pasa por el switch de pagos", async () => {
+  it("un evento de suscripción se despacha por su propio switch (nunca por el de pagos): sin cuenta, failed 'account_not_found'", async () => {
     const provider = buildFakePaymentProvider();
     const event = {
       kind: "subscription.invoice_paid" as const,
@@ -507,6 +512,7 @@ describe("services/payment-webhook — processPaymentWebhook", () => {
     await expect(processPaymentWebhook(event, provider)).resolves.toBeUndefined();
 
     const storedEvent = await PaymentEvent.findOne({ eventId: event.eventId });
-    expect(storedEvent?.status).toBe("ignored");
+    expect(storedEvent?.status).toBe("failed");
+    expect(storedEvent?.error).toBe("account_not_found");
   });
 });

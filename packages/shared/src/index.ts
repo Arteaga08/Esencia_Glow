@@ -120,3 +120,4 @@ export {
   SUBSCRIPTION_ANCHOR_GAP_DAYS,
 } from "./constants/subscriptions.js";
 export { SUBSCRIPTION_STATUS_LABELS } from "./constants/subscription-labels.js";
+export type { StartSubscriptionResult } from "./types/subscription.js";
