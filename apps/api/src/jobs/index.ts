@@ -3,6 +3,7 @@ import { releaseExpiredReservations } from "./release-expired-reservations.js";
 import { refreshBundleStockCaches } from "./refresh-bundle-stock-cache.js";
 import { cancelExpiredOrders } from "./cancel-expired-orders.js";
 import { reconcilePendingPayments } from "./reconcile-pending-payments.js";
+import { expireIncompleteSubscriptions } from "./expire-incomplete-subscriptions.js";
 import { getSettings } from "../services/settings.service.js";
 import { env } from "../config/env.js";
 import { logger } from "../config/logger.js";
@@ -35,6 +36,11 @@ import { logger } from "../config/logger.js";
  * de fallos: si `releaseExpiredReservations` rechaza, `Bundle.stockCache`
  * (una caché de display) no tiene por qué dejar de refrescarse ese tick.
  *
+ * `expireIncompleteSubscriptions` (Milestone 1.7.2a, Fase 5) es igual de
+ * independiente: cuentas de suscripción, no órdenes/inventario, así que
+ * arranca en paralelo con `refreshBundleStockCaches`/`reconcilePendingPayments`,
+ * nunca encadenada detrás de la cadena reserva->orden.
+ *
  * Nunca se monta en `buildApp()`: ningún test de supertest debe levantar
  * timers de cron.
  */
@@ -59,10 +65,16 @@ function startCronJobs(): void {
         undefined,
         env.paymentReconcileAfterMinutes,
       );
+      const expireSubscriptionsSummaryPromise = expireIncompleteSubscriptions(
+        new Date(),
+        env.subscriptionIncompleteExpireMinutes,
+        settings.inventory.sweepBatchSize,
+      );
       const reservationSummary = await releaseExpiredReservations(new Date(), settings.inventory.sweepBatchSize);
       const orderSummary = await cancelExpiredOrders(new Date(), settings.inventory.sweepBatchSize);
       const bundleSummary = await bundleSummaryPromise;
       const reconcileSummary = await reconcileSummaryPromise;
+      const expireSubscriptionsSummary = await expireSubscriptionsSummaryPromise;
       if (reservationSummary.released > 0 || reservationSummary.failed > 0) {
         logger.info(reservationSummary, "Barrido de reservas vencidas");
       }
@@ -74,6 +86,9 @@ function startCronJobs(): void {
       }
       if (bundleSummary.updated > 0 || bundleSummary.failed > 0) {
         logger.info(bundleSummary, "Refresco de stockCache de bundles");
+      }
+      if (expireSubscriptionsSummary.expired > 0 || expireSubscriptionsSummary.failed > 0) {
+        logger.info(expireSubscriptionsSummary, "Barrido de suscripciones incompletas vencidas");
       }
     },
     { noOverlap: true, name: "release-expired-reservations" },

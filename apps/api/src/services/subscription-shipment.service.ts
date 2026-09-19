@@ -8,6 +8,7 @@ import { isDuplicateKeyError } from "../utils/duplicate-key-error.js";
 import { withTransaction } from "../utils/with-transaction.js";
 import { resolveCycleFromDate } from "../utils/resolve-cycle.js";
 import { recordAudit } from "./audit.service.js";
+import { sendSubscriptionAdminIncidentEmail } from "./subscription-email.service.js";
 
 /**
  * `createCycleShipment` — la transacción de la caja del ciclo (Fase 3 de
@@ -159,12 +160,24 @@ async function createCycleShipment(input: CreateCycleShipmentInput): Promise<Cre
         targetId: shipment._id,
         metadata: { planId: input.planId.toString(), cycleYear, cycleMonth },
       });
+      void sendSubscriptionAdminIncidentEmail({
+        shipmentId: shipment._id.toString(),
+        reason: "edition_missing",
+        cycleYear,
+        cycleMonth,
+      });
     }
     if (shipment.inventoryIncident) {
       await recordAudit({
         action: SubscriptionAction.SHIPMENT_INVENTORY_SHORTAGE,
         targetId: shipment._id,
         metadata: { cycleYear, cycleMonth },
+      });
+      void sendSubscriptionAdminIncidentEmail({
+        shipmentId: shipment._id.toString(),
+        reason: "inventory_shortage",
+        cycleYear,
+        cycleMonth,
       });
     }
 
@@ -198,6 +211,12 @@ async function createCycleShipment(input: CreateCycleShipmentInput): Promise<Cre
           action: SubscriptionAction.SUBSCRIPTION_DUPLICATE_CYCLE_INVOICE,
           targetId: byCycle._id,
           metadata: { invoiceId: input.invoiceRef, accountId: input.accountId.toString() },
+        });
+        void sendSubscriptionAdminIncidentEmail({
+          shipmentId: byCycle._id.toString(),
+          reason: "duplicate_cycle_invoice",
+          cycleYear,
+          cycleMonth,
         });
       }
       return { outcome: "duplicate_cycle", shipment: sealed ?? byCycle };

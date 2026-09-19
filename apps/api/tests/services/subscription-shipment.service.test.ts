@@ -1,5 +1,5 @@
 import { Types } from "mongoose";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { SubscriptionStatus } from "@esencia-glow/shared";
 import { AuditLog } from "../../src/models/audit-log.model.js";
 import { Inventory } from "../../src/models/inventory.model.js";
@@ -8,6 +8,9 @@ import { SubscriptionEdition } from "../../src/models/subscription-edition.model
 import { SubscriptionShipment } from "../../src/models/subscription-shipment.model.js";
 import { StockReservation } from "../../src/models/stock-reservation.model.js";
 import { createCycleShipment } from "../../src/services/subscription-shipment.service.js";
+import { __setMailProviderForTests } from "../../src/services/mail-provider.js";
+import { __setAdminAlertEmailForTests } from "../../src/services/subscription-email.service.js";
+import { buildFakeMailProvider } from "../helpers/fake-mail-provider.js";
 import {
   seedPlanWithStripeRefs,
   seedPublishedEdition,
@@ -26,6 +29,10 @@ import {
 const MID_SEPTEMBER_UTC = new Date("2026-09-15T12:00:00Z");
 
 describe("services/subscription-shipment — createCycleShipment", () => {
+  afterEach(() => {
+    __setAdminAlertEmailForTests(undefined);
+  });
+
   it("caso feliz: crea la caja, reserva el inventario de la edición, sella firstBilledAt, sin StockReservation", async () => {
     const plan = await seedPlanWithStripeRefs();
     const { product, variantId } = await seedSubscriptionVariantWithStock({ onHand: 10 });
@@ -146,6 +153,27 @@ describe("services/subscription-shipment — createCycleShipment", () => {
     expect(audit).not.toBeNull();
   });
 
+  it("editionIncident con ADMIN_ALERT_EMAIL configurada -> alerta al admin por correo", async () => {
+    __setAdminAlertEmailForTests("admin-alerts@example.com");
+    const fake = buildFakeMailProvider();
+    __setMailProviderForTests(fake);
+
+    const plan = await seedPlanWithStripeRefs();
+    const account = await seedSubscribedAccount({ planId: plan._id.toString(), status: SubscriptionStatus.ACTIVE });
+
+    const result = await createCycleShipment({
+      accountId: account._id,
+      userId: account.userId,
+      planId: account.planId,
+      invoiceRef: "in_no_edition_email",
+      servicePeriodStart: MID_SEPTEMBER_UTC,
+    });
+
+    expect(fake.calls).toHaveLength(1);
+    expect(fake.calls[0]!.to).toBe("admin-alerts@example.com");
+    expect(fake.calls[0]!.idempotencyKey).toBe(`subscription-shipment-${result.shipment._id.toString()}-incident`);
+  });
+
   it("inventario insuficiente para 1 de 2 ítems: caja creada, inventoryIncident, se reserva lo que sí alcanza, sin throw", async () => {
     const plan = await seedPlanWithStripeRefs();
     const enough = await seedSubscriptionVariantWithStock({ onHand: 5 });
@@ -184,6 +212,34 @@ describe("services/subscription-shipment — createCycleShipment", () => {
       targetId: result.shipment._id,
     });
     expect(audit).not.toBeNull();
+  });
+
+  it("inventoryIncident con ADMIN_ALERT_EMAIL configurada -> alerta al admin por correo", async () => {
+    __setAdminAlertEmailForTests("admin-alerts@example.com");
+    const fake = buildFakeMailProvider();
+    __setMailProviderForTests(fake);
+
+    const plan = await seedPlanWithStripeRefs();
+    const short = await seedSubscriptionVariantWithStock({ onHand: 0 });
+    await seedPublishedEdition({
+      planId: plan._id.toString(),
+      cycleYear: 2026,
+      cycleMonth: 9,
+      items: [{ productId: short.product._id.toString(), variantId: short.variantId.toString(), quantity: 1 }],
+    });
+    const account = await seedSubscribedAccount({ planId: plan._id.toString(), status: SubscriptionStatus.ACTIVE });
+
+    const result = await createCycleShipment({
+      accountId: account._id,
+      userId: account.userId,
+      planId: account.planId,
+      invoiceRef: "in_shortage_email",
+      servicePeriodStart: MID_SEPTEMBER_UTC,
+    });
+
+    expect(fake.calls).toHaveLength(1);
+    expect(fake.calls[0]!.to).toBe("admin-alerts@example.com");
+    expect(fake.calls[0]!.idempotencyKey).toBe(`subscription-shipment-${result.shipment._id.toString()}-incident`);
   });
 
   it("una variante de la edición sin fila de Inventory (alta híbrida sin stock inicial) se trata igual que un faltante, sin throw", async () => {
@@ -298,6 +354,47 @@ describe("services/subscription-shipment — createCycleShipment", () => {
     });
     expect(audit).not.toBeNull();
     expect(audit?.metadata?.invoiceId).toBe("in_intruso");
+  });
+
+  it("factura DISTINTA para un ciclo ya facturado, con ADMIN_ALERT_EMAIL configurada -> alerta al admin por correo (posible doble cobro)", async () => {
+    __setAdminAlertEmailForTests("admin-alerts@example.com");
+    const fake = buildFakeMailProvider();
+    __setMailProviderForTests(fake);
+
+    const plan = await seedPlanWithStripeRefs();
+    const { product, variantId } = await seedSubscriptionVariantWithStock({ onHand: 10 });
+    await seedPublishedEdition({
+      planId: plan._id.toString(),
+      cycleYear: 2026,
+      cycleMonth: 9,
+      items: [{ productId: product._id.toString(), variantId: variantId.toString(), quantity: 2 }],
+    });
+    const account = await seedSubscribedAccount({ planId: plan._id.toString(), status: SubscriptionStatus.ACTIVE });
+
+    const first = await createCycleShipment({
+      accountId: account._id,
+      userId: account.userId,
+      planId: account.planId,
+      invoiceRef: "in_original_email",
+      servicePeriodStart: MID_SEPTEMBER_UTC,
+    });
+    // La primera caja sale SIN incidente (edición publicada, stock
+    // suficiente) — `adminAlertedAt` sigue libre para que el duplicado sea
+    // quien lo selle.
+    expect(fake.calls).toHaveLength(0);
+
+    const second = await createCycleShipment({
+      accountId: account._id,
+      userId: account.userId,
+      planId: account.planId,
+      invoiceRef: "in_intruso_email",
+      servicePeriodStart: MID_SEPTEMBER_UTC,
+    });
+
+    expect(second.outcome).toBe("duplicate_cycle");
+    expect(fake.calls).toHaveLength(1);
+    expect(fake.calls[0]!.to).toBe("admin-alerts@example.com");
+    expect(fake.calls[0]!.idempotencyKey).toBe(`subscription-shipment-${first.shipment._id.toString()}-incident`);
   });
 
   it("firstBilledAt ya sellada por otra cuenta del mismo plan/ciclo: no se re-sella (misma fecha)", async () => {

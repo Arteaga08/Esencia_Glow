@@ -7,8 +7,11 @@ import { PaymentEvent } from "../../src/models/payment-event.model.js";
 import { SubscriptionAccount } from "../../src/models/subscription-account.model.js";
 import { SubscriptionPlan } from "../../src/models/subscription-plan.model.js";
 import { SubscriptionShipment } from "../../src/models/subscription-shipment.model.js";
+import { User } from "../../src/models/user.model.js";
 import { processPaymentWebhook } from "../../src/services/payment-webhook.service.js";
+import { __setMailProviderForTests } from "../../src/services/mail-provider.js";
 import { buildFakePaymentProvider } from "../helpers/fake-payment-provider.js";
+import { buildFakeMailProvider } from "../helpers/fake-mail-provider.js";
 import {
   invoicePaidEvent,
   paymentFailedEvent,
@@ -453,5 +456,112 @@ describe("subscription-webhook-handlers — customer.subscription.deleted (cance
     expect(storedEvent?.status).toBe("ignored");
     const reloaded = await SubscriptionAccount.findById(account._id);
     expect(reloaded?.status).toBe(SubscriptionStatus.PAUSED);
+  });
+});
+
+/** Correos del webhook de Billing (Fase 5 de 1.7.2a) — solo verifica QUE se
+ * disparen desde el handler correcto con los datos del evento; el copy y
+ * las `Idempotency-Key` ya están cubiertos en `subscription-email.service.test.ts`. */
+describe("subscription-webhook-handlers — correos", () => {
+  async function seedUserFor(account: { userId: Types.ObjectId }): Promise<void> {
+    await User.create({
+      _id: account.userId,
+      email: `${account.userId.toString()}@example.com`,
+      password: "P4ssword!!",
+      firstName: "Ana",
+      lastName: "Pérez",
+      emailVerified: true,
+    });
+  }
+
+  it("invoice.paid procesado -> confirma el cobro a la clienta", async () => {
+    const { account } = await seedActiveAccountWithEdition();
+    await seedUserFor(account);
+    const fake = buildFakeMailProvider();
+    __setMailProviderForTests(fake);
+
+    const event = invoicePaidEvent({ subscriptionRef: account.providerSubscriptionId!, amountPaidCents: 59900 });
+    await processPaymentWebhook(event, provider);
+
+    expect(fake.calls).toHaveLength(1);
+    expect(fake.calls[0]!.subject.toLowerCase()).toContain("cobro");
+    expect(fake.calls[0]!.idempotencyKey).toBe(`subscription-${account._id.toString()}-invoice-${event.invoiceRef}`);
+  });
+
+  it("invoice.paid fuera de orden (factura VIEJA procesada DESPUÉS de una más nueva) -> el correo muestra el período vigente real, no el de la factura vieja", async () => {
+    const { account } = await seedActiveAccountWithEdition();
+    await seedUserFor(account);
+    const octoberEnd = new Date("2026-10-15T12:00:00Z");
+    const novemberEnd = new Date("2026-11-15T12:00:00Z");
+
+    // Llega primero la factura MÁS NUEVA (noviembre) — deja currentPeriodEnd
+    // en noviembre. `recordPaidInvoice` es monotónico: la guarda rechaza
+    // pisarlo con algo más viejo.
+    await processPaymentWebhook(
+      invoicePaidEvent({
+        subscriptionRef: account.providerSubscriptionId!,
+        invoiceRef: "in_november",
+        servicePeriodStart: octoberEnd,
+        servicePeriodEnd: novemberEnd,
+      }),
+      provider,
+    );
+
+    const fake = buildFakeMailProvider();
+    __setMailProviderForTests(fake);
+
+    // Reentrega tardía de la factura VIEJA (octubre) — sigue siendo
+    // `processed` (un evento nuevo, `eventId` distinto), pero NO debe
+    // pisar el período ni mostrarle a la clienta una fecha de vigencia ya
+    // superada.
+    await processPaymentWebhook(
+      invoicePaidEvent({
+        subscriptionRef: account.providerSubscriptionId!,
+        invoiceRef: "in_october_late",
+        servicePeriodStart: SEPTEMBER_UTC,
+        servicePeriodEnd: octoberEnd,
+      }),
+      provider,
+    );
+
+    const reloaded = await SubscriptionAccount.findById(account._id);
+    expect(reloaded?.currentPeriodEnd?.toISOString()).toBe(novemberEnd.toISOString());
+
+    expect(fake.calls).toHaveLength(1);
+    expect(fake.calls[0]!.html).toContain("15 de noviembre de 2026");
+    expect(fake.calls[0]!.html).not.toContain("15 de octubre de 2026");
+  });
+
+  it("invoice.payment_failed procesado -> envía dunning a la clienta", async () => {
+    const { account, subscriptionRef } = await seedActiveAccountWithEdition();
+    await seedUserFor(account);
+    const fake = buildFakeMailProvider();
+    __setMailProviderForTests(fake);
+
+    const event = paymentFailedEvent({ subscriptionRef, attemptCount: 1 });
+    await processPaymentWebhook(event, provider);
+
+    expect(fake.calls).toHaveLength(1);
+    expect(fake.calls[0]!.subject.toLowerCase()).toContain("pago");
+    expect(fake.calls[0]!.idempotencyKey).toBe(
+      `subscription-${account._id.toString()}-dunning-${event.invoiceRef}-1`,
+    );
+  });
+
+  it("invoice.payment_failed IGNORADO (sobre INCOMPLETE) -> no envía dunning", async () => {
+    const plan = await seedPlanWithStripeRefs();
+    const subscriptionRef = `sub_${new Types.ObjectId().toString()}`;
+    const account = await seedSubscribedAccount({
+      planId: plan._id.toString(),
+      status: SubscriptionStatus.INCOMPLETE,
+      providerSubscriptionId: subscriptionRef,
+    });
+    await seedUserFor(account);
+    const fake = buildFakeMailProvider();
+    __setMailProviderForTests(fake);
+
+    await processPaymentWebhook(paymentFailedEvent({ subscriptionRef, attemptCount: 1 }), provider);
+
+    expect(fake.calls).toHaveLength(0);
   });
 });

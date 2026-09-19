@@ -35,6 +35,10 @@ enum SubscriptionAction {
   SUBSCRIPTION_ENROLLMENT_CLOSED = "subscription_enrollment_closed",
   SHIPMENT_CREATED = "subscription_shipment_created",
   SHIPMENT_INVENTORY_SHORTAGE = "subscription_shipment_inventory_shortage",
+  /** Conectada en la Fase 5 de 1.7.2a: el barrendero
+   * `jobs/expire-incomplete-subscriptions.ts` libera el cupo de una cuenta
+   * `INCOMPLETE` cuyo 3DS/checkout nunca se completó. */
+  SUBSCRIPTION_INCOMPLETE_EXPIRED = "subscription_incomplete_expired",
 }
 
 export { SubscriptionAction };

@@ -4,6 +4,7 @@ import { SubscriptionAccount, type SubscriptionAccountDocument } from "../models
 import { recordAudit } from "./audit.service.js";
 import { applySystemStatus, recordPaidInvoice, recordPaymentFailure } from "./subscription-billing.service.js";
 import { createCycleShipment } from "./subscription-shipment.service.js";
+import { sendSubscriptionPaymentConfirmedEmail, sendSubscriptionDunningEmail } from "./subscription-email.service.js";
 import { canActorTransition } from "./subscription-state.js";
 import type { HandlerOutcome } from "./payment-event-handlers.js";
 import type { ProviderSubscriptionStatus, SubscriptionWebhookEvent } from "./subscription-provider.js";
@@ -152,6 +153,24 @@ async function handleInvoicePaid(event: InvoicePaidEvent): Promise<HandlerOutcom
     await recordAudit({ action: SubscriptionAction.SUBSCRIPTION_RENEWED, targetId: account._id });
   }
 
+  // Confirmación de cada cobro exitoso (decisión 7 del plan) — best-effort,
+  // fire-and-forget, con su propia `Idempotency-Key` por `invoiceRef` (nunca
+  // bloquea la respuesta al webhook). El período que se muestra es el que
+  // `recordPaidInvoice` DEJÓ vigente, no `event.servicePeriodEnd` a ciegas:
+  // Stripe no garantiza el orden de entrega, así que una factura VIEJA
+  // procesada después de una más nueva no debe anunciarle a la clienta una
+  // fecha de vigencia que ya quedó atrás (la guarda monotónica de
+  // `recordPaidInvoice` ya rechazó escribirla).
+  const currentAccount = await SubscriptionAccount.findById(account._id).select("currentPeriodEnd");
+  void sendSubscriptionPaymentConfirmedEmail({
+    accountId,
+    userId: account.userId,
+    invoiceRef: event.invoiceRef,
+    amountPaidCents: event.amountPaidCents,
+    currency: event.currency,
+    periodEnd: currentAccount?.currentPeriodEnd ?? event.servicePeriodEnd,
+  });
+
   return { status: "processed", accountId };
 }
 
@@ -175,6 +194,15 @@ async function handlePaymentFailed(event: PaymentFailedEvent): Promise<HandlerOu
   const accountId = account._id.toString();
   await applySystemStatus(account, SubscriptionStatus.PAST_DUE);
   await recordPaymentFailure(accountId, event.attemptCount);
+
+  // Dunning a la clienta (decisión 7 del plan) — best-effort, con su propia
+  // `Idempotency-Key` por `invoiceRef`+`attemptCount`.
+  void sendSubscriptionDunningEmail({
+    accountId,
+    userId: account.userId,
+    invoiceRef: event.invoiceRef,
+    attemptCount: event.attemptCount,
+  });
 
   return { status: "processed", accountId };
 }

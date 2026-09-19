@@ -112,6 +112,12 @@ function buildEnv() {
     stripeWebhookToleranceSeconds: readPositiveInt("STRIPE_WEBHOOK_TOLERANCE_SECONDS", 300),
     paymentReconcileAfterMinutes: readPositiveInt("PAYMENT_RECONCILE_AFTER_MINUTES", 10),
 
+    // Suscripciones (Milestone 1.7.2a): minutos tras reclamar el cupo antes
+    // de que el barrendero libere una cuenta `INCOMPLETE` que nunca completó
+    // el alta con Stripe (§E del plan) — red de seguridad si la compensación
+    // en línea del endpoint de alta falla.
+    subscriptionIncompleteExpireMinutes: readPositiveInt("SUBSCRIPTION_INCOMPLETE_EXPIRE_MINUTES", 30),
+
     // Integraciones puramente operativas/de notificación: opcionales siempre,
     // incluso en producción. Su ausencia se degrada a loguear, nunca a bloquear.
     telegramBotToken: process.env.TELEGRAM_BOT_TOKEN,

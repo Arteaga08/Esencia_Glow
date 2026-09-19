@@ -48,12 +48,13 @@ ignora cualquier `.env`/`.env.*` real y re-permite explícitamente los `.example
 | `STRIPE_WEBHOOK_SECRET` | Fail-fast en producción | Verificación de firma del webhook de Stripe |
 | `STRIPE_WEBHOOK_TOLERANCE_SECONDS` | Con default, fail-fast si es inválida | Tolerancia de timestamp del webhook (anti-replay). Default `300` (5 min). Debe ser un entero positivo — `0` o negativo no arranca el server |
 | `PAYMENT_RECONCILE_AFTER_MINUTES` | Con default, fail-fast si es inválida | Umbral del reconciliador: cuánto espera un pedido `pending` con PaymentIntent antes de que el cron le pregunte a Stripe. Default `10`, mismo criterio de entero positivo |
-| `RESEND_API_KEY` | Fail-fast en producción | Correo transaccional (verificación de email, reset) |
+| `SUBSCRIPTION_INCOMPLETE_EXPIRE_MINUTES` | Con default, fail-fast si es inválida | Milestone 1.7.2a: minutos tras reclamar el cupo antes de que el cron libere una cuenta de suscripción `INCOMPLETE` sin `providerSubscriptionId`. Default `30`, mismo criterio de entero positivo |
+| `RESEND_API_KEY` | Fail-fast en producción | Correo transaccional (verificación de email, reset, pedidos, suscripciones) |
 | `RESEND_FROM_EMAIL` | Con default | Remitente. Default `onboarding@resend.dev` (sandbox); en producción requiere dominio verificado en Resend |
 | `ACCESS_TOKEN_TTL` | Con default | Vida del JWT de acceso. Default `15m` |
 | `REFRESH_TOKEN_TTL_DAYS` | Con default | Vida del refresh token (revocable, hasheado en DB). Default `30` |
 | `TELEGRAM_BOT_TOKEN` | Opcional, siempre | Alertas operativas. Su ausencia degrada a loguear |
-| `ADMIN_ALERT_EMAIL` | Opcional, siempre | Canal secundario de alerta operativa |
+| `ADMIN_ALERT_EMAIL` | Opcional, siempre | Milestone 1.7.2a: destino de la alerta por correo cuando la caja de un ciclo sale con edición o inventario faltante. Sin configurar, se degrada a loguear |
 | `SENTRY_DSN` | Opcional, siempre | Error tracking. Su ausencia no bloquea nada |
 | `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` / `SEED_ADMIN_ROLE` | Opcional, siempre | Solo los lee `pnpm --filter @esencia-glow/api seed:admin`, nunca el server |
 | `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` | Fail-fast en producción | `uploadService` (Milestone 1.3). En dev, su ausencia hace que los endpoints de imagen respondan `503` |
@@ -225,7 +226,86 @@ un producto, todos de canal `subscription`, activos y con variante activa; publi
 delete de una variante usada por una edición **publicada** (una en `draft` sigue siendo editable
 libremente).
 
-## Checkout — header `Idempotency-Key` (Milestone 1.5)
+## Suscripciones — Stripe Billing (Milestone 1.7.2a)
+
+Cierra el hueco que dejó 1.7.1 (cimientos, cero Stripe): conecta el módulo a Stripe Billing de
+punta a punta — alta de la clienta, webhook de renovación/dunning/cancelación, la caja de cada
+ciclo con su inventario reservado, y los correos + el barrendero que cierran el milestone. Al
+terminar, una clienta puede suscribirse, se le cobra cada mes en una fecha regular, y cada cobro
+produce una caja con los productos de la edición apartados a su nombre.
+
+**Precio de plan inmutable, creado con el plan.** `createPlan` sincroniza Product+Price en Stripe
+**antes** de insertar el documento local — un plan sin refs es inservible; un Product/Price
+huérfano en Stripe por un fallo posterior es inofensivo y reutilizable. El precio **no se edita
+nunca**: `PATCH` de un plan no acepta `priceCents`. Cambiar de precio = crear un plan nuevo y
+desactivar el viejo (`DELETE /admin/subscription-plans/:id`, `isActive: false` — también el
+interruptor de emergencia para cerrar altas de inmediato).
+
+**Ventana de inscripciones manual** (`POST /api/v1/admin/subscriptions/enrollment/{open,close}`,
+solo admin): la admin abre y cierra las altas a mano — sustituye a una ventana de gracia. Abrir
+toma `durationDays` (default 15) y deriva `enrollmentClosesAt`; `assertWindowClearOfAnchor` rechaza
+(409) abrir una ventana que cierre a menos de `SUBSCRIPTION_ANCHOR_GAP_DAYS` (7 días) del próximo
+`billingAnchorDay` — única defensa real contra el doble cargo en días consecutivos. La ventana
+controla **solo altas nuevas**: las renovaciones siguen cobrándose en el ancla aunque esté cerrada.
+
+**Alta** (`POST /api/v1/subscriptions`, `{planId, termsAccepted}`, `subscribeRateLimiter` 10/15
+min): el **cupo se reclama primero, Stripe después** — es el recurso escaso, y reclamarlo primero
+garantiza cero `Customer`/`Subscription` huérfanos por plan lleno. `Customer` + `Subscription` con
+`payment_behavior: "default_incomplete"`, tarjeta únicamente (nunca OXXO, no es guardable),
+`billing_cycle_anchor_config` + `proration_behavior: "none"` + `add_invoice_items` (primera factura
+por el precio **completo** del ciclo en curso, no prorrateado). Responde `clientSecret` +
+`firstChargeCents` + `currency` + `nextChargeAt` para que el front confirme la tarjeta — ninguna
+noción de "activa": eso lo decide solo el webhook. Si Stripe falla **después** de reclamar el cupo,
+se compensa (`INCOMPLETE -> CANCELED`, libera el cupo) y se relanza el error original; nada se
+cancela en Stripe (con `default_incomplete` la suscripción muere sola en ~23h).
+
+**Webhook — 4 eventos nuevos de Billing** suman a los 7 de pagos (Milestone 1.6.2), **11 en
+total**, mismo endpoint (`POST /api/v1/webhooks/stripe`) y misma colección de dedupe
+(`PaymentEvent`): `invoice.paid`, `invoice.payment_failed`, `customer.subscription.updated`,
+`customer.subscription.deleted`. `invoice.payment_action_required` **no se suscribe** — con
+`default_incomplete` el 3DS del alta lo resuelve el Payment Element en sesión, y en una renovación
+off-session el mismo hecho ya llega por `customer.subscription.updated -> past_due`. Alta y
+renovación producen el **mismo** evento (`invoice.paid`): la diferencia se deriva del estado de la
+cuenta en nuestra base, nunca del evento — la única fuente correcta cuando Stripe entrega fuera de
+orden.
+
+**La caja del ciclo**: cada `invoice.paid` crea (o reentrega idempotente de) un `SubscriptionShipment`
+con `Inventory.reserved` subido por cada ítem de la edición del ciclo — **reserva al cobrar, salida
+al enviar** (la baja de `onHand` es 1.7.2b). Un faltante **nunca rechaza nada**: el cobro ya
+ocurrió, se reserva lo que sí hay, se sella el incidente y se alerta al admin. Los dos índices
+únicos de la caja fallan por razones distintas: `{invoiceId}` duplicado es una reentrega (éxito
+idempotente, sin alertar); `{accountId, cycleYear, cycleMonth}` duplicado con un `invoiceId`
+distinto es una anomalía de negocio (se sella la alerta una sola vez, se audita, se procesa igual —
+nunca se rechaza un cobro que ya ocurrió).
+
+**Correos** (Fase 5, `subscription-email.service.ts`, mismo shell `renderTransactionalEmail` que
+Milestone 1.6.3): confirmación a la clienta de **cada cobro exitoso** (`Idempotency-Key` por
+`invoiceRef`, dispara junto con la caja del ciclo), dunning a la clienta cuando falla un cobro
+(`Idempotency-Key` por `invoiceRef`+intento), y alerta al admin cuando la caja sale con
+`editionIncident`/`inventoryIncident` (`ADMIN_ALERT_EMAIL`, opcional incluso en producción — sin
+configurar, se degrada a loguear). Los tres son best-effort: nunca bloquean ni revierten el efecto
+de negocio que los disparó.
+
+**Barrendero de altas abandonadas** (`jobs/expire-incomplete-subscriptions.ts`, mismo tick de cron
+que los demás, `SUBSCRIPTION_INCOMPLETE_EXPIRE_MINUTES` = 30 min): red de seguridad para el caso "el
+proceso murió entre reclamar el cupo y compensar" en el endpoint de alta. Filtro
+`{status: INCOMPLETE, providerSubscriptionId: {$exists: false}, seatHeldAt: {$lt: umbral}}` — el
+`$exists: false` es la guarda crítica: **jamás toca** una cuenta esperando el 3DS de la clienta (esa
+sí tiene `providerSubscriptionId`, persistido antes de devolver el `clientSecret`).
+
+**Verificación manual contra Stripe real** (los tipos de la SDK confirman que los parámetros
+existen y son combinables, no la semántica de facturación):
+
+```
+stripe listen --forward-to localhost:4000/api/v1/webhooks/stripe
+stripe trigger invoice.paid
+stripe trigger invoice.payment_failed
+```
+
+Confirmar que la primera factura de una alta real cobra el precio **completo** del ciclo en curso y
+que el siguiente cobro cae exactamente en `billingAnchorDay`.
+
+## Suscripciones — cimientos (Milestone 1.7.1)
 
 `POST /api/v1/orders` **exige** el header `Idempotency-Key` (UUID v4). Contrato para el
 cliente (front, Milestone 2):
@@ -242,12 +322,14 @@ cliente (front, Milestone 2):
   `orderId` del pendiente (`errors.orderId`) — un cliente solo puede tener un checkout abierto
   a la vez.
 
-## Cron (Milestone 1.4 + 1.5 + 1.6.1)
+## Cron (Milestone 1.4 + 1.5 + 1.6.1 + 1.7.2a)
 
 Un solo `node-cron` corre cada minuto (`jobs/index.ts`, nunca montado en `buildApp()`): libera
 reservas de stock vencidas, cierra pedidos `pending` vencidos (Stripe-first, ver arriba),
-reconcilia pagos pendientes sin webhook y refresca `Bundle.stockCache`. Todas las operaciones son
-idempotentes por documento — seguro correr varias instancias de la API sin lock distribuido.
+reconcilia pagos pendientes sin webhook, refresca `Bundle.stockCache` y libera cuentas de
+suscripción `INCOMPLETE` abandonadas (ver arriba, §"Suscripciones — Stripe Billing"). Todas las
+operaciones son idempotentes por documento — seguro correr varias instancias de la API sin lock
+distribuido.
 
 ## Runbook de deploy (referencia — se completa en Milestone 1.10)
 
