@@ -170,20 +170,51 @@ describe("services/subscription-billing — recordPaymentFailure", () => {
     const plan = await seedPlanWithStripeRefs();
     const account = await seedSubscribedAccount({ planId: plan._id.toString(), status: SubscriptionStatus.ACTIVE });
 
-    await recordPaymentFailure(account._id.toString(), 1);
+    await recordPaymentFailure(account._id.toString(), 1, "in_misma");
     const first = await SubscriptionAccount.findById(account._id);
     expect(first?.dunningAttempts).toBe(1);
     expect(first?.pastDueSince).toBeInstanceOf(Date);
     const firstPastDueSince = first!.pastDueSince!.getTime();
 
-    await recordPaymentFailure(account._id.toString(), 1);
+    await recordPaymentFailure(account._id.toString(), 1, "in_misma");
     const replayed = await SubscriptionAccount.findById(account._id);
     expect(replayed?.dunningAttempts).toBe(1);
     expect(replayed?.pastDueSince?.getTime()).toBe(firstPastDueSince);
 
-    await recordPaymentFailure(account._id.toString(), 2);
+    await recordPaymentFailure(account._id.toString(), 2, "in_misma");
     const second = await SubscriptionAccount.findById(account._id);
     expect(second?.dunningAttempts).toBe(2);
     expect(second?.pastDueSince?.getTime()).toBe(firstPastDueSince);
+  });
+});
+
+describe("services/subscription-billing — recordPaymentFailure entre facturas", () => {
+  it("una factura NUEVA reinicia el contador aunque la anterior hubiera llegado más alto", async () => {
+    // `attempt_count` de Stripe es por FACTURA: reinicia en 1 cada ciclo. Una
+    // guarda monotónica sobre el número suelto descartaría los primeros
+    // intentos del ciclo siguiente tras una factura que murió en el 3.º.
+    const plan = await seedPlanWithStripeRefs();
+    const account = await seedSubscribedAccount({ planId: plan._id.toString(), status: SubscriptionStatus.ACTIVE });
+
+    await recordPaymentFailure(account._id.toString(), 3, "in_ciclo_1");
+    await recordPaymentFailure(account._id.toString(), 1, "in_ciclo_2");
+
+    const reloaded = await SubscriptionAccount.findById(account._id);
+    expect(reloaded?.dunningAttempts).toBe(1);
+  });
+});
+
+describe("services/subscription-billing — recordPaymentFailure fuera de orden", () => {
+  it("no baja dunningAttempts cuando llega un intento VIEJO después de uno más nuevo", async () => {
+    const plan = await seedPlanWithStripeRefs();
+    const account = await seedSubscribedAccount({ planId: plan._id.toString(), status: SubscriptionStatus.ACTIVE });
+
+    await recordPaymentFailure(account._id.toString(), 3, "in_misma");
+    // Stripe no garantiza el orden de entrega: el `payment_failed` del
+    // intento 1 puede llegar DESPUÉS del intento 3.
+    await recordPaymentFailure(account._id.toString(), 1, "in_misma");
+
+    const reloaded = await SubscriptionAccount.findById(account._id);
+    expect(reloaded?.dunningAttempts).toBe(3);
   });
 });

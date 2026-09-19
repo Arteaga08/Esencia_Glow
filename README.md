@@ -49,6 +49,7 @@ ignora cualquier `.env`/`.env.*` real y re-permite explícitamente los `.example
 | `STRIPE_WEBHOOK_TOLERANCE_SECONDS` | Con default, fail-fast si es inválida | Tolerancia de timestamp del webhook (anti-replay). Default `300` (5 min). Debe ser un entero positivo — `0` o negativo no arranca el server |
 | `PAYMENT_RECONCILE_AFTER_MINUTES` | Con default, fail-fast si es inválida | Umbral del reconciliador: cuánto espera un pedido `pending` con PaymentIntent antes de que el cron le pregunte a Stripe. Default `10`, mismo criterio de entero positivo |
 | `SUBSCRIPTION_INCOMPLETE_EXPIRE_MINUTES` | Con default, fail-fast si es inválida | Milestone 1.7.2a: minutos tras reclamar el cupo antes de que el cron libere una cuenta de suscripción `INCOMPLETE` sin `providerSubscriptionId`. Default `30`, mismo criterio de entero positivo |
+| `SUBSCRIPTION_EDITION_ALERT_DAYS` | Con default, fail-fast si es inválida | Milestone 1.7.2b: días de anticipación con los que el cron avisa al admin que falta publicar la edición del ciclo que está por cobrarse. Default `7`, mismo criterio de entero positivo |
 | `RESEND_API_KEY` | Fail-fast en producción | Correo transaccional (verificación de email, reset, pedidos, suscripciones) |
 | `RESEND_FROM_EMAIL` | Con default | Remitente. Default `onboarding@resend.dev` (sandbox); en producción requiere dominio verificado en Resend |
 | `ACCESS_TOKEN_TTL` | Con default | Vida del JWT de acceso. Default `15m` |
@@ -271,7 +272,7 @@ orden.
 
 **La caja del ciclo**: cada `invoice.paid` crea (o reentrega idempotente de) un `SubscriptionShipment`
 con `Inventory.reserved` subido por cada ítem de la edición del ciclo — **reserva al cobrar, salida
-al enviar** (la baja de `onHand` es 1.7.2b). Un faltante **nunca rechaza nada**: el cobro ya
+al enviar** (la baja de `onHand` ocurre al marcar la caja como enviada, ver 1.7.2b abajo). Un faltante **nunca rechaza nada**: el cobro ya
 ocurrió, se reserva lo que sí hay, se sella el incidente y se alerta al admin. Los dos índices
 únicos de la caja fallan por razones distintas: `{invoiceId}` duplicado es una reentrega (éxito
 idempotente, sin alertar); `{accountId, cycleYear, cycleMonth}` duplicado con un `invoiceId`
@@ -305,7 +306,99 @@ stripe trigger invoice.payment_failed
 Confirmar que la primera factura de una alta real cobra el precio **completo** del ciclo en curso y
 que el siguiente cobro cae exactamente en `billingAnchorDay`.
 
-## Suscripciones — cimientos (Milestone 1.7.1)
+## Suscripciones — panel de envíos y autoservicio de lectura (Milestone 1.7.2b)
+
+Cierra el ciclo que 1.7.2a dejó a medias: la caja se cobraba y se apartaba inventario, pero no
+había forma de **enviarla** ni de que la suscriptora viera nada.
+
+### Máquina de estados del envío (`subscription-shipment-state.ts`)
+
+Módulo puro, tabla como dato, calcado de `subscription-state.ts`. Solo avanza o se corta:
+
+```
+pending ──▶ processing ──▶ shipped ──▶ delivered
+   │             │
+   └─────────────┴──────▶ canceled
+```
+
+No hay retroceso `processing -> pending`, y `delivered`/`canceled` son terminales. Hoy todas las
+aristas son de `admin`; `system` está declarado para 1.7.3 (cancelar las cajas pendientes de una
+suscripción dada de baja a mitad del ciclo).
+
+**El efecto sobre el inventario se DERIVA** de `STOCK_HELD_STATUSES = [pending, processing]`, nunca
+de una segunda tabla a mano (mismo criterio que `seatEffect` deriva de `SEAT_HOLDING_STATUSES`):
+
+| Transición | Efecto | Qué le pasa al stock |
+|---|---|---|
+| `-> processing` | `none` | sigue apartado |
+| `-> shipped` | `commit` | `reserved` y `onHand` bajan en la misma cantidad |
+| `-> canceled` | `release` | `reserved` baja, `onHand` intacto |
+| `shipped -> delivered` | `none` | el stock ya salió |
+
+### Panel de envíos
+
+- `GET /api/v1/admin/subscription-shipments` — listado paginado. Filtros: `status`, `planId`,
+  `cycleYear`/`cycleMonth`, `incident` (las cajas que necesitan atención: falta la edición **o** no
+  alcanzó el inventario — dos banderas, una sola pregunta operativa).
+- `GET /api/v1/admin/subscription-shipments/:id` — detalle con las líneas reservadas (lo que hay
+  que empacar, que puede diferir de la edición si hubo faltante).
+- `PATCH /api/v1/admin/subscription-shipments/:id/status` — transición. `carrier` +
+  `trackingNumber` son **requeridos condicionalmente** al marcar `shipped` (y prohibidos en
+  cualquier otra transición); `carrier` usa el mismo enum cerrado `ShippingCarrier` de la tienda,
+  nunca texto libre.
+
+El commit de inventario es el calco de `commitReservationCore` (condición y `$inc` en un solo
+`findOneAndUpdate`), pero sobre `reservedItems` inline en vez de un `StockReservation`. Si una línea
+no matchea, la transacción **entera** aborta con 409 — jamás un commit a medias. Dos panelistas
+marcando "enviado" a la vez producen un WriteConflict: el perdedor reejecuta, relee la caja ya
+`shipped` y muere en `assertShipmentTransition` — el stock se descuenta **una sola vez**.
+
+### `GET /api/v1/subscriptions/me`
+
+Lo que la suscriptora ve de su propia suscripción: estado, plan contratado, próximo cobro
+(`currentPeriodEnd`), `cancelAtPeriodEnd`, `dunningAttempts` y sus cajas con guía de rastreo.
+Nunca expone `providerCustomerId`/`providerSubscriptionId` ni `statusHistory`.
+
+Quien nunca se suscribió recibe **200 con `subscription: null`**, no 404: "todavía no soy
+suscriptora" es un estado normal del storefront, no un error. Las cajas se filtran por `userId`
+directo — el campo que `SubscriptionShipment` denormaliza justamente para esto.
+
+### Aviso preventivo de edición faltante (`jobs/alert-missing-edition.ts`)
+
+`createCycleShipment` ya tolera que falte la edición al cobrar (crea la caja con `editionIncident` y
+alerta), pero para entonces **la clienta ya fue cobrada** por una caja sin contenido definido. Este
+job mueve el aviso a antes del cobro: cuando faltan `SUBSCRIPTION_EDITION_ALERT_DAYS` (default 7)
+para el ancla y el ciclo no tiene edición publicada, avisa al admin.
+
+Solo mira planes activos **con suscriptoras** (`seatsTaken > 0`) — un plan que nadie compró no va a
+cobrar nada, y alertar por él enseñaría a ignorar estos correos. Idempotencia por ciclo vía
+`SubscriptionPlan.missingEditionAlertedFor` (`"YYYY-MM"`) con claim **antes** de enviar: el cron
+corre cada minuto, así que sin ese sello serían mil correos por semana. Fuera de la ventana de
+aviso el job se corta sin tocar la base.
+
+### Hardening incluido (hallazgos diferidos de 1.7.2a)
+
+Cinco correcciones de code review que 1.7.2a había dejado anotadas:
+
+1. `recordPaymentFailure` ahora es **monotónica** (`dunningAttempts: {$lte: attemptCount}`): un
+   `payment_failed` viejo entregado fuera de orden ya no baja el contador de dunning.
+2. La cancelación apaga `cancelAtPeriodEnd` en la misma transacción — `SubscriptionAccount` tiene
+   índice único por `userId` y una re-alta reusa el MISMO documento, así que la bandera heredada
+   habría hecho nacer la suscripción nueva marcada para cancelarse.
+3. La rama replay del alta **compara el `planId`**: pedir el plan B teniendo un `INCOMPLETE` del
+   plan A ya no devuelve el `clientSecret` del plan A en silencio (409).
+4. `buildResult()` valida `status === "incomplete"` antes de devolver un `clientSecret` — una
+   suscripción que Stripe ya canceló o activó ya no manda a la clienta a confirmar un
+   PaymentIntent muerto.
+5. `trialing` se traduce igual en el adapter y en el traductor de webhooks (`-> active`). Antes
+   faltaba el `case` en el traductor y caía al `default` como `incomplete`, produciendo una
+   transición inexistente que el webhook ignoraba en silencio.
+
+Sigue **diferido a 1.7.3** (donde la cancelación es el tema central): `handleSubscriptionUpdated`
+sella `canceledAt` con la hora del servidor en vez del timestamp real de Stripe — el evento
+traducido de `.updated` todavía no lo propaga (el de `.deleted` sí).
+
+## Idempotencia del checkout (Milestone 1.5)
 
 `POST /api/v1/orders` **exige** el header `Idempotency-Key` (UUID v4). Contrato para el
 cliente (front, Milestone 2):
@@ -322,12 +415,13 @@ cliente (front, Milestone 2):
   `orderId` del pendiente (`errors.orderId`) — un cliente solo puede tener un checkout abierto
   a la vez.
 
-## Cron (Milestone 1.4 + 1.5 + 1.6.1 + 1.7.2a)
+## Cron (Milestone 1.4 + 1.5 + 1.6.1 + 1.7.2a + 1.7.2b)
 
 Un solo `node-cron` corre cada minuto (`jobs/index.ts`, nunca montado en `buildApp()`): libera
 reservas de stock vencidas, cierra pedidos `pending` vencidos (Stripe-first, ver arriba),
 reconcilia pagos pendientes sin webhook, refresca `Bundle.stockCache` y libera cuentas de
-suscripción `INCOMPLETE` abandonadas (ver arriba, §"Suscripciones — Stripe Billing"). Todas las
+suscripción `INCOMPLETE` abandonadas (ver arriba, §"Suscripciones — Stripe Billing") y avisa al
+admin cuando falta publicar la edición del ciclo que está por cobrarse (1.7.2b). Todas las
 operaciones son idempotentes por documento — seguro correr varias instancias de la API sin lock
 distribuido.
 

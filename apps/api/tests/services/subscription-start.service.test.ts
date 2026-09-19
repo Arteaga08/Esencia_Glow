@@ -297,3 +297,88 @@ describe("services/subscription-start — concurrencia real", () => {
     expect(refreshedPlan?.seatsTaken).toBe(3);
   }, 30_000);
 });
+
+describe("services/subscription-start — replay con OTRO plan", () => {
+  it("una cuenta INCOMPLETE del plan A pidiendo el plan B -> 409, nunca el clientSecret del plan viejo", async () => {
+    await openEnrollmentSafely();
+    const planA = await seedPlanWithStripeRefs({ maxActiveSeats: 5 });
+    const planB = await seedPlanWithStripeRefs({ maxActiveSeats: 5 });
+    const userId = await seedUser();
+
+    const fake = buildFakeSubscriptionProvider();
+    __setSubscriptionProviderForTests(fake);
+
+    const first = await startSubscriptionForUser({ userId, planId: planA._id.toString() });
+
+    await expect(startSubscriptionForUser({ userId, planId: planB._id.toString() })).rejects.toMatchObject({
+      statusCode: 409,
+    });
+    // El clientSecret del plan A jamás se devolvió bajo la petición del plan B.
+    expect(first.clientSecret).toBeDefined();
+    expect(fake.getSubscription).not.toHaveBeenCalled();
+  });
+});
+
+describe("services/subscription-start — clientSecret muerto", () => {
+  it("replay de una suscripción que Stripe ya canceló -> 409, nunca un clientSecret que no puede confirmarse", async () => {
+    await openEnrollmentSafely();
+    const plan = await seedPlanWithStripeRefs({ maxActiveSeats: 5 });
+    const userId = await seedUser();
+
+    const fake = buildFakeSubscriptionProvider();
+    __setSubscriptionProviderForTests(fake);
+    await startSubscriptionForUser({ userId, planId: plan._id.toString() });
+
+    // Stripe expiró la suscripción entre el alta y el replay: el
+    // `clientSecret` sigue viajando en la respuesta pero ya no confirma nada.
+    const account = await SubscriptionAccount.findOne({ userId });
+    __setSubscriptionProviderForTests(
+      buildFakeSubscriptionProvider({
+        getSubscription: vi.fn().mockResolvedValue({
+          subscriptionRef: account!.providerSubscriptionId!,
+          status: "canceled",
+          clientSecret: "pi_muerto_secret",
+          firstChargeCents: 59900,
+          currency: "mxn",
+          nextChargeAt: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000),
+        }),
+      }),
+    );
+
+    await expect(startSubscriptionForUser({ userId, planId: plan._id.toString() })).rejects.toMatchObject({
+      statusCode: 409,
+    });
+  });
+});
+
+describe("services/subscription-start — Stripe activa la suscripción de inmediato", () => {
+  it("un alta que Stripe devuelve ya 'active' NO se compensa: la clienta quedaría cobrada sin cuenta local", async () => {
+    // Hallazgo de code review: la guarda de `status` pertenece a la rama
+    // replay. En el camino de CREACIÓN, lanzar dispara `compensateFailedStart`,
+    // que cancela la cuenta local y libera el cupo pero NO cancela nada en
+    // Stripe — la suscripción seguiría cobrando cada mes sin cuenta local.
+    await openEnrollmentSafely();
+    const plan = await seedPlanWithStripeRefs({ maxActiveSeats: 5 });
+    const userId = await seedUser();
+
+    const fake = buildFakeSubscriptionProvider({
+      startSubscription: vi.fn().mockResolvedValue({
+        subscriptionRef: "sub_ya_activa",
+        status: "active",
+        clientSecret: "pi_activa_secret",
+        firstChargeCents: 0,
+        currency: "mxn",
+        nextChargeAt: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000),
+      }),
+    });
+    __setSubscriptionProviderForTests(fake);
+
+    await startSubscriptionForUser({ userId, planId: plan._id.toString() });
+
+    const account = await SubscriptionAccount.findOne({ userId });
+    expect(account?.status).not.toBe(SubscriptionStatus.CANCELED);
+    expect(account?.providerSubscriptionId).toBe("sub_ya_activa");
+    const refreshedPlan = await SubscriptionPlan.findById(plan._id);
+    expect(refreshedPlan?.seatsTaken).toBe(1);
+  });
+});

@@ -1,5 +1,5 @@
 import type { Types } from "mongoose";
-import type { EditionStatus } from "@esencia-glow/shared";
+import type { EditionStatus, ShippingCarrier, SubscriptionShipmentStatus } from "@esencia-glow/shared";
 
 /**
  * DTO admin del módulo de suscripciones (Milestone 1.7.1). Vive en la API,
@@ -111,7 +111,94 @@ function buildAdminSubscriptionEdition(edition: LeanSubscriptionEdition): AdminS
   };
 }
 
-export { buildAdminSubscriptionPlan, buildAdminSubscriptionEdition };
+
+/**
+ * Envío del ciclo para el panel (Milestone 1.7.2b). `planName` y `customer`
+ * viajan resueltos porque el panel los lista en la tabla: hidratarlos en el
+ * cliente obligaría a un fetch por fila. `reservedItems` se expone tal cual
+ * quedó al cobrar — es lo que la admin tiene que empacar, y puede diferir de
+ * la edición cuando hubo faltante de inventario.
+ */
+interface LeanSubscriptionShipment {
+  _id: Types.ObjectId;
+  accountId: Types.ObjectId;
+  userId: Types.ObjectId;
+  planId: Types.ObjectId;
+  editionId?: Types.ObjectId;
+  cycleYear: number;
+  cycleMonth: number;
+  status: SubscriptionShipmentStatus;
+  editionIncident: boolean;
+  inventoryIncident: boolean;
+  adminAlertedAt?: Date;
+  reservedItems: { variantId: Types.ObjectId; quantity: number }[];
+  carrier?: ShippingCarrier;
+  trackingNumber?: string;
+  shippedAt?: Date;
+  deliveredAt?: Date;
+  canceledAt?: Date;
+  createdAt: Date;
+}
+
+interface AdminShipmentCustomer {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+}
+
+interface AdminSubscriptionShipment {
+  id: string;
+  accountId: string;
+  planId: string;
+  planName: string;
+  editionId?: string;
+  cycleYear: number;
+  cycleMonth: number;
+  status: SubscriptionShipmentStatus;
+  editionIncident: boolean;
+  inventoryIncident: boolean;
+  reservedItems: { variantId: string; quantity: number }[];
+  carrier?: ShippingCarrier;
+  trackingNumber?: string;
+  shippedAt?: string;
+  deliveredAt?: string;
+  canceledAt?: string;
+  customer: AdminShipmentCustomer | null;
+  createdAt: string;
+}
+
+function buildAdminSubscriptionShipment(
+  shipment: LeanSubscriptionShipment,
+  planName: string,
+  customer: AdminShipmentCustomer | null,
+): AdminSubscriptionShipment {
+  return {
+    id: shipment._id.toString(),
+    accountId: shipment.accountId.toString(),
+    planId: shipment.planId.toString(),
+    planName,
+    ...(shipment.editionId ? { editionId: shipment.editionId.toString() } : {}),
+    cycleYear: shipment.cycleYear,
+    cycleMonth: shipment.cycleMonth,
+    status: shipment.status,
+    editionIncident: shipment.editionIncident,
+    inventoryIncident: shipment.inventoryIncident,
+    reservedItems: shipment.reservedItems.map((item) => ({
+      variantId: item.variantId.toString(),
+      quantity: item.quantity,
+    })),
+    ...(shipment.carrier ? { carrier: shipment.carrier } : {}),
+    ...(shipment.trackingNumber ? { trackingNumber: shipment.trackingNumber } : {}),
+    ...(shipment.shippedAt ? { shippedAt: shipment.shippedAt.toISOString() } : {}),
+    ...(shipment.deliveredAt ? { deliveredAt: shipment.deliveredAt.toISOString() } : {}),
+    ...(shipment.canceledAt ? { canceledAt: shipment.canceledAt.toISOString() } : {}),
+    customer,
+    createdAt: shipment.createdAt.toISOString(),
+  };
+}
+
+export { buildAdminSubscriptionPlan, buildAdminSubscriptionEdition, buildAdminSubscriptionShipment };
 export type {
   LeanSubscriptionPlan,
   AdminSubscriptionPlan,
@@ -119,4 +206,7 @@ export type {
   LeanSubscriptionEdition,
   AdminEditionItem,
   AdminSubscriptionEdition,
+  LeanSubscriptionShipment,
+  AdminSubscriptionShipment,
+  AdminShipmentCustomer,
 };

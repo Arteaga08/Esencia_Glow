@@ -26,6 +26,11 @@ interface SubscriptionPlanAttrs {
   sortOrder: number;
   providerProductId?: string;
   providerPriceId?: string;
+  /** Último ciclo (`"YYYY-MM"`) por el que el job preventivo ya avisó que
+   * falta la edición (Milestone 1.7.2b). Un solo campo en vez de una
+   * colección de avisos: solo importa el ciclo en curso, y reescribirlo al
+   * pasar al siguiente mes es exactamente el comportamiento deseado. */
+  missingEditionAlertedFor?: string;
 }
 
 type SubscriptionPlanDocument = HydratedDocument<SubscriptionPlanAttrs>;
@@ -55,6 +60,7 @@ const subscriptionPlanSchema = new Schema<SubscriptionPlanAttrs, SubscriptionPla
     sortOrder: { type: Number, default: 0 },
     providerProductId: { type: String, trim: true },
     providerPriceId: { type: String, trim: true },
+    missingEditionAlertedFor: { type: String, trim: true },
   },
   { timestamps: true },
 );

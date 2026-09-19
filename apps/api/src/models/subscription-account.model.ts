@@ -47,6 +47,11 @@ interface SubscriptionAccountAttrs {
   latestInvoiceId?: string;
   pastDueSince?: Date;
   dunningAttempts: number;
+  /** Factura a la que pertenece `dunningAttempts` (Milestone 1.7.2b). Stripe
+   * cuenta los intentos POR FACTURA (`attempt_count` reinicia en 1 cada
+   * ciclo), así que la guarda monotónica del contador solo tiene sentido
+   * dentro de la misma factura. Se limpia al cobrar. */
+  dunningInvoiceId?: string;
   pausedAt?: Date;
 }
 
@@ -95,6 +100,7 @@ const subscriptionAccountSchema = new Schema<SubscriptionAccountAttrs, Subscript
     latestInvoiceId: { type: String, trim: true },
     pastDueSince: { type: Date },
     dunningAttempts: { type: Number, required: true, default: 0, min: 0, validate: integerValidator },
+    dunningInvoiceId: { type: String, trim: true },
     pausedAt: { type: Date },
   },
   { timestamps: true },

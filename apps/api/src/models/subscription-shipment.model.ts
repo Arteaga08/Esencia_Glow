@@ -1,5 +1,5 @@
 import { Schema, model, type HydratedDocument, type Model, type Types } from "mongoose";
-import { SubscriptionShipmentStatus } from "@esencia-glow/shared";
+import { ShippingCarrier, SubscriptionShipmentStatus } from "@esencia-glow/shared";
 import { reservedShipmentItemSchema, type ReservedShipmentItemAttrs } from "./reserved-shipment-item.schema.js";
 
 /**
@@ -27,6 +27,15 @@ import { reservedShipmentItemSchema, type ReservedShipmentItemAttrs } from "./re
  * Solo el enum de estado en 1.7.1; la máquina de transiciones la escribe
  * 1.7.2 junto con el panel que la consume.
  *
+ * Guía y sellos (Milestone 1.7.2b): `carrier`/`trackingNumber` se capturan
+ * al marcar `shipped` desde el panel, reusando el vocabulario cerrado
+ * `ShippingCarrier` de la tienda — nunca texto libre, que rompería la
+ * integración real de envíos. `stockCommittedAt` es el sello de idempotencia
+ * del commit `reserved -> onHand`: ninguna ruta puede descontar dos veces la
+ * misma caja. Los tres sellos de fecha (`shippedAt`/`deliveredAt`/
+ * `canceledAt`) los escribe `subscription-shipment-admin.service.ts` en la
+ * MISMA operación atómica que mueve el estado.
+ *
  * `reservedItems`/`inventoryIncident` (Milestone 1.7.2a): al cobrarse el
  * ciclo se reserva (`Inventory.reserved`, nunca `onHand` todavía) lo que
  * alcance de cada ítem de la edición — "reserva al cobrar, salida al
@@ -48,6 +57,12 @@ interface SubscriptionShipmentAttrs {
   invoiceId?: string;
   reservedItems: ReservedShipmentItemAttrs[];
   inventoryIncident: boolean;
+  carrier?: ShippingCarrier;
+  trackingNumber?: string;
+  shippedAt?: Date;
+  deliveredAt?: Date;
+  canceledAt?: Date;
+  stockCommittedAt?: Date;
 }
 
 type SubscriptionShipmentDocument = HydratedDocument<SubscriptionShipmentAttrs>;
@@ -74,6 +89,12 @@ const subscriptionShipmentSchema = new Schema<SubscriptionShipmentAttrs, Subscri
     invoiceId: { type: String, trim: true },
     reservedItems: { type: [reservedShipmentItemSchema], default: [] },
     inventoryIncident: { type: Boolean, required: true, default: false },
+    carrier: { type: String, enum: Object.values(ShippingCarrier) },
+    trackingNumber: { type: String, trim: true },
+    shippedAt: { type: Date },
+    deliveredAt: { type: Date },
+    canceledAt: { type: Date },
+    stockCommittedAt: { type: Date },
   },
   { timestamps: true },
 );
@@ -89,6 +110,13 @@ subscriptionShipmentSchema.index(
   { unique: true, partialFilterExpression: { invoiceId: { $type: "string" } } },
 );
 subscriptionShipmentSchema.index({ status: 1, createdAt: -1 });
+/** Filtro por plan y ciclo del panel de envíos (Milestone 1.7.2b). */
+subscriptionShipmentSchema.index({ planId: 1, cycleYear: -1, cycleMonth: -1 });
+/** `GET /subscriptions/me` (Milestone 1.7.2b): la suscriptora lista SUS cajas
+ * ordenadas por ciclo descendente. Cubre filtro y orden en el mismo índice —
+ * sin él ese endpoint (el más caliente del storefront para una suscriptora)
+ * hace collection scan más un sort en memoria. */
+subscriptionShipmentSchema.index({ userId: 1, cycleYear: -1, cycleMonth: -1 });
 
 const SubscriptionShipment = model<SubscriptionShipmentAttrs, SubscriptionShipmentModel>(
   "SubscriptionShipment",

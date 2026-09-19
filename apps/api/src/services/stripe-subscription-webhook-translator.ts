@@ -106,9 +106,18 @@ function translateInvoicePaymentFailedEvent(
  * el docstring de `SubscriptionStatus`, shared); desconocido -> `incomplete`
  * (interpretación cautelosa) + `logger.warn`, NUNCA lanza — un mapeo que
  * lanza convertiría un evento válido en un 500 con reintentos infinitos.
+ *
+ * `trialing -> active` es DELIBERADO y debe coincidir con el mismo case de
+ * `stripe-subscription-provider.ts` (riesgo aceptado 🟡 #4 del plan de
+ * 1.7.2a). Cuando faltaba aquí, `trialing` caía al `default` y una
+ * suscripción puesta en trial desde el Dashboard producía un
+ * `ACTIVE -> INCOMPLETE` inexistente que el webhook ignoraba en silencio:
+ * dos traducciones del mismo valor con resultados opuestos según quién
+ * preguntara (hallazgo de code review).
  */
 function mapProviderSubscriptionStatus(status: Stripe.Subscription.Status): ProviderSubscriptionStatus {
   switch (status) {
+    case "trialing":
     case "active":
       return "active";
     case "past_due":
@@ -191,4 +200,4 @@ function translateStripeSubscriptionEvent(event: Stripe.Event): SubscriptionWebh
   return undefined;
 }
 
-export { translateStripeSubscriptionEvent, mapProviderSubscriptionStatus };
+export { translateStripeSubscriptionEvent };

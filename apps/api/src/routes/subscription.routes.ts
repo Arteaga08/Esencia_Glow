@@ -6,7 +6,8 @@ import { subscribeRateLimiter } from "../middlewares/rate-limit.js";
 import { startSubscriptionSchema } from "../validators/subscription.validator.js";
 
 /**
- * `/api/v1/subscriptions` — solo el alta de la clienta (Fase 4 de 1.7.2a).
+ * `/api/v1/subscriptions` — alta de la clienta (Fase 4 de 1.7.2a) y lectura
+ * de su propia suscripción (`GET /me`, 1.7.2b).
  * Sin `requireIdempotencyKey`: la idempotencia natural es el índice único
  * `{userId}` de `SubscriptionAccount`, resuelta en el service vía la rama
  * replay (ver §E del plan). La superficie admin vive en
@@ -16,6 +17,7 @@ const router = Router();
 
 router.use(protect);
 
+router.get("/me", subscriptionController.me);
 router.post("/", subscribeRateLimiter, validate(startSubscriptionSchema), subscriptionController.start);
 
 export { router as subscriptionRoutes };

@@ -177,7 +177,7 @@ async function sendSubscriptionAdminIncidentEmail(input: SendAdminIncidentInput)
           copy.paragraph,
           `Ciclo ${String(input.cycleMonth).padStart(2, "0")}/${input.cycleYear} — caja <code>${escapeHtml(input.shipmentId)}</code>.`,
         ],
-        disclaimer: "Resuélvelo a mano por ahora (el panel de envíos de suscripción llega en una sesión próxima).",
+        disclaimer: "Revísalo en el panel de envíos de suscripción.",
       }),
     });
   } catch (error) {
@@ -185,9 +185,56 @@ async function sendSubscriptionAdminIncidentEmail(input: SendAdminIncidentInput)
   }
 }
 
+interface SendUpcomingEditionMissingInput {
+  planId: string;
+  planName: string;
+  cycleYear: number;
+  cycleMonth: number;
+}
+
+/**
+ * Aviso PREVENTIVO (Milestone 1.7.2b): se acerca el cobro anclado y el ciclo
+ * todavía no tiene edición publicada. Función hermana de
+ * `sendSubscriptionAdminIncidentEmail` en vez de una cuarta `reason` de
+ * aquélla, porque aquélla se identifica por `shipmentId` y aquí todavía no
+ * existe ninguna caja — el punto entero de este correo es que llega antes.
+ *
+ * Idempotencia por ciclo: la `Idempotency-Key` lleva plan + ciclo, y el job
+ * además sella `SubscriptionPlan.missingEditionAlertedFor` para no reintentar
+ * cada minuto.
+ */
+async function sendUpcomingEditionMissingEmail(input: SendUpcomingEditionMissingInput): Promise<void> {
+  const to = resolveAdminAlertEmail();
+  if (!to) {
+    logger.warn({ planId: input.planId }, "ADMIN_ALERT_EMAIL no configurada — aviso preventivo no enviado");
+    return;
+  }
+
+  const cycle = `${String(input.cycleMonth).padStart(2, "0")}/${input.cycleYear}`;
+  try {
+    await sendEmail({
+      to,
+      subject: `Falta publicar la edición de ${cycle} — Esencia Glow (admin)`,
+      idempotencyKey: `subscription-plan-${input.planId}-edition-missing-${input.cycleYear}-${input.cycleMonth}`,
+      html: renderTransactionalEmail({
+        preheader: `El cobro del ciclo ${cycle} se acerca y el plan todavía no tiene edición publicada.`,
+        title: "Falta publicar la edición del próximo ciclo",
+        paragraphs: [
+          `El plan <strong>${escapeHtml(input.planName)}</strong> tiene suscriptoras activas y el cobro del ciclo ${cycle} está por ocurrir.`,
+          "Todavía no hay una edición publicada para ese ciclo: si el cobro llega antes, las cajas se crearán sin contenido y habrá que resolverlas a mano.",
+        ],
+        disclaimer: "Publica la edición desde el panel antes de la fecha de cobro.",
+      }),
+    });
+  } catch (error) {
+    logger.error({ err: error, planId: input.planId }, "Fallo al enviar el aviso preventivo de edición faltante");
+  }
+}
+
 export {
   sendSubscriptionPaymentConfirmedEmail,
   sendSubscriptionDunningEmail,
   sendSubscriptionAdminIncidentEmail,
+  sendUpcomingEditionMissingEmail,
   __setAdminAlertEmailForTests,
 };
