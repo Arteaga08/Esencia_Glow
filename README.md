@@ -213,8 +213,8 @@ mientras tanto.
 
 **Capacidades derivadas en lectura.** `resolveCapabilities(userId)` (`capabilities.service.ts`)
 consulta `SubscriptionAccount` en una sola query — nunca se denormaliza en `User`. `GET /auth/me`
-las incluye junto al usuario completo. `requireCapability("subscriber")` existe y está probado,
-pero no se monta en ninguna ruta todavía: 1.7.3 lo conecta a los endpoints de la suscriptora.
+las incluye junto al usuario completo. `requireCapability("subscriber")` se montó por primera vez en
+1.7.3 (pausar, deshacer cancelación y cambiar de plan — ver §"Suscripciones — autoservicio").
 
 **Solo tarjeta.** El módulo de suscripciones no acepta OXXO: una ficha OXXO es un pago de un solo
 uso, no un método guardable para cobrar cada mes. La tienda normal sigue aceptando OXXO sin
@@ -322,8 +322,9 @@ pending ──▶ processing ──▶ shipped ──▶ delivered
 ```
 
 No hay retroceso `processing -> pending`, y `delivered`/`canceled` son terminales. Hoy todas las
-aristas son de `admin`; `system` está declarado para 1.7.3 (cancelar las cajas pendientes de una
-suscripción dada de baja a mitad del ciclo).
+aristas son de `admin`; `system` sigue declarado **sin emisor**: 1.7.3 no cancela cajas por su cuenta
+(la clienta ya pagó el ciclo, y cancelar al fin del período o pausar no debe anular una caja pagada).
+Si hace falta anular cajas de una baja a mitad del ciclo, es una decisión de negocio pendiente.
 
 **El efecto sobre el inventario se DERIVA** de `STOCK_HELD_STATUSES = [pending, processing]`, nunca
 de una segunda tabla a mano (mismo criterio que `seatEffect` deriva de `SEAT_HOLDING_STATUSES`):
@@ -394,9 +395,189 @@ Cinco correcciones de code review que 1.7.2a había dejado anotadas:
    faltaba el `case` en el traductor y caía al `default` como `incomplete`, produciendo una
    transición inexistente que el webhook ignoraba en silencio.
 
-Sigue **diferido a 1.7.3** (donde la cancelación es el tema central): `handleSubscriptionUpdated`
-sella `canceledAt` con la hora del servidor en vez del timestamp real de Stripe — el evento
-traducido de `.updated` todavía no lo propaga (el de `.deleted` sí).
+El sexto hallazgo (`handleSubscriptionUpdated` sellaba `canceledAt` con la hora del servidor) se
+cerró en 1.7.3 — ver §"Suscripciones — autoservicio y catálogo público" abajo.
+
+## Suscripciones — autoservicio y catálogo público (Milestone 1.7.3)
+
+La suscriptora ya puede pausar, reanudar, cancelar, cambiar de plan y actualizar su tarjeta, y el
+storefront tiene un catálogo público de planes. Todas las rutas de autoservicio viven bajo
+`/api/v1/subscriptions/me/…` (detrás de `protect`) y **responden con la suscripción ya actualizada**
+(`{ subscription }`, la misma forma que `GET /me`), así el front tiene una sola forma que pintar.
+Sin `STRIPE_SECRET_KEY` cada una responde **503** antes de tocar cupo o estado.
+
+| Ruta | `requireCapability("subscriber")` | Qué hace |
+|---|---|---|
+| `POST /me/pause` | sí | `ACTIVE → PAUSED`. Libera el cupo. |
+| `POST /me/resume` | **no** | `PAUSED → ACTIVE`. Reclama cupo: **409 si el plan se llenó**. |
+| `POST /me/cancel` `{ reason? }` | **no** | `ACTIVE`/`PAST_DUE`: programa la cancelación al fin del período. `PAUSED`: cancela de inmediato. |
+| `POST /me/undo-cancel` | sí | Quita la cancelación programada mientras el período pagado siga vigente. |
+| `POST /me/change-plan` `{ planId }` | sí | Cambio de plan inmediato, sin prorrateo. |
+| `POST /me/payment-method/setup-intent` | **no** | 201 con el `clientSecret` para confirmar la tarjeta en sesión. |
+| `PUT /me/payment-method` `{ setupIntentId }` | **no** | Fija la tarjeta ya confirmada. |
+
+`requireCapability` se montó por primera vez aquí, y **solo** donde tiene sentido: la capacidad
+`subscriber` existe únicamente para `ACTIVE`/`PAST_DUE`, así que las acciones que también deben
+aceptar `PAUSED` (reanudar, cancelar, tarjeta) **no** la llevan — una pausada recibiría un 403 justo
+en la acción que más necesita. En todas el service valida el estado exacto como segunda defensa.
+
+### Regla de orden Stripe ↔ base
+
+El paso que puede fallar sin poder deshacerse va primero, y toda compensación es un paso que siempre
+funciona (soltar un cupo, reenviar a Stripe un valor idempotente), nunca "volver a reclamar un
+cupo", que puede dar 409:
+
+- **Pausar**: Stripe primero (`pause_collection: {behavior: "void"}`), luego local. Si lo local falla,
+  se compensa con `resumeCollection`.
+- **Reanudar**: local primero (reclamar cupo → 409 antes de tocar Stripe), luego Stripe. Si Stripe
+  falla **no se vuelve a `PAUSED` a ciegas**: un timeout puede haber ocurrido *después* de que
+  Stripe reanudó, y dejar la cuenta local pausada cobraría a la clienta sin generar caja (el
+  `invoice.paid` se rechazaría como `paused_account_charged`). Se pregunta a Stripe el estado real:
+  si ya reanudó, se trata como éxito; si sigue pausado (o ya cancelado), la compensación vuelve a
+  `PAUSED`, que solo *suelta* el cupo; si ni siquiera se puede consultar, la cuenta se queda
+  `ACTIVE` (peor es cobrar sin caja) y se audita `PROVIDER_MISMATCH`. Al reanudar se refresca el
+  período (mientras estuvo pausada Stripe siguió avanzándolo y los `.updated` se ignoraron).
+- **Cancelar / deshacer**: Stripe primero (`cancel_at_period_end`), luego un CAS local. Si dos
+  requests idénticos compiten y uno pierde el CAS, **no compensa** (deshacería en Stripe lo que el
+  ganador acaba de poner): relee y, si el efecto ya quedó, lo trata como éxito.
+- **Cancelar una pausada**: `cancelNow` en Stripe es final — no hay "des-cancelar" con qué
+  compensar. Si la escritura local falla, el webhook `.deleted` converge (ver abajo).
+
+Si una compensación **también** falla, no tapa el error original: se loguea y se audita
+`SUBSCRIPTION_PROVIDER_MISMATCH` (`metadata.operation`) para que ops reconcilie a mano.
+
+### Pausar
+
+Pausa **indefinida**: solo la clienta reanuda, nunca un job (una reanudación automática con el plan
+lleno fallaría sin nadie presente). Usa `pause_collection` con `behavior: "void"`: Stripe sigue
+generando las facturas del ciclo pero las anula, así no se acumula deuda. **El `status` de la
+suscripción en Stripe sigue siendo `active`** mientras la cobranza está pausada (no es el
+`status: "paused"` de un trial sin tarjeta), por eso `SubscriptionUpdatedEvent` lleva
+`collectionPaused`.
+
+**No se puede pausar a menos de 48 h del siguiente cobro** (409): Stripe no garantiza detener una
+factura que ya se generó justo antes del ancla. Si aun así se cuela un cobro sobre una cuenta
+pausada, el webhook lo rechaza como `paused_account_charged` y el admin reembolsa a mano.
+Tampoco se puede pausar con `cancelAtPeriodEnd` pendiente, con `PAST_DUE` ni con un cambio de plan
+en curso.
+
+**Riesgo aceptado**: pausar justo antes del ancla (la factura se anula) y reanudar después deja la
+cuenta `ACTIVE` sin haber pagado ese ciclo. No hay pérdida real (no se genera caja sin
+`invoice.paid`) y hoy `subscriber` no desbloquea nada de valor; revisar si algún día se agregan
+perks para suscriptoras.
+
+### Cancelar
+
+La clienta **nunca cancela directo** una suscripción activa: marca `cancelAtPeriodEnd` y el webhook
+transiciona a `CANCELED` al cerrar el período pagado. `PAST_DUE` también puede programarla (es
+justo cuando alguien quiere salirse). El motivo es opcional (`reason`, máximo 300 caracteres, se
+guarda en `cancelReason` y **nunca** se devuelve por la API; el `reason` enum que Stripe manda al
+cerrar la suscripción —`cancellation_requested`, etc.— **no lo pisa**). Volver a pedir la cancelación de una
+cuenta ya programada es idempotente: reenvía a Stripe (repara una divergencia) pero no reescribe ni
+audita.
+
+`PAUSED → CANCELED` admite ahora el actor `system`: la pausa ya vive en Stripe, así que una
+cancelación hecha desde el Dashboard —o una escritura local que falló después de cancelar en
+Stripe— llega como `.deleted` y debe converger; sin esa arista la cuenta quedaba `PAUSED` para
+siempre.
+
+**`canceledAt` (deferido de 1.7.2a, cerrado)**: ambos traductores leen `ended_at ?? canceled_at`.
+En Stripe, `canceled_at` es la hora de la **solicitud** de cancelación (semanas antes del término
+en una cancelación al fin del período); `ended_at` es la real. Antes el traductor de `.deleted`
+tomaba la equivocada y el de `.updated` ni la propagaba (el handler sellaba la hora del servidor).
+Las cuentas históricas `CANCELED` conservan lo que se escribió entonces (sin backfill).
+
+### Cambiar de plan
+
+Inmediato y **sin prorrateo**: el cupo se mueve al instante (409 si el plan nuevo está lleno), la
+caja del ciclo ya pagado no cambia y el siguiente cobro anclado ya usa el precio nuevo
+(`proration_behavior: "none"`, `billing_cycle_anchor: "unchanged"`). Solo desde `ACTIVE` sin
+cancelación programada; el plan nuevo debe estar activo, tener precio en Stripe, ser distinto y
+usar la misma moneda. No pasa por la ventana de inscripciones (esa controla solo altas nuevas).
+
+Los dos cupos y Stripe no caben en una transacción, así que el cambio usa un **marcador**
+`SubscriptionAccount.pendingPlanChange { planId, requestedAt }`:
+
+1. Una transacción reclama el cupo del plan NUEVO (sin soltar el viejo) y deja el marcador. Por unos
+   instantes la cuenta ocupa **dos** cupos: puede mostrar un "agotado" falso, nunca sobrevender.
+2. Se llama a Stripe con una clave de idempotencia derivada del marcador.
+3. `finalizePlanChange` confirma (plan nuevo, suelta el viejo); si Stripe falló, `abortPlanChange`
+   suelta el nuevo.
+
+**Regla de propiedad**: quien borra el marcador —finalizar, abortar o la re-alta de
+`startSubscription`— es dueño de soltar el cupo que corresponda. Todos lo borran con un CAS sobre
+`requestedAt`, así que solo uno lo consume y ninguno puede soltar dos veces ni filtrar uno.
+
+**Solo un rechazo definitivo de Stripe (409) aborta.** Cualquier otro error (502: timeout, red) es
+*ambiguo* —Stripe pudo aplicar el precio antes de perderse la respuesta—, y abortar entonces
+soltaría el cupo nuevo mientras Stripe ya cobra el precio nuevo, sin que nada pudiera repararlo
+(todo necesita el marcador). Ahí el marcador se conserva.
+
+Si el proceso muere entre los pasos 1 y 3, o el error fue ambiguo, la recuperación es **un solo
+camino**: `jobs/reconcile-pending-plan-changes.ts` (mismo tick del cron, marcadores de más de 5 min)
+le pregunta a Stripe qué precio tiene y finaliza o aborta con evidencia
+(`SUBSCRIPTION_PLAN_CHANGE_RECONCILED`). Deliberadamente **no** hay atajo por webhook: un
+`.updated` no trae orden ni versión, y una reentrega vieja con el precio de un plan anterior
+parecería confirmar un cambio que Stripe todavía no aplicó. Mientras el marcador existe, pausar,
+cancelar y cambiar de plan dan 409.
+
+Todo `applyStatusTransition` incluye `planId` en su CAS: el efecto de cupo se aplica contra
+`account.planId`, y `finalizePlanChange` cambia el plan sin cambiar el estado — sin esa guarda una
+transición con un documento viejo soltaría el cupo del plan equivocado.
+Un `invoice.paid` tardío del ciclo viejo entregado después de un cambio de plan crearía su caja con
+el plan nuevo; la ventana es mínima y queda como riesgo aceptado.
+
+### Tarjeta
+
+Dos pasos. `setup-intent` crea un SetupIntent `off_session`, solo tarjeta, con el `accountId` en la
+metadata. `PUT` recibe el `setupIntentId` que el front ya confirmó con Stripe y verifica que **el
+intento es de su customer y de su cuenta** — el id lo manda el cliente, nunca se confía en él.
+Cualquier discrepancia de dueño es **404** (nunca un 403 que confirme que ese id existe) y se
+evalúa antes que el estado del intento. La tarjeta se fija en la suscripción *y* en el customer
+(cubre una re-alta futura).
+
+Si la cuenta está `PAST_DUE` con factura pendiente, se reintenta **`dunningInvoiceId`** (la que
+está fallando; `latestInvoiceId` es la última *pagada*). El resultado va en `invoiceRetry`:
+`not_needed` · `paid` · `already_settled` · `requires_action` · `declined`. Un rechazo o una
+autenticación pendiente son desenlaces de negocio, **no** excepciones (200, no 5xx); y si la
+factura se paga *entre* la lectura y el cobro (el reintento automático de Stripe), se relee y se
+devuelve `already_settled` en vez de un 502. Nunca hay
+transición local aquí: quien pasa `PAST_DUE → ACTIVE` y crea la caja es el webhook `invoice.paid`.
+Con `requires_action` la clienta completa el pago por el flujo de dunning de Stripe hasta que el
+front de M3 maneje la confirmación en sesión.
+Rate limit dedicado (10/15 min por usuaria): con una sesión robada este flujo es un canal de
+card-testing.
+
+### Webhook: divergencia con Stripe
+
+`.updated` **no sincroniza** `cancelAtPeriodEnd` ni la pausa desde Stripe: no hay clave de orden y
+una reentrega vieja (cancelar y deshacer rápido) las voltearía. Los endpoints son los únicos
+escritores. El webhook solo **audita** la divergencia (`SUBSCRIPTION_PROVIDER_MISMATCH`,
+`metadata.field` = `cancelAtPeriodEnd` | `collectionPaused`), y solo si la cuenta lleva más de 2 min
+sin escribirse — para no marcar como divergencia nuestra propia ventana "Stripe primero, local
+después". Un cambio hecho a mano en el Dashboard de Stripe queda visible, no se pisa en silencio.
+
+### `GET /me`: campos nuevos
+
+`pausedAt` (solo `PAUSED`), `cancelRequestedAt` (solo con cancelación programada), `canUndoCancel`
+(derivado en el servidor: cancelación programada con el período aún vigente) y `planChangePending`.
+Sigue sin exponer refs de Stripe, `statusHistory` ni `cancelReason`.
+
+### Catálogo público de planes (sin sesión)
+
+`GET /api/v1/subscription-plans` y `GET /api/v1/subscription-plans/:slug` (router propio: `/subscriptions`
+va detrás de `protect`). Solo planes `isActive` **con precio en Stripe** (los que se pueden
+contratar), ordenados por `sortOrder`. Devuelve `{ plans, enrollment }` con `enrollment: { open,
+closesAt? }` (misma regla que el alta: `closesAt` solo viaja con la ventana abierta). Como en la
+disponibilidad de productos, **una señal, nunca el número**: `soldOut` en vez de `seatsTaken`/
+`maxActiveSeats`, y ningún id del proveedor. `catalogRateLimiter`, anti-scraping.
+
+### Verificación manual pendiente (requiere Stripe real, no automatizable)
+
+Con `stripe listen` / una cuenta de prueba: pausar (la siguiente factura sale `void`), reanudar (el
+cobro vuelve al ancla), `cancel_at_period_end` seguido de `.deleted` (`canceledAt` = `ended_at`),
+cambio de precio sin prorrateo, y SetupIntent + reintento de factura en `PAST_DUE`. Se suma a la
+verificación del cobro anclado ya pendiente desde 1.7.2a.
 
 ## Idempotencia del checkout (Milestone 1.5)
 
@@ -415,13 +596,14 @@ cliente (front, Milestone 2):
   `orderId` del pendiente (`errors.orderId`) — un cliente solo puede tener un checkout abierto
   a la vez.
 
-## Cron (Milestone 1.4 + 1.5 + 1.6.1 + 1.7.2a + 1.7.2b)
+## Cron (Milestone 1.4 + 1.5 + 1.6.1 + 1.7.2a + 1.7.2b + 1.7.3)
 
 Un solo `node-cron` corre cada minuto (`jobs/index.ts`, nunca montado en `buildApp()`): libera
 reservas de stock vencidas, cierra pedidos `pending` vencidos (Stripe-first, ver arriba),
 reconcilia pagos pendientes sin webhook, refresca `Bundle.stockCache` y libera cuentas de
 suscripción `INCOMPLETE` abandonadas (ver arriba, §"Suscripciones — Stripe Billing") y avisa al
-admin cuando falta publicar la edición del ciclo que está por cobrarse (1.7.2b). Todas las
+admin cuando falta publicar la edición del ciclo que está por cobrarse (1.7.2b) y resuelve los
+cambios de plan que quedaron a medias (1.7.3, ver §"Cambiar de plan"). Todas las
 operaciones son idempotentes por documento — seguro correr varias instancias de la API sin lock
 distribuido.
 

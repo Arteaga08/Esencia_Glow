@@ -1,4 +1,5 @@
 import type { Types } from "mongoose";
+import { SubscriptionStatus } from "@esencia-glow/shared";
 import type {
   MySubscription,
   MySubscriptionShipment,
@@ -9,6 +10,7 @@ import { SubscriptionAccount } from "../models/subscription-account.model.js";
 import { SubscriptionPlan } from "../models/subscription-plan.model.js";
 import { SubscriptionShipment } from "../models/subscription-shipment.model.js";
 import { AppError } from "../utils/app-error.js";
+import { canUndoCancel } from "./subscription-state.js";
 
 /**
  * Lectura de la propia suscripción (`GET /subscriptions/me`, Milestone
@@ -83,6 +85,14 @@ async function getMySubscription(userId: string): Promise<MySubscription | null>
     },
     ...(account.currentPeriodEnd ? { nextChargeAt: account.currentPeriodEnd.toISOString() } : {}),
     cancelAtPeriodEnd: account.cancelAtPeriodEnd,
+    ...(account.cancelAtPeriodEnd && account.cancelRequestedAt
+      ? { cancelRequestedAt: account.cancelRequestedAt.toISOString() }
+      : {}),
+    canUndoCancel: canUndoCancel(account),
+    ...(account.status === SubscriptionStatus.PAUSED && account.pausedAt
+      ? { pausedAt: account.pausedAt.toISOString() }
+      : {}),
+    planChangePending: Boolean(account.pendingPlanChange),
     dunningAttempts: account.dunningAttempts,
     ...(account.startedAt ? { startedAt: account.startedAt.toISOString() } : {}),
     shipments: shipments.map(buildMyShipment),

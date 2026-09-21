@@ -136,6 +136,18 @@ function mapProviderSubscriptionStatus(status: Stripe.Subscription.Status): Prov
   }
 }
 
+/**
+ * Hora en que la suscripción TERMINÓ. `ended_at` es la real; `canceled_at` es
+ * la de la SOLICITUD de cancelación, que en una cancelación al fin del
+ * período ocurre semanas antes (verificado en `stripe@22.6.2`). Respaldo a
+ * `canceled_at` y luego a "ahora": nunca lanza, un evento válido no puede
+ * volverse un 500 con reintentos infinitos.
+ */
+function readTerminationDate(subscription: Stripe.Subscription): Date {
+  const seconds = subscription.ended_at ?? subscription.canceled_at ?? Math.floor(Date.now() / 1000);
+  return new Date(seconds * 1000);
+}
+
 function translateSubscriptionUpdatedEvent(
   providerType: string,
   eventId: string,
@@ -143,6 +155,8 @@ function translateSubscriptionUpdatedEvent(
 ): SubscriptionWebhookEvent {
   const item = subscription.items?.data?.[0];
   const accountIdHint = extractSubscriptionAccountIdHint(subscription);
+  const status = mapProviderSubscriptionStatus(subscription.status);
+  const reason = subscription.cancellation_details?.reason;
 
   return {
     kind: "subscription.updated",
@@ -150,10 +164,13 @@ function translateSubscriptionUpdatedEvent(
     providerType,
     subscriptionRef: subscription.id,
     ...(accountIdHint ? { accountIdHint } : {}),
-    status: mapProviderSubscriptionStatus(subscription.status),
+    status,
     cancelAtPeriodEnd: subscription.cancel_at_period_end,
     ...(item ? { currentPeriodStart: new Date(item.current_period_start * 1000) } : {}),
     ...(item ? { currentPeriodEnd: new Date(item.current_period_end * 1000) } : {}),
+    ...(status === "canceled" ? { canceledAt: readTerminationDate(subscription) } : {}),
+    ...(reason ? { reason } : {}),
+    collectionPaused: Boolean(subscription.pause_collection),
   };
 }
 
@@ -171,7 +188,7 @@ function translateSubscriptionDeletedEvent(
     providerType,
     subscriptionRef: subscription.id,
     ...(accountIdHint ? { accountIdHint } : {}),
-    canceledAt: new Date((subscription.canceled_at ?? Math.floor(Date.now() / 1000)) * 1000),
+    canceledAt: readTerminationDate(subscription),
     ...(reason ? { reason } : {}),
   };
 }

@@ -30,7 +30,9 @@ const VALID_PAIRS: [SubscriptionStatus, SubscriptionStatus, string[]][] = [
   [PAST_DUE, ACTIVE, ["system"]],
   [PAST_DUE, CANCELED, ["system"]],
   [PAUSED, ACTIVE, ["customer", "admin"]],
-  [PAUSED, CANCELED, ["customer", "admin"]],
+  // `system` (1.7.3): la pausa ya vive en Stripe — una cancelación desde el
+  // Dashboard, o una escritura local fallida tras cancelar, converge vía `.deleted`.
+  [PAUSED, CANCELED, ["customer", "admin", "system"]],
   [CANCELED, INCOMPLETE, ["customer"]],
 ];
 

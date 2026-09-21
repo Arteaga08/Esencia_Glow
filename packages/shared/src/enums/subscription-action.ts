@@ -13,11 +13,9 @@ enum SubscriptionAction {
   EDITION_PUBLISHED = "subscription_edition_published",
   EDITION_UNPUBLISHED = "subscription_edition_unpublished",
   EDITION_DELETED = "subscription_edition_deleted",
-  /** Declaradas para el ciclo de vida de la cuenta de la suscriptora, pero
-   * SIN emisor todavía: 1.7.1 no expone alta/pausa/cancelación por HTTP (no
-   * hay Stripe Billing conectado) — mismo criterio que `RESERVATION_CREATED`
-   * en `InventoryAction`. 1.7.2/1.7.3 las conectan desde el webhook y los
-   * endpoints de la suscriptora, que sí tienen ese contexto. */
+  /** Declaradas en 1.7.1 para el ciclo de vida de la cuenta (mismo criterio
+   * que `RESERVATION_CREATED` en `InventoryAction`); 1.7.2 y 1.7.3 las fueron
+   * conectando desde el webhook y los endpoints de la suscriptora. */
   SUBSCRIPTION_STARTED = "subscription_started",
   SUBSCRIPTION_CANCELED = "subscription_canceled",
   SUBSCRIPTION_PAUSED = "subscription_paused",
@@ -48,6 +46,18 @@ enum SubscriptionAction {
    * anclado y el ciclo todavía no tiene edición publicada — el aviso que
    * evita que la caja nazca con `editionIncident` y la clienta ya cobrada. */
   SHIPMENT_EDITION_MISSING_UPCOMING = "subscription_shipment_edition_missing_upcoming",
+  /** Conectadas en 1.7.3 (autoservicio de la suscriptora). La cancelación al
+   * fin del período ya no es `SUBSCRIPTION_CANCELED` (que solo se emite cuando
+   * la cuenta pasa de verdad a `CANCELED`): programarla y deshacerla tienen su
+   * propia acción. `SUBSCRIPTION_PAUSED`/`RESUMED`/`PLAN_CHANGED`, declaradas
+   * desde 1.7.1, también tienen emisor desde aquí. */
+  SUBSCRIPTION_CANCEL_SCHEDULED = "subscription_cancel_scheduled",
+  SUBSCRIPTION_CANCEL_UNDONE = "subscription_cancel_undone",
+  SUBSCRIPTION_PAYMENT_METHOD_UPDATED = "subscription_payment_method_updated",
+  /** El barrendero `jobs/reconcile-pending-plan-changes.ts` resolvió un cambio
+   * de plan que quedó a medias (el proceso murió entre reclamar el cupo y
+   * confirmar contra el proveedor). `metadata.outcome`: finalized | aborted. */
+  SUBSCRIPTION_PLAN_CHANGE_RECONCILED = "subscription_plan_change_reconciled",
 }
 
 export { SubscriptionAction };

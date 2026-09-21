@@ -440,7 +440,7 @@ describe("subscription-webhook-handlers — customer.subscription.deleted (cance
     expect(refreshedPlan?.seatsTaken).toBe(0);
   });
 
-  it("cancelación sobre una cuenta PAUSED -> ignored (PAUSED -> CANCELED no es expresable desde el webhook)", async () => {
+  it("cancelación sobre una cuenta PAUSED -> CANCELED sin tocar el cupo (la pausa ya lo había liberado; Dashboard/escritura local fallida convergen aquí)", async () => {
     const plan = await seedPlanWithStripeRefs();
     const subscriptionRef = `sub_${new Types.ObjectId().toString()}`;
     const account = await seedSubscribedAccount({
@@ -448,14 +448,155 @@ describe("subscription-webhook-handlers — customer.subscription.deleted (cance
       status: SubscriptionStatus.PAUSED,
       providerSubscriptionId: subscriptionRef,
     });
+    expect((await SubscriptionPlan.findById(plan._id))?.seatsTaken).toBe(0);
 
     const event = subscriptionCanceledEvent({ subscriptionRef });
     await processPaymentWebhook(event, provider);
 
     const storedEvent = await PaymentEvent.findOne({ eventId: event.eventId });
-    expect(storedEvent?.status).toBe("ignored");
+    expect(storedEvent?.status).toBe("processed");
     const reloaded = await SubscriptionAccount.findById(account._id);
-    expect(reloaded?.status).toBe(SubscriptionStatus.PAUSED);
+    expect(reloaded?.status).toBe(SubscriptionStatus.CANCELED);
+    expect((await SubscriptionPlan.findById(plan._id))?.seatsTaken).toBe(0);
+  });
+});
+
+describe("subscription-webhook-handlers — canceledAt real de Stripe (1.7.3)", () => {
+  it(".updated(canceled) sella el canceledAt y el reason DEL EVENTO, no la hora del servidor", async () => {
+    const { account, subscriptionRef } = await seedActiveAccountWithEdition();
+    const endedAt = new Date("2026-08-01T10:00:00Z");
+
+    await processPaymentWebhook(
+      subscriptionUpdatedEvent({ subscriptionRef, status: "canceled", canceledAt: endedAt, reason: "payment_failed" }),
+      provider,
+    );
+
+    const reloaded = await SubscriptionAccount.findById(account._id);
+    expect(reloaded?.status).toBe(SubscriptionStatus.CANCELED);
+    expect(reloaded?.canceledAt?.getTime()).toBe(endedAt.getTime());
+    expect(reloaded?.cancelReason).toBe("payment_failed");
+  });
+
+  it("el motivo ESCRITO por la clienta sobrevive a la cancelación de Stripe (el reason del proveedor es un enum, no lo pisa)", async () => {
+    const { account, subscriptionRef } = await seedActiveAccountWithEdition();
+    await SubscriptionAccount.updateOne(
+      { _id: account._id },
+      { $set: { cancelAtPeriodEnd: true, cancelReason: "Me mudo de ciudad" } },
+    );
+
+    await processPaymentWebhook(
+      subscriptionCanceledEvent({ subscriptionRef, reason: "cancellation_requested" }),
+      provider,
+    );
+
+    const reloaded = await SubscriptionAccount.findById(account._id);
+    expect(reloaded?.status).toBe(SubscriptionStatus.CANCELED);
+    expect(reloaded?.cancelReason).toBe("Me mudo de ciudad");
+  });
+
+  it(".updated(canceled) sin canceledAt en el evento cae a la hora del servidor (nunca lanza)", async () => {
+    const { account, subscriptionRef } = await seedActiveAccountWithEdition();
+    const before = Date.now();
+
+    await processPaymentWebhook(subscriptionUpdatedEvent({ subscriptionRef, status: "canceled" }), provider);
+
+    const reloaded = await SubscriptionAccount.findById(account._id);
+    expect(reloaded?.canceledAt?.getTime()).toBeGreaterThanOrEqual(before);
+  });
+});
+
+/** Auditoría de divergencia (1.7.3): `.updated` NO sincroniza `cancelAtPeriodEnd`
+ * ni la pausa (una reentrega fuera de orden las voltearía) — solo las
+ * audita, y solo si la cuenta lleva más de 2 min sin escribirse, para no
+ * marcar como divergencia nuestra propia ventana "Stripe primero, local
+ * después". */
+describe("subscription-webhook-handlers — auditoría de divergencia con Stripe", () => {
+  async function ageAccount(accountId: Types.ObjectId, minutes: number): Promise<void> {
+    await SubscriptionAccount.collection.updateOne(
+      { _id: accountId },
+      { $set: { updatedAt: new Date(Date.now() - minutes * 60_000) } },
+    );
+  }
+
+  async function mismatchFields(accountId: Types.ObjectId): Promise<string[]> {
+    const rows = await AuditLog.find({ action: "subscription_provider_mismatch", targetId: accountId }).lean();
+    return rows.map((row) => String((row.metadata as { field?: string } | undefined)?.field));
+  }
+
+  it("cancelAtPeriodEnd distinto en Stripe -> audita divergencia y NO cambia el flag local", async () => {
+    const { account, subscriptionRef } = await seedActiveAccountWithEdition();
+    await ageAccount(account._id, 10);
+
+    const event = subscriptionUpdatedEvent({ subscriptionRef, cancelAtPeriodEnd: true });
+    await processPaymentWebhook(event, provider);
+
+    expect(await mismatchFields(account._id)).toEqual(["cancelAtPeriodEnd"]);
+    expect((await SubscriptionAccount.findById(account._id))?.cancelAtPeriodEnd).toBe(false);
+  });
+
+  it("la misma divergencia DENTRO de la ventana de 2 min no se audita (es nuestra propia escritura en vuelo)", async () => {
+    const { account, subscriptionRef } = await seedActiveAccountWithEdition();
+
+    await processPaymentWebhook(subscriptionUpdatedEvent({ subscriptionRef, cancelAtPeriodEnd: true }), provider);
+
+    expect(await mismatchFields(account._id)).toEqual([]);
+  });
+
+  it("cobranza pausada en Stripe sobre una cuenta ACTIVE -> audita 'collectionPaused'", async () => {
+    const { account, subscriptionRef } = await seedActiveAccountWithEdition();
+    await ageAccount(account._id, 10);
+
+    await processPaymentWebhook(subscriptionUpdatedEvent({ subscriptionRef, collectionPaused: true }), provider);
+
+    expect(await mismatchFields(account._id)).toEqual(["collectionPaused"]);
+  });
+
+  it("cuenta PAUSED cuya suscripción en Stripe sigue cobrando -> audita 'collectionPaused'", async () => {
+    const plan = await seedPlanWithStripeRefs();
+    const subscriptionRef = `sub_${new Types.ObjectId().toString()}`;
+    const account = await seedSubscribedAccount({
+      planId: plan._id.toString(),
+      status: SubscriptionStatus.PAUSED,
+      providerSubscriptionId: subscriptionRef,
+    });
+    await ageAccount(account._id, 10);
+
+    await processPaymentWebhook(subscriptionUpdatedEvent({ subscriptionRef, collectionPaused: false }), provider);
+
+    expect(await mismatchFields(account._id)).toEqual(["collectionPaused"]);
+  });
+
+  it("sin divergencia no se audita nada", async () => {
+    const { account, subscriptionRef } = await seedActiveAccountWithEdition();
+    await ageAccount(account._id, 10);
+
+    await processPaymentWebhook(subscriptionUpdatedEvent({ subscriptionRef }), provider);
+
+    expect(await mismatchFields(account._id)).toEqual([]);
+  });
+});
+
+/** Un cambio de plan a medias (1.7.3) lo resuelve SOLO el reconciliador, que
+ * pregunta a Stripe el precio real. El webhook `.updated` no es evidencia: no
+ * trae orden ni versión, y una reentrega vieja con el precio de un plan
+ * anterior parecería confirmar un cambio que Stripe todavía no aplicó. */
+describe("subscription-webhook-handlers — cambio de plan a medias", () => {
+  it(".updated NUNCA finaliza ni toca un cambio de plan pendiente", async () => {
+    const { account, plan, subscriptionRef } = await seedActiveAccountWithEdition();
+    const newPlan = await seedPlanWithStripeRefs();
+    await SubscriptionPlan.updateOne({ _id: newPlan._id }, { $inc: { seatsTaken: 1 } });
+    await SubscriptionAccount.updateOne(
+      { _id: account._id },
+      { $set: { pendingPlanChange: { planId: newPlan._id, requestedAt: new Date() } } },
+    );
+
+    await processPaymentWebhook(subscriptionUpdatedEvent({ subscriptionRef }), provider);
+
+    const reloaded = await SubscriptionAccount.findById(account._id);
+    expect(reloaded?.pendingPlanChange).toBeDefined();
+    expect(reloaded?.planId.toString()).toBe(plan._id.toString());
+    expect((await SubscriptionPlan.findById(plan._id))?.seatsTaken).toBe(1);
+    expect((await SubscriptionPlan.findById(newPlan._id))?.seatsTaken).toBe(1);
   });
 });
 

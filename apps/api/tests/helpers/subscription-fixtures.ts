@@ -100,6 +100,8 @@ async function seedPublishedEdition(input: SeedPublishedEditionInput): Promise<S
 
 interface SeedSubscribedAccountInput {
   planId: string;
+  /** Dueña de la cuenta. Por defecto una usuaria nueva. */
+  userId?: string;
   status?: SubscriptionStatus;
   providerSubscriptionId?: string;
   providerCustomerId?: string;
@@ -109,7 +111,7 @@ interface SeedSubscribedAccountInput {
  * un `Model.create` con el status ya puesto): así `seatsTaken` y
  * `statusHistory` quedan exactamente como los dejaría el webhook real. */
 async function seedSubscribedAccount(input: SeedSubscribedAccountInput): Promise<SubscriptionAccountDocument> {
-  const userId = new Types.ObjectId().toString();
+  const userId = input.userId ?? new Types.ObjectId().toString();
   let account = await startSubscription({ userId, planId: input.planId });
 
   if (input.providerSubscriptionId || input.providerCustomerId) {
@@ -190,6 +192,7 @@ function subscriptionUpdatedEvent(overrides: Partial<SubscriptionUpdatedEvent> =
     subscriptionRef: `sub_${randomUUID()}`,
     status: "active",
     cancelAtPeriodEnd: false,
+    collectionPaused: false,
     ...overrides,
   };
 }
@@ -205,8 +208,50 @@ function subscriptionCanceledEvent(overrides: Partial<SubscriptionCanceledEvent>
   };
 }
 
+/** Cuenta ya suscrita, lista para operaciones de autoservicio (1.7.3): con
+ * `providerSubscriptionId`/`providerCustomerId` y un período vigente. */
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+interface SeedManagedInput {
+  /** Dueña de la cuenta (p. ej. la sesión de un test de rutas). */
+  userId?: string;
+  status?: SubscriptionStatus;
+  maxActiveSeats?: number;
+  planId?: string;
+  /** Días hasta `currentPeriodEnd`. Default 20 (lejos del corte de 48 h). */
+  periodEndInDays?: number;
+  cancelAtPeriodEnd?: boolean;
+  pausedAt?: Date;
+}
+
+async function seedManaged(input: SeedManagedInput = {}) {
+  const plan = input.planId ? null : await seedPlanWithStripeRefs({ maxActiveSeats: input.maxActiveSeats ?? 5 });
+  const planId = input.planId ?? plan!._id.toString();
+  const subscriptionRef = `sub_${new Types.ObjectId().toString()}`;
+  const account = await seedSubscribedAccount({
+    planId,
+    ...(input.userId ? { userId: input.userId } : {}),
+    status: input.status ?? SubscriptionStatus.ACTIVE,
+    providerSubscriptionId: subscriptionRef,
+    providerCustomerId: `cus_${subscriptionRef}`,
+  });
+  await SubscriptionAccount.updateOne(
+    { _id: account._id },
+    {
+      $set: {
+        currentPeriodStart: new Date(Date.now() - 10 * DAY_MS),
+        currentPeriodEnd: new Date(Date.now() + (input.periodEndInDays ?? 20) * DAY_MS),
+        cancelAtPeriodEnd: input.cancelAtPeriodEnd ?? false,
+        ...(input.pausedAt ? { pausedAt: input.pausedAt } : {}),
+      },
+    },
+  );
+  return { planId, subscriptionRef, userId: account.userId.toString(), accountId: account._id };
+}
+
 export {
   seedPlanWithStripeRefs,
+  seedManaged,
   seedSubscriptionVariantWithStock,
   seedPublishedEdition,
   seedSubscribedAccount,

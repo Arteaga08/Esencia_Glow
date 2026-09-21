@@ -12,8 +12,10 @@ function buildFakeClient(overrides: Partial<StripeBillingClientLike> = {}): Stri
   return {
     products: { create: vi.fn() },
     prices: { create: vi.fn() },
-    customers: { create: vi.fn() },
-    subscriptions: { create: vi.fn(), retrieve: vi.fn() },
+    customers: { create: vi.fn(), update: vi.fn() },
+    subscriptions: { create: vi.fn(), retrieve: vi.fn(), update: vi.fn(), cancel: vi.fn() },
+    setupIntents: { create: vi.fn(), retrieve: vi.fn() },
+    invoices: { retrieve: vi.fn(), pay: vi.fn() },
     ...overrides,
   } as StripeBillingClientLike;
 }
@@ -260,5 +262,340 @@ describe("services/stripe-subscription-provider — getSubscription", () => {
     const provider = createStripeSubscriptionProvider(client);
 
     await expect(provider.getSubscription("sub_1")).rejects.toMatchObject({ statusCode: 502 });
+  });
+});
+
+
+/** Suscripción cruda mínima de Stripe (forma `dahlia`: período e id de precio
+ * viven en `items.data[0]`). */
+function rawSubscription(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "sub_1",
+    status: "active",
+    billing_cycle_anchor: 1_700_000_000,
+    cancel_at_period_end: false,
+    pause_collection: null,
+    latest_invoice: null,
+    items: {
+      data: [
+        { id: "si_1", current_period_start: 1_700_000_000, current_period_end: 1_702_592_000, price: { id: "price_old" } },
+      ],
+    },
+    ...overrides,
+  };
+}
+
+describe("services/stripe-subscription-provider — pausa y reanudación", () => {
+  it("pauseCollection manda pause_collection {behavior:'void'} (el status en Stripe sigue 'active') y refleja collectionPaused", async () => {
+    const update = vi.fn().mockResolvedValue(rawSubscription({ pause_collection: { behavior: "void", resumes_at: null } }));
+    const provider = createStripeSubscriptionProvider(
+      buildFakeClient({ subscriptions: { create: vi.fn(), retrieve: vi.fn(), update, cancel: vi.fn() } }),
+    );
+
+    const result = await provider.pauseCollection({ subscriptionRef: "sub_1" });
+
+    expect(update).toHaveBeenCalledWith("sub_1", { pause_collection: { behavior: "void" } });
+    expect(result).toMatchObject({ subscriptionRef: "sub_1", status: "active", collectionPaused: true });
+  });
+
+  it("resumeCollection manda pause_collection '' (Emptyable) para limpiar la pausa", async () => {
+    const update = vi.fn().mockResolvedValue(rawSubscription());
+    const provider = createStripeSubscriptionProvider(
+      buildFakeClient({ subscriptions: { create: vi.fn(), retrieve: vi.fn(), update, cancel: vi.fn() } }),
+    );
+
+    const result = await provider.resumeCollection({ subscriptionRef: "sub_1" });
+
+    expect(update).toHaveBeenCalledWith("sub_1", { pause_collection: "" });
+    expect(result.collectionPaused).toBe(false);
+  });
+
+  it("una suscripción ya cancelada (StripeInvalidRequestError) es 409, no 502", async () => {
+    const update = vi.fn().mockRejectedValue({ type: "StripeInvalidRequestError", message: "canceled subscription" });
+    const provider = createStripeSubscriptionProvider(
+      buildFakeClient({ subscriptions: { create: vi.fn(), retrieve: vi.fn(), update, cancel: vi.fn() } }),
+    );
+
+    await expect(provider.pauseCollection({ subscriptionRef: "sub_1" })).rejects.toMatchObject({ statusCode: 409 });
+  });
+
+  it("un fallo de red/API es 502", async () => {
+    const update = vi.fn().mockRejectedValue({ type: "StripeAPIError" });
+    const provider = createStripeSubscriptionProvider(
+      buildFakeClient({ subscriptions: { create: vi.fn(), retrieve: vi.fn(), update, cancel: vi.fn() } }),
+    );
+
+    await expect(provider.resumeCollection({ subscriptionRef: "sub_1" })).rejects.toMatchObject({ statusCode: 502 });
+  });
+});
+
+describe("services/stripe-subscription-provider — cancelación", () => {
+  it("setCancelAtPeriodEnd(true) manda cancel_at_period_end y el motivo como cancellation_details.comment", async () => {
+    const update = vi.fn().mockResolvedValue(rawSubscription({ cancel_at_period_end: true }));
+    const provider = createStripeSubscriptionProvider(
+      buildFakeClient({ subscriptions: { create: vi.fn(), retrieve: vi.fn(), update, cancel: vi.fn() } }),
+    );
+
+    const result = await provider.setCancelAtPeriodEnd({
+      subscriptionRef: "sub_1",
+      cancelAtPeriodEnd: true,
+      comment: "Me mudo",
+    });
+
+    expect(update).toHaveBeenCalledWith("sub_1", {
+      cancel_at_period_end: true,
+      cancellation_details: { comment: "Me mudo" },
+    });
+    expect(result.cancelAtPeriodEnd).toBe(true);
+  });
+
+  it("setCancelAtPeriodEnd(false) sin motivo NO manda cancellation_details", async () => {
+    const update = vi.fn().mockResolvedValue(rawSubscription());
+    const provider = createStripeSubscriptionProvider(
+      buildFakeClient({ subscriptions: { create: vi.fn(), retrieve: vi.fn(), update, cancel: vi.fn() } }),
+    );
+
+    await provider.setCancelAtPeriodEnd({ subscriptionRef: "sub_1", cancelAtPeriodEnd: false });
+
+    expect(update).toHaveBeenCalledWith("sub_1", { cancel_at_period_end: false });
+  });
+
+  it("cancelNow cancela de inmediato con idempotencyKey y el motivo como comment", async () => {
+    const cancel = vi.fn().mockResolvedValue(rawSubscription({ status: "canceled" }));
+    const provider = createStripeSubscriptionProvider(
+      buildFakeClient({ subscriptions: { create: vi.fn(), retrieve: vi.fn(), update: vi.fn(), cancel } }),
+    );
+
+    const result = await provider.cancelNow({
+      subscriptionRef: "sub_1",
+      comment: "Ya no la uso",
+      idempotencyKey: "account:a1:cancel:1",
+    });
+
+    expect(cancel).toHaveBeenCalledWith(
+      "sub_1",
+      { cancellation_details: { comment: "Ya no la uso" } },
+      { idempotencyKey: "account:a1:cancel:1" },
+    );
+    expect(result.status).toBe("canceled");
+  });
+});
+
+describe("services/stripe-subscription-provider — cambio de plan", () => {
+  it("changePrice recupera el ítem, cambia SU precio sin prorrateo y con el ancla intacta", async () => {
+    const retrieve = vi.fn().mockResolvedValue(rawSubscription());
+    const update = vi.fn().mockResolvedValue(
+      rawSubscription({
+        items: {
+          data: [{ id: "si_1", current_period_start: 1_700_000_000, current_period_end: 1_702_592_000, price: { id: "price_new" } }],
+        },
+      }),
+    );
+    const provider = createStripeSubscriptionProvider(
+      buildFakeClient({ subscriptions: { create: vi.fn(), retrieve, update, cancel: vi.fn() } }),
+    );
+
+    const result = await provider.changePrice({
+      subscriptionRef: "sub_1",
+      priceRef: "price_new",
+      metadata: { planId: "plan_new" },
+      idempotencyKey: "account:a1:plan:1",
+    });
+
+    expect(update).toHaveBeenCalledWith(
+      "sub_1",
+      {
+        items: [{ id: "si_1", price: "price_new" }],
+        proration_behavior: "none",
+        billing_cycle_anchor: "unchanged",
+        metadata: { planId: "plan_new" },
+      },
+      { idempotencyKey: "account:a1:plan:1" },
+    );
+    expect(result.priceRef).toBe("price_new");
+  });
+
+  it("changePrice sobre una suscripción sin ítems es 502 (datos corruptos del proveedor), nunca llama a update", async () => {
+    const retrieve = vi.fn().mockResolvedValue(rawSubscription({ items: { data: [] } }));
+    const update = vi.fn();
+    const provider = createStripeSubscriptionProvider(
+      buildFakeClient({ subscriptions: { create: vi.fn(), retrieve, update, cancel: vi.fn() } }),
+    );
+
+    await expect(
+      provider.changePrice({ subscriptionRef: "sub_1", priceRef: "p", metadata: { planId: "x" }, idempotencyKey: "k" }),
+    ).rejects.toMatchObject({ statusCode: 502 });
+    expect(update).not.toHaveBeenCalled();
+  });
+});
+
+describe("services/stripe-subscription-provider — método de pago", () => {
+  it("createPaymentMethodSetup crea un SetupIntent off_session solo-tarjeta con el accountId en metadata", async () => {
+    const create = vi.fn().mockResolvedValue({ id: "seti_1", client_secret: "seti_1_secret" });
+    const provider = createStripeSubscriptionProvider(buildFakeClient({ setupIntents: { create, retrieve: vi.fn() } }));
+
+    const result = await provider.createPaymentMethodSetup({ customerRef: "cus_1", accountId: "acc_1" });
+
+    expect(create).toHaveBeenCalledWith({
+      customer: "cus_1",
+      usage: "off_session",
+      payment_method_types: ["card"],
+      metadata: { accountId: "acc_1", purpose: "subscription_payment_method" },
+    });
+    expect(result).toEqual({ clientSecret: "seti_1_secret" });
+  });
+
+  it("createPaymentMethodSetup sin client_secret en la respuesta es 502", async () => {
+    const create = vi.fn().mockResolvedValue({ id: "seti_1", client_secret: null });
+    const provider = createStripeSubscriptionProvider(buildFakeClient({ setupIntents: { create, retrieve: vi.fn() } }));
+
+    await expect(provider.createPaymentMethodSetup({ customerRef: "cus_1", accountId: "acc_1" })).rejects.toMatchObject({
+      statusCode: 502,
+    });
+  });
+
+  it("getPaymentMethodSetup normaliza customer/payment_method (pueden venir expandidos como objeto) y traduce el status", async () => {
+    const retrieve = vi.fn().mockResolvedValue({
+      id: "seti_1",
+      status: "succeeded",
+      customer: { id: "cus_1" },
+      payment_method: { id: "pm_1" },
+      metadata: { accountId: "acc_1" },
+    });
+    const provider = createStripeSubscriptionProvider(buildFakeClient({ setupIntents: { create: vi.fn(), retrieve } }));
+
+    const result = await provider.getPaymentMethodSetup("seti_1");
+
+    expect(result).toEqual({ status: "succeeded", customerRef: "cus_1", paymentMethodRef: "pm_1", accountIdHint: "acc_1" });
+  });
+
+  it.each([
+    ["requires_action", "pending"],
+    ["processing", "pending"],
+    ["requires_confirmation", "pending"],
+    ["canceled", "failed"],
+    ["requires_payment_method", "failed"],
+  ])("getPaymentMethodSetup: status '%s' -> '%s'", async (stripeStatus, expected) => {
+    const retrieve = vi.fn().mockResolvedValue({ id: "seti_1", status: stripeStatus, customer: "cus_1", payment_method: null, metadata: {} });
+    const provider = createStripeSubscriptionProvider(buildFakeClient({ setupIntents: { create: vi.fn(), retrieve } }));
+
+    expect((await provider.getPaymentMethodSetup("seti_1")).status).toBe(expected);
+  });
+
+  it("getPaymentMethodSetup: un SetupIntent inexistente (resource_missing) es 404", async () => {
+    const retrieve = vi.fn().mockRejectedValue({ type: "StripeInvalidRequestError", code: "resource_missing" });
+    const provider = createStripeSubscriptionProvider(buildFakeClient({ setupIntents: { create: vi.fn(), retrieve } }));
+
+    await expect(provider.getPaymentMethodSetup("seti_x")).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it("setDefaultPaymentMethod la fija en la suscripción Y en el customer (cubre una re-alta futura)", async () => {
+    const subUpdate = vi.fn().mockResolvedValue(rawSubscription());
+    const customerUpdate = vi.fn().mockResolvedValue({ id: "cus_1" });
+    const provider = createStripeSubscriptionProvider(
+      buildFakeClient({
+        subscriptions: { create: vi.fn(), retrieve: vi.fn(), update: subUpdate, cancel: vi.fn() },
+        customers: { create: vi.fn(), update: customerUpdate },
+      }),
+    );
+
+    await provider.setDefaultPaymentMethod({ subscriptionRef: "sub_1", customerRef: "cus_1", paymentMethodRef: "pm_1" });
+
+    expect(subUpdate).toHaveBeenCalledWith("sub_1", { default_payment_method: "pm_1" });
+    expect(customerUpdate).toHaveBeenCalledWith("cus_1", { invoice_settings: { default_payment_method: "pm_1" } });
+  });
+});
+
+describe("services/stripe-subscription-provider — retryInvoicePayment", () => {
+  function buildInvoiceClient(retrieveResult: unknown, payImpl: ReturnType<typeof vi.fn>) {
+    return buildFakeClient({
+      invoices: { retrieve: vi.fn().mockResolvedValue(retrieveResult), pay: payImpl },
+    });
+  }
+
+  it("paga la factura abierta off_session con el método indicado y la idempotencyKey -> 'paid'", async () => {
+    const pay = vi.fn().mockResolvedValue({ id: "in_1", status: "paid" });
+    const provider = createStripeSubscriptionProvider(buildInvoiceClient({ id: "in_1", status: "open" }, pay));
+
+    const result = await provider.retryInvoicePayment({ invoiceRef: "in_1", paymentMethodRef: "pm_1", idempotencyKey: "k1" });
+
+    expect(pay).toHaveBeenCalledWith("in_1", { payment_method: "pm_1", off_session: true }, { idempotencyKey: "k1" });
+    expect(result).toEqual({ outcome: "paid" });
+  });
+
+  it("una factura que ya no está 'open' -> 'already_settled' y NUNCA llama a pay", async () => {
+    const pay = vi.fn();
+    const provider = createStripeSubscriptionProvider(buildInvoiceClient({ id: "in_1", status: "paid" }, pay));
+
+    const result = await provider.retryInvoicePayment({ invoiceRef: "in_1", paymentMethodRef: "pm_1", idempotencyKey: "k1" });
+
+    expect(result).toEqual({ outcome: "already_settled" });
+    expect(pay).not.toHaveBeenCalled();
+  });
+
+  it("tarjeta rechazada (StripeCardError) es un OUTCOME 'declined', no una excepción", async () => {
+    const pay = vi.fn().mockRejectedValue({ type: "StripeCardError", code: "card_declined" });
+    const provider = createStripeSubscriptionProvider(buildInvoiceClient({ id: "in_1", status: "open" }, pay));
+
+    await expect(
+      provider.retryInvoicePayment({ invoiceRef: "in_1", paymentMethodRef: "pm_1", idempotencyKey: "k1" }),
+    ).resolves.toEqual({ outcome: "declined" });
+  });
+
+  it.each(["authentication_required", "invoice_payment_intent_requires_action"])(
+    "código '%s' es un OUTCOME 'requires_action'",
+    async (code) => {
+      const pay = vi.fn().mockRejectedValue({ type: "StripeCardError", code });
+      const provider = createStripeSubscriptionProvider(buildInvoiceClient({ id: "in_1", status: "open" }, pay));
+
+      await expect(
+        provider.retryInvoicePayment({ invoiceRef: "in_1", paymentMethodRef: "pm_1", idempotencyKey: "k1" }),
+      ).resolves.toEqual({ outcome: "requires_action" });
+    },
+  );
+
+  it("la factura se pagó ENTRE el retrieve y el pay (StripeInvalidRequestError): relee, ya no está open -> 'already_settled', no un 502", async () => {
+    const retrieve = vi
+      .fn()
+      .mockResolvedValueOnce({ id: "in_1", status: "open" })
+      .mockResolvedValueOnce({ id: "in_1", status: "paid" });
+    const pay = vi.fn().mockRejectedValue({ type: "StripeInvalidRequestError", message: "Invoice is already paid" });
+    const provider = createStripeSubscriptionProvider(buildFakeClient({ invoices: { retrieve, pay } }));
+
+    await expect(
+      provider.retryInvoicePayment({ invoiceRef: "in_1", paymentMethodRef: "pm_1", idempotencyKey: "k1" }),
+    ).resolves.toEqual({ outcome: "already_settled" });
+  });
+
+  it("StripeInvalidRequestError con la factura TODAVÍA open es un error real: 502", async () => {
+    const retrieve = vi.fn().mockResolvedValue({ id: "in_1", status: "open" });
+    const pay = vi.fn().mockRejectedValue({ type: "StripeInvalidRequestError", message: "otra cosa" });
+    const provider = createStripeSubscriptionProvider(buildFakeClient({ invoices: { retrieve, pay } }));
+
+    await expect(
+      provider.retryInvoicePayment({ invoiceRef: "in_1", paymentMethodRef: "pm_1", idempotencyKey: "k1" }),
+    ).rejects.toMatchObject({ statusCode: 502 });
+  });
+
+  it("cualquier otro fallo de Stripe sigue siendo 502", async () => {
+    const pay = vi.fn().mockRejectedValue({ type: "StripeAPIError" });
+    const provider = createStripeSubscriptionProvider(buildInvoiceClient({ id: "in_1", status: "open" }, pay));
+
+    await expect(
+      provider.retryInvoicePayment({ invoiceRef: "in_1", paymentMethodRef: "pm_1", idempotencyKey: "k1" }),
+    ).rejects.toMatchObject({ statusCode: 502 });
+  });
+});
+
+describe("services/stripe-subscription-provider — snapshot", () => {
+  it("getSubscription expone collectionPaused, cancelAtPeriodEnd y priceRef", async () => {
+    const retrieve = vi.fn().mockResolvedValue(rawSubscription({ cancel_at_period_end: true }));
+    const provider = createStripeSubscriptionProvider(
+      buildFakeClient({ subscriptions: { create: vi.fn(), retrieve, update: vi.fn(), cancel: vi.fn() } }),
+    );
+
+    const result = await provider.getSubscription("sub_1");
+
+    expect(result).toMatchObject({ collectionPaused: false, cancelAtPeriodEnd: true, priceRef: "price_old" });
   });
 });

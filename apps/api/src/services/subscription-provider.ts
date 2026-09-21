@@ -81,6 +81,80 @@ interface ProviderSubscription {
   nextChargeAt?: Date;
   currentPeriodStart?: Date;
   currentPeriodEnd?: Date;
+  /** `pause_collection` activa (1.7.3). Pausar la cobranza NO cambia el
+   * `status` del proveedor (sigue `active`), así que esta es la única señal. */
+  collectionPaused: boolean;
+  cancelAtPeriodEnd: boolean;
+  /** Precio vigente del ítem — confirma que un cambio de plan ya aplicó. */
+  priceRef?: string;
+}
+
+interface PauseCollectionInput {
+  subscriptionRef: string;
+}
+
+interface SetCancelAtPeriodEndInput {
+  subscriptionRef: string;
+  cancelAtPeriodEnd: boolean;
+  /** Motivo escrito por la clienta (`cancelReason`); solo al marcar. */
+  comment?: string;
+}
+
+interface CancelNowInput {
+  subscriptionRef: string;
+  comment?: string;
+  idempotencyKey: string;
+}
+
+/** Cambio de precio SIN prorrateo y con el ancla intacta (decisión de 1.7.3):
+ * el siguiente cobro anclado ya usa el precio nuevo. */
+interface ChangePriceInput {
+  subscriptionRef: string;
+  priceRef: string;
+  metadata: { planId: string };
+  idempotencyKey: string;
+}
+
+interface PaymentMethodSetupInput {
+  customerRef: string;
+  accountId: string;
+}
+
+/** Lo que el front necesita para confirmar la tarjeta en sesión. */
+interface PaymentMethodSetup {
+  clientSecret: string;
+}
+
+type PaymentMethodSetupStatus = "succeeded" | "pending" | "failed";
+
+/** Estado ya traducido de un intento de guardar tarjeta. `customerRef` y
+ * `accountIdHint` sirven para verificar la PROPIEDAD del intento — el
+ * `setupIntentId` lo manda el cliente, nunca se confía en él a ciegas. */
+interface PaymentMethodSetupState {
+  status: PaymentMethodSetupStatus;
+  customerRef?: string;
+  paymentMethodRef?: string;
+  accountIdHint?: string;
+}
+
+interface SetDefaultPaymentMethodInput {
+  subscriptionRef: string;
+  customerRef: string;
+  paymentMethodRef: string;
+}
+
+interface RetryInvoicePaymentInput {
+  invoiceRef: string;
+  paymentMethodRef: string;
+  idempotencyKey: string;
+}
+
+/** Un rechazo o una autenticación pendiente son desenlaces de NEGOCIO, no
+ * excepciones: el endpoint responde con ellos, no con un 5xx. */
+type InvoiceRetryOutcome = "paid" | "already_settled" | "requires_action" | "declined";
+
+interface InvoiceRetryResult {
+  outcome: InvoiceRetryOutcome;
 }
 
 /**
@@ -131,6 +205,14 @@ type SubscriptionWebhookEvent =
       cancelAtPeriodEnd: boolean;
       currentPeriodStart?: Date;
       currentPeriodEnd?: Date;
+      /** Solo cuando `status` es `canceled`: hora REAL de término
+       * (`ended_at`, con `canceled_at` como respaldo). Sin esto el handler
+       * sellaba la hora del servidor (deferido de 1.7.2a, cerrado en 1.7.3). */
+      canceledAt?: Date;
+      reason?: string;
+      /** `pause_collection` activa en el proveedor. El `status` NO cambia al
+       * pausar la cobranza (sigue `active`), así que es la única señal. */
+      collectionPaused: boolean;
     }
   | {
       kind: "subscription.canceled";
@@ -147,6 +229,16 @@ interface SubscriptionProvider {
   ensureCustomer(input: EnsureCustomerInput): Promise<string>;
   startSubscription(input: StartProviderSubscriptionInput): Promise<ProviderSubscription>;
   getSubscription(subscriptionRef: string): Promise<ProviderSubscription>;
+  // --- autoservicio de la suscriptora (Milestone 1.7.3) ---
+  pauseCollection(input: PauseCollectionInput): Promise<ProviderSubscription>;
+  resumeCollection(input: PauseCollectionInput): Promise<ProviderSubscription>;
+  setCancelAtPeriodEnd(input: SetCancelAtPeriodEndInput): Promise<ProviderSubscription>;
+  cancelNow(input: CancelNowInput): Promise<ProviderSubscription>;
+  changePrice(input: ChangePriceInput): Promise<ProviderSubscription>;
+  createPaymentMethodSetup(input: PaymentMethodSetupInput): Promise<PaymentMethodSetup>;
+  getPaymentMethodSetup(setupRef: string): Promise<PaymentMethodSetupState>;
+  setDefaultPaymentMethod(input: SetDefaultPaymentMethodInput): Promise<void>;
+  retryInvoicePayment(input: RetryInvoicePaymentInput): Promise<InvoiceRetryResult>;
 }
 
 /**
@@ -182,4 +274,16 @@ export type {
   EnsureCustomerInput,
   StartProviderSubscriptionInput,
   ProviderSubscription,
+  PauseCollectionInput,
+  SetCancelAtPeriodEndInput,
+  CancelNowInput,
+  ChangePriceInput,
+  PaymentMethodSetupInput,
+  PaymentMethodSetup,
+  PaymentMethodSetupStatus,
+  PaymentMethodSetupState,
+  SetDefaultPaymentMethodInput,
+  RetryInvoicePaymentInput,
+  InvoiceRetryOutcome,
+  InvoiceRetryResult,
 };

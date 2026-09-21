@@ -19,13 +19,23 @@ import {
  * `cancelAtPeriodEnd` modela "activa pero se cancela al fin del ciclo"
  * (decisión 7): NO es un estado nuevo, es `status: ACTIVE` +
  * `cancelAtPeriodEnd: true`. Solo `system` (el webhook de 1.7.2 al cerrar el
- * período) transiciona a `CANCELED` — la clienta nunca lo hace directo.
+ * período) transiciona `ACTIVE`/`PAST_DUE -> CANCELED` — la clienta nunca lo
+ * hace directo. Única excepción: una cuenta `PAUSED` (nada que respetar, no se
+ * cobra mientras está pausada) SÍ la cancela la clienta de inmediato (1.7.3).
+ *
+ * `pausedAt` (solo `PAUSED`) y `pendingPlanChange` (cambio de plan en vuelo)
+ * son de 1.7.3; ambos se limpian al re-suscribirse.
  *
  * `providerCustomerId`, `providerSubscriptionId` y los campos de período/
  * dunning quedan opcionales: los llena 1.7.2 (Stripe Billing). Sin campo de
  * método de pago: la suscripción es tarjeta por definición (decisión 6 del
  * plan de 1.7.1) — un `paymentMethod` aquí solo podría tener un valor.
  */
+interface PendingPlanChangeAttrs {
+  planId: Types.ObjectId;
+  requestedAt: Date;
+}
+
 interface SubscriptionAccountAttrs {
   userId: Types.ObjectId;
   planId: Types.ObjectId;
@@ -53,6 +63,16 @@ interface SubscriptionAccountAttrs {
    * dentro de la misma factura. Se limpia al cobrar. */
   dunningInvoiceId?: string;
   pausedAt?: Date;
+  /** Cambio de plan en vuelo (1.7.3). Presente ⟺ la cuenta reclamó un cupo en
+   * el plan NUEVO pero todavía no lo confirmó contra el proveedor: durante
+   * esa ventana ocupa DOS cupos (el viejo y el nuevo). `requestedAt` fija la
+   * clave de idempotencia de la llamada al proveedor y es el token de CAS al
+   * finalizar o abortar. Mientras exista, pausar y cancelar dan 409. */
+  pendingPlanChange?: PendingPlanChangeAttrs;
+  /** Los pone `timestamps: true`; se declaran para poder leerlos tipados
+   * (p. ej. la ventana de tolerancia de la auditoría de divergencia). */
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 type SubscriptionAccountDocument = HydratedDocument<SubscriptionAccountAttrs>;
@@ -71,6 +91,14 @@ function boundedArrayValidator(max: number) {
     message: `{PATH} no puede tener más de ${max} entradas`,
   };
 }
+
+const pendingPlanChangeSchema = new Schema<PendingPlanChangeAttrs>(
+  {
+    planId: { type: Schema.Types.ObjectId, ref: "SubscriptionPlan", required: true },
+    requestedAt: { type: Date, required: true },
+  },
+  { _id: false },
+);
 
 const subscriptionAccountSchema = new Schema<SubscriptionAccountAttrs, SubscriptionAccountModel>(
   {
@@ -102,6 +130,7 @@ const subscriptionAccountSchema = new Schema<SubscriptionAccountAttrs, Subscript
     dunningAttempts: { type: Number, required: true, default: 0, min: 0, validate: integerValidator },
     dunningInvoiceId: { type: String, trim: true },
     pausedAt: { type: Date },
+    pendingPlanChange: { type: pendingPlanChangeSchema },
   },
   { timestamps: true },
 );
@@ -123,4 +152,4 @@ const SubscriptionAccount = model<SubscriptionAccountAttrs, SubscriptionAccountM
 );
 
 export { SubscriptionAccount, MAX_SUBSCRIPTION_STATUS_HISTORY };
-export type { SubscriptionAccountDocument, SubscriptionAccountAttrs };
+export type { SubscriptionAccountDocument, SubscriptionAccountAttrs, PendingPlanChangeAttrs };

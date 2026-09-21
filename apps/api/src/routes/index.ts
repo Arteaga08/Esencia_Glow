@@ -18,6 +18,7 @@ import { adminSubscriptionEditionRoutes } from "./admin-subscription-edition.rou
 import { adminSubscriptionShipmentRoutes } from "./admin-subscription-shipment.routes.js";
 import { adminSubscriptionRoutes } from "./admin-subscription.routes.js";
 import { subscriptionRoutes } from "./subscription.routes.js";
+import { subscriptionPlanPublicRoutes } from "./subscription-plan-public.routes.js";
 
 /**
  * Índice de routers de la API v1. Los módulos de dominio (auth, catálogo,
@@ -45,5 +46,6 @@ v1Router.use("/admin/subscription-editions", adminSubscriptionEditionRoutes);
 v1Router.use("/admin/subscription-shipments", adminSubscriptionShipmentRoutes);
 v1Router.use("/admin/subscriptions", adminSubscriptionRoutes);
 v1Router.use("/subscriptions", subscriptionRoutes);
+v1Router.use("/subscription-plans", subscriptionPlanPublicRoutes);
 
 export { v1Router };

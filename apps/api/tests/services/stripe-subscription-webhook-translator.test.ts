@@ -140,6 +140,58 @@ describe("services/stripe-webhook-translator — eventos de suscripción", () =>
     expect(result).toMatchObject({ kind: "subscription.updated", status: "active" });
   });
 
+  it("customer.subscription.updated(canceled) propaga canceledAt (ended_at) y reason — antes se perdían y el handler sellaba la hora del servidor", () => {
+    const payload = buildStripeSubscriptionEvent("customer.subscription.updated", "sub_u1", {
+      status: "canceled",
+      canceledAt: 1_700_100_000,
+      endedAt: 1_700_300_000,
+      cancellationReason: "payment_failed",
+    });
+    const result = translateStripeEvent(JSON.parse(payload));
+
+    expect(result).toMatchObject({ kind: "subscription.updated", status: "canceled", reason: "payment_failed" });
+    expect((result as { canceledAt?: Date }).canceledAt).toEqual(new Date(1_700_300_000 * 1000));
+  });
+
+  it("customer.subscription.updated sin cancelación -> canceledAt ausente", () => {
+    const payload = buildStripeSubscriptionEvent("customer.subscription.updated", "sub_u2");
+    const result = translateStripeEvent(JSON.parse(payload));
+
+    expect((result as { canceledAt?: Date }).canceledAt).toBeUndefined();
+  });
+
+  it("customer.subscription.updated: canceledAt cae a canceled_at si ended_at no viene", () => {
+    const payload = buildStripeSubscriptionEvent("customer.subscription.updated", "sub_u3", {
+      status: "canceled",
+      canceledAt: 1_700_100_000,
+    });
+    const result = translateStripeEvent(JSON.parse(payload));
+
+    expect((result as { canceledAt?: Date }).canceledAt).toEqual(new Date(1_700_100_000 * 1000));
+  });
+
+  it("customer.subscription.deleted prefiere ended_at sobre canceled_at (cancelación al fin del período: canceled_at es la SOLICITUD)", () => {
+    const payload = buildStripeSubscriptionEvent("customer.subscription.deleted", "sub_d1", {
+      canceledAt: 1_700_100_000,
+      endedAt: 1_702_700_000,
+    });
+    const result = translateStripeEvent(JSON.parse(payload));
+
+    expect((result as { canceledAt: Date }).canceledAt).toEqual(new Date(1_702_700_000 * 1000));
+  });
+
+  it("customer.subscription.updated con pause_collection -> collectionPaused true; sin ella -> false", () => {
+    const paused = translateStripeEvent(
+      JSON.parse(buildStripeSubscriptionEvent("customer.subscription.updated", "sub_p1", { pauseCollectionBehavior: "void" })),
+    );
+    const active = translateStripeEvent(
+      JSON.parse(buildStripeSubscriptionEvent("customer.subscription.updated", "sub_p2")),
+    );
+
+    expect(paused).toMatchObject({ kind: "subscription.updated", collectionPaused: true });
+    expect(active).toMatchObject({ kind: "subscription.updated", collectionPaused: false });
+  });
+
   it("customer.subscription.deleted -> subscription.canceled con canceledAt y reason", () => {
     const payload = buildStripeSubscriptionEvent("customer.subscription.deleted", "sub_9", {
       accountIdMetadata: "acc_9",

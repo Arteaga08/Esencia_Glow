@@ -1,3 +1,4 @@
+import type { Types } from "mongoose";
 import { SubscriptionAction, SubscriptionStatus } from "@esencia-glow/shared";
 import { SubscriptionAccount, type SubscriptionAccountDocument } from "../models/subscription-account.model.js";
 import { AppError } from "../utils/app-error.js";
@@ -186,5 +187,19 @@ async function recordPaymentFailure(
   );
 }
 
-export { applySystemStatus, recordPaidInvoice, recordPaymentFailure };
+/** Período monotónico, igual que `recordPaidInvoice` pero SIN tocar
+ * `invoiceId`/`dunningAttempts`: `customer.subscription.updated` y la
+ * reanudación no traen una factura, solo el snapshot de período que el
+ * proveedor reporta. Nunca retrocede un período ya registrado. */
+async function updatePeriodIfNewer(accountId: Types.ObjectId | string, start: Date, end: Date): Promise<void> {
+  await SubscriptionAccount.updateOne(
+    {
+      _id: accountId,
+      $or: [{ currentPeriodEnd: { $exists: false } }, { currentPeriodEnd: { $lte: end } }],
+    },
+    { $set: { currentPeriodStart: start, currentPeriodEnd: end } },
+  );
+}
+
+export { applySystemStatus, recordPaidInvoice, recordPaymentFailure, updatePeriodIfNewer };
 export type { ApplySystemStatusFields, ApplySystemStatusResult, RecordPaidInvoiceInput };

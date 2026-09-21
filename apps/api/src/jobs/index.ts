@@ -5,6 +5,7 @@ import { cancelExpiredOrders } from "./cancel-expired-orders.js";
 import { reconcilePendingPayments } from "./reconcile-pending-payments.js";
 import { expireIncompleteSubscriptions } from "./expire-incomplete-subscriptions.js";
 import { alertMissingEdition } from "./alert-missing-edition.js";
+import { reconcilePendingPlanChanges } from "./reconcile-pending-plan-changes.js";
 import { getSettings } from "../services/settings.service.js";
 import { env } from "../config/env.js";
 import { logger } from "../config/logger.js";
@@ -42,7 +43,9 @@ import { logger } from "../config/logger.js";
  * arranca en paralelo con `refreshBundleStockCaches`/`reconcilePendingPayments`,
  * nunca encadenada detrás de la cadena reserva->orden. Lo mismo vale para
  * `alertMissingEdition` (1.7.2b), que además se corta sola fuera de la
- * ventana de aviso sin tocar la base.
+ * ventana de aviso sin tocar la base. `reconcilePendingPlanChanges` (1.7.3)
+ * también: resuelve cambios de plan que quedaron a medias, sin depender de las
+ * cadenas de reserva/orden.
  *
  * Nunca se monta en `buildApp()`: ningún test de supertest debe levantar
  * timers de cron.
@@ -79,12 +82,18 @@ function startCronJobs(): void {
         env.subscriptionEditionAlertDays,
         settings.inventory.sweepBatchSize,
       );
+      const planChangeSummaryPromise = reconcilePendingPlanChanges(
+        new Date(),
+        undefined,
+        settings.inventory.sweepBatchSize,
+      );
       const reservationSummary = await releaseExpiredReservations(new Date(), settings.inventory.sweepBatchSize);
       const orderSummary = await cancelExpiredOrders(new Date(), settings.inventory.sweepBatchSize);
       const bundleSummary = await bundleSummaryPromise;
       const reconcileSummary = await reconcileSummaryPromise;
       const expireSubscriptionsSummary = await expireSubscriptionsSummaryPromise;
       const missingEditionSummary = await missingEditionSummaryPromise;
+      const planChangeSummary = await planChangeSummaryPromise;
       if (reservationSummary.released > 0 || reservationSummary.failed > 0) {
         logger.info(reservationSummary, "Barrido de reservas vencidas");
       }
@@ -102,6 +111,9 @@ function startCronJobs(): void {
       }
       if (missingEditionSummary.alerted > 0 || missingEditionSummary.failed > 0) {
         logger.info(missingEditionSummary, "Aviso preventivo de ediciones faltantes");
+      }
+      if (planChangeSummary.finalized > 0 || planChangeSummary.aborted > 0 || planChangeSummary.failed > 0) {
+        logger.info(planChangeSummary, "Reconciliación de cambios de plan a medias");
       }
     },
     { noOverlap: true, name: "release-expired-reservations" },
