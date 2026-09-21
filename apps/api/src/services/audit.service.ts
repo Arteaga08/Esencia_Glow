@@ -1,6 +1,12 @@
 import { createHash } from "node:crypto";
 import type { Types } from "mongoose";
-import type { AuthAction, InventoryAction, OrderAction, SubscriptionAction } from "@esencia-glow/shared";
+import type {
+  AuthAction,
+  ContentAction,
+  InventoryAction,
+  OrderAction,
+  SubscriptionAction,
+} from "@esencia-glow/shared";
 import { AuditLog } from "../models/audit-log.model.js";
 import { logger } from "../config/logger.js";
 
@@ -10,12 +16,12 @@ import { logger } from "../config/logger.js";
  * "nunca fallan en silencio", pero aquí el propio log es secundario al
  * efecto principal de la acción, así que se loguea el fallo y se continúa).
  *
- * `action` acepta `AuthAction | InventoryAction | OrderAction | SubscriptionAction`:
- * un solo trail para todo el backend (ver audit-log.model.ts).
+ * `action` acepta `AuthAction | InventoryAction | OrderAction | SubscriptionAction |
+ * ContentAction`: un solo trail para todo el backend (ver audit-log.model.ts).
  */
 
 interface RecordAuditInput {
-  action: AuthAction | InventoryAction | OrderAction | SubscriptionAction;
+  action: AuthAction | ContentAction | InventoryAction | OrderAction | SubscriptionAction;
   actorId?: Types.ObjectId | string;
   targetId?: Types.ObjectId | string;
   ip?: string;

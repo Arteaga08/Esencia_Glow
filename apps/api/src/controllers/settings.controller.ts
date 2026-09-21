@@ -15,10 +15,11 @@ const updateInventory = asyncHandler(async (req: Request, res: Response) => {
 
   // Sin `targetId`: el singleton usa `_id: "global"` (string), no un
   // ObjectId — el `req.body` ya validado por Joi es la metadata útil.
+  // `section` identifica QUÉ sección cambió (las 4 comparten la misma acción).
   await recordAudit({
     action: InventoryAction.SETTINGS_UPDATED,
     actorId: req.user!.id,
-    metadata: req.body as Record<string, number>,
+    metadata: { section: "inventory", ...(req.body as Record<string, number>) },
   });
 
   sendResponse(res, 200, "Configuración de inventario actualizada.", inventory);
@@ -33,7 +34,7 @@ const updateCommerce = asyncHandler(async (req: Request, res: Response) => {
   await recordAudit({
     action: InventoryAction.SETTINGS_UPDATED,
     actorId: req.user!.id,
-    metadata: req.body as Record<string, number>,
+    metadata: { section: "commerce", ...(req.body as Record<string, number>) },
   });
 
   sendResponse(res, 200, "Configuración de comercio actualizada.", commerce);
@@ -46,7 +47,7 @@ const updatePayments = asyncHandler(async (req: Request, res: Response) => {
   await recordAudit({
     action: InventoryAction.SETTINGS_UPDATED,
     actorId: req.user!.id,
-    metadata: req.body as Record<string, number>,
+    metadata: { section: "payments", ...(req.body as Record<string, number>) },
   });
 
   sendResponse(res, 200, "Configuración de pagos actualizada.", payments);
@@ -61,7 +62,7 @@ const updateSubscriptions = asyncHandler(async (req: Request, res: Response) => 
   await recordAudit({
     action: InventoryAction.SETTINGS_UPDATED,
     actorId: req.user!.id,
-    metadata: req.body as Record<string, number>,
+    metadata: { section: "subscriptions", ...(req.body as Record<string, number>) },
   });
 
   sendResponse(res, 200, "Configuración de suscripciones actualizada.", subscriptions);

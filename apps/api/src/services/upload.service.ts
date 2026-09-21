@@ -1,6 +1,7 @@
 import sharp from "sharp";
 import { detectImageMime } from "../utils/image-signature.js";
 import { AppError } from "../utils/app-error.js";
+import { logger } from "../config/logger.js";
 import { resolveMediaProvider } from "./media-provider.js";
 import type { MediaAsset } from "./media-provider.js";
 
@@ -12,7 +13,7 @@ const MAX_INPUT_PIXELS = 40_000_000;
 
 interface UploadImageInput {
   buffer: Buffer;
-  folder: "products" | "categories" | "bundles";
+  folder: "products" | "categories" | "bundles" | "home";
 }
 
 /**
@@ -67,5 +68,18 @@ async function destroyImage(publicId: string): Promise<void> {
   await provider.destroy(publicId);
 }
 
-export { uploadImage, destroyImage };
+/**
+ * Best-effort: un fallo al borrar en Cloudinary nunca debe tumbar la respuesta
+ * al admin (el asset queda huérfano y se loguea). Usado por el contenido del
+ * home (1.8); catalog-image/bundle-image conservan su copia local.
+ */
+async function destroyImageBestEffort(publicId: string): Promise<void> {
+  try {
+    await destroyImage(publicId);
+  } catch (error) {
+    logger.warn({ err: error, publicId }, "No se pudo borrar la imagen en Cloudinary (huérfana)");
+  }
+}
+
+export { uploadImage, destroyImage, destroyImageBestEffort };
 export type { UploadImageInput };

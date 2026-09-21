@@ -1,12 +1,12 @@
 import { Schema, model, type HydratedDocument, type Model, type Types } from "mongoose";
-import { AuthAction, InventoryAction, OrderAction, SubscriptionAction } from "@esencia-glow/shared";
+import { AuthAction, ContentAction, InventoryAction, OrderAction, SubscriptionAction } from "@esencia-glow/shared";
 
 /**
  * Audit trail append-only de acciones sensibles (auth: login, cambio de
  * contraseña, 2FA, revocación de sesiones; inventario: ajustes manuales de
  * stock, ciclo de vida de reservas; órdenes: checkout, cancelación, cambios
  * de estatus/admin; suscripciones: planes, ediciones y el ciclo de vida de
- * la cuenta). Nunca guarda PII ni secretos: ni email en claro, ni tokens, ni
+ * la cuenta; contenido: secciones editables del home). Nunca guarda PII ni secretos: ni email en claro, ni tokens, ni
  * contraseñas — solo identificadores y metadata acotada. El registro es
  * best-effort (ver services/audit.service.ts): un fallo aquí nunca debe
  * tumbar la request que lo originó.
@@ -18,7 +18,7 @@ import { AuthAction, InventoryAction, OrderAction, SubscriptionAction } from "@e
  * suscripciones a un `Plan`/`Edition`/`SubscriptionAccount`, no
  * necesariamente a un usuario, y ningún código hace `populate()` sobre él.
  */
-type AuditAction = AuthAction | InventoryAction | OrderAction | SubscriptionAction;
+type AuditAction = AuthAction | ContentAction | InventoryAction | OrderAction | SubscriptionAction;
 
 interface AuditLogAttrs {
   action: AuditAction;
@@ -36,6 +36,7 @@ const AUDIT_ACTIONS = [
   ...Object.values(InventoryAction),
   ...Object.values(OrderAction),
   ...Object.values(SubscriptionAction),
+  ...Object.values(ContentAction),
 ];
 
 const auditLogSchema = new Schema<AuditLogAttrs, AuditLogModel>(

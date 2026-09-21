@@ -50,6 +50,26 @@ async function resolveBadgeRefs(badgeIds: (Types.ObjectId | null)[]): Promise<Ma
   return new Map(badges.map((badge) => [badge._id.toString(), badge]));
 }
 
+/**
+ * Documentos de producto -> `PublicProduct[]` con categoría y badge ya
+ * resueltas (una query por lote, nunca N+1). Compartido por el listado del
+ * catálogo y por el home (productos destacados). Conserva el orden recibido.
+ */
+async function buildPublicProductsWithRefs(documents: LeanProduct[]): Promise<PublicProduct[]> {
+  const uniqueCategoryIds = [...new Set(documents.map((product) => product.categoryId.toString()))];
+  const resolvedRefs = await Promise.all(uniqueCategoryIds.map((id) => resolveCategoryRef(id)));
+  const categoryRefs = new Map(uniqueCategoryIds.map((id, index) => [id, resolvedRefs[index]!]));
+  const badgeRefs = await resolveBadgeRefs(documents.map((product) => product.badgeId));
+
+  return documents.map((product) =>
+    buildPublicProduct(
+      product,
+      categoryRefs.get(product.categoryId.toString())!,
+      product.badgeId ? badgeRefs.get(product.badgeId.toString()) : undefined,
+    ),
+  );
+}
+
 async function listPublicProducts(
   input: ListPublicProductsInput,
 ): Promise<{ products: PublicProduct[]; meta: PaginationMeta }> {
@@ -79,19 +99,8 @@ async function listPublicProducts(
     Product.countDocuments(filter),
   ]);
 
-  const uniqueCategoryIds = [...new Set(documents.map((product) => product.categoryId.toString()))];
-  const resolvedRefs = await Promise.all(uniqueCategoryIds.map((id) => resolveCategoryRef(id)));
-  const categoryRefs = new Map(uniqueCategoryIds.map((id, index) => [id, resolvedRefs[index]!]));
-  const badgeRefs = await resolveBadgeRefs(documents.map((product) => product.badgeId));
-
   return {
-    products: documents.map((product) =>
-      buildPublicProduct(
-        product,
-        categoryRefs.get(product.categoryId.toString())!,
-        product.badgeId ? badgeRefs.get(product.badgeId.toString()) : undefined,
-      ),
-    ),
+    products: await buildPublicProductsWithRefs(documents),
     meta: buildMeta(total, input),
   };
 }
@@ -149,6 +158,7 @@ async function getPublicCategoryBySlug(slug: string): Promise<PublicCategory> {
 }
 
 export {
+  buildPublicProductsWithRefs,
   listPublicProducts,
   getPublicProductBySlug,
   getPublicVariantAvailability,

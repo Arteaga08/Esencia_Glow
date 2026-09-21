@@ -579,6 +579,55 @@ cobro vuelve al ancla), `cancel_at_period_end` seguido de `.deleted` (`canceledA
 cambio de precio sin prorrateo, y SetupIntent + reintento de factura en `PAST_DUE`. Se suma a la
 verificación del cobro anclado ya pendiente desde 1.7.2a.
 
+## Contenido del home (Milestone 1.8)
+
+Singleton `HomeContent` (`_id: "home"`, colección propia — **no** es una clave de Settings: Settings es
+configuración de negocio solo para admin, el home es contenido público). Siete secciones:
+`announcement`, `hero` (carrusel de hasta 5 slides), `featuredProducts` (≤ 12), `featuredCategories`
+(≤ 8), `subscriptionPromo`, `testimonials` (≤ 12) y `benefits` (≤ 6, ícono de un enum fijo). Los
+límites viven en `HOME_CONTENT_LIMITS` (`@esencia-glow/shared`). La forma es aditiva: sumar o ajustar
+una sección no toca a las demás.
+
+### Escritura: un endpoint por sección, con control optimista
+
+`GET /api/v1/admin/home` devuelve las 7 secciones (las nunca escritas salen con `version: 0`,
+`isActive: false`; un GET nunca crea el documento). Cada sección tiene su propio `PUT` — nunca uno que
+reemplace el documento entero:
+
+| Ruta (`/api/v1/admin/home/…`) | Sección |
+|---|---|
+| `PUT /announcement` | barra de anuncio |
+| `PUT /hero` | textos, orden y activación de slides |
+| `PUT /featured-products` · `PUT /featured-categories` | ids en orden (deben existir) |
+| `PUT /subscription-promo` | texto y cta de la promo |
+| `PUT /testimonials` · `PUT /benefits` | ítems |
+| `PUT\|DELETE /hero/slides/:slideId/images/:slot` (`desktop`\|`mobile`) | imagen de un slide |
+| `PUT\|DELETE /subscription-promo/image` | imagen de la promo |
+
+- **`version` obligatoria.** Cada PUT manda la `version` de la sección que el editor leyó (en multipart
+  como campo de formulario; en el `DELETE` de imagen como `?version=`). Es un compare-and-swap
+  (`home-content-store.ts::writeSection`): si otra persona ya editó esa sección → **409** "recarga",
+  nunca un pisado silencioso. Dos ediciones en secciones distintas no se estorban. Cada escritura
+  exitosa sube la versión en +1.
+- El PUT describe la sección **completa**: un campo opcional ausente se quita. Los ítems con `id`
+  conservan su identidad (y en el hero, sus imágenes); sin `id` son nuevos; un `id` desconocido → 400.
+- Las **imágenes no viajan en el PUT de contenido**: se conservan por `_id` de slide. Subir una imagen
+  hace pre-chequeo de versión/slide (409/404) **antes** de tocar Cloudinary, y si el CAS pierde después
+  de subir se destruye lo subido. Las imágenes reemplazadas o de slides quitados se borran en
+  Cloudinary best-effort (pueden quedar huérfanas si falla, se loguea).
+- `href`/`ctaHref`: solo ruta interna (`/tienda`, nunca `//host`) o `https://`.
+- **Auditoría:** una entrada `home_section_updated` por escritura, con `metadata.section`,
+  `version` y `change: "content" | "image"` (más `slot` en imágenes del hero y conteos). Un 409 no deja
+  entrada. Los 4 PATCH de Settings ahora también llevan `metadata.section`.
+
+### Lectura pública (`GET /api/v1/home`, sin sesión, con `catalogRateLimiter`)
+
+Filtra **al servir**, nunca al guardar (el documento conserva todo): omite secciones inactivas o que
+quedan vacías, ítems/slides inactivos, slides sin imagen `desktop`, productos que no pasan
+`buildPublicProductMatch` (borrador, archivado, canal suscripción) y categorías inactivas. Respeta el
+orden guardado; los productos salen como `PublicProduct` completo (categoría y badge resueltas). No
+expone `version`, `isActive`, `updatedAt` ni `publicId`. Sin documento responde `{}`.
+
 ## Idempotencia del checkout (Milestone 1.5)
 
 `POST /api/v1/orders` **exige** el header `Idempotency-Key` (UUID v4). Contrato para el
