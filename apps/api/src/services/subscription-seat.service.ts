@@ -21,6 +21,20 @@ import { assertTransition, seatEffect, type SubscriptionActor } from "./subscrip
  * display que nunca decide una venta) — el cupo es un inventario de plazas.
  */
 
+/**
+ * Campos que viajan en el MISMO update atómico que la transición (1.7.3):
+ * `set`/`unset` evitan un segundo `findByIdAndUpdate` que dejaría una ventana
+ * con el estado nuevo y `pausedAt`/`canceledAt` viejos. `guard` se suma al
+ * filtro del CAS — cubre condiciones que el `status` solo no expresa (p. ej.
+ * `cancelAtPeriodEnd: false` al pausar): si otro escritor la cambió entre la
+ * lectura y la escritura, la transición pierde con 409 y nada se aplica.
+ */
+interface TransitionExtra {
+  set?: Record<string, unknown>;
+  unset?: string[];
+  guard?: Record<string, unknown>;
+}
+
 interface StartSubscriptionInput {
   userId: string;
   planId: string;
@@ -123,6 +137,14 @@ async function startSubscription(
       throw new AppError("Ya tienes una suscripción, cancélala antes de crear otra.", 409);
     }
 
+    // Un cambio de plan a medias dejó un cupo reclamado en el plan NUEVO: quien
+    // borra el marcador (aquí, abajo) es dueño de soltarlo. Finalizar/abortar
+    // después es un no-op porque su CAS sobre `requestedAt` ya no encuentra
+    // el marcador — nunca se suelta dos veces.
+    if (existing.pendingPlanChange) {
+      await releaseSeat(existing.pendingPlanChange.planId.toString(), s);
+    }
+
     const reactivated = await SubscriptionAccount.findOneAndUpdate(
       { _id: existing._id, status: SubscriptionStatus.CANCELED },
       {
@@ -139,7 +161,16 @@ async function startSubscription(
         // ese ref) puede mover el estado ANTES de que 1.7.2a Fase 4 persista
         // el ref de la suscripción NUEVA — `providerCustomerId` sí se
         // conserva a propósito (mismo Customer de Stripe, decisión del plan).
-        $unset: { canceledAt: 1, cancelRequestedAt: 1, cancelReason: 1, providerSubscriptionId: 1 },
+        $unset: {
+          canceledAt: 1,
+          cancelRequestedAt: 1,
+          cancelReason: 1,
+          providerSubscriptionId: 1,
+          // Estado de autoservicio (1.7.3): una suscripción NUEVA no hereda
+          // la pausa ni un cambio de plan a medias de la anterior.
+          pausedAt: 1,
+          pendingPlanChange: 1,
+        },
         $push: { statusHistory: { $each: [historyEntry], $slice: -MAX_SUBSCRIPTION_STATUS_HISTORY } },
       },
       { new: true, session: s },
@@ -170,6 +201,7 @@ async function applyStatusTransition(
   to: SubscriptionStatus,
   actor: SubscriptionActor,
   session?: ClientSession,
+  extra?: TransitionExtra,
 ): Promise<SubscriptionAccountDocument> {
   assertTransition(account.status, to, actor);
   const effect = seatEffect(account.status, to);
@@ -181,15 +213,24 @@ async function applyStatusTransition(
     const now = new Date();
     const historyEntry: SubscriptionStatusHistoryEntryAttrs = { status: to, at: now, actorType: toActorType(actor) };
 
+    const setFields: Record<string, unknown> = { status: to, ...extra?.set };
+    const unsetFields: Record<string, 1> = Object.fromEntries((extra?.unset ?? []).map((field) => [field, 1]));
+    if (effect === "hold") setFields.seatHeldAt = now;
+    if (effect === "release") unsetFields.seatHeldAt = 1;
+
     const update: Record<string, unknown> = {
-      $set: { status: to },
+      $set: setFields,
       $push: { statusHistory: { $each: [historyEntry], $slice: -MAX_SUBSCRIPTION_STATUS_HISTORY } },
     };
-    if (effect === "hold") (update.$set as Record<string, unknown>).seatHeldAt = now;
-    if (effect === "release") update.$unset = { seatHeldAt: 1 };
+    if (Object.keys(unsetFields).length > 0) update.$unset = unsetFields;
 
     const updated = await SubscriptionAccount.findOneAndUpdate(
-      { _id: account._id, status: account.status },
+      // `planId` va en el CAS: el efecto de cupo de arriba se aplica contra
+      // `account.planId`, y un cambio de plan puede terminar (`finalizePlanChange`)
+      // entre la lectura de `account` y esta escritura SIN cambiar el `status`.
+      // Sin esto, una transición con un documento viejo soltaría (o reclamaría)
+      // el cupo del plan equivocado y dejaría el nuevo filtrado.
+      { _id: account._id, status: account.status, planId: account.planId, ...extra?.guard },
       update,
       { new: true, session: s },
     );
@@ -201,4 +242,4 @@ async function applyStatusTransition(
 }
 
 export { claimSeat, releaseSeat, startSubscription, applyStatusTransition };
-export type { StartSubscriptionInput };
+export type { StartSubscriptionInput, TransitionExtra };

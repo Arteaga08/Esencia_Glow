@@ -82,7 +82,12 @@ interface BuildStripeSubscriptionEventOptions {
   currentPeriodStart?: number;
   currentPeriodEnd?: number;
   canceledAt?: number | null;
+  /** Hora real de término (`ended_at`). Distinta de `canceledAt` cuando la
+   * cancelación es al fin del período: `canceled_at` es la SOLICITUD. */
+  endedAt?: number | null;
   cancellationReason?: string;
+  /** `pause_collection.behavior` — ausente => sin pausa (`null` en Stripe). */
+  pauseCollectionBehavior?: string;
 }
 
 function buildStripeSubscriptionEvent(
@@ -103,6 +108,10 @@ function buildStripeSubscriptionEvent(
         status: options.status ?? "active",
         cancel_at_period_end: options.cancelAtPeriodEnd ?? false,
         canceled_at: options.canceledAt === undefined ? null : options.canceledAt,
+        ended_at: options.endedAt === undefined ? null : options.endedAt,
+        pause_collection: options.pauseCollectionBehavior
+          ? { behavior: options.pauseCollectionBehavior, resumes_at: null }
+          : null,
         cancellation_details: options.cancellationReason ? { reason: options.cancellationReason } : null,
         metadata: options.accountIdMetadata ? { accountId: options.accountIdMetadata } : {},
         items: {

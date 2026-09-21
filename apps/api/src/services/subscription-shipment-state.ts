@@ -28,9 +28,11 @@ const SHIPMENT_TRANSITIONS: Readonly<Record<SubscriptionShipmentStatus, readonly
 
 /**
  * Quién puede disparar cada arista. Hoy todas son de `admin` (el panel es el
- * único consumidor), y `system` queda declarado para 1.7.3: cancelar las
- * cajas pendientes de una suscripción que Stripe dio de baja a mitad del
- * ciclo es una decisión del webhook, no de una persona.
+ * único consumidor), y `system` sigue declarado SIN emisor: 1.7.3 no cancela
+ * cajas por su cuenta (la clienta ya pagó el ciclo; cancelar al fin del
+ * período o pausar no debe anular una caja pagada). Anular las cajas de una
+ * suscripción dada de baja a mitad del ciclo es una decisión de negocio
+ * pendiente, no algo que el webhook deba hacer por omisión.
  */
 const TRANSITION_ACTORS: Readonly<Record<string, readonly SubscriptionActor[]>> = {
   [`${SubscriptionShipmentStatus.PENDING}->${SubscriptionShipmentStatus.PROCESSING}`]: ["admin"],

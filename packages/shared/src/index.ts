@@ -125,4 +125,13 @@ export type {
   MySubscription,
   MySubscriptionPlan,
   MySubscriptionShipment,
+  SetupPaymentMethodResult,
+  UpdatePaymentMethodResult,
+  InvoiceRetryOutcome,
 } from "./types/subscription.js";
+export type {
+  PublicSubscriptionPlan,
+  PublicSubscriptionEnrollment,
+  PublicSubscriptionPlansResult,
+  PublicSubscriptionPlanResult,
+} from "./types/subscription-plan-public.js";

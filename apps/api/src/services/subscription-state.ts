@@ -39,8 +39,12 @@ const SUBSCRIPTION_TRANSITIONS: Readonly<Record<SubscriptionStatus, readonly Sub
  * cobro, renovación, dunning agotado) es `system` — mismo criterio
  * "Stripe-first" que `order-state.ts` (`pending->paid` solo `system`).
  * Pausar/reanudar/cancelar-desde-pausa son autoservicio directo de 1.7.3
- * (customer/admin), sin esperar a Stripe. La re-alta tras cancelar es un
- * acto de la propia clienta al re-suscribirse.
+ * (customer/admin), sin esperar a Stripe.
+ * `PAUSED -> CANCELED` también admite `system` (1.7.3): la pausa ya vive en
+ * Stripe, así que una cancelación hecha desde el Dashboard — o una escritura
+ * local que falló DESPUÉS de cancelar en Stripe — llega como `.deleted` y
+ * debe converger; sin esta arista la cuenta quedaba PAUSED para siempre.
+ * La re-alta tras cancelar es un acto de la propia clienta al re-suscribirse.
  */
 const TRANSITION_ACTORS: Readonly<Record<string, readonly SubscriptionActor[]>> = {
   [`${SubscriptionStatus.INCOMPLETE}->${SubscriptionStatus.ACTIVE}`]: ["system"],
@@ -51,7 +55,7 @@ const TRANSITION_ACTORS: Readonly<Record<string, readonly SubscriptionActor[]>> 
   [`${SubscriptionStatus.PAST_DUE}->${SubscriptionStatus.ACTIVE}`]: ["system"],
   [`${SubscriptionStatus.PAST_DUE}->${SubscriptionStatus.CANCELED}`]: ["system"],
   [`${SubscriptionStatus.PAUSED}->${SubscriptionStatus.ACTIVE}`]: ["customer", "admin"],
-  [`${SubscriptionStatus.PAUSED}->${SubscriptionStatus.CANCELED}`]: ["customer", "admin"],
+  [`${SubscriptionStatus.PAUSED}->${SubscriptionStatus.CANCELED}`]: ["customer", "admin", "system"],
   [`${SubscriptionStatus.CANCELED}->${SubscriptionStatus.INCOMPLETE}`]: ["customer"],
 };
 
@@ -72,6 +76,13 @@ const SEAT_HOLDING_STATUSES: readonly SubscriptionStatus[] = [
  * reintentando el cobro, dunning); `PAUSED` no — es la clienta quien decidió
  * no recibir caja este ciclo. */
 const ENTITLED_STATUSES: readonly SubscriptionStatus[] = [SubscriptionStatus.ACTIVE, SubscriptionStatus.PAST_DUE];
+
+/** Estados desde los que la clienta puede programar la cancelación al fin del
+ * período (y, por tanto, deshacerla). `PAUSED` cancela de inmediato, sin bandera. */
+const CANCEL_SCHEDULABLE_STATUSES: readonly SubscriptionStatus[] = [
+  SubscriptionStatus.ACTIVE,
+  SubscriptionStatus.PAST_DUE,
+];
 
 /** `canTransition(x, x)` es siempre `false` — re-aplicar el estado actual no
  * es una transición (mismo criterio que order-state.ts). */
@@ -123,8 +134,22 @@ function canActorTransition(from: SubscriptionStatus, to: SubscriptionStatus, ac
   return allowedActors.includes(actor);
 }
 
+/** Una cancelación programada solo se puede deshacer mientras el período pagado
+ * siga vigente: después ya la consumió el webhook. ÚNICA fuente de esta regla —
+ * la usan `undoCancelSubscription` (que la aplica) y `GET /me` (que la
+ * anuncia como `canUndoCancel`), para que nunca discrepen. */
+function canUndoCancel(
+  account: { status: SubscriptionStatus; cancelAtPeriodEnd: boolean; currentPeriodEnd?: Date },
+  now: Date = new Date(),
+): boolean {
+  if (!CANCEL_SCHEDULABLE_STATUSES.includes(account.status) || !account.cancelAtPeriodEnd) return false;
+  return !account.currentPeriodEnd || account.currentPeriodEnd.getTime() > now.getTime();
+}
+
 export {
   ALL_SUBSCRIPTION_STATUSES,
+  CANCEL_SCHEDULABLE_STATUSES,
+  canUndoCancel,
   SUBSCRIPTION_TRANSITIONS,
   SEAT_HOLDING_STATUSES,
   ENTITLED_STATUSES,

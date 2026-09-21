@@ -2,7 +2,12 @@ import { Types } from "mongoose";
 import { SubscriptionAction, SubscriptionStatus } from "@esencia-glow/shared";
 import { SubscriptionAccount, type SubscriptionAccountDocument } from "../models/subscription-account.model.js";
 import { recordAudit } from "./audit.service.js";
-import { applySystemStatus, recordPaidInvoice, recordPaymentFailure } from "./subscription-billing.service.js";
+import {
+  applySystemStatus,
+  recordPaidInvoice,
+  recordPaymentFailure,
+  updatePeriodIfNewer,
+} from "./subscription-billing.service.js";
 import { createCycleShipment } from "./subscription-shipment.service.js";
 import { sendSubscriptionPaymentConfirmedEmail, sendSubscriptionDunningEmail } from "./subscription-email.service.js";
 import { canActorTransition } from "./subscription-state.js";
@@ -81,12 +86,12 @@ function mapToInternalStatus(status: ProviderSubscriptionStatus): SubscriptionSt
   }
 }
 
-/** Comparte alta y renovación (mismo `kind`) y ambos caminos de cancelación
- * (`.updated` con status `canceled` y `.deleted`): idempotente por
- * construcción vía `applySystemStatus`. `PAUSED -> CANCELED` no es
- * expresable desde el webhook (riesgo #5 del plan) — la máquina de 1.7.1
- * solo permite esa arista para `customer`/`admin`, así que aquí es
- * `ignored`, nunca un 409 escalado a excepción.
+/** Comparte ambos caminos de cancelación (`.updated` con status `canceled` y
+ * `.deleted`): idempotente por construcción vía `applySystemStatus`.
+ * `PAUSED -> CANCELED` SÍ es expresable desde el webhook desde 1.7.3 (la
+ * pausa ya vive en Stripe: una cancelación del Dashboard, o una escritura
+ * local que falló tras cancelar, tiene que converger aquí). La pausa ya
+ * había liberado el cupo, así que la transición no lo toca.
  *
  * Apaga `cancelAtPeriodEnd` en la MISMA transacción que la transición: la
  * cancelación ya se consumó, y `SubscriptionAccount` tiene índice único por
@@ -98,13 +103,13 @@ async function handleCancellation(
   canceledAt: Date,
   reason?: string,
 ): Promise<HandlerOutcome> {
-  if (account.status === SubscriptionStatus.PAUSED) {
-    return { status: "ignored" };
-  }
   await applySystemStatus(account, SubscriptionStatus.CANCELED, {
     canceledAt,
     cancelAtPeriodEnd: false,
-    ...(reason ? { cancelReason: reason } : {}),
+    // El `reason` de Stripe es un enum (`cancellation_requested`, `payment_failed`…):
+    // solo se guarda si la clienta NO dejó su propio motivo — el texto libre
+    // que ella escribió es información más valiosa que un enum genérico.
+    ...(reason && !account.cancelReason ? { cancelReason: reason } : {}),
   });
   return { status: "processed", accountId: account._id.toString() };
 }
@@ -131,10 +136,13 @@ async function handleInvoicePaid(event: InvoicePaidEvent): Promise<HandlerOutcom
     return { status: "rejected", reason: "late_payment", accountId };
   }
   if (account.status === SubscriptionStatus.PAUSED) {
-    // Inalcanzable hoy (pausar/reanudar es autoservicio de 1.7.3 y nadie
-    // cobra una suscripción pausada de nuestro lado), pero un cobro
-    // efectivo sobre una cuenta pausada es una anomalía de negocio que
-    // merece triage, no un cargo que se procesa en silencio.
+    // Alcanzable desde 1.7.3: pausar cierra la cobranza en Stripe, pero una
+    // factura que ya se había generado/finalizado justo antes de la pausa
+    // puede cobrarse igual (por eso pausar se bloquea a menos de 48 h del
+    // siguiente cobro, sin eliminar del todo la ventana). Un cobro efectivo
+    // sobre una cuenta pausada es una caja no enviada: anomalía de negocio
+    // que merece triage (el admin reembolsa a mano), no un cargo que se
+    // procesa en silencio.
     return { status: "rejected", reason: "paused_account_charged", accountId };
   }
 
@@ -214,17 +222,46 @@ async function handlePaymentFailed(event: PaymentFailedEvent): Promise<HandlerOu
   return { status: "processed", accountId };
 }
 
-/** Período monotónico, igual que `recordPaidInvoice` pero SIN tocar
- * `invoiceId`/`dunningAttempts`: `customer.subscription.updated` no trae una
- * factura, solo el snapshot de período que Stripe reporta. */
-async function updatePeriodIfNewer(accountId: Types.ObjectId, start: Date, end: Date): Promise<void> {
-  await SubscriptionAccount.updateOne(
-    {
-      _id: accountId,
-      $or: [{ currentPeriodEnd: { $exists: false } }, { currentPeriodEnd: { $lte: end } }],
-    },
-    { $set: { currentPeriodStart: start, currentPeriodEnd: end } },
-  );
+/** Ventana en la que una divergencia se considera nuestra propia escritura en
+ * vuelo ("Stripe primero, local después"), no una desincronización real. */
+const DIVERGENCE_GRACE_MS = 2 * 60 * 1000;
+
+/**
+ * `.updated` NO sincroniza `cancelAtPeriodEnd` ni la pausa: Stripe no
+ * garantiza el orden de entrega, y una reentrega vieja (cancelar y deshacer
+ * en seguida) voltearía la bandera hacia atrás. Los endpoints de
+ * autoservicio son los únicos escritores; aquí solo se DETECTA y se audita
+ * la divergencia (p. ej. un cambio hecho a mano en el Dashboard de Stripe).
+ * Nunca lanza ni cambia el resultado del evento.
+ */
+async function auditProviderDivergence(
+  account: SubscriptionAccountDocument,
+  event: SubscriptionUpdatedEvent,
+): Promise<void> {
+  const isManaged =
+    account.status === SubscriptionStatus.ACTIVE ||
+    account.status === SubscriptionStatus.PAST_DUE ||
+    account.status === SubscriptionStatus.PAUSED;
+  if (!isManaged) return;
+  if (account.updatedAt && Date.now() - account.updatedAt.getTime() < DIVERGENCE_GRACE_MS) return;
+
+  const accountId = account._id.toString();
+  if (event.cancelAtPeriodEnd !== account.cancelAtPeriodEnd) {
+    await recordAudit({
+      action: SubscriptionAction.SUBSCRIPTION_PROVIDER_MISMATCH,
+      targetId: accountId,
+      metadata: { field: "cancelAtPeriodEnd", provider: event.cancelAtPeriodEnd, local: account.cancelAtPeriodEnd },
+    });
+  }
+
+  const shouldBePaused = account.status === SubscriptionStatus.PAUSED;
+  if (event.collectionPaused !== shouldBePaused) {
+    await recordAudit({
+      action: SubscriptionAction.SUBSCRIPTION_PROVIDER_MISMATCH,
+      targetId: accountId,
+      metadata: { field: "collectionPaused", provider: event.collectionPaused, local: shouldBePaused },
+    });
+  }
 }
 
 /**
@@ -241,8 +278,10 @@ async function handleSubscriptionUpdated(event: SubscriptionUpdatedEvent): Promi
   const to = mapToInternalStatus(event.status);
 
   if (to === SubscriptionStatus.CANCELED) {
-    return handleCancellation(account, new Date());
+    return handleCancellation(account, event.canceledAt ?? new Date(), event.reason);
   }
+
+  await auditProviderDivergence(account, event);
 
   if (account.status === to) {
     if (event.currentPeriodStart && event.currentPeriodEnd) {

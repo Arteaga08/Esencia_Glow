@@ -14,4 +14,31 @@ const startSubscriptionSchema = Joi.object({
   }),
 });
 
-export { startSubscriptionSchema };
+/**
+ * `POST /subscriptions/me/cancel` (Milestone 1.7.3). El motivo es opcional y
+ * texto libre de la clienta: `.empty("")` trata la cadena vacía como ausente.
+ * `.default({})` porque un POST SIN body deja `req.body` en `undefined`, no en
+ * `{}` (mismo caso que `openEnrollmentSchema`).
+ */
+const cancelSubscriptionSchema = Joi.object({
+  reason: Joi.string().trim().max(300).empty(""),
+}).default({});
+
+/** `POST /subscriptions/me/change-plan`. Solo el id: el precio y la moneda los
+ * lee el servidor del plan, nunca del cliente. */
+const changePlanSchema = Joi.object({
+  planId: Joi.string().hex().length(24).required(),
+});
+
+/** `PUT /subscriptions/me/payment-method`. Un id de SetupIntent de Stripe
+ * (`seti_...`): rechazar otros prefijos corta un id ajeno o mal formado antes
+ * de gastar una llamada al proveedor. */
+const confirmPaymentMethodSchema = Joi.object({
+  setupIntentId: Joi.string()
+    .trim()
+    .max(255)
+    .pattern(/^seti_[A-Za-z0-9_]+$/)
+    .required(),
+});
+
+export { startSubscriptionSchema, cancelSubscriptionSchema, changePlanSchema, confirmPaymentMethodSchema };

@@ -24,9 +24,10 @@ interface StartSubscriptionResult {
  * `StartSubscriptionResult`: es un contrato de ruta pública, consumido por
  * el storefront de M3.
  *
- * Deliberadamente SIN `providerSubscriptionId`/`providerCustomerId` ni
- * `statusHistory`: son detalles de Stripe y rastro interno de auditoría, no
- * información de la clienta.
+ * Deliberadamente SIN `providerSubscriptionId`/`providerCustomerId`,
+ * `statusHistory` ni `cancelReason`: son detalles de Stripe, rastro interno de
+ * auditoría y texto libre de la clienta, no información que la API le
+ * devuelva.
  */
 interface MySubscriptionPlan {
   id: string;
@@ -55,10 +56,48 @@ interface MySubscription {
    * cuenta sigue `INCOMPLETE` (Stripe todavía no cobró nada). */
   nextChargeAt?: string;
   cancelAtPeriodEnd: boolean;
+  /** Cuándo pidió la cancelación programada (solo con `cancelAtPeriodEnd`). */
+  cancelRequestedAt?: string;
+  /** La cancelación programada todavía se puede deshacer: sigue vigente el
+   * período pagado. Lo deriva el servidor para que el front no compare fechas. */
+  canUndoCancel: boolean;
+  /** Presente solo mientras la suscripción está `PAUSED`. */
+  pausedAt?: string;
+  /** Hay un cambio de plan en curso: por unos segundos pausar, cancelar y
+   * cambiar de plan dan 409. */
+  planChangePending: boolean;
   /** Solo informativo mientras hay dunning en curso; 0 en el camino feliz. */
   dunningAttempts: number;
   startedAt?: string;
   shipments: MySubscriptionShipment[];
 }
 
-export type { StartSubscriptionResult, MySubscription, MySubscriptionPlan, MySubscriptionShipment };
+/**
+ * Autoservicio de la tarjeta (Milestone 1.7.3): dos pasos. El primero da el
+ * `clientSecret` para que el front confirme la tarjeta en sesión con Stripe;
+ * el segundo (`PUT`, con el `setupIntentId` que el front ya confirmó) la fija
+ * como método de pago de la suscripción.
+ */
+interface SetupPaymentMethodResult {
+  clientSecret: string;
+}
+
+/** Qué pasó con la factura pendiente al cambiar la tarjeta. Solo se reintenta
+ * la factura de una cuenta `PAST_DUE`; en cualquier otro estado es
+ * `not_needed`. El estado de la cuenta NUNCA cambia aquí: quien la reactiva
+ * es el webhook `invoice.paid`. */
+type InvoiceRetryOutcome = "not_needed" | "paid" | "already_settled" | "requires_action" | "declined";
+
+interface UpdatePaymentMethodResult {
+  invoiceRetry: InvoiceRetryOutcome;
+}
+
+export type {
+  StartSubscriptionResult,
+  MySubscription,
+  MySubscriptionPlan,
+  MySubscriptionShipment,
+  SetupPaymentMethodResult,
+  UpdatePaymentMethodResult,
+  InvoiceRetryOutcome,
+};

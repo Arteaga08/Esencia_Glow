@@ -136,6 +136,32 @@ const refundRateLimiter = createRateLimiter({
   keyGenerator: (req) => req.user?.id ?? req.ip ?? "unknown",
 });
 
+/**
+ * Autoservicio de la suscriptora (Milestone 1.7.3): pausar, reanudar,
+ * cancelar, deshacer y cambiar de plan. Cada llamada toca a Stripe, así que
+ * un cliente descontrolado (o un bot con una sesión robada) no debe poder
+ * martillarla. Cuenta por USUARIA, no por IP: dos clientas detrás del mismo
+ * NAT no deben compartir la cuota.
+ */
+const subscriptionManageRateLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: "Demasiados cambios en tu suscripción, intenta de nuevo más tarde.",
+  keyGenerator: (req) => req.user?.id ?? req.ip ?? "unknown",
+});
+
+/**
+ * Cambio de tarjeta (1.7.3). Más estricto que el resto del autoservicio: con
+ * una sesión robada, el flujo de SetupIntent + reintento de factura es un
+ * canal de card-testing (probar tarjetas robadas contra una factura real).
+ */
+const paymentMethodRateLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: "Demasiados intentos de cambiar tu tarjeta, intenta de nuevo más tarde.",
+  keyGenerator: (req) => req.user?.id ?? req.ip ?? "unknown",
+});
+
 export {
   createRateLimiter,
   globalRateLimiter,
@@ -147,4 +173,6 @@ export {
   subscribeRateLimiter,
   webhookRateLimiter,
   refundRateLimiter,
+  subscriptionManageRateLimiter,
+  paymentMethodRateLimiter,
 };
