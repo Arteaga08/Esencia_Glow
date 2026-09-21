@@ -39,7 +39,24 @@ describe("routes/admin-settings", () => {
 
     const entry = await AuditLog.findOne({ action: InventoryAction.SETTINGS_UPDATED });
     expect(entry).not.toBeNull();
-    expect(entry?.metadata).toMatchObject({ lowStockThreshold: 20 });
+    expect(entry?.metadata).toMatchObject({ section: "inventory", lowStockThreshold: 20 });
+  });
+
+  it("cada PATCH audita con `metadata.section` identificando la sección que cambió", async () => {
+    const { agent } = await createAdminSession(app);
+
+    await agent.patch("/api/v1/admin/settings/inventory").send({ lowStockThreshold: 12 });
+    await agent.patch("/api/v1/admin/settings/commerce").send({ taxRateBps: 800 });
+    await agent.patch("/api/v1/admin/settings/payments").send({ oxxoVoucherDays: 3 });
+    await agent.patch("/api/v1/admin/settings/subscriptions").send({ billingAnchorDay: 5 });
+
+    const entries = await AuditLog.find({ action: InventoryAction.SETTINGS_UPDATED }).sort({ createdAt: 1 });
+    expect(entries.map((entry) => (entry.metadata as { section: string }).section)).toEqual([
+      "inventory",
+      "commerce",
+      "payments",
+      "subscriptions",
+    ]);
   });
 
   it("una clave desconocida responde 400", async () => {

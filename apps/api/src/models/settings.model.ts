@@ -3,7 +3,8 @@ import { Schema, model, type HydratedDocument, type Model } from "mongoose";
 /**
  * Singleton de configuración de negocio, `_id` fijo ("global"). Diseñado por
  * secciones: cada milestone que necesita un umbral configurable le suma su
- * propia clave (1.8 sumará `home`) sin tocar las demás — el service
+ * propia clave sin tocar las demás (el contenido público del home NO vive
+ * aquí: es la colección `HomeContent`, ver home-content.model.ts) — el service
  * actualiza siempre con rutas `$set` con puntos (`inventory.lowStockThreshold`,
  * `commerce.taxRateBps`), nunca reemplazando el documento entero, así que
  * una sección nueva jamás pisa a las que ya existen.
