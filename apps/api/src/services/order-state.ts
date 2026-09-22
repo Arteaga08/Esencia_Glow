@@ -54,9 +54,13 @@ const ORDER_TRANSITIONS: Readonly<Record<OrderStatus, readonly OrderStatus[]>> =
 const TRANSITION_ACTORS: Readonly<Record<string, readonly OrderActor[]>> = {
   [`${OrderStatus.PENDING}->${OrderStatus.PAID}`]: ["system"],
   [`${OrderStatus.PENDING}->${OrderStatus.CANCELLED}`]: ["customer", "admin", "system"],
-  [`${OrderStatus.PAID}->${OrderStatus.PROCESSING}`]: ["admin"],
-  [`${OrderStatus.PROCESSING}->${OrderStatus.SHIPPED}`]: ["admin"],
-  [`${OrderStatus.SHIPPED}->${OrderStatus.DELIVERED}`]: ["admin"],
+  // Las tres aristas de despacho las toma el admin a mano O el sistema (1.9):
+  // la guía lista mueve paid->processing y el tracking del proveedor mueve
+  // processing->shipped->delivered. El admin conserva siempre su camino manual
+  // (guía propia, proveedor caído).
+  [`${OrderStatus.PAID}->${OrderStatus.PROCESSING}`]: ["admin", "system"],
+  [`${OrderStatus.PROCESSING}->${OrderStatus.SHIPPED}`]: ["admin", "system"],
+  [`${OrderStatus.SHIPPED}->${OrderStatus.DELIVERED}`]: ["admin", "system"],
   [`${OrderStatus.PAID}->${OrderStatus.REFUNDED}`]: ["system"],
   [`${OrderStatus.PROCESSING}->${OrderStatus.REFUNDED}`]: ["system"],
   [`${OrderStatus.SHIPPED}->${OrderStatus.REFUNDED}`]: ["system"],

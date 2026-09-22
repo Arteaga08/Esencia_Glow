@@ -68,4 +68,18 @@ const updateSubscriptions = asyncHandler(async (req: Request, res: Response) => 
   sendResponse(res, 200, "Configuración de suscripciones actualizada.", subscriptions);
 });
 
-export { get, updateInventory, updateCommerce, updatePayments, updateSubscriptions };
+/** Mismo `InventoryAction.SETTINGS_UPDATED` genérico. La auditoría NO lleva
+ * la dirección (nombre, teléfono, calle): solo qué campo cambió. */
+const updateShipping = asyncHandler(async (req: Request, res: Response) => {
+  const shipping = await settingsService.updateShippingSettings(req.body);
+
+  await recordAudit({
+    action: InventoryAction.SETTINGS_UPDATED,
+    actorId: req.user!.id,
+    metadata: { section: "shipping", field: "origin" },
+  });
+
+  sendResponse(res, 200, "Configuración de envíos actualizada.", shipping);
+});
+
+export { get, updateInventory, updateCommerce, updatePayments, updateSubscriptions, updateShipping };

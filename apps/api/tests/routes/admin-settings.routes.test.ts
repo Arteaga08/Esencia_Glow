@@ -129,4 +129,69 @@ describe("routes/admin-settings", () => {
       .send({ billingAnchorDay: 29 });
     expect(response.status).toBe(400);
   });
+
+  describe("PATCH /shipping (dirección de origen, Milestone 1.9)", () => {
+    const origin = {
+      fullName: "Esencia Glow",
+      phone: "3312345678",
+      street: "Av. Vallarta",
+      exteriorNumber: "1234",
+      neighborhood: "Americana",
+      city: "Guadalajara",
+      state: "Jalisco",
+      postalCode: "44160",
+    };
+
+    it("GET sin documento devuelve shipping sin origen (aún no capturado)", async () => {
+      const { agent } = await createAdminSession(app);
+      const response = await agent.get("/api/v1/admin/settings");
+      expect(response.body.data.shipping).toEqual({});
+    });
+
+    it("persiste el origen y el GET siguiente lo refleja, sin pisar otras secciones", async () => {
+      const { agent } = await createAdminSession(app);
+      await agent.patch("/api/v1/admin/settings/commerce").send({ taxRateBps: 800 });
+
+      const patch = await agent.patch("/api/v1/admin/settings/shipping").send({ origin });
+      expect(patch.status).toBe(200);
+      expect(patch.body.data.origin).toMatchObject(origin);
+
+      const get = await agent.get("/api/v1/admin/settings");
+      expect(get.body.data.shipping.origin).toMatchObject(origin);
+      expect(get.body.data.commerce.taxRateBps).toBe(800);
+    });
+
+    it("un segundo PATCH REEMPLAZA el origen completo (no mezcla campos del anterior)", async () => {
+      const { agent } = await createAdminSession(app);
+      await agent.patch("/api/v1/admin/settings/shipping").send({ origin: { ...origin, interiorNumber: "5B" } });
+      await agent.patch("/api/v1/admin/settings/shipping").send({ origin });
+
+      const get = await agent.get("/api/v1/admin/settings");
+      expect(get.body.data.shipping.origin.interiorNumber).toBeUndefined();
+    });
+
+    it("audita con section 'shipping' y SIN la dirección (sin PII en el trail)", async () => {
+      const { agent } = await createAdminSession(app);
+      await agent.patch("/api/v1/admin/settings/shipping").send({ origin });
+
+      const entry = await AuditLog.findOne({ action: InventoryAction.SETTINGS_UPDATED });
+      expect(entry?.metadata).toEqual({ section: "shipping", field: "origin" });
+    });
+
+    it("rechaza un origen incompleto o inválido con 400", async () => {
+      const { agent } = await createAdminSession(app);
+      const missing = await agent.patch("/api/v1/admin/settings/shipping").send({ origin: { fullName: "X" } });
+      expect(missing.status).toBe(400);
+      const badZip = await agent.patch("/api/v1/admin/settings/shipping").send({ origin: { ...origin, postalCode: "12" } });
+      expect(badZip.status).toBe(400);
+      const empty = await agent.patch("/api/v1/admin/settings/shipping").send({});
+      expect(empty.status).toBe(400);
+    });
+
+    it("un customer recibe 403", async () => {
+      const { agent } = await createCustomerSession(app);
+      const response = await agent.patch("/api/v1/admin/settings/shipping").send({ origin });
+      expect(response.status).toBe(403);
+    });
+  });
 });

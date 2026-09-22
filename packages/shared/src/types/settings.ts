@@ -1,3 +1,5 @@
+import type { PublicShippingAddress } from "./shipping.js";
+
 /**
  * Settings singleton, diseñado por secciones: cada milestone que necesita un
  * umbral de negocio configurable le suma su propia clave (1.8 sumará
@@ -56,11 +58,29 @@ interface SubscriptionSettings {
   enrollmentClosesAt?: string;
 }
 
+/**
+ * Sección de envíos (Milestone 1.9). `origin` es la dirección desde la que se
+ * despachan los pedidos (Skydropx la exige para generar la guía). Opcional:
+ * mientras no esté capturada, las guías no se pueden generar y quedan en
+ * revisión con un aviso explícito al admin.
+ */
+interface ShippingSettings {
+  origin?: PublicShippingAddress;
+}
+
 interface AppSettings {
   inventory: InventorySettings;
   commerce: CommerceSettings;
   payments: PaymentSettings;
   subscriptions: SubscriptionSettings;
+  shipping: ShippingSettings;
 }
 
-export type { InventorySettings, CommerceSettings, PaymentSettings, SubscriptionSettings, AppSettings };
+export type {
+  InventorySettings,
+  CommerceSettings,
+  PaymentSettings,
+  SubscriptionSettings,
+  ShippingSettings,
+  AppSettings,
+};

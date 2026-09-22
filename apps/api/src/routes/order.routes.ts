@@ -24,6 +24,7 @@ router.post(
 );
 router.get("/", validate(listMyOrdersQuerySchema, "query"), orderController.listMine);
 router.get("/:id", validate(objectIdParamSchema, "params"), orderController.getMine);
+router.get("/:id/tracking", validate(objectIdParamSchema, "params"), orderController.getTracking);
 router.post("/:id/cancel", validate(objectIdParamSchema, "params"), orderController.cancelMine);
 router.post(
   "/:id/payment",

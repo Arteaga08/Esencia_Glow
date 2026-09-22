@@ -39,6 +39,9 @@ interface ShippingQuoteAttrs {
   rates: ShippingRateAttrs[];
   cheapestAmountCents: number;
   provider: "stub" | "skydropx";
+  /** Id de la cotización del proveedor (Skydropx cuelga cada tarifa de una
+   * cotización). Nunca cruza al cliente. */
+  providerQuoteId?: string;
   expiresAt: Date;
   purgeAt: Date;
   consumedByOrderId?: Types.ObjectId;
@@ -75,6 +78,7 @@ const shippingQuoteSchema = new Schema<ShippingQuoteAttrs, ShippingQuoteModel>(
     },
     cheapestAmountCents: { type: Number, required: true, min: 0, validate: integerValidator },
     provider: { type: String, required: true, enum: ["stub", "skydropx"] },
+    providerQuoteId: { type: String, trim: true },
     expiresAt: { type: Date, required: true },
     purgeAt: { type: Date, required: true },
     consumedByOrderId: { type: Schema.Types.ObjectId, ref: "Order" },

@@ -1,5 +1,5 @@
 import { Types } from "mongoose";
-import { MAX_INTERNAL_NOTES, OrderAction, OrderStatus, type OrderPriority } from "@esencia-glow/shared";
+import { MAX_INTERNAL_NOTES, OrderAction, OrderStatus, ShippingLabelStatus, type OrderPriority } from "@esencia-glow/shared";
 import { Order } from "../models/order.model.js";
 import type { ShippingAddressAttrs } from "../models/shipping-address.schema.js";
 import { AppError } from "../utils/app-error.js";
@@ -21,6 +21,16 @@ const ADDRESS_LOCKED_STATUSES: readonly OrderStatus[] = [
   OrderStatus.REFUNDED,
 ];
 
+/** Con la guía en cualquiera de estos estados el proveedor YA tiene (o está
+ * por recibir) la dirección vieja: corregirla aquí dejaría la etiqueta
+ * apuntando a otro lado. `pending`/`failed`/`needs_review` (nada comprado)
+ * siguen editables. */
+const ADDRESS_LOCKING_LABEL_STATUSES: readonly ShippingLabelStatus[] = [
+  ShippingLabelStatus.REQUESTED,
+  ShippingLabelStatus.PROCESSING,
+  ShippingLabelStatus.READY,
+];
+
 /**
  * Bloqueada en `shipped`/`delivered`/`cancelled`/`refunded` — una dirección
  * editable después de enviar redirige un pedido ya despachado. El guard
@@ -29,6 +39,9 @@ const ADDRESS_LOCKED_STATUSES: readonly OrderStatus[] = [
  * incondicionado dejaría una ventana donde un `changeOrderStatus`
  * concurrente mueva la orden a `shipped` DESPUÉS del check pero ANTES del
  * write, permitiendo corregir la dirección de un pedido ya despachado.
+ * Lo mismo vale para la guía (1.9): el claim de la compra la pasa a
+ * `requested` con un CAS, así que si la corrección gana la carrera la compra
+ * lee la dirección nueva, y si la pierde este filtro ya no coincide.
  */
 async function correctShippingAddress(
   orderId: string,
@@ -36,14 +49,24 @@ async function correctShippingAddress(
   address: ShippingAddressAttrs,
 ): Promise<LeanOrder> {
   const updated = await Order.findOneAndUpdate(
-    { _id: orderId, status: { $nin: ADDRESS_LOCKED_STATUSES } },
+    {
+      _id: orderId,
+      status: { $nin: ADDRESS_LOCKED_STATUSES },
+      "label.status": { $nin: ADDRESS_LOCKING_LABEL_STATUSES },
+    },
     { $set: { shippingAddress: address } },
     { new: true },
   ).lean<LeanOrder>();
 
   if (!updated) {
-    const existing = await Order.findById(orderId).select("status").lean();
+    const existing = await Order.findById(orderId).select("status label.status").lean();
     if (!existing) throw new AppError("Pedido no encontrado.", 404);
+    if (existing.label && ADDRESS_LOCKING_LABEL_STATUSES.includes(existing.label.status)) {
+      throw new AppError(
+        "No se puede corregir la dirección: la guía de envío ya se generó con la dirección actual.",
+        409,
+      );
+    }
     throw new AppError(`No se puede corregir la dirección de un pedido en estado "${existing.status}".`, 409);
   }
 

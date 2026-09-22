@@ -1,4 +1,5 @@
 import { Schema, model, type HydratedDocument, type Model } from "mongoose";
+import { shippingAddressSchema, type ShippingAddressAttrs } from "./shipping-address.schema.js";
 
 /**
  * Singleton de configuración de negocio, `_id` fijo ("global"). Diseñado por
@@ -48,12 +49,23 @@ interface SubscriptionSettingsAttrs {
   enrollmentClosesAt?: Date;
 }
 
+/**
+ * Sección de envíos (Milestone 1.9): la dirección de origen desde la que se
+ * despachan los pedidos, requerida por Skydropx para generar la guía. Se
+ * reemplaza COMPLETA en cada escritura — una dirección no se edita campo a
+ * campo.
+ */
+interface ShippingSettingsAttrs {
+  origin?: ShippingAddressAttrs;
+}
+
 interface SettingsAttrs {
   _id: string;
   inventory?: InventorySettingsAttrs;
   commerce?: CommerceSettingsAttrs;
   payments?: PaymentSettingsAttrs;
   subscriptions?: SubscriptionSettingsAttrs;
+  shipping?: ShippingSettingsAttrs;
 }
 
 type SettingsDocument = HydratedDocument<SettingsAttrs>;
@@ -95,6 +107,13 @@ const subscriptionSettingsSchema = new Schema<SubscriptionSettingsAttrs>(
   { _id: false },
 );
 
+const shippingSettingsSchema = new Schema<ShippingSettingsAttrs>(
+  {
+    origin: { type: shippingAddressSchema },
+  },
+  { _id: false },
+);
+
 const settingsSchema = new Schema<SettingsAttrs, SettingsModel>(
   {
     _id: { type: String },
@@ -102,6 +121,7 @@ const settingsSchema = new Schema<SettingsAttrs, SettingsModel>(
     commerce: { type: commerceSettingsSchema },
     payments: { type: paymentSettingsSchema },
     subscriptions: { type: subscriptionSettingsSchema },
+    shipping: { type: shippingSettingsSchema },
   },
   { timestamps: true },
 );
@@ -116,4 +136,5 @@ export type {
   CommerceSettingsAttrs,
   PaymentSettingsAttrs,
   SubscriptionSettingsAttrs,
+  ShippingSettingsAttrs,
 };

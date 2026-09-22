@@ -1,6 +1,7 @@
 import { OrderStatus, PaymentMethod, PaymentState } from "@esencia-glow/shared";
 import { beforeEach, describe, expect, it } from "vitest";
 import { Order } from "../../src/models/order.model.js";
+import { AuditLog } from "../../src/models/audit-log.model.js";
 import { Inventory } from "../../src/models/inventory.model.js";
 import { createOrder } from "../../src/services/order.service.js";
 import { settleCapturedPayment } from "../../src/services/payment-settlement.service.js";
@@ -104,4 +105,34 @@ describe("services/payment-settlement — settleCapturedPayment", () => {
 
     expect(second.outcome).toBe("already_paid");
   });
+
+  // Con la guía automática (1.9) la orden pasa sola a `processing` segundos
+  // después de pagarse: un evento de pago repetido que llega DESPUÉS no es una
+  // anomalía, es el mismo pago ya procesado.
+  it.each([OrderStatus.PROCESSING, OrderStatus.SHIPPED, OrderStatus.DELIVERED, OrderStatus.REFUNDED])(
+    "captura repetida sobre una orden ya avanzada a '%s': already_paid, SIN falsa anomalía",
+    async (status) => {
+      const { order } = await createPendingOrder();
+      await settleCapturedPayment(order._id.toString(), {
+        intentId: "pi_5",
+        status: "captured",
+        amountCents: order.totalCents,
+        currency: order.currency,
+      });
+      await Order.updateOne({ _id: order._id }, { $set: { status } });
+
+      const replay = await settleCapturedPayment(order._id.toString(), {
+        intentId: "pi_5",
+        status: "captured",
+        amountCents: order.totalCents,
+        currency: order.currency,
+      });
+
+      expect(replay.outcome).toBe("already_paid");
+      const reloaded = await Order.findById(order._id);
+      expect(reloaded?.status).toBe(status);
+      expect(reloaded?.adminAlertedAt).toBeUndefined();
+      expect(await AuditLog.countDocuments({ action: "order_payment_anomaly", targetId: order._id })).toBe(0);
+    },
+  );
 });

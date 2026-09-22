@@ -12,9 +12,9 @@ import {
 const VALID_PAIRS: [OrderStatus, OrderStatus, string[]][] = [
   [OrderStatus.PENDING, OrderStatus.PAID, ["system"]],
   [OrderStatus.PENDING, OrderStatus.CANCELLED, ["customer", "admin", "system"]],
-  [OrderStatus.PAID, OrderStatus.PROCESSING, ["admin"]],
-  [OrderStatus.PROCESSING, OrderStatus.SHIPPED, ["admin"]],
-  [OrderStatus.SHIPPED, OrderStatus.DELIVERED, ["admin"]],
+  [OrderStatus.PAID, OrderStatus.PROCESSING, ["admin", "system"]],
+  [OrderStatus.PROCESSING, OrderStatus.SHIPPED, ["admin", "system"]],
+  [OrderStatus.SHIPPED, OrderStatus.DELIVERED, ["admin", "system"]],
   [OrderStatus.PAID, OrderStatus.REFUNDED, ["system"]],
   [OrderStatus.PROCESSING, OrderStatus.REFUNDED, ["system"]],
   [OrderStatus.SHIPPED, OrderStatus.REFUNDED, ["system"]],

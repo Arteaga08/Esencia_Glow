@@ -1,14 +1,21 @@
 import { randomBytes } from "node:crypto";
 import { Types, type ClientSession } from "mongoose";
-import { CATALOG_CURRENCY } from "@esencia-glow/shared";
+import { CATALOG_CURRENCY, SHIPPING_QUOTE_TIMEOUT_MS } from "@esencia-glow/shared";
 import type { PublicShippingAddress } from "@esencia-glow/shared";
 import { ShippingQuote, type ShippingQuoteDocument, type ShippingRateAttrs } from "../models/shipping-quote.model.js";
+import { logger } from "../config/logger.js";
 import { AppError } from "../utils/app-error.js";
+import { runWithDeadline } from "../utils/run-with-deadline.js";
 import { buildParcel } from "./parcel.js";
 import { resolveCartLines, type CartLineInput } from "./cart-resolution.service.js";
 import { computeCartFingerprint } from "./cart-fingerprint.js";
-import { resolveShippingProvider } from "./shipping-stub-provider.js";
-import type { ShippingProviderRate } from "./shipping-provider.js";
+import {
+  ShippingProviderError,
+  resolveShippingProvider,
+  type ShippingProvider,
+  type ShippingProviderRate,
+  type ShippingRatesResult,
+} from "./shipping-provider.js";
 import { getSettings } from "./settings.service.js";
 
 interface CreateShippingQuoteInput {
@@ -29,18 +36,64 @@ interface UsableRate {
   rate: ShippingRateAttrs;
 }
 
+interface CreateShippingQuoteOptions {
+  /** Deadline de la llamada al proveedor. Por defecto `SHIPPING_QUOTE_TIMEOUT_MS`. */
+  timeoutMs?: number;
+}
+
+/**
+ * Pide las tarifas al proveedor con un deadline DURO (`runWithDeadline`).
+ * Cualquier desenlace que no sea una lista de tarifas se traduce a un error
+ * explícito (504 / 502); la cotización nunca se persiste a medias, así que un
+ * total jamás se calcula sin una tarifa real.
+ */
+async function fetchRatesWithDeadline(
+  provider: ShippingProvider,
+  destination: PublicShippingAddress,
+  parcel: ReturnType<typeof buildParcel>,
+  timeoutMs: number,
+): Promise<ShippingRatesResult> {
+  try {
+    return await runWithDeadline(
+      (signal) => provider.getRates(destination, parcel, { signal }),
+      timeoutMs,
+      () => new AppError("La cotización de envío tardó demasiado, intenta de nuevo.", 504),
+    );
+  } catch (error) {
+    if (error instanceof AppError) throw error;
+    logger.warn(
+      { err: error, provider: provider.name, kind: error instanceof ShippingProviderError ? error.kind : "unexpected" },
+      "Falló la cotización de envío con el proveedor",
+    );
+    throw new AppError("No pudimos cotizar el envío en este momento.", 502);
+  }
+}
+
 /**
  * Cotiza el envío contra el `ShippingProvider` resuelto (stub hoy, Skydropx
- * real en 1.9) y persiste la cotización con TTL — el cliente jamás vuelve a
+ * real en 1.9b) y persiste la cotización con TTL — el cliente jamás vuelve a
  * mandar un monto: solo un `rateId` opaco que aquí generamos nosotros.
  */
-async function createShippingQuote(input: CreateShippingQuoteInput): Promise<ShippingQuoteDocument> {
+async function createShippingQuote(
+  input: CreateShippingQuoteInput,
+  options: CreateShippingQuoteOptions = {},
+): Promise<ShippingQuoteDocument> {
   const resolvedLines = await resolveCartLines(input.lines);
   const parcel = buildParcel(resolvedLines.flatMap((line) => line.parcelItems));
 
   const settings = await getSettings();
   const provider = resolveShippingProvider();
-  const providerRates = await provider.getRates(input.destination, parcel);
+  if (!provider) throw new AppError("Los envíos no están configurados.", 503);
+
+  const { providerQuoteId, rates: providerRates } = await fetchRatesWithDeadline(
+    provider,
+    input.destination,
+    parcel,
+    options.timeoutMs ?? SHIPPING_QUOTE_TIMEOUT_MS,
+  );
+  if (providerRates.length === 0) {
+    throw new AppError("No hay opciones de envío para esta dirección.", 422);
+  }
 
   const rates: ShippingRateAttrs[] = providerRates.map((rate: ShippingProviderRate) => ({
     rateId: randomBytes(12).toString("hex"),
@@ -64,7 +117,8 @@ async function createShippingQuote(input: CreateShippingQuoteInput): Promise<Shi
     parcel,
     rates,
     cheapestAmountCents,
-    provider: "stub",
+    provider: provider.name,
+    ...(providerQuoteId ? { providerQuoteId } : {}),
     expiresAt,
     purgeAt,
   });

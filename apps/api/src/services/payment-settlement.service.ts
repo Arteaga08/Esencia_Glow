@@ -2,6 +2,8 @@ import { OrderAction, OrderStatus } from "@esencia-glow/shared";
 import { Order, type OrderDocument } from "../models/order.model.js";
 import { recordAudit } from "./audit.service.js";
 import { markOrderPaid } from "./order-payment.service.js";
+import { ALL_ORDER_STATUSES } from "./order-state.js";
+import { triggerLabelGeneration } from "./order-label-trigger.js";
 import { sendPaymentReceivedEmail } from "./order-email.service.js";
 import type { PaymentAuthorization } from "./payment-provider.js";
 
@@ -19,6 +21,15 @@ interface SettlementResult {
   outcome: SettlementOutcome;
   order: OrderDocument | null;
 }
+
+/** Estados por los que una orden YA pasó `paid`: un evento de pago repetido
+ * que la encuentra ahí es el mismo pago ya procesado, no una anomalía. Con la
+ * guía automática (1.9) la orden avanza sola a `processing` segundos después
+ * de pagarse, así que ya no basta comparar contra `paid`. Solo `pending`
+ * (aún no se paga) y `cancelled` (pago tardío real) quedan fuera. */
+const ALREADY_PAID_STATUSES: ReadonlySet<OrderStatus> = new Set(
+  ALL_ORDER_STATUSES.filter((status) => status !== OrderStatus.PENDING && status !== OrderStatus.CANCELLED),
+);
 
 /** Un desajuste de monto/moneda o un pago que llega sobre una orden ya
  * cerrada (cancelada/expirada) NUNCA transiciona ni finge éxito — se marca
@@ -46,7 +57,7 @@ async function settleCapturedPayment(
   const order = await Order.findById(orderId);
   if (!order) return { outcome: "late_payment", order: null };
 
-  if (order.status === OrderStatus.PAID) {
+  if (ALREADY_PAID_STATUSES.has(order.status)) {
     return { outcome: "already_paid", order };
   }
 
@@ -71,6 +82,13 @@ async function settleCapturedPayment(
   // llaman aquí. Un replay (`already_paid`) NO reenvía.
   if (result.outcome !== "already_paid") {
     void sendPaymentReceivedEmail(orderId);
+  }
+
+  // Guía de envío (1.9): SOLO cuando el pago realmente se confirmó. Un
+  // `inventory_incident` (la orden quedó `paid` pero sin guía encolada) espera
+  // revisión humana; un replay ya la disparó la primera vez.
+  if (result.outcome === "paid") {
+    triggerLabelGeneration(orderId);
   }
 
   return { outcome: result.outcome as SettlementOutcome, order: result.order };

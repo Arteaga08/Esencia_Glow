@@ -6,6 +6,7 @@ import { reconcilePendingPayments } from "./reconcile-pending-payments.js";
 import { expireIncompleteSubscriptions } from "./expire-incomplete-subscriptions.js";
 import { alertMissingEdition } from "./alert-missing-edition.js";
 import { reconcilePendingPlanChanges } from "./reconcile-pending-plan-changes.js";
+import { processShippingLabels } from "./process-shipping-labels.js";
 import { getSettings } from "../services/settings.service.js";
 import { env } from "../config/env.js";
 import { logger } from "../config/logger.js";
@@ -47,13 +48,22 @@ import { logger } from "../config/logger.js";
  * también: resuelve cambios de plan que quedaron a medias, sin depender de las
  * cadenas de reserva/orden.
  *
+ * `processShippingLabels` (Milestone 1.9) NO va en este tick sino en su
+ * propio cron (al final de `startCronJobs`): sus llamadas a un tercero pueden
+ * ser lentas y, dentro de este tick con `noOverlap`, retrasarían la
+ * liberación de reservas. Retoma guías cuyo disparo inmediato se perdió,
+ * consulta las que el proveedor aún genera, manda a revisión las que quedaron
+ * a medias (sin recomprar jamás una guía de resultado desconocido) y completa
+ * transiciones de orden que quedaron a medias.
+ *
  * Nunca se monta en `buildApp()`: ningún test de supertest debe levantar
  * timers de cron.
  */
 let task: ScheduledTask | undefined;
+let labelsTask: ScheduledTask | undefined;
 
 function startCronJobs(): void {
-  if (task) return;
+  if (task || labelsTask) return;
 
   task = cron.schedule(
     "* * * * *",
@@ -118,12 +128,35 @@ function startCronJobs(): void {
     },
     { noOverlap: true, name: "release-expired-reservations" },
   );
+
+  // Cron PROPIO (1.9): el barrido de guías hace llamadas secuenciales a un
+  // tercero de hasta 30 s cada una. Dentro del tick de arriba, un Skydropx
+  // lento retrasaría (por `noOverlap`) la liberación de reservas y la
+  // cancelación de pedidos vencidos — stock secuestrado por una caída ajena.
+  // Separado, su lentitud solo retrasa a las propias guías.
+  labelsTask = cron.schedule(
+    "* * * * *",
+    async () => {
+      const settings = await getSettings();
+      const labelSummary = await processShippingLabels(new Date(), settings.inventory.sweepBatchSize);
+      if (
+        labelSummary.dispatched > 0 ||
+        labelSummary.refreshed > 0 ||
+        labelSummary.reviewed > 0 ||
+        labelSummary.reconciled > 0 ||
+        labelSummary.failed > 0
+      ) {
+        logger.info(labelSummary, "Barrido de guías de envío");
+      }
+    },
+    { noOverlap: true, name: "process-shipping-labels" },
+  );
 }
 
 async function stopCronJobs(): Promise<void> {
-  if (!task) return;
-  await task.stop();
+  await Promise.all([task?.stop(), labelsTask?.stop()]);
   task = undefined;
+  labelsTask = undefined;
 }
 
 export { startCronJobs, stopCronJobs };

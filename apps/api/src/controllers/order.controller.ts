@@ -4,6 +4,7 @@ import { asyncHandler } from "../utils/async-handler.js";
 import { sendResponse } from "../utils/send-response.js";
 import { parseListQuery } from "../utils/parse-list-query.js";
 import { createOrder, listMyOrders, getMyOrder, cancelMyOrder } from "../services/order.service.js";
+import { getMyOrderTracking } from "../services/order-tracking-read.service.js";
 import { ensurePaymentIntent } from "../services/order-payment-intent.service.js";
 import { resolvePaymentProvider } from "../services/payment-provider.js";
 import { AppError } from "../utils/app-error.js";
@@ -59,9 +60,14 @@ const getMine = asyncHandler(async (req: Request<{ id: string }>, res: Response)
   sendResponse(res, 200, "Pedido.", buildPublicOrder(order));
 });
 
+/** `GET /:id/tracking` (Milestone 1.9): estado del envío + bitácora. */
+const getTracking = asyncHandler(async (req: Request<{ id: string }>, res: Response) => {
+  sendResponse(res, 200, "Rastreo del pedido.", await getMyOrderTracking(req.params.id, req.user!.id));
+});
+
 const cancelMine = asyncHandler(async (req: Request<{ id: string }>, res: Response) => {
   const order = await cancelMyOrder(req.params.id, req.user!.id);
   sendResponse(res, 200, "Pedido cancelado.", buildPublicOrder(order));
 });
 
-export { checkout, resumePayment, listMine, getMine, cancelMine };
+export { checkout, resumePayment, listMine, getMine, getTracking, cancelMine };

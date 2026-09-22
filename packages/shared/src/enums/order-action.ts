@@ -24,6 +24,14 @@ enum OrderAction {
   ORDER_REFUND_FAILED = "order_refund_failed",
   ORDER_DISPUTED = "order_disputed",
   ORDER_DISPUTE_CLOSED = "order_dispute_closed",
+  // --- Milestone 1.9: guías de envío y tracking ---
+  LABEL_REQUESTED = "label_requested",
+  LABEL_CREATED = "label_created",
+  LABEL_FAILED = "label_failed",
+  LABEL_NEEDS_REVIEW = "label_needs_review",
+  LABEL_RETRY_REQUESTED = "label_retry_requested",
+  TRACKING_UPDATED = "tracking_updated",
+  TRACKING_TRANSITION_SKIPPED_DISPUTE = "tracking_transition_skipped_dispute",
 }
 
 export { OrderAction };

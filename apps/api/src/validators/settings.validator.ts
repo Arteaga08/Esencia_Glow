@@ -1,4 +1,5 @@
 import Joi from "joi";
+import { shippingAddressSchema } from "./shipping.validator.js";
 
 /** `.min(1)` exige al menos un campo — un PATCH vacío no tiene sentido. */
 const updateInventorySettingsSchema = Joi.object({
@@ -29,9 +30,16 @@ const updateSubscriptionSettingsSchema = Joi.object({
   billingAnchorDay: Joi.number().integer().min(1).max(28),
 }).min(1);
 
+/** La dirección de origen se manda COMPLETA (`required`): reemplaza la
+ * anterior entera, nunca se mezcla campo a campo. */
+const updateShippingSettingsSchema = Joi.object({
+  origin: shippingAddressSchema.required(),
+});
+
 export {
   updateInventorySettingsSchema,
   updateCommerceSettingsSchema,
   updatePaymentSettingsSchema,
   updateSubscriptionSettingsSchema,
+  updateShippingSettingsSchema,
 };

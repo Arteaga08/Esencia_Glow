@@ -2,6 +2,7 @@ import type { Types } from "mongoose";
 import type {
   AdminOrder,
   AdminOrderCustomer,
+  AdminOrderLabel,
   AdminOrderPayment,
   AdminOrderStatusHistoryEntry,
   Currency,
@@ -146,6 +147,24 @@ function buildAdminOrderPayment(payment: OrderAttrs["payment"]): AdminOrderPayme
   };
 }
 
+/** La guía de envío solo se serializa para el panel admin. Campo a campo:
+ * `requestedAt` (token de fencing interno) nunca sale. */
+function buildAdminOrderLabel(label: NonNullable<OrderAttrs["label"]>): AdminOrderLabel {
+  return {
+    status: label.status,
+    attempts: label.attempts,
+    ...(label.nextAttemptAt ? { nextAttemptAt: label.nextAttemptAt.toISOString() } : {}),
+    ...(label.providerShipmentId ? { providerShipmentId: label.providerShipmentId } : {}),
+    ...(label.trackingNumber ? { trackingNumber: label.trackingNumber } : {}),
+    ...(label.carrier ? { carrier: label.carrier } : {}),
+    ...(label.labelUrl ? { labelUrl: label.labelUrl } : {}),
+    ...(label.trackingUrl ? { trackingUrl: label.trackingUrl } : {}),
+    ...(label.lastError ? { lastError: label.lastError } : {}),
+    ...(label.readyAt ? { readyAt: label.readyAt.toISOString() } : {}),
+    ...(label.adminAlertedAt ? { adminAlertedAt: label.adminAlertedAt.toISOString() } : {}),
+  };
+}
+
 /**
  * `customer` viene resuelto (o `null`) por el caller — un `Order` solo
  * guarda `userId`, nunca un snapshot de nombre/email (§H: "se resuelven al
@@ -166,6 +185,7 @@ function buildAdminOrder(order: LeanOrder, customer: AdminOrderCustomer | null):
     ...(order.disputedAt ? { disputedAt: order.disputedAt.toISOString() } : {}),
     ...(order.disputeStatus ? { disputeStatus: order.disputeStatus } : {}),
     ...(order.payment.refundRequestedAt ? { refundRequestedAt: order.payment.refundRequestedAt.toISOString() } : {}),
+    ...(order.label ? { label: buildAdminOrderLabel(order.label) } : {}),
   };
 }
 

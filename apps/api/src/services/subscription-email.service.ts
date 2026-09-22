@@ -236,5 +236,6 @@ export {
   sendSubscriptionDunningEmail,
   sendSubscriptionAdminIncidentEmail,
   sendUpcomingEditionMissingEmail,
+  resolveAdminAlertEmail,
   __setAdminAlertEmailForTests,
 };

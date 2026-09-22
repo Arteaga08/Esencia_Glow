@@ -6,7 +6,9 @@ import {
   OrderStatus,
   PaymentMethod,
   PaymentState,
+  ShipmentTrackingStatus,
   ShippingCarrier,
+  ShippingLabelStatus,
 } from "@esencia-glow/shared";
 import { orderLineSchema, type OrderLineAttrs } from "./order-line.schema.js";
 import { shippingAddressSchema, type ShippingAddressAttrs } from "./shipping-address.schema.js";
@@ -69,6 +71,54 @@ interface OrderShippingSelectionAttrs {
   estimatedDays: number;
 }
 
+/**
+ * Con qué proveedor y de qué tarifa salió la opción de envío elegida — lo
+ * que hace falta para comprar la guía DESPUÉS del pago (1.9), sin depender de
+ * que la `ShippingQuote` siga viva (se purga 24 h tras vencer).
+ *
+ * Vive en un sub-doc de primer nivel y NO dentro de `shippingSelection`,
+ * porque `order-dto.ts` expone `shippingSelection` completo al cliente y
+ * estos ids jamás deben cruzarle. Opcional: las órdenes anteriores a 1.9 no
+ * lo tienen.
+ */
+interface OrderProviderShippingAttrs {
+  provider: "stub" | "skydropx";
+  providerQuoteId?: string;
+  providerRateId: string;
+}
+
+/**
+ * Guía de envío comprada al proveedor (1.9). Se encola (`pending`) en la
+ * misma transacción que marca la orden como pagada. `requestedAt` +
+ * `attempts` son el token de fencing del claim: una respuesta tardía de un
+ * intento viejo no puede pisar el resultado de uno nuevo. Nunca se expone en
+ * el DTO de la clienta; el panel admin sí lo ve. Ver `ShippingLabelStatus`.
+ */
+interface OrderLabelAttrs {
+  status: ShippingLabelStatus;
+  attempts: number;
+  requestedAt?: Date;
+  nextAttemptAt?: Date;
+  providerShipmentId?: string;
+  trackingNumber?: string;
+  carrier?: ShippingCarrier;
+  labelUrl?: string;
+  trackingUrl?: string;
+  lastError?: string;
+  readyAt?: Date;
+  adminAlertedAt?: Date;
+}
+
+/**
+ * Estado AGREGADO del rastreo (Milestone 1.9), desnormalizado de la bitácora
+ * `ShipmentTrackingEvent`: solo AVANZA (ver `shipment-tracking-state.ts`),
+ * así que un evento repetido o fuera de orden nunca lo hace retroceder.
+ */
+interface OrderTrackingAttrs {
+  status: ShipmentTrackingStatus;
+  lastEventAt: Date;
+}
+
 interface OrderShipmentAttrs {
   carrier: ShippingCarrier;
   carrierName?: string;
@@ -106,6 +156,9 @@ interface OrderAttrs {
   payment: OrderPaymentAttrs;
   shippingAddress: ShippingAddressAttrs;
   shippingSelection: OrderShippingSelectionAttrs;
+  providerShipping?: OrderProviderShippingAttrs;
+  label?: OrderLabelAttrs;
+  tracking?: OrderTrackingAttrs;
   parcel: ParcelAttrs;
   shipment?: OrderShipmentAttrs;
   termsAcceptedAt: Date;
@@ -162,6 +215,41 @@ const orderShippingSelectionSchema = new Schema<OrderShippingSelectionAttrs>(
     service: { type: String, required: true, trim: true },
     amountCents: { type: Number, required: true, min: 0, validate: integerValidator },
     estimatedDays: { type: Number, required: true, min: 0, validate: integerValidator },
+  },
+  { _id: false },
+);
+
+const orderProviderShippingSchema = new Schema<OrderProviderShippingAttrs>(
+  {
+    provider: { type: String, required: true, enum: ["stub", "skydropx"] },
+    providerQuoteId: { type: String, trim: true },
+    providerRateId: { type: String, required: true, trim: true },
+  },
+  { _id: false },
+);
+
+const orderLabelSchema = new Schema<OrderLabelAttrs>(
+  {
+    status: { type: String, required: true, enum: Object.values(ShippingLabelStatus) },
+    attempts: { type: Number, required: true, default: 0, min: 0, validate: integerValidator },
+    requestedAt: { type: Date },
+    nextAttemptAt: { type: Date },
+    providerShipmentId: { type: String, trim: true },
+    trackingNumber: { type: String, trim: true },
+    carrier: { type: String, enum: Object.values(ShippingCarrier) },
+    labelUrl: { type: String, trim: true },
+    trackingUrl: { type: String, trim: true },
+    lastError: { type: String, trim: true, maxlength: 500 },
+    readyAt: { type: Date },
+    adminAlertedAt: { type: Date },
+  },
+  { _id: false },
+);
+
+const orderTrackingSchema = new Schema<OrderTrackingAttrs>(
+  {
+    status: { type: String, required: true, enum: Object.values(ShipmentTrackingStatus) },
+    lastEventAt: { type: Date, required: true },
   },
   { _id: false },
 );
@@ -225,6 +313,9 @@ const orderSchema = new Schema<OrderAttrs, OrderModel>(
     payment: { type: orderPaymentSchema, required: true },
     shippingAddress: { type: shippingAddressSchema, required: true },
     shippingSelection: { type: orderShippingSelectionSchema, required: true },
+    providerShipping: { type: orderProviderShippingSchema },
+    label: { type: orderLabelSchema },
+    tracking: { type: orderTrackingSchema },
     parcel: { type: parcelSchema, required: true },
     shipment: { type: orderShipmentSchema },
     termsAcceptedAt: { type: Date, required: true },
@@ -256,6 +347,8 @@ orderSchema.index({ userId: 1, createdAt: -1 });
 orderSchema.index({ orderNumber: 1 }, { unique: true });
 orderSchema.index({ status: 1, expiresAt: 1 });
 orderSchema.index({ status: 1, createdAt: -1 });
+// Barridos del job de guías (1.9): por estado de guía y vencimiento.
+orderSchema.index({ "label.status": 1, "label.nextAttemptAt": 1 });
 
 /**
  * `userId` va en la clave, no un índice global sobre `idempotencyKey`: un
@@ -297,6 +390,9 @@ export type {
   OrderDocument,
   OrderPaymentAttrs,
   OrderShippingSelectionAttrs,
+  OrderProviderShippingAttrs,
+  OrderLabelAttrs,
+  OrderTrackingAttrs,
   OrderShipmentAttrs,
   OrderStatusHistoryEntryAttrs,
   OrderInternalNoteAttrs,
