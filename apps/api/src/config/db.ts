@@ -16,8 +16,9 @@ function sleep(ms: number): Promise<void> {
  */
 async function connectDatabase(): Promise<void> {
   mongoose.set("strictQuery", true);
-  // autoIndex se apaga en producción: syncIndexes() corre como paso de CD,
-  // no en cada arranque del server.
+  // autoIndex se apaga en producción: el script `sync-indexes` (Milestone
+  // 1.10, src/scripts/sync-indexes.ts) corre como paso de CD (pre-deploy de
+  // Railway), no en cada arranque del server.
   mongoose.set("autoIndex", !env.isProduction);
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt += 1) {

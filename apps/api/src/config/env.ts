@@ -122,7 +122,7 @@ function buildEnv() {
     // revocable (es JWT); el refresh es largo pero vive hasheado en DB y
     // es revocable de verdad (ver models/session.model.ts).
     accessTokenTtl: process.env.ACCESS_TOKEN_TTL ?? "15m",
-    refreshTokenTtlDays: Number(process.env.REFRESH_TOKEN_TTL_DAYS ?? 30),
+    refreshTokenTtlDays: readPositiveInt("REFRESH_TOKEN_TTL_DAYS", 30),
 
     // Pagos (Milestone 1.6): tolerancia de firma del webhook (nunca 0 — ver
     // stripe-webhook-translator.ts) y umbral del reconciliador de pagos

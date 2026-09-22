@@ -115,3 +115,31 @@ describe("config/env — tolerancia del webhook y umbral de reconciliación", ()
     expect(env.trustProxyHops).toBe(2);
   });
 });
+
+describe("config/env — REFRESH_TOKEN_TTL_DAYS", () => {
+  afterEach(() => {
+    vi.resetModules();
+  });
+
+  it("ausente -> default 30", async () => {
+    const { env } = await importEnvWith({ REFRESH_TOKEN_TTL_DAYS: undefined });
+    expect(env.refreshTokenTtlDays).toBe(30);
+  });
+
+  it("'abc' -> lanza (antes entraba como NaN sin quejarse)", async () => {
+    await expect(importEnvWith({ REFRESH_TOKEN_TTL_DAYS: "abc" })).rejects.toThrow();
+  });
+
+  it("'0' -> lanza", async () => {
+    await expect(importEnvWith({ REFRESH_TOKEN_TTL_DAYS: "0" })).rejects.toThrow();
+  });
+
+  it("'-5' -> lanza", async () => {
+    await expect(importEnvWith({ REFRESH_TOKEN_TTL_DAYS: "-5" })).rejects.toThrow();
+  });
+
+  it("'45' -> 45", async () => {
+    const { env } = await importEnvWith({ REFRESH_TOKEN_TTL_DAYS: "45" });
+    expect(env.refreshTokenTtlDays).toBe(45);
+  });
+});

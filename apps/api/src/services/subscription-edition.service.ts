@@ -98,6 +98,21 @@ async function getEditionDocument(id: string): Promise<SubscriptionEditionDocume
 }
 
 /**
+ * Reread-y-decide tras un intento atómico fallido de `findOneAndUpdate`/
+ * `deleteOne` con `status: DRAFT` (compartido por `updateEdition` y
+ * `deleteEdition`) — nunca gatea la escritura, que ya falló: solo elige QUÉ
+ * error mostrar. El filtro atómico sigue siendo la única fuente de verdad
+ * de si la operación aplicó.
+ */
+async function rejectAfterDraftGuardFailure(id: string, publishedMessage: string): Promise<never> {
+  const reread = await getEditionDocument(id); // 404 si desapareció entre medias
+  if (reread.status === EditionStatus.PUBLISHED) {
+    throw new AppError(publishedMessage, 409);
+  }
+  throw new AppError("No se pudo completar la operación sobre la edición.", 409);
+}
+
+/**
  * El cambio de `items` (lo único que `publishEdition` congela) se aplica con
  * `findOneAndUpdate({_id, status: DRAFT}, ...)`, igual que el claim atómico
  * de publishEdition — nunca "leer status, decidir, luego guardar": esa
@@ -106,7 +121,11 @@ async function getEditionDocument(id: string): Promise<SubscriptionEditionDocume
  * `save()` de un documento completo no choca con el `$set` de publishEdition,
  * que no toca el versionKey). `title`/`description` sí pueden cambiar en
  * cualquier estado (nunca los congela `publishEdition`), así que no
- * necesitan esta condición atómica.
+ * necesitan esta condición atómica. `runValidators: true` porque
+ * `findOneAndUpdate` NO corre los validators del schema por default (a
+ * diferencia de `edition.save()`, que sí) — sin esto, el tope de
+ * `MAX_EDITION_ITEMS` y las reglas de `editionItemSchema` (cantidad entera
+ * positiva, ids requeridos) quedan sin aplicar en este camino de escritura.
  */
 async function updateEdition(
   id: string,
@@ -115,7 +134,23 @@ async function updateEdition(
   const edition = await getEditionDocument(id);
 
   if (input.items !== undefined) {
-    await assertItemsReferential(input.items);
+    try {
+      await assertItemsReferential(input.items);
+    } catch (error) {
+      // Precedencia de errores: si la edición YA está publicada, esa es la
+      // razón real por la que el cambio no aplica — no "el producto no
+      // existe", que le esconde al admin el motivo verdadero. `edition.status`
+      // ya se leyó arriba; usarlo aquí solo elige el mensaje, nunca gatea el
+      // guardado (eso sigue siendo el findOneAndUpdate atómico de abajo), así
+      // que no reintroduce la carrera que ese atomic claim evita. Acotado a
+      // AppError (lo único que `assertItemsReferential` lanza): un error
+      // real de infraestructura no debe enmascararse como "ya publicada".
+      if (error instanceof AppError && edition.status === EditionStatus.PUBLISHED) {
+        throw new AppError("No puedes cambiar los productos de una edición ya publicada.", 409);
+      }
+      throw error;
+    }
+
     const items = input.items.map((item) => ({
       productId: new Types.ObjectId(item.productId),
       variantId: new Types.ObjectId(item.variantId),
@@ -128,15 +163,14 @@ async function updateEdition(
     const updated = await SubscriptionEdition.findOneAndUpdate(
       { _id: id, status: EditionStatus.DRAFT },
       { $set: setFields },
-      { new: true },
+      { new: true, runValidators: true },
     );
     if (updated) return updated;
 
-    const reread = await getEditionDocument(id); // 404 si desapareció entre medias
-    if (reread.status === EditionStatus.PUBLISHED) {
-      throw new AppError("No puedes cambiar los productos de una edición ya publicada.", 409);
-    }
-    throw new AppError("No se pudo actualizar la edición.", 409);
+    return rejectAfterDraftGuardFailure(
+      id,
+      "No puedes cambiar los productos de una edición ya publicada.",
+    );
   }
 
   if (input.title !== undefined) edition.title = input.title;
@@ -160,11 +194,7 @@ async function deleteEdition(id: string): Promise<void> {
   const result = await SubscriptionEdition.deleteOne({ _id: id, status: EditionStatus.DRAFT });
   if (result.deletedCount === 1) return;
 
-  const reread = await getEditionDocument(id); // 404 si ya no existe
-  if (reread.status === EditionStatus.PUBLISHED) {
-    throw new AppError("No puedes eliminar una edición publicada.", 409);
-  }
-  throw new AppError("No se pudo eliminar la edición.", 409);
+  await rejectAfterDraftGuardFailure(id, "No puedes eliminar una edición publicada.");
 }
 
 async function listEditions(

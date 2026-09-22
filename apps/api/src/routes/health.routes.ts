@@ -1,10 +1,9 @@
 import { Router } from "express";
-import { sendResponse } from "../utils/send-response.js";
+import { liveness, readiness } from "../controllers/health.controller.js";
 
 const router = Router();
 
-router.get("/health", (_req, res) => {
-  sendResponse(res, 200, "OK", { uptime: process.uptime() });
-});
+router.get("/health", liveness);
+router.get("/health/ready", readiness);
 
 export default router;

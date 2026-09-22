@@ -30,9 +30,12 @@ const SHIPMENT_TRANSITIONS: Readonly<Record<SubscriptionShipmentStatus, readonly
  * Quién puede disparar cada arista. Hoy todas son de `admin` (el panel es el
  * único consumidor), y `system` sigue declarado SIN emisor: 1.7.3 no cancela
  * cajas por su cuenta (la clienta ya pagó el ciclo; cancelar al fin del
- * período o pausar no debe anular una caja pagada). Anular las cajas de una
- * suscripción dada de baja a mitad del ciclo es una decisión de negocio
- * pendiente, no algo que el webhook deba hacer por omisión.
+ * período o pausar no debe anular una caja pagada). **Decisión cerrada con
+ * Manuel (Milestone 1.10, 2026-09-22): esto queda MANUAL a propósito, no es
+ * deuda pendiente** — ninguna baja de suscripción anula sola las cajas de
+ * envío pendientes; el admin las cancela a mano desde el panel. `system`
+ * sigue en la tabla de arriba porque la máquina de estados lo permite (por
+ * si algún día se decide automatizar), pero ningún caller lo usa hoy.
  */
 const TRANSITION_ACTORS: Readonly<Record<string, readonly SubscriptionActor[]>> = {
   [`${SubscriptionShipmentStatus.PENDING}->${SubscriptionShipmentStatus.PROCESSING}`]: ["admin"],
