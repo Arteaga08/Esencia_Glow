@@ -7,9 +7,12 @@ import {
   type CommerceSettings,
   type InventorySettings,
   type PaymentSettings,
+  type PublicShippingAddress,
+  type ShippingSettings,
   type SubscriptionSettings,
 } from "@esencia-glow/shared";
-import { Settings, type SubscriptionSettingsAttrs } from "../models/settings.model.js";
+import { Settings, type ShippingSettingsAttrs, type SubscriptionSettingsAttrs } from "../models/settings.model.js";
+import { toPlainShippingAddress } from "./create-order-mappers.js";
 import { AppError } from "../utils/app-error.js";
 
 const SETTINGS_ID = "global";
@@ -50,45 +53,17 @@ const SUBSCRIPTION_RANGES: Record<keyof SubscriptionSettingsUpdate, { min: numbe
   billingAnchorDay: { min: 1, max: 28 },
 };
 
-function assertValidInventorySettings(input: Partial<InventorySettings>): void {
-  for (const [key, value] of Object.entries(input) as [keyof InventorySettings, number | undefined][]) {
+/** Valida que cada campo enviado sea un entero dentro de su rango — la misma
+ * regla de forma para las cuatro secciones numéricas. */
+function assertIntegersInRange<T extends { [K in keyof T]?: number }>(
+  ranges: Record<keyof T, { min: number; max: number }>,
+  input: T,
+): void {
+  for (const [key, value] of Object.entries(input) as [keyof T, number | undefined][]) {
     if (value === undefined) continue;
-    const range = INVENTORY_RANGES[key];
+    const range = ranges[key];
     if (!Number.isInteger(value) || value < range.min || value > range.max) {
-      throw new AppError(`${key} debe ser un entero entre ${range.min} y ${range.max}.`, 400);
-    }
-  }
-}
-
-function assertValidCommerceSettings(input: Partial<CommerceSettings>): void {
-  for (const [key, value] of Object.entries(input) as [keyof CommerceSettings, number | undefined][]) {
-    if (value === undefined) continue;
-    const range = COMMERCE_RANGES[key];
-    if (!Number.isInteger(value) || value < range.min || value > range.max) {
-      throw new AppError(`${key} debe ser un entero entre ${range.min} y ${range.max}.`, 400);
-    }
-  }
-}
-
-function assertValidPaymentSettings(input: Partial<PaymentSettings>): void {
-  for (const [key, value] of Object.entries(input) as [keyof PaymentSettings, number | undefined][]) {
-    if (value === undefined) continue;
-    const range = PAYMENT_RANGES[key];
-    if (!Number.isInteger(value) || value < range.min || value > range.max) {
-      throw new AppError(`${key} debe ser un entero entre ${range.min} y ${range.max}.`, 400);
-    }
-  }
-}
-
-function assertValidSubscriptionSettings(input: SubscriptionSettingsUpdate): void {
-  for (const [key, value] of Object.entries(input) as [
-    keyof SubscriptionSettingsUpdate,
-    number | undefined,
-  ][]) {
-    if (value === undefined) continue;
-    const range = SUBSCRIPTION_RANGES[key];
-    if (!Number.isInteger(value) || value < range.min || value > range.max) {
-      throw new AppError(`${key} debe ser un entero entre ${range.min} y ${range.max}.`, 400);
+      throw new AppError(`${String(key)} debe ser un entero entre ${range.min} y ${range.max}.`, 400);
     }
   }
 }
@@ -106,6 +81,12 @@ function serializeSubscriptionSettings(raw?: SubscriptionSettingsAttrs): Subscri
     ...(raw?.enrollmentOpenedAt ? { enrollmentOpenedAt: raw.enrollmentOpenedAt.toISOString() } : {}),
     ...(raw?.enrollmentClosesAt ? { enrollmentClosesAt: raw.enrollmentClosesAt.toISOString() } : {}),
   };
+}
+
+/** El origen se devuelve como dirección plana (sin `_id` ni campos internos
+ * de Mongoose); sin capturar, la sección queda vacía. */
+function serializeShippingSettings(raw?: ShippingSettingsAttrs): ShippingSettings {
+  return raw?.origin ? { origin: toPlainShippingAddress(raw.origin) } : {};
 }
 
 /**
@@ -141,6 +122,7 @@ async function getSettings(): Promise<AppSettings> {
     commerce: { ...DEFAULT_COMMERCE_SETTINGS, ...doc?.commerce },
     payments: { ...DEFAULT_PAYMENT_SETTINGS, ...doc?.payments },
     subscriptions: serializeSubscriptionSettings(doc?.subscriptions),
+    shipping: serializeShippingSettings(doc?.shipping),
   };
 }
 
@@ -151,7 +133,7 @@ async function getSettings(): Promise<AppSettings> {
  * este request, y una sección hermana (commerce, home — 1.8) queda intacta.
  */
 async function updateInventorySettings(input: Partial<InventorySettings>): Promise<InventorySettings> {
-  assertValidInventorySettings(input);
+  assertIntegersInRange(INVENTORY_RANGES, input);
 
   if (input.reservationTtlMinutes !== undefined) {
     const current = await getSettings();
@@ -177,7 +159,7 @@ async function updateInventorySettings(input: Partial<InventorySettings>): Promi
 /** Mismo patrón de `$set` por rutas de punto que `updateInventorySettings`,
  * para la sección `commerce` (Milestone 1.5). */
 async function updateCommerceSettings(input: Partial<CommerceSettings>): Promise<CommerceSettings> {
-  assertValidCommerceSettings(input);
+  assertIntegersInRange(COMMERCE_RANGES, input);
 
   if (input.shippingQuoteTtlMinutes !== undefined) {
     const current = await getSettings();
@@ -204,7 +186,7 @@ async function updateCommerceSettings(input: Partial<CommerceSettings>): Promise
  * sección propia, sin cruce con inventory/commerce (a diferencia del TTL de
  * envío, el plazo de la ficha OXXO no depende de otro TTL del sistema). */
 async function updatePaymentSettings(input: Partial<PaymentSettings>): Promise<PaymentSettings> {
-  assertValidPaymentSettings(input);
+  assertIntegersInRange(PAYMENT_RANGES, input);
 
   const setFields: Record<string, number> = {};
   for (const [key, value] of Object.entries(input)) {
@@ -225,7 +207,7 @@ async function updatePaymentSettings(input: Partial<PaymentSettings>): Promise<P
 async function updateSubscriptionSettings(
   input: SubscriptionSettingsUpdate,
 ): Promise<SubscriptionSettings> {
-  assertValidSubscriptionSettings(input);
+  assertIntegersInRange(SUBSCRIPTION_RANGES, input);
 
   const setFields: Record<string, number> = {};
   for (const [key, value] of Object.entries(input)) {
@@ -240,10 +222,19 @@ async function updateSubscriptionSettings(
   return settings.subscriptions;
 }
 
+/** Sección de envíos (1.9): la dirección de origen se REEMPLAZA completa
+ * (`$set` de `shipping.origin`, no de sus campos sueltos). */
+async function updateShippingSettings(input: { origin: PublicShippingAddress }): Promise<ShippingSettings> {
+  await Settings.findOneAndUpdate({ _id: SETTINGS_ID }, { $set: { "shipping.origin": input.origin } }, { upsert: true });
+  const settings = await getSettings();
+  return settings.shipping;
+}
+
 export {
   getSettings,
   updateInventorySettings,
   updateCommerceSettings,
   updatePaymentSettings,
   updateSubscriptionSettings,
+  updateShippingSettings,
 };

@@ -126,6 +126,17 @@ async function createOrderCore(
             amountCents: rate.amountCents,
             estimatedDays: rate.estimatedDays,
           },
+          // Se copia aquí (no se relee de la quote después): la quote se purga
+          // 24 h tras vencer y la guía se compra tras el pago, más adelante.
+          ...(rate.providerRateId
+            ? {
+                providerShipping: {
+                  provider: quote.provider,
+                  ...(quote.providerQuoteId ? { providerQuoteId: quote.providerQuoteId } : {}),
+                  providerRateId: rate.providerRateId,
+                },
+              }
+            : {}),
           parcel: toPlainParcel(quote.parcel),
           termsAcceptedAt: now,
           idempotencyKey: input.idempotencyKey,

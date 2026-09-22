@@ -71,6 +71,17 @@ describe("services/order-payment — markOrderPaid", () => {
     expect(auditCount).toBe(1);
   });
 
+  it("un claim perdido contra otro escritor que ya avanzó la orden a processing es already_paid, no un 409", async () => {
+    const { order } = await createPendingOrder(10);
+    await markOrderPaid({ orderId: order._id.toString() });
+    await Order.updateOne({ _id: order._id }, { $set: { status: OrderStatus.PROCESSING } });
+
+    const second = await markOrderPaid({ orderId: order._id.toString() });
+
+    expect(second.outcome).toBe("already_paid");
+    expect(second.order.status).toBe(OrderStatus.PROCESSING);
+  });
+
   it("reserva ya liberada: la orden queda paid + inventoryIncident, nunca pending ni un commit fingido", async () => {
     const { order } = await createPendingOrder(10);
     await releaseReservationDetailed(order.reservationId.toString());

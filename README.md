@@ -628,6 +628,97 @@ quedan vacías, ítems/slides inactivos, slides sin imagen `desktop`, productos 
 orden guardado; los productos salen como `PublicProduct` completo (categoría y badge resueltas). No
 expone `version`, `isActive`, `updatedAt` ni `publicId`. Sin documento responde `{}`.
 
+## Envíos — guías y rastreo (Milestone 1.9a)
+
+El cliente elige y paga la tarifa de envío en el checkout (cotizada en vivo); la **guía** se compra
+DESPUÉS de que el webhook de pago confirma, nunca antes. **1.9a** construye todo lo que no toca la
+red de Skydropx, contra un adapter *stub*; **1.9b** (con credenciales y sandbox) suma el adapter HTTP
+real, el webhook de tracking con firma y el `SKYDROPX_*` del entorno. Sin credenciales, en producción
+el resolver devuelve `undefined` y los endpoints responden **503 "Los envíos no están configurados."**
+(el stub nunca corre en producción, ver `selectShippingProvider`).
+
+### Cotización (`POST /api/v1/shipping/quotes`)
+
+Es una llamada a un tercero dentro del checkout: deadline duro de `SHIPPING_QUOTE_TIMEOUT_MS` (8 s,
+`runWithDeadline`: señal + temporizador propio, así un adapter que ignore la señal no cuelga el
+checkout) y rate limit por usuaria (`shippingQuoteRateLimiter`, 60/15 min). Nunca se persiste una
+cotización a medias, así que un total jamás se calcula sin una tarifa real:
+
+| Situación | Respuesta |
+|---|---|
+| El proveedor tarda más del deadline | **504** "La cotización de envío tardó demasiado, intenta de nuevo." |
+| El proveedor rechaza / no está disponible / falla inesperadamente | **502** "No pudimos cotizar el envío en este momento." |
+| El proveedor no devuelve ninguna tarifa | **422** "No hay opciones de envío para esta dirección." |
+| No hay proveedor configurado (producción) | **503** |
+
+La orden guarda de dónde salió la tarifa en `Order.providerShipping` (proveedor, cotización y tarifa
+del proveedor). Vive aparte de `shippingSelection` a propósito: ese objeto sí llega al cliente y los
+ids del proveedor jamás deben cruzarle.
+
+### Guía de envío (`Order.label`, `order-label.service.ts`)
+
+Una guía se paga con **créditos prepagados**: comprarla dos veces es gastar dos veces. Por eso hay una
+máquina de estados y una sola regla — *nunca se recompra una guía cuyo resultado se desconoce*:
+
+| Estado | Significado |
+|---|---|
+| `pending` | En cola. Se escribe en la MISMA transacción que `pending → paid` (solo en el resultado `paid`; un `inventory_incident` la retira). |
+| `requested` | Un proceso reclamó la compra (CAS); la llamada al proveedor va en vuelo. |
+| `processing` | El proveedor la aceptó (ya cobró) pero aún no termina. Solo se CONSULTA (`getLabel`), jamás se recompra. |
+| `ready` | Guía y número de rastreo listos. El sistema mueve `paid → processing`. |
+| `failed` | Rechazo explícito (seguro de reintentar). Backoff 5 min × 2ⁿ⁻¹, hasta 5 intentos. |
+| `needs_review` | Resultado desconocido (timeout a media compra, excepción inesperada, proceso muerto), intentos agotados o falta configuración. **Alerta por correo** a `ADMIN_ALERT_EMAIL` (una vez). |
+
+- **Claim y fencing.** El claim es un CAS (`pending|failed` → `requested`, con `nextAttemptAt` vencido,
+  orden `paid|processing` y **sin contracargo abierto**). El resultado se escribe filtrando por
+  `requestedAt` + `attempts`: la respuesta tardía de un intento viejo no pisa a uno nuevo. Un ÉXITO
+  tardío sí se registra aunque el lease ya se hubiera mandado a revisión (el dinero ya se gastó).
+- **Disparo.** Inmediato y *fire-and-forget* desde `settleCapturedPayment` (solo en `paid`; un `await`
+  convertiría una falla del proveedor en un 500 del webhook y Stripe reentregaría para siempre) y,
+  como respaldo, `jobs/process-shipping-labels.ts` cada minuto: (1) guías vencidas, (2) consulta de las
+  `processing` (a las 6 h sin terminar → revisión), (3) `requested` con el lease de 10 min vencido →
+  `needs_review`.
+- **Reintento manual** `POST /api/v1/admin/orders/:id/label/retry` (202): `needs_review|failed → pending`
+  (intentos en 0, se compra) o, si el proveedor YA aceptó la compra (`providerShipmentId`),
+  `→ processing` (solo se consulta). **Antes de reintentar confirma en el panel del proveedor que no
+  exista ya una guía para el pedido.** El camino manual de "marcar enviado" con guía propia sigue
+  intacto; el job excluye órdenes `shipped`.
+- **Dirección de origen**: `PATCH /api/v1/admin/settings/shipping` `{ origin: {…} }` (reemplaza la
+  dirección completa; la auditoría guarda solo `{section, field}`, sin PII). Sin ella, la guía va
+  directo a `needs_review` con un motivo claro.
+- **Sin proveedor configurado** la guía se queda `pending` sin consumir intentos; el job la retoma en
+  cuanto haya proveedor.
+
+### Rastreo (`Order.tracking` + `ShipmentTrackingEvent`)
+
+`recordTrackingEvent` guarda cada evento del proveedor en una bitácora (índice único
+`{provider, providerEventId}` = dedupe) y avanza el estado agregado. Estados:
+`label_created < picked_up < in_transit < out_for_delivery < delivered`, más `exception` (lateral) y
+`returned`; `delivered` y `returned` son terminales. **El estado solo avanza** (los proveedores
+entregan eventos duplicados y fuera de orden): la regla vive en una tabla única
+(`shipment-tracking-state.ts`) de la que salen la función pura y el filtro atómico de Mongo.
+
+Efectos sobre la orden, como actor `system` (el admin conserva su camino manual):
+`picked_up | in_transit | out_for_delivery` → `shipped` (sella `Order.shipment` desde la etiqueta) y
+`delivered` → `delivered` (pasando por `shipped` si hacía falta). `label_created`, `exception` y
+`returned` no mueven la orden. **Con un contracargo abierto el sistema no despacha**: el rastreo se
+registra, la orden no se mueve y queda auditado (`tracking_transition_skipped_dispute`).
+
+- `GET /api/v1/orders/:id/tracking` (clienta, anti-IDOR: un pedido ajeno es 404) y
+  `GET /api/v1/admin/orders/:id/tracking` (con `provider`/`providerEventId`). Hasta 200 eventos,
+  ordenados por `occurredAt`.
+- En 1.9a nadie llama a `recordTrackingEvent` en producción: en 1.9b lo alimenta el webhook de
+  tracking firmado de Skydropx.
+
+### Pendiente para 1.9b (requiere sandbox)
+
+Adapter HTTP de Skydropx (OAuth con caché de token de 2 h, throttle de ~2 req/s, polling de la
+cotización hasta `is_completed`, compra de guía, verificar si soporta idempotencia por
+`Idempotency-Key`), webhook `POST /api/v1/webhooks/skydropx` con verificación de firma (la doc pública
+no la describe: pedirla a soporte) y dedupe, variables `SKYDROPX_*` en `config/env.ts`, cancelación de
+la guía al reembolsar, envíos de más de 20 kg (multi-paquete) y guías para cajas de suscripción
+(hoy `SubscriptionAccount` no guarda dirección).
+
 ## Idempotencia del checkout (Milestone 1.5)
 
 `POST /api/v1/orders` **exige** el header `Idempotency-Key` (UUID v4). Contrato para el
@@ -645,14 +736,15 @@ cliente (front, Milestone 2):
   `orderId` del pendiente (`errors.orderId`) — un cliente solo puede tener un checkout abierto
   a la vez.
 
-## Cron (Milestone 1.4 + 1.5 + 1.6.1 + 1.7.2a + 1.7.2b + 1.7.3)
+## Cron (Milestone 1.4 + 1.5 + 1.6.1 + 1.7.2a + 1.7.2b + 1.7.3 + 1.9a)
 
 Un solo `node-cron` corre cada minuto (`jobs/index.ts`, nunca montado en `buildApp()`): libera
 reservas de stock vencidas, cierra pedidos `pending` vencidos (Stripe-first, ver arriba),
 reconcilia pagos pendientes sin webhook, refresca `Bundle.stockCache` y libera cuentas de
 suscripción `INCOMPLETE` abandonadas (ver arriba, §"Suscripciones — Stripe Billing") y avisa al
 admin cuando falta publicar la edición del ciclo que está por cobrarse (1.7.2b) y resuelve los
-cambios de plan que quedaron a medias (1.7.3, ver §"Cambiar de plan"). Todas las
+cambios de plan que quedaron a medias (1.7.3, ver §"Cambiar de plan") y procesa las guías de envío
+pendientes, en proceso o a medias (1.9a, ver §"Envíos"). Todas las
 operaciones son idempotentes por documento — seguro correr varias instancias de la API sin lock
 distribuido.
 

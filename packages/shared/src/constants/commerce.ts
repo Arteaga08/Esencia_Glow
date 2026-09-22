@@ -44,6 +44,13 @@ const MAX_PARCEL_WEIGHT_GRAMS = 20_000;
  * por tarifas reales de Skydropx). */
 const STUB_SHIPPING_RATES_COUNT = 3;
 
+/** Deadline de la cotización de envío con el proveedor (ms). Es una llamada
+ * a un tercero DENTRO del checkout: pasado este tiempo se corta con un 504
+ * explícito — nunca se espera indefinidamente ni se calcula un total sin
+ * tarifa real. Skydropx cotiza de forma progresiva (polling hasta
+ * `is_completed`), así que el margen no puede ser muy corto. */
+const SHIPPING_QUOTE_TIMEOUT_MS = 8000;
+
 export {
   DEFAULT_COMMERCE_SETTINGS,
   MAX_ORDER_LINES,
@@ -55,4 +62,5 @@ export {
   MIN_BOX_CM,
   MAX_PARCEL_WEIGHT_GRAMS,
   STUB_SHIPPING_RATES_COUNT,
+  SHIPPING_QUOTE_TIMEOUT_MS,
 };

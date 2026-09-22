@@ -137,6 +137,22 @@ const refundRateLimiter = createRateLimiter({
 });
 
 /**
+ * `POST /shipping/quotes` (Milestone 1.9): cada cotización es una llamada a un
+ * tercero (Skydropx) dentro del checkout, con su propio costo y límite de
+ * ~2 req/s por cuenta — un cliente descontrolado no debe agotar la cuota que
+ * comparten todas las compradoras. Más holgado que `/orders` (cotizar es
+ * barato y frecuente: se cotiza varias veces antes de decidir). Cuenta por
+ * USUARIA, no por IP: dos clientas detrás del mismo NAT no comparten cuota.
+ * Va DESPUÉS de `protect`, que es quien puebla `req.user`.
+ */
+const shippingQuoteRateLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  message: "Demasiadas cotizaciones de envío, intenta de nuevo más tarde.",
+  keyGenerator: (req) => req.user?.id ?? req.ip ?? "unknown",
+});
+
+/**
  * Autoservicio de la suscriptora (Milestone 1.7.3): pausar, reanudar,
  * cancelar, deshacer y cambiar de plan. Cada llamada toca a Stripe, así que
  * un cliente descontrolado (o un bot con una sesión robada) no debe poder
@@ -173,6 +189,7 @@ export {
   subscribeRateLimiter,
   webhookRateLimiter,
   refundRateLimiter,
+  shippingQuoteRateLimiter,
   subscriptionManageRateLimiter,
   paymentMethodRateLimiter,
 };

@@ -36,6 +36,7 @@ router.post(
 );
 router.get("/", validate(listAdminOrdersQuerySchema, "query"), orderAdminController.list);
 router.get("/:id", validate(objectIdParamSchema, "params"), orderAdminController.getOne);
+router.get("/:id/tracking", validate(objectIdParamSchema, "params"), orderAdminController.tracking);
 router.get("/:id/activity", validate(objectIdParamSchema, "params"), orderAdminController.activity);
 router.patch(
   "/:id/status",
@@ -74,5 +75,6 @@ router.post(
   validate(refundOrderSchema),
   orderAdminController.refund,
 );
+router.post("/:id/label/retry", validate(objectIdParamSchema, "params"), orderAdminController.retryLabel);
 
 export { router as adminOrderRoutes };

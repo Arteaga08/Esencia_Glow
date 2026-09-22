@@ -9,6 +9,7 @@ import { PaymentEvent } from "./payment-event.model.js";
 import { Product } from "./product.model.js";
 import { Session } from "./session.model.js";
 import { Settings } from "./settings.model.js";
+import { ShipmentTrackingEvent } from "./shipment-tracking-event.model.js";
 import { ShippingQuote } from "./shipping-quote.model.js";
 import { StockReservation } from "./stock-reservation.model.js";
 import { SubscriptionAccount } from "./subscription-account.model.js";
@@ -42,6 +43,7 @@ const models = [
   Product,
   Session,
   Settings,
+  ShipmentTrackingEvent,
   ShippingQuote,
   StockReservation,
   SubscriptionAccount,

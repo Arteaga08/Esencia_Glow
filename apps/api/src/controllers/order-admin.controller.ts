@@ -8,6 +8,8 @@ import { getOrderStatusSummary } from "../services/order-summary.service.js";
 import { changeOrderStatus, updateOrderShipment, bulkChangeStatus } from "../services/order-admin-status.service.js";
 import { correctShippingAddress, changeOrderPriority, addInternalNote } from "../services/order-admin-fields.service.js";
 import { requestOrderRefund } from "../services/order-refund.service.js";
+import { getAdminOrderTracking } from "../services/order-tracking-read.service.js";
+import { retryOrderLabel } from "../services/order-label-admin.service.js";
 
 const list = asyncHandler(async (req: Request, res: Response) => {
   const query = parseListQuery(req.query);
@@ -89,6 +91,19 @@ const refund = asyncHandler(async (req: Request<{ id: string }>, res: Response) 
   );
 });
 
+/** `GET /:id/tracking` (Milestone 1.9): rastreo con el origen de cada evento. */
+const tracking = asyncHandler(async (req: Request<{ id: string }>, res: Response) => {
+  sendResponse(res, 200, "Rastreo del pedido.", await getAdminOrderTracking(req.params.id));
+});
+
+/** `POST /:id/label/retry` (Milestone 1.9): reencola la guía de un pedido en
+ * revisión. 202 porque la compra ocurre de forma asíncrona (disparo inmediato
+ * o el siguiente tick del job), no dentro de la petición. */
+const retryLabel = asyncHandler(async (req: Request<{ id: string }>, res: Response) => {
+  await retryOrderLabel({ orderId: req.params.id, adminId: req.user!.id });
+  sendResponse(res, 202, "Reintento de guía solicitado.", await getAdminOrderById(req.params.id));
+});
+
 export {
   list,
   summary,
@@ -101,4 +116,6 @@ export {
   addNote,
   bulkStatus,
   refund,
+  retryLabel,
+  tracking,
 };

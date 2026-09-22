@@ -67,6 +67,13 @@ beforeEach(async () => {
   const { __setSubscriptionProviderForTests } = await import("../src/services/subscription-provider.js");
   const { buildFakeSubscriptionProvider } = await import("./helpers/fake-subscription-provider.js");
   __setSubscriptionProviderForTests(buildFakeSubscriptionProvider());
+
+  // Mismo criterio (Milestone 1.9): el resolver de envíos ya devuelve
+  // `undefined` en producción sin adapter real. Cada test parte del fake
+  // (stub con `vi.fn`) — y el test del 503 lo pisa con `undefined`.
+  const { __setShippingProviderForTests } = await import("../src/services/shipping-provider.js");
+  const { buildFakeShippingProvider } = await import("./helpers/fake-shipping-provider.js");
+  __setShippingProviderForTests(buildFakeShippingProvider());
 });
 
 afterEach(async () => {

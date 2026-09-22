@@ -1,10 +1,11 @@
-import { Types, type ClientSession } from "mongoose";
-import { DisputeStatus, MAX_STATUS_HISTORY, OrderAction, OrderStatus, type ShippingCarrier } from "@esencia-glow/shared";
+import type { Types, ClientSession } from "mongoose";
+import { DisputeStatus, OrderAction, OrderStatus, type ShippingCarrier } from "@esencia-glow/shared";
 import { Order } from "../models/order.model.js";
 import { AppError } from "../utils/app-error.js";
 import { withTransaction } from "../utils/with-transaction.js";
 import { assertTransition, getTransitionInventoryEffect } from "./order-state.js";
-import { assertNoOpenDispute, disputeClaimFilter } from "./order-dispute.service.js";
+import { assertNoOpenDispute } from "./order-dispute.service.js";
+import { claimStatusTransition, type ShipmentInput } from "./order-status-claim.js";
 import { releaseReservationDetailed, auditReleaseMismatches } from "./stock-reservation.service.js";
 import { recordAudit } from "./audit.service.js";
 import { logger } from "../config/logger.js";
@@ -17,13 +18,6 @@ import type { LeanOrder } from "./order-dto.js";
  * prioridad, notas) y de `order-admin.service.ts` (solo lectura) por el
  * tope de 250 líneas por archivo del repo.
  */
-
-interface ShipmentInput {
-  carrier: ShippingCarrier;
-  carrierName?: string;
-  trackingNumber: string;
-  trackingUrl?: string;
-}
 
 interface ChangeOrderStatusInput {
   orderId: string;
@@ -62,34 +56,17 @@ async function changeOrderStatusCore(
     throw new AppError("Debes indicar la guía (paquetería y número de rastreo) al marcar como enviado.", 400);
   }
 
-  const now = new Date();
-  const adminObjectId = new Types.ObjectId(input.adminId);
-  const setFields: Record<string, unknown> = { status: input.targetStatus };
-  if (input.targetStatus === OrderStatus.SHIPPED && input.shipment) {
-    setFields.shipment = { ...input.shipment, shippedAt: now };
-  }
-
-  const claimed = await Order.findOneAndUpdate(
-    { _id: input.orderId, status: current.status, ...disputeClaimFilter(current.status, input.targetStatus) },
+  const claimed = await claimStatusTransition(
     {
-      $set: setFields,
-      $push: {
-        statusHistory: {
-          $each: [
-            {
-              status: input.targetStatus,
-              at: now,
-              actorType: "user",
-              actorId: adminObjectId,
-              ...(input.reason ? { reason: input.reason } : {}),
-            },
-          ],
-          $slice: -MAX_STATUS_HISTORY,
-        },
-      },
+      orderId: input.orderId,
+      fromStatus: current.status,
+      targetStatus: input.targetStatus,
+      actor: { type: "admin", adminId: input.adminId },
+      ...(input.reason ? { reason: input.reason } : {}),
+      ...(input.shipment ? { shipment: input.shipment } : {}),
     },
-    { new: true, session },
-  ).lean<LeanOrder>();
+    session,
+  );
 
   if (!claimed) {
     // El filtro perdió por dos motivos posibles: el `status` cambió entre

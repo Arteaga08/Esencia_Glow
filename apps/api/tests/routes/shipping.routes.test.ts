@@ -4,6 +4,8 @@ import { describe, expect, it } from "vitest";
 import { buildApp } from "../../src/app.js";
 import { Category } from "../../src/models/category.model.js";
 import { Product } from "../../src/models/product.model.js";
+import { ShippingQuote } from "../../src/models/shipping-quote.model.js";
+import { __setShippingProviderForTests } from "../../src/services/shipping-provider.js";
 import { createCustomerSession } from "../helpers/admin-session.js";
 
 const app = buildApp();
@@ -86,5 +88,20 @@ describe("routes/shipping — cotización", () => {
     });
 
     expect(res.status).toBe(400);
+  });
+
+  it("503 'no configurado' cuando no hay proveedor de envíos y no persiste ninguna cotización", async () => {
+    const { variantId } = await seedProduct();
+    const { agent } = await createCustomerSession(app);
+    __setShippingProviderForTests(undefined);
+
+    const res = await agent.post("/api/v1/shipping/quotes").send({
+      destination,
+      lines: [{ itemType: "product", itemId: variantId, quantity: 1 }],
+    });
+
+    expect(res.status).toBe(503);
+    expect(res.body.message).toBe("Los envíos no están configurados.");
+    expect(await ShippingQuote.countDocuments()).toBe(0);
   });
 });

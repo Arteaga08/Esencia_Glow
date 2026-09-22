@@ -1,5 +1,12 @@
 import type { ClientSession } from "mongoose";
-import { InventoryAction, MAX_STATUS_HISTORY, OrderAction, OrderStatus, PaymentState } from "@esencia-glow/shared";
+import {
+  InventoryAction,
+  MAX_STATUS_HISTORY,
+  OrderAction,
+  OrderStatus,
+  PaymentState,
+  ShippingLabelStatus,
+} from "@esencia-glow/shared";
 import { Order, type OrderDocument } from "../models/order.model.js";
 import type { StockReservationDocument } from "../models/stock-reservation.model.js";
 import { AppError } from "../utils/app-error.js";
@@ -60,6 +67,9 @@ async function markOrderPaidCore(
     {
       $set: {
         status: OrderStatus.PAID,
+        // La guía de envío se encola AQUÍ, en la misma transacción que
+        // confirma el pago: nunca antes, y nunca por otro camino (1.9).
+        label: { status: ShippingLabelStatus.PENDING, attempts: 0, nextAttemptAt: now },
         "payment.state": PaymentState.CAPTURED,
         "payment.capturedAt": now,
         ...(input.intentId ? { "payment.intentId": input.intentId } : {}),
@@ -78,8 +88,10 @@ async function markOrderPaidCore(
   if (!claimed) {
     const existing = await Order.findById(input.orderId).session(session);
     if (!existing) throw new AppError("Pedido no encontrado.", 404);
-    if (existing.status === OrderStatus.PAID) {
-      // Reintento del webhook: éxito silencioso, sin volver a tocar nada.
+    if (existing.status !== OrderStatus.PENDING && existing.status !== OrderStatus.CANCELLED) {
+      // Reintento del webhook (o carrera con otro escritor que ya la avanzó
+      // tras pagarla, p. ej. a `processing` por la guía automática de 1.9):
+      // éxito silencioso, sin volver a tocar nada.
       return { order: existing, outcome: "already_paid" };
     }
     throw new AppError(`No se puede marcar como pagado un pedido en estado "${existing.status}".`, 409);
@@ -93,7 +105,10 @@ async function markOrderPaidCore(
     // webhook reintentaría para siempre). Se marca para revisión humana.
     const incidentOrder = await Order.findOneAndUpdate(
       { _id: claimed._id },
-      { $set: { inventoryIncident: true, adminAlertedAt: now } },
+      // Un pago con anomalía de inventario NO genera guía: se retira la
+      // encolada arriba (misma transacción) — hay que revisarlo a mano antes
+      // de gastar créditos en una etiqueta.
+      { $set: { inventoryIncident: true, adminAlertedAt: now }, $unset: { label: "" } },
       { new: true, session },
     );
     return {

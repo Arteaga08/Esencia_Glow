@@ -5,6 +5,8 @@ import type { PaymentState } from "../enums/payment-state.js";
 import type { PaymentMethod } from "../enums/payment-method.js";
 import type { DisputeStatus } from "../enums/dispute-status.js";
 import type { ShippingCarrier } from "../enums/shipping-carrier.js";
+import type { ShippingLabelStatus } from "../enums/shipping-label-status.js";
+import type { ShipmentTrackingStatus } from "../enums/shipment-tracking-status.js";
 import type { ProductAttributes, PublicProductImage } from "./catalog.js";
 import type { PublicShippingAddress, PublicParcel } from "./shipping.js";
 
@@ -125,6 +127,57 @@ interface PublicOrder {
   expiresAt?: string;
 }
 
+/** Un evento del rastreo, tal como lo ve quien consulta el pedido. */
+interface PublicTrackingEvent {
+  status: ShipmentTrackingStatus;
+  occurredAt: string;
+  description?: string;
+  location?: string;
+}
+
+/**
+ * Rastreo de una orden (Milestone 1.9). `status` falta mientras la paquetería
+ * no reporta nada; `carrier`/`trackingNumber`/`trackingUrl` salen de la guía
+ * del envío en cuanto existe (aún antes de que se recoja el paquete).
+ */
+interface PublicOrderTracking {
+  status?: ShipmentTrackingStatus;
+  carrier?: ShippingCarrier;
+  trackingNumber?: string;
+  trackingUrl?: string;
+  events: PublicTrackingEvent[];
+}
+
+/** Lo mismo para el panel admin, con el origen de cada evento (para
+ * conciliarlo contra el panel del proveedor). */
+interface AdminTrackingEvent extends PublicTrackingEvent {
+  provider: "stub" | "skydropx";
+  providerEventId: string;
+}
+
+interface AdminOrderTracking extends Omit<PublicOrderTracking, "events"> {
+  events: AdminTrackingEvent[];
+}
+
+/**
+ * Guía de envío de la orden (Milestone 1.9), SOLO para el panel admin: la
+ * clienta nunca la ve (ella ve `shipment` cuando el pedido se envía). Fechas
+ * como ISO string, igual que el resto de los DTO.
+ */
+interface AdminOrderLabel {
+  status: ShippingLabelStatus;
+  attempts: number;
+  nextAttemptAt?: string;
+  providerShipmentId?: string;
+  trackingNumber?: string;
+  carrier?: ShippingCarrier;
+  labelUrl?: string;
+  trackingUrl?: string;
+  lastError?: string;
+  readyAt?: string;
+  adminAlertedAt?: string;
+}
+
 interface AdminOrderCustomer {
   id: string;
   email: string;
@@ -143,6 +196,7 @@ interface AdminOrder extends Omit<PublicOrder, "payment" | "statusHistory"> {
   disputedAt?: string;
   disputeStatus?: DisputeStatus;
   refundRequestedAt?: string;
+  label?: AdminOrderLabel;
 }
 
 /** Lo que el checkout necesita para cobrar: el widget de tarjeta (Payment
@@ -182,6 +236,11 @@ export type {
   AdminOrderStatusHistoryEntry,
   PublicOrder,
   AdminOrderCustomer,
+  AdminOrderLabel,
+  PublicTrackingEvent,
+  PublicOrderTracking,
+  AdminTrackingEvent,
+  AdminOrderTracking,
   AdminOrder,
   CheckoutResult,
   CreateOrderLineInput,
