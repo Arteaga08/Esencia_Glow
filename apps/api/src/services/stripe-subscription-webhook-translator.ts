@@ -38,11 +38,21 @@ function extractSubscriptionAccountIdHint(subscription: Stripe.Subscription): st
   return typeof value === "string" && value.length > 0 ? value : undefined;
 }
 
-/** El período de SERVICIO real es el de la línea, no `invoice.period_start`/
+/**
+ * El período de SERVICIO real es el de la línea, no `invoice.period_start`/
  * `period_end` (el propio docstring de Stripe dice que se use el de la
- * línea — ver riesgo 1.7.2a §12). Sin línea, no hay período que resolver. */
+ * línea — ver riesgo 1.7.2a §12). La línea correcta se elige por
+ * `parent.type === "subscription_item_details"`, NUNCA por posición: la
+ * primera factura de una suscripción puede traer una segunda línea de tipo
+ * `invoice_item_details` (el `add_invoice_items` que arma `startSubscription`
+ * en stripe-subscription-provider.ts), y el índice que Stripe le asigna a
+ * cada tipo no está documentado ni verificado contra el sandbox — ver
+ * README, sección de deuda de verificación manual. Sin línea de suscripción,
+ * no hay período que resolver. */
 function extractServicePeriod(invoice: Stripe.Invoice): { start: Date; end: Date } | undefined {
-  const period = invoice.lines?.data?.[0]?.period;
+  const lines = invoice.lines?.data ?? [];
+  const subscriptionLine = lines.find((line) => line.parent?.type === "subscription_item_details");
+  const period = subscriptionLine?.period;
   if (!period) return undefined;
   return { start: new Date(period.start * 1000), end: new Date(period.end * 1000) };
 }

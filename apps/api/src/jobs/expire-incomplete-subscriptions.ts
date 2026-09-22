@@ -69,10 +69,22 @@ async function expireIncompleteSubscriptions(
       // loguea como error) cuando la cuenta SIGUE matcheando el criterio de
       // expiración después de releer — ahí sí es una falla genuina.
       if (error instanceof AppError && error.statusCode === 409) {
-        const reloaded = await SubscriptionAccount.findById(_id);
-        const stillMatches =
-          reloaded?.status === SubscriptionStatus.INCOMPLETE && !reloaded.providerSubscriptionId;
-        if (!stillMatches) continue;
+        // Propia guarda: un rechazo aquí (p. ej. un error transitorio de
+        // Atlas) NO debe abortar el resto del lote — mismo criterio de
+        // aislamiento por ítem que el resto de esta función.
+        try {
+          const reloaded = await SubscriptionAccount.findById(_id);
+          const stillMatches =
+            reloaded?.status === SubscriptionStatus.INCOMPLETE && !reloaded.providerSubscriptionId;
+          if (!stillMatches) continue;
+        } catch (reloadError) {
+          failed += 1;
+          logger.error(
+            { err: reloadError, accountId: _id.toString() },
+            "Fallo al releer una cuenta tras un 409 al expirar suscripciones incompletas",
+          );
+          continue;
+        }
       }
       failed += 1;
       logger.error({ err: error, accountId: _id.toString() }, "Fallo al expirar una suscripción incompleta");

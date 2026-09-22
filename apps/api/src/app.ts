@@ -3,6 +3,7 @@ import cors from "cors";
 import express, { type Express } from "express";
 import helmet from "helmet";
 import { allowedOrigins, corsOptions } from "./config/cors.js";
+import { env } from "./config/env.js";
 import { errorHandler } from "./middlewares/error-handler.js";
 import { globalRateLimiter } from "./middlewares/rate-limit.js";
 import { mongoSanitize } from "./middlewares/mongo-sanitize.js";
@@ -31,6 +32,11 @@ import { v1Router } from "./routes/index.js";
  */
 function buildApp(): Express {
   const app = express();
+
+  // Sin esto, req.ip toma la IP del último salto (el proxy, no el cliente),
+  // colapsando todos los rate limiters con clave por IP en un solo bucket
+  // compartido detrás de Railway/Cloudflare (TRUST_PROXY_HOPS, config/env.ts).
+  app.set("trust proxy", env.trustProxyHops);
 
   app.disable("x-powered-by");
   app.use(helmet());

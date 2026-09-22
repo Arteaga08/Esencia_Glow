@@ -306,6 +306,17 @@ stripe trigger invoice.payment_failed
 Confirmar que la primera factura de una alta real cobra el precio **completo** del ciclo en curso y
 que el siguiente cobro cae exactamente en `billingAnchorDay`.
 
+**Deuda de verificación manual (hardening 1.10):** `startSubscription` (stripe-subscription-provider.ts)
+crea la suscripción con `items` **y** `add_invoice_items` a la vez, así que la primera factura trae
+dos líneas de tipo distinto (`subscription_item_details` e `invoice_item_details`).
+`extractServicePeriod` (stripe-subscription-webhook-translator.ts) elige la línea por
+`parent.type === "subscription_item_details"`, nunca por posición — pero el comportamiento REAL de
+Stripe para esa primera factura (qué línea trae el período correcto, en qué orden llegan) sigue sin
+confirmarse contra el sandbox, porque no hubo `stripe listen`/`stripe trigger` disponible durante la
+auditoría de seguridad que encontró este caso. Repetir la verificación de arriba (`stripe trigger
+invoice.paid` sobre una alta real) prestando atención a `invoice.lines.data[*].parent.type` y a qué
+período trae cada línea, apenas haya sandbox de Stripe a mano.
+
 ## Suscripciones — panel de envíos y autoservicio de lectura (Milestone 1.7.2b)
 
 Cierra el ciclo que 1.7.2a dejó a medias: la caja se cobraba y se apartaba inventario, pero no
