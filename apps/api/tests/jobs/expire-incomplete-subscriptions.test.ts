@@ -1,11 +1,13 @@
 import { Types } from "mongoose";
 import { SubscriptionStatus } from "@esencia-glow/shared";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { AuditLog } from "../../src/models/audit-log.model.js";
 import { SubscriptionAccount } from "../../src/models/subscription-account.model.js";
 import { SubscriptionPlan } from "../../src/models/subscription-plan.model.js";
 import { expireIncompleteSubscriptions } from "../../src/jobs/expire-incomplete-subscriptions.js";
+import * as subscriptionSeatService from "../../src/services/subscription-seat.service.js";
 import { startSubscription } from "../../src/services/subscription-seat.service.js";
+import { AppError } from "../../src/utils/app-error.js";
 import { seedPlanWithStripeRefs, seedSubscribedAccount } from "../helpers/subscription-fixtures.js";
 
 const THRESHOLD_MINUTES = 30;
@@ -80,6 +82,51 @@ describe("jobs/expireIncompleteSubscriptions", () => {
     expect(summary).toEqual({ scanned: 0, expired: 0, failed: 0 });
     const reloaded = await SubscriptionAccount.findById(account._id);
     expect(reloaded?.status).toBe(SubscriptionStatus.ACTIVE);
+  });
+
+  it("🔀 si la re-lectura dentro del catch (tras un 409) rechaza, el resto del lote sigue evaluándose", async () => {
+    const plan = await seedPlanWithStripeRefs();
+    const account1 = await seedStaleIncompleteAccount(plan._id.toString());
+    const account2 = await seedStaleIncompleteAccount(plan._id.toString());
+
+    const originalApply = subscriptionSeatService.applyStatusTransition;
+    const applySpy = vi
+      .spyOn(subscriptionSeatService, "applyStatusTransition")
+      .mockImplementation(async (account, ...rest) => {
+        if (account._id.toString() === account1._id.toString()) {
+          throw new AppError("Conflicto de escritura concurrente", 409);
+        }
+        return originalApply(account, ...rest);
+      });
+
+    const originalFindById = SubscriptionAccount.findById.bind(SubscriptionAccount);
+    let account1FindCalls = 0;
+    const findByIdSpy = vi
+      .spyOn(SubscriptionAccount, "findById")
+      .mockImplementation(((id: unknown) => {
+        if (String(id) === account1._id.toString()) {
+          account1FindCalls += 1;
+          // La primera lectura (antes del try) debe seguir funcionando; solo
+          // la re-lectura DENTRO del catch (la segunda) simula un error
+          // transitorio de Atlas.
+          if (account1FindCalls === 2) {
+            return Promise.reject(new Error("Mongo transient error"));
+          }
+        }
+        return originalFindById(id as string);
+      }) as typeof SubscriptionAccount.findById);
+
+    const summary = await expireIncompleteSubscriptions(new Date(), THRESHOLD_MINUTES);
+    applySpy.mockRestore();
+    findByIdSpy.mockRestore();
+
+    expect(summary).toEqual({ scanned: 2, expired: 1, failed: 1 });
+
+    const reloadedAccount1 = await SubscriptionAccount.findById(account1._id);
+    expect(reloadedAccount1?.status).toBe(SubscriptionStatus.INCOMPLETE);
+
+    const reloadedAccount2 = await SubscriptionAccount.findById(account2._id);
+    expect(reloadedAccount2?.status).toBe(SubscriptionStatus.CANCELED);
   });
 
   it("correr el job dos veces seguidas es idempotente: la segunda pasada no re-expira ni re-audita", async () => {

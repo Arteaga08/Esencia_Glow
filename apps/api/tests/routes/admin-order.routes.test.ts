@@ -137,6 +137,34 @@ describe("routes/admin-order — transiciones y guía", () => {
     expect(res.body.data.shipment.trackingNumber).toBe("TRACK-CORRECTED");
   });
 
+  it("trackingUrl con esquema javascript:/data: se rechaza con 400 en status(shipped) y en shipment", async () => {
+    const { order } = await seedPendingOrder();
+    await markOrderPaid({ orderId: order._id.toString() });
+    const { agent } = await createAdminSession(app);
+
+    await agent.patch(`/api/v1/admin/orders/${order._id}/status`).send({ status: OrderStatus.PROCESSING });
+    const statusRes = await agent.patch(`/api/v1/admin/orders/${order._id}/status`).send({
+      status: OrderStatus.SHIPPED,
+      shipment: {
+        carrier: ShippingCarrier.FEDEX,
+        trackingNumber: "TRACK1",
+        trackingUrl: "javascript:alert(document.cookie)",
+      },
+    });
+    expect(statusRes.status).toBe(400);
+
+    const legitShipRes = await agent.patch(`/api/v1/admin/orders/${order._id}/status`).send({
+      status: OrderStatus.SHIPPED,
+      shipment: { carrier: ShippingCarrier.FEDEX, trackingNumber: "TRACK1" },
+    });
+    expect(legitShipRes.status).toBe(200);
+
+    const shipmentRes = await agent
+      .patch(`/api/v1/admin/orders/${order._id}/shipment`)
+      .send({ trackingUrl: "data:text/html,<script>alert(1)</script>" });
+    expect(shipmentRes.status).toBe(400);
+  });
+
   it("corregir la guía sin que exista una previa responde 409", async () => {
     const { order } = await seedPendingOrder();
     const { agent } = await createAdminSession(app);

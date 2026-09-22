@@ -37,6 +37,22 @@ describe("services/stripe-webhook-translator — eventos de suscripción", () =>
     expect((result as { servicePeriodEnd: Date }).servicePeriodEnd).toEqual(new Date(1_702_592_000 * 1000));
   });
 
+  it("invoice.paid con dos líneas (add_invoice_items en índice 0): usa el período de subscription_item_details, no el de índice 0", () => {
+    const payload = buildStripeInvoiceEvent("invoice.paid", "in_two_lines", {
+      subscriptionId: "sub_two_lines",
+      lines: [
+        { start: 1_000, end: 2_000, parentType: "invoice_item_details" },
+        { start: 1_700_000_000, end: 1_702_592_000, parentType: "subscription_item_details" },
+      ],
+    });
+    const event = JSON.parse(payload);
+
+    const result = translateStripeEvent(event);
+
+    expect((result as { servicePeriodStart: Date }).servicePeriodStart).toEqual(new Date(1_700_000_000 * 1000));
+    expect((result as { servicePeriodEnd: Date }).servicePeriodEnd).toEqual(new Date(1_702_592_000 * 1000));
+  });
+
   it("invoice.paid con billing_reason distinto de create/cycle -> billingReason 'other'", () => {
     const payload = buildStripeInvoiceEvent("invoice.paid", "in_2", { billingReason: "manual" });
     const event = JSON.parse(payload);

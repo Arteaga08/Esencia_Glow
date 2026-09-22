@@ -238,6 +238,36 @@ describe("routes/auth — 2FA de dos pasos para admin", () => {
     expect(meAfterTwoFactor.status).toBe(200);
   });
 
+  it("con 2FA ya activo, /2fa/setup exige el código vigente antes de reemplazar el secreto", async () => {
+    const { email, userId } = await registerAndVerify();
+    await User.updateOne({ _id: userId }, { $set: { role: "admin" } });
+
+    const agent = request.agent(app);
+    await agent.post("/api/v1/auth/login").send({ email, password: "Contrasena1" });
+
+    await agent.post("/api/v1/auth/2fa/setup");
+    const user = await User.findById(userId).select("+twoFactor.secret");
+    const { decryptSecret } = await import("../../src/utils/crypto.js");
+    const originalSecret = decryptSecret(user!.twoFactor.secret!);
+    await agent.post("/api/v1/auth/2fa/enable").send({ code: authenticator.generate(originalSecret) });
+
+    // Sesión robada intenta re-enrolar 2FA sin el código actual.
+    const withoutCode = await agent.post("/api/v1/auth/2fa/setup");
+    expect(withoutCode.status).toBe(401);
+
+    const withWrongCode = await agent.post("/api/v1/auth/2fa/setup").send({ code: "000000" });
+    expect(withWrongCode.status).toBe(401);
+
+    const untouched = await User.findById(userId);
+    expect(untouched?.twoFactor.enabled).toBe(true);
+
+    // Con el código vigente sí puede reconfigurar.
+    const withValidCode = await agent
+      .post("/api/v1/auth/2fa/setup")
+      .send({ code: authenticator.generate(originalSecret) });
+    expect(withValidCode.status).toBe(200);
+  });
+
   it("un cliente (no-admin) no puede llamar a los endpoints de 2fa/setup", async () => {
     const { email } = await registerAndVerify();
     const agent = request.agent(app);

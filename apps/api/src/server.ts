@@ -18,9 +18,21 @@ async function start(): Promise<void> {
   // orden de arranque legible (DB -> HTTP -> jobs de fondo).
   startCronJobs();
 
+  // Railway puede reenviar SIGTERM si el primero no cerró a tiempo — sin
+  // esta guarda, la segunda señal dispara un shutdown concurrente que
+  // vuelve a llamar disconnectDatabase()/process.exit() sobre un proceso
+  // que ya está a medio cerrar.
+  let shuttingDown = false;
+
   const shutdown = async (signal: string): Promise<void> => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+
     logger.info({ signal }, "Apagando servidor de forma ordenada");
     await stopCronJobs();
+    // No esperar los keep-alive de Cloudflare hasta el timeout de 10s de
+    // abajo: cierra ya las conexiones que no están a mitad de un request.
+    server.closeIdleConnections();
     server.close(async () => {
       await disconnectDatabase();
       process.exit(0);

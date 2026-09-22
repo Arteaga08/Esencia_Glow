@@ -63,6 +63,16 @@ const twoFactorCodeSchema = Joi.object({
   }),
 });
 
+// El código solo es obligatorio cuando la cuenta ya tiene 2FA activado, algo
+// que el validator no puede saber (depende del estado en BD); esa exigencia
+// la aplica el servicio, aquí solo se valida el formato si viene.
+const twoFactorSetupSchema = Joi.object({
+  code: Joi.string().trim().length(6).pattern(/^\d+$/).optional().messages({
+    "string.length": "El código debe tener 6 dígitos",
+    "string.pattern.base": "El código debe ser numérico",
+  }),
+}).default({});
+
 export {
   registerSchema,
   loginSchema,
@@ -72,4 +82,5 @@ export {
   resetPasswordSchema,
   changePasswordSchema,
   twoFactorCodeSchema,
+  twoFactorSetupSchema,
 };

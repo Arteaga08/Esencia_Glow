@@ -27,13 +27,19 @@ const ADMIN_REACHABLE_STATUSES = [
   OrderStatus.DELIVERED,
 ] as const;
 
+// Solo http/https: sin scheme allow-list, Joi.uri() acepta cualquier esquema
+// sintácticamente válido (javascript:, data:), y sanitizeInput no lo neutraliza
+// fuera de un atributo HTML — el valor se sirve tal cual al cliente en
+// order-dto.ts. Mismo criterio que HREF_PATTERN en home-content.validator.ts.
+const TRACKING_URL_SCHEMES = ["http", "https"];
+
 const shipmentSchema = Joi.object({
   carrier: Joi.string()
     .valid(...Object.values(ShippingCarrier))
     .required(),
   carrierName: Joi.string().trim().max(80),
   trackingNumber: Joi.string().trim().min(1).max(80).required(),
-  trackingUrl: Joi.string().trim().uri().max(500),
+  trackingUrl: Joi.string().trim().uri({ scheme: TRACKING_URL_SCHEMES }).max(500),
 });
 
 /** `shipment` es requerido SOLO al transicionar a `shipped` — la
@@ -54,7 +60,7 @@ const updateOrderShipmentSchema = Joi.object({
   carrier: Joi.string().valid(...Object.values(ShippingCarrier)),
   carrierName: Joi.string().trim().max(80),
   trackingNumber: Joi.string().trim().min(1).max(80),
-  trackingUrl: Joi.string().trim().uri().max(500),
+  trackingUrl: Joi.string().trim().uri({ scheme: TRACKING_URL_SCHEMES }).max(500),
 }).min(1);
 
 const changeOrderPrioritySchema = Joi.object({

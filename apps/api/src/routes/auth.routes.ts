@@ -14,6 +14,7 @@ import {
   resetPasswordSchema,
   twoFactorCodeSchema,
   twoFactorLoginSchema,
+  twoFactorSetupSchema,
   verifyEmailSchema,
 } from "../validators/auth.validator.js";
 
@@ -90,7 +91,13 @@ router.patch(
   authController.changePassword,
 );
 
-router.post("/2fa/setup", protect, restrictTo(UserRole.ADMIN), twoFactorController.setup);
+router.post(
+  "/2fa/setup",
+  protect,
+  restrictTo(UserRole.ADMIN),
+  validate(twoFactorSetupSchema),
+  twoFactorController.setup,
+);
 router.post(
   "/2fa/enable",
   protect,

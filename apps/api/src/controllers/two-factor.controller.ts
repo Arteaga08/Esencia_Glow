@@ -9,7 +9,7 @@ import * as twoFactorService from "../services/two-factor.service.js";
  */
 
 const setup = asyncHandler(async (req: Request, res: Response) => {
-  const result = await twoFactorService.setupTwoFactor(req.user!.id);
+  const result = await twoFactorService.setupTwoFactor(req.user!.id, req.body.code);
   sendResponse(res, 200, "Escanea el código QR con tu app de autenticación.", {
     otpauthUrl: result.otpauthUrl,
     qrCodeDataUrl: result.qrCodeDataUrl,

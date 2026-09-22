@@ -65,4 +65,81 @@ describe("config/env — tolerancia del webhook y umbral de reconciliación", ()
   it("SUBSCRIPTION_INCOMPLETE_EXPIRE_MINUTES='0' -> lanza", async () => {
     await expect(importEnvWith({ SUBSCRIPTION_INCOMPLETE_EXPIRE_MINUTES: "0" })).rejects.toThrow();
   });
+
+  it("TRUST_PROXY_HOPS ausente -> default 0 (sin proxy de confianza)", async () => {
+    const { env } = await importEnvWith({ TRUST_PROXY_HOPS: undefined });
+    expect(env.trustProxyHops).toBe(0);
+  });
+
+  it("TRUST_PROXY_HOPS='2' -> 2 (Railway + Cloudflare, dos saltos)", async () => {
+    const { env } = await importEnvWith({ TRUST_PROXY_HOPS: "2" });
+    expect(env.trustProxyHops).toBe(2);
+  });
+
+  it("TRUST_PROXY_HOPS='-1' -> lanza (no puede ser negativo)", async () => {
+    await expect(importEnvWith({ TRUST_PROXY_HOPS: "-1" })).rejects.toThrow();
+  });
+
+  it("TRUST_PROXY_HOPS='abc' -> lanza", async () => {
+    await expect(importEnvWith({ TRUST_PROXY_HOPS: "abc" })).rejects.toThrow();
+  });
+
+  it("TRUST_PROXY_HOPS ausente en producción -> lanza (un default silencioso dejaría el fix inerte)", async () => {
+    await expect(
+      importEnvWith({
+        NODE_ENV: "production",
+        TRUST_PROXY_HOPS: undefined,
+        CLIENT_URL: "https://www.esenciaglow.com",
+        STRIPE_SECRET_KEY: "sk_test_x",
+        STRIPE_WEBHOOK_SECRET: "whsec_x",
+        RESEND_API_KEY: "re_x",
+        CLOUDINARY_CLOUD_NAME: "cloud",
+        CLOUDINARY_API_KEY: "key",
+        CLOUDINARY_API_SECRET: "secret",
+      }),
+    ).rejects.toThrow();
+  });
+
+  it("TRUST_PROXY_HOPS presente en producción -> arranca con ese valor", async () => {
+    const { env } = await importEnvWith({
+      NODE_ENV: "production",
+      TRUST_PROXY_HOPS: "2",
+      CLIENT_URL: "https://www.esenciaglow.com",
+      STRIPE_SECRET_KEY: "sk_test_x",
+      STRIPE_WEBHOOK_SECRET: "whsec_x",
+      RESEND_API_KEY: "re_x",
+      CLOUDINARY_CLOUD_NAME: "cloud",
+      CLOUDINARY_API_KEY: "key",
+      CLOUDINARY_API_SECRET: "secret",
+    });
+    expect(env.trustProxyHops).toBe(2);
+  });
+});
+
+describe("config/env — REFRESH_TOKEN_TTL_DAYS", () => {
+  afterEach(() => {
+    vi.resetModules();
+  });
+
+  it("ausente -> default 30", async () => {
+    const { env } = await importEnvWith({ REFRESH_TOKEN_TTL_DAYS: undefined });
+    expect(env.refreshTokenTtlDays).toBe(30);
+  });
+
+  it("'abc' -> lanza (antes entraba como NaN sin quejarse)", async () => {
+    await expect(importEnvWith({ REFRESH_TOKEN_TTL_DAYS: "abc" })).rejects.toThrow();
+  });
+
+  it("'0' -> lanza", async () => {
+    await expect(importEnvWith({ REFRESH_TOKEN_TTL_DAYS: "0" })).rejects.toThrow();
+  });
+
+  it("'-5' -> lanza", async () => {
+    await expect(importEnvWith({ REFRESH_TOKEN_TTL_DAYS: "-5" })).rejects.toThrow();
+  });
+
+  it("'45' -> 45", async () => {
+    const { env } = await importEnvWith({ REFRESH_TOKEN_TTL_DAYS: "45" });
+    expect(env.refreshTokenTtlDays).toBe(45);
+  });
 });

@@ -5,6 +5,7 @@
   "description": "API de Esencia Glow — Express 5 + TypeScript",
   "type": "module",
   "main": "./dist/server.js",
+  "files": ["dist"],
   "scripts": {
     "dev": "NODE_ENV=development DOTENV_CONFIG_PATH=.env.development.local tsx watch src/server.ts",
     "build": "tsc -p tsconfig.json",
@@ -13,7 +14,10 @@
     "lint": "eslint src tests",
     "test": "vitest run",
     "test:watch": "vitest",
-    "seed:admin": "NODE_ENV=development DOTENV_CONFIG_PATH=.env.development.local tsx src/scripts/seed-admin.ts"
+    "seed:admin": "NODE_ENV=development DOTENV_CONFIG_PATH=.env.development.local tsx src/scripts/seed-admin.ts",
+    "seed:admin:prod": "node dist/scripts/seed-admin.js --force",
+    "sync-indexes": "node dist/scripts/sync-indexes.js",
+    "sync-indexes:dev": "NODE_ENV=development DOTENV_CONFIG_PATH=.env.development.local tsx src/scripts/sync-indexes.ts"
   },
   "dependencies": {
     "@esencia-glow/shared": "workspace:*",

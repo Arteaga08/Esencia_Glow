@@ -22,6 +22,12 @@ interface BuildStripeInvoiceEventOptions {
   attemptCount?: number;
   nextPaymentAttempt?: number | null;
   confirmationSecret?: string;
+  /** Override completo de `invoice.lines.data` — para probar facturas con más
+   * de una línea (p. ej. `add_invoice_items` junto a la línea de suscripción,
+   * ver `startSubscription` en stripe-subscription-provider.ts). Sin esto,
+   * se genera una única línea `subscription_item_details` con
+   * `periodStart`/`periodEnd`. */
+  lines?: Array<{ start: number; end: number; parentType: "subscription_item_details" | "invoice_item_details" }>;
 }
 
 function buildStripeInvoiceEvent(
@@ -61,14 +67,18 @@ function buildStripeInvoiceEvent(
           : null,
         lines: {
           object: "list",
-          data: [
-            {
-              period: {
+          data: (
+            options.lines ?? [
+              {
                 start: options.periodStart ?? now,
                 end: options.periodEnd ?? now + 30 * 24 * 60 * 60,
+                parentType: "subscription_item_details" as const,
               },
-            },
-          ],
+            ]
+          ).map((line) => ({
+            period: { start: line.start, end: line.end },
+            parent: { type: line.parentType },
+          })),
         },
       },
     },

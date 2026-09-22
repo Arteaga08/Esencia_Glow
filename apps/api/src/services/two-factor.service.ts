@@ -22,10 +22,25 @@ interface SetupResult {
   qrCodeDataUrl: string;
 }
 
-/** El label del QR es el email del usuario — se resuelve aquí, no lo decide el caller. */
-async function setupTwoFactor(userId: Types.ObjectId | string): Promise<SetupResult> {
-  const user = await User.findById(userId);
+/**
+ * El label del QR es el email del usuario — se resuelve aquí, no lo decide el
+ * caller. Si la cuenta ya tiene 2FA activado, exige el código vigente antes
+ * de reemplazar el secreto: si no, una sesión robada podría re-enrolar 2FA
+ * con un secreto propio y burlar el step-up de reembolsos.
+ */
+async function setupTwoFactor(
+  userId: Types.ObjectId | string,
+  code?: string,
+): Promise<SetupResult> {
+  const user = await User.findById(userId).select("+twoFactor.secret");
   if (!user) throw new AppError("Usuario no encontrado", 404);
+
+  if (user.twoFactor.enabled) {
+    if (!code) {
+      throw new AppError("Se requiere el código actual para reconfigurar 2FA", 401);
+    }
+    assertValidCode(decryptSecret(user.twoFactor.secret!), code);
+  }
 
   const secret = authenticator.generateSecret();
   const otpauthUrl = authenticator.keyuri(user.email, ISSUER, secret);

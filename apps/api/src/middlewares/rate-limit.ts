@@ -10,6 +10,9 @@ interface RateLimiterConfig {
    * por identidad autenticada (`refundRateLimiter`) pasa esto — nunca al
    * revés, porque un endpoint público sin sesión no tiene con qué. */
   keyGenerator?: (req: Request) => string;
+  /** Excluir rutas de la cuota (Milestone 1.10: el healthcheck de Railway,
+   * que solo el limiter global necesita eximir). */
+  skip?: (req: Request) => boolean;
 }
 
 /**
@@ -33,14 +36,23 @@ function createRateLimiter(config: RateLimiterConfig) {
     store: new MemoryStore(),
     message: { status: "fail", message: config.message },
     ...(config.keyGenerator ? { keyGenerator: config.keyGenerator } : {}),
+    ...(config.skip ? { skip: config.skip } : {}),
   } satisfies Partial<Options>);
 }
 
-/** Backstop global: cubre cualquier ruta que no tenga un limiter dedicado. */
+/**
+ * Backstop global: cubre cualquier ruta que no tenga un limiter dedicado.
+ * Exime `/health`/`/health/ready` (Milestone 1.10): sin esto, el healthcheck
+ * de Railway compite por la misma cuota de 300/15min que los clientes
+ * reales — un polling de Railway más frecuente que ~1 req/3s la agota,
+ * Railway empieza a recibir 429 de su propio healthcheck, y la instancia
+ * nunca se marca healthy (deploy que nunca pasa tráfico, o loop de restart).
+ */
 const globalRateLimiter = createRateLimiter({
   windowMs: 15 * 60 * 1000,
   max: 300,
   message: "Demasiadas solicitudes, intenta de nuevo más tarde.",
+  skip: (req) => req.path.startsWith("/api/v1/health"),
 });
 
 const loginRateLimiter = createRateLimiter({

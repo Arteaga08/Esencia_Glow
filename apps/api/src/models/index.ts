@@ -28,8 +28,9 @@ import { VerificationToken } from "./verification-token.model.js";
  * una transacción sobre una colección nueva falla con un error de Mongo que
  * no tiene nada que ver con el código bajo prueba.
  *
- * También es el gancho para `syncIndexes()` como paso de CD (ver
- * config/db.ts) una vez que `autoIndex` se apague en producción.
+ * También es el gancho que recorre `src/scripts/sync-indexes.ts` (Milestone
+ * 1.10) como paso de CD (ver config/db.ts) ahora que `autoIndex` está
+ * apagado en producción.
  */
 const models = [
   AuditLog,

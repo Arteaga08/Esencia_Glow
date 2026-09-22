@@ -64,6 +64,24 @@ function readPositiveInt(key: string, defaultValue: number): number {
   return parsed;
 }
 
+/**
+ * Entero no-negativo con default sano — a diferencia de `readPositiveInt`,
+ * aquí 0 es un valor legítimo (sin proxy de confianza delante, dev/test).
+ * En producción, sin embargo, un default silencioso deja el fix inerte (el
+ * operador olvida configurarlo y `trust proxy` queda en 0 de todas formas)
+ * — ahí se exige explícitamente, igual que STRIPE_SECRET_KEY/RESEND_API_KEY.
+ */
+function readNonNegativeInt(key: string, defaultValue: number, nodeEnv: NodeEnv): number {
+  requireInProduction(key, nodeEnv);
+  const raw = process.env[key];
+  if (raw === undefined || raw.trim().length === 0) return defaultValue;
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed) || parsed < 0) {
+    throw new Error(`${key} debe ser un entero no negativo (tiene "${raw}").`);
+  }
+  return parsed;
+}
+
 function buildEnv() {
   const nodeEnv = readNodeEnv();
 
@@ -104,13 +122,21 @@ function buildEnv() {
     // revocable (es JWT); el refresh es largo pero vive hasheado en DB y
     // es revocable de verdad (ver models/session.model.ts).
     accessTokenTtl: process.env.ACCESS_TOKEN_TTL ?? "15m",
-    refreshTokenTtlDays: Number(process.env.REFRESH_TOKEN_TTL_DAYS ?? 30),
+    refreshTokenTtlDays: readPositiveInt("REFRESH_TOKEN_TTL_DAYS", 30),
 
     // Pagos (Milestone 1.6): tolerancia de firma del webhook (nunca 0 — ver
     // stripe-webhook-translator.ts) y umbral del reconciliador de pagos
     // pendientes sin webhook, ambos con default sano en vez de número mágico.
     stripeWebhookToleranceSeconds: readPositiveInt("STRIPE_WEBHOOK_TOLERANCE_SECONDS", 300),
     paymentReconcileAfterMinutes: readPositiveInt("PAYMENT_RECONCILE_AFTER_MINUTES", 10),
+
+    // Cantidad de saltos de reverse proxy de confianza delante de la API
+    // (`app.set("trust proxy", N)`) — sin esto, TODO limiter con clave por IP
+    // colapsa en un único bucket compartido detrás de Railway/Cloudflare, y
+    // el webhook de Stripe pierde la IP real en sus logs. Default 0 (sin
+    // proxy de confianza) fuera de producción; en Railway+Cloudflare se
+    // configura con el número real de saltos.
+    trustProxyHops: readNonNegativeInt("TRUST_PROXY_HOPS", 0, nodeEnv),
 
     // Suscripciones (Milestone 1.7.2a): minutos tras reclamar el cupo antes
     // de que el barrendero libere una cuenta `INCOMPLETE` que nunca completó

@@ -67,6 +67,26 @@ describe("services/two-factor — activación en dos pasos", () => {
     await expect(verifyTwoFactorCode(user._id, "111111")).rejects.toThrow();
   });
 
+  it("setup con 2FA ya activado exige el código actual antes de reemplazar el secreto", async () => {
+    const user = await createUser();
+    const firstSetup = await setupTwoFactor(user._id);
+    const firstValidCode = authenticator.generate(firstSetup.secret);
+    await enableTwoFactor(user._id, firstValidCode);
+
+    await expect(setupTwoFactor(user._id)).rejects.toThrow();
+    await expect(setupTwoFactor(user._id, "000000")).rejects.toThrow();
+
+    const untouched = await User.findById(user._id);
+    expect(untouched?.twoFactor.enabled).toBe(true);
+
+    const codeForResetup = authenticator.generate(firstSetup.secret);
+    const secondSetup = await setupTwoFactor(user._id, codeForResetup);
+    expect(secondSetup.secret).not.toBe(firstSetup.secret);
+
+    const reloaded = await User.findById(user._id);
+    expect(reloaded?.twoFactor.enabled).toBe(false);
+  });
+
   it("disable exige un código válido y revoca todas las sesiones activas", async () => {
     const user = await createUser();
     const setup = await setupTwoFactor(user._id);

@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 import { EditionStatus, ProductChannel, ProductStatus } from "@esencia-glow/shared";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { Category } from "../../src/models/category.model.js";
 import { Product } from "../../src/models/product.model.js";
 import { SubscriptionEdition } from "../../src/models/subscription-edition.model.js";
@@ -215,6 +215,63 @@ describe("services/subscription-edition — CRUD y publicación", () => {
     const edition = await createEdition({ planId: plan._id.toString(), cycleYear: 2026, cycleMonth: 9, title: "Sept" });
     await deleteEdition(edition._id.toString());
     await expect(getEditionById(edition._id.toString())).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it("🔀 publishEdition concurrente entre la lectura y el save() de updateEdition: no debe pisar items ya publicados", async () => {
+    const plan = await seedPlan();
+    const { product, variantId } = await seedProduct();
+    const edition = await createEdition({ planId: plan._id.toString(), cycleYear: 2026, cycleMonth: 9, title: "Sept" });
+    await updateEdition(edition._id.toString(), {
+      items: [{ productId: product._id.toString(), variantId: variantId.toString(), quantity: 1 }],
+    });
+
+    const originalFindById = SubscriptionEdition.findById.bind(SubscriptionEdition);
+    const spy = vi.spyOn(SubscriptionEdition, "findById").mockImplementationOnce(((id: string) => {
+      const snapshot = originalFindById(id);
+      // Publica ANTES de que la lectura de updateEdition resuelva en memoria
+      // (la query ya viajó al server con el estado viejo), simulando que la
+      // publicación concurrente aterriza justo en la ventana entre la
+      // lectura y la escritura de updateEdition.
+      return snapshot.then(async (doc) => {
+        await publishEdition(edition._id.toString(), plan._id.toString());
+        return doc;
+      });
+    }) as typeof SubscriptionEdition.findById);
+
+    await expect(
+      updateEdition(edition._id.toString(), {
+        items: [{ productId: product._id.toString(), variantId: variantId.toString(), quantity: 99 }],
+      }),
+    ).rejects.toMatchObject({ statusCode: 409 });
+    spy.mockRestore();
+
+    const reloaded = await getEditionById(edition._id.toString());
+    expect(reloaded.status).toBe(EditionStatus.PUBLISHED);
+    expect(reloaded.items[0]!.quantity).toBe(1);
+  });
+
+  it("🔀 publishEdition concurrente entre la lectura y el deleteOne() de deleteEdition: no debe borrar una edición ya publicada", async () => {
+    const plan = await seedPlan();
+    const { product, variantId } = await seedProduct();
+    const edition = await createEdition({ planId: plan._id.toString(), cycleYear: 2026, cycleMonth: 9, title: "Sept" });
+    await updateEdition(edition._id.toString(), {
+      items: [{ productId: product._id.toString(), variantId: variantId.toString(), quantity: 1 }],
+    });
+
+    const originalFindById = SubscriptionEdition.findById.bind(SubscriptionEdition);
+    const spy = vi.spyOn(SubscriptionEdition, "findById").mockImplementationOnce(((id: string) => {
+      const snapshot = originalFindById(id);
+      return snapshot.then(async (doc) => {
+        await publishEdition(edition._id.toString(), plan._id.toString());
+        return doc;
+      });
+    }) as typeof SubscriptionEdition.findById);
+
+    await expect(deleteEdition(edition._id.toString())).rejects.toMatchObject({ statusCode: 409 });
+    spy.mockRestore();
+
+    const reloaded = await getEditionById(edition._id.toString());
+    expect(reloaded.status).toBe(EditionStatus.PUBLISHED);
   });
 
   it("deleteEdition sobre una edición PUBLISHED responde 409", async () => {

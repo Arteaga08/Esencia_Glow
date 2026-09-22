@@ -1,0 +1,34 @@
+# Se reconstruye dentro de la imagen — copiarlo desde el host desperdicia caché
+# y puede arrastrar binarios nativos compilados para el host equivocado.
+**/node_modules
+**/dist
+**/coverage
+**/.turbo
+**/*.tsbuildinfo
+
+# Secretos: nunca deben hornearse en la imagen. Los .example son solo
+# referencia (sin valores reales) y sí pueden ir, pero no hace falta que
+# vayan — el Dockerfile no los usa.
+.env
+.env.*
+*.env
+
+# Tests, no aportan nada a la imagen de producción.
+**/tests
+**/*.test.ts
+
+# Control de versiones y tooling local.
+.git
+.github
+.claude
+.vscode
+.idea
+.DS_Store
+*.log
+.eslintcache
+.mongodb-binaries
+
+# Documentación y artefactos de despliegue que no debe ver el build.
+README.md
+Dockerfile
+.dockerignore

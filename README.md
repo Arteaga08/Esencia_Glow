@@ -50,6 +50,7 @@ ignora cualquier `.env`/`.env.*` real y re-permite explícitamente los `.example
 | `PAYMENT_RECONCILE_AFTER_MINUTES` | Con default, fail-fast si es inválida | Umbral del reconciliador: cuánto espera un pedido `pending` con PaymentIntent antes de que el cron le pregunte a Stripe. Default `10`, mismo criterio de entero positivo |
 | `SUBSCRIPTION_INCOMPLETE_EXPIRE_MINUTES` | Con default, fail-fast si es inválida | Milestone 1.7.2a: minutos tras reclamar el cupo antes de que el cron libere una cuenta de suscripción `INCOMPLETE` sin `providerSubscriptionId`. Default `30`, mismo criterio de entero positivo |
 | `SUBSCRIPTION_EDITION_ALERT_DAYS` | Con default, fail-fast si es inválida | Milestone 1.7.2b: días de anticipación con los que el cron avisa al admin que falta publicar la edición del ciclo que está por cobrarse. Default `7`, mismo criterio de entero positivo |
+| `TRUST_PROXY_HOPS` | **Fail-fast en producción** (sin default silencioso ahí) | Milestone 1.10: saltos de reverse proxy de confianza delante de la API (`app.set("trust proxy", N)`) — sin esto, `req.ip` toma la IP del proxy y todo rate limiter por IP colapsa en un solo bucket compartido. Default `0` fuera de producción (sin proxy de confianza); en Railway + Cloudflare se exige explícito, ver el runbook abajo |
 | `RESEND_API_KEY` | Fail-fast en producción | Correo transaccional (verificación de email, reset, pedidos, suscripciones) |
 | `RESEND_FROM_EMAIL` | Con default | Remitente. Default `onboarding@resend.dev` (sandbox); en producción requiere dominio verificado en Resend |
 | `ACCESS_TOKEN_TTL` | Con default | Vida del JWT de acceso. Default `15m` |
@@ -305,6 +306,17 @@ stripe trigger invoice.payment_failed
 
 Confirmar que la primera factura de una alta real cobra el precio **completo** del ciclo en curso y
 que el siguiente cobro cae exactamente en `billingAnchorDay`.
+
+**Deuda de verificación manual (hardening 1.10):** `startSubscription` (stripe-subscription-provider.ts)
+crea la suscripción con `items` **y** `add_invoice_items` a la vez, así que la primera factura trae
+dos líneas de tipo distinto (`subscription_item_details` e `invoice_item_details`).
+`extractServicePeriod` (stripe-subscription-webhook-translator.ts) elige la línea por
+`parent.type === "subscription_item_details"`, nunca por posición — pero el comportamiento REAL de
+Stripe para esa primera factura (qué línea trae el período correcto, en qué orden llegan) sigue sin
+confirmarse contra el sandbox, porque no hubo `stripe listen`/`stripe trigger` disponible durante la
+auditoría de seguridad que encontró este caso. Repetir la verificación de arriba (`stripe trigger
+invoice.paid` sobre una alta real) prestando atención a `invoice.lines.data[*].parent.type` y a qué
+período trae cada línea, apenas haya sandbox de Stripe a mano.
 
 ## Suscripciones — panel de envíos y autoservicio de lectura (Milestone 1.7.2b)
 
@@ -572,6 +584,15 @@ closesAt? }` (misma regla que el alta: `closesAt` solo viaja con la ventana abie
 disponibilidad de productos, **una señal, nunca el número**: `soldOut` en vez de `seatsTaken`/
 `maxActiveSeats`, y ningún id del proveedor. `catalogRateLimiter`, anti-scraping.
 
+### Bajas de suscripción vs. cajas de envío pendientes (decisión cerrada, Milestone 1.10)
+
+Pausar, cancelar (al fin del período o de inmediato vía Stripe) o que una suscripción termine en
+`CANCELED`/`INCOMPLETE_EXPIRED` **nunca anula solo por eso** una caja de envío ya generada y
+pendiente (`SubscriptionShipment` en `pending`/`processing`/`shipped`) — la clienta ya pagó ese
+ciclo. Anularla es una acción manual del admin desde el panel de envíos (`assertShipmentTransition`
+en `subscription-shipment-state.ts` sí admite un emisor `system` para esa arista, pero hoy ningún
+caller lo dispara — queda declarado por si algún día se decide automatizar, no por descuido).
+
 ### Verificación manual pendiente (requiere Stripe real, no automatizable)
 
 Con `stripe listen` / una cuenta de prueba: pausar (la siguiente factura sale `void`), reanudar (el
@@ -748,16 +769,134 @@ pendientes, en proceso o a medias (1.9a, ver §"Envíos"). Todas las
 operaciones son idempotentes por documento — seguro correr varias instancias de la API sin lock
 distribuido.
 
-## Runbook de deploy (referencia — se completa en Milestone 1.10)
+## Runbook de deploy (Milestone 1.10 — Railway + Atlas + Cloudflare)
 
-1. Configurar las variables de `apps/api/.env.production.example` en el secrets manager del
-   proveedor de hosting elegido.
-2. `pnpm install --frozen-lockfile && pnpm build`.
-3. Correr `syncIndexes()` como paso de CD, **después** de desplegar el código nuevo y **antes**
-   de cortar tráfico hacia él (`autoIndex: false` en producción).
-4. Verificar `GET /api/v1/health` antes de considerar el deploy exitoso.
-5. DNS del dominio de correo transaccional (Resend) verificado — el modo sandbox no sirve para
-   producción.
+Stack de hosting decidido con Manuel: **Railway** (API, una sola instancia), **MongoDB Atlas**
+(BD) y **Cloudflare** (dominio + Pages para el front, cuando exista). CI en GitHub Actions
+(`.github/workflows/ci.yml`) corre `pnpm verify` + `pnpm audit --prod --audit-level high` en cada
+PR y push a `main`; Railway espera a que ese workflow esté en verde antes de desplegar.
+
+### 1. MongoDB Atlas
+
+- Cluster con **replica set** (obligatorio: el inventario, los pagos y las suscripciones usan
+  `session.withTransaction`, y las transacciones de Mongo solo corren sobre un replica set).
+- TLS activado (Atlas lo trae por default, no desactivarlo).
+- Usuario de base de datos dedicado con el mínimo privilegio que la API necesita (lectura/escritura
+  sobre `esencia_glow`, nada de admin del cluster) — nunca el usuario owner del proyecto de Atlas.
+- IP access list: mientras Railway no tenga IP saliente fija, usar `0.0.0.0/0` documentado como
+  deuda (el usuario de BD dedicado + TLS + el propio `MONGODB_URI` con contraseña siguen siendo la
+  barrera real) — o el peering/Private Endpoint de Atlas si el plan de Railway lo soporta.
+- `MONGODB_URI` final: `mongodb+srv://<usuario>:<password-url-encoded>@<cluster>.xxxxx.mongodb.net/esencia_glow?retryWrites=true&w=majority`
+  — el nombre de la base va explícito en el path, antes del `?` (ver tabla de variables arriba).
+
+### 2. Railway — configuración del servicio (dashboard, sin `railway.json`)
+
+La configuración vive en el dashboard de Railway, no en un archivo del repo: la doc oficial de
+Railway deprecó "Config as Code" (`railway.json`/`railway.toml`) a favor de su nueva
+Infrastructure as Code (`.railway/railway.ts`), con los archivos viejos dejando de funcionar el
+**2026-12-01**. Su sucesor no documenta (a la fecha de este runbook) cómo apuntar a un Dockerfile
+ni la política de reinicio, así que escribirlo habría sido inventar API. Configurar a mano:
+
+| Ajuste | Valor |
+|---|---|
+| Builder | Dockerfile (el `Dockerfile` de la raíz del repo) |
+| Pre-deploy command | `node dist/scripts/sync-indexes.js` — la imagen final no trae pnpm instalado (solo runtime de Node), así que se invoca el script compilado directo, no vía `pnpm run` — ver §5 |
+| Healthcheck path | `/api/v1/health/ready` |
+| Restart policy | On failure |
+| Réplicas | **1** (ver la nota de Redis más abajo antes de subir este número) |
+| Variables | Todas las de `apps/api/.env.production.example`, con valores reales — nunca copiar ese archivo tal cual, es solo la lista de nombres |
+
+### 3. Cloudflare — dominio y DNS
+
+- Dominio comprado en Cloudflare. `www.<dominio>` → Cloudflare Pages (front, Milestone 2/3 — no
+  existe todavía). `api.<dominio>` → CNAME al dominio de Railway, en modo **DNS-only (nube gris,
+  no naranja)** — con el proxy de Cloudflare activado ahí se suma un salto extra delante de la API
+  que `TRUST_PROXY_HOPS` no esperaría, y el rate limiting por IP se rompe.
+- **Por qué front y API van en el mismo dominio registrable:** la cookie de sesión es
+  `SameSite=strict` (`BACKEND_SECURITY_GUIDELINES.md`). Con el front en `*.pages.dev` y la API en
+  `*.up.railway.app` (dominios registrables distintos) el navegador nunca manda la cookie en las
+  peticiones del front a la API y el login no funciona. `www.<dominio>` + `api.<dominio>` comparten
+  dominio registrable (`<dominio>`) y sí funcionan.
+- `CLIENT_URL=https://www.<dominio>` en las variables de Railway.
+
+### 4. Confirmar `TRUST_PROXY_HOPS` tras el primer deploy
+
+`.env.production.example` propone `2` (Railway + Cloudflare DNS-only en `api.` sigue sumando su
+propio salto interno) pero es una estimación, no un valor verificado. Después del primer deploy:
+
+1. Hacer una petición real a `api.<dominio>`.
+2. Mirar en los logs (`pino-http`, Milestone 1.10) el `req.headers["x-forwarded-for"]` recibido y
+   compararlo contra la IP real del cliente.
+3. Si `req.ip` (ya con `trust proxy` aplicado) no coincide con la IP real, ajustar
+   `TRUST_PROXY_HOPS` y redesplegar — un valor de más deja los rate limiters por IP falsificables
+   (cualquiera puede inyectar un `X-Forwarded-For` falso en el salto que sobra).
+
+### 5. Orden del deploy
+
+1. CI (`pnpm verify` + `pnpm audit --prod --audit-level high`) en verde sobre el commit a desplegar.
+2. Railway construye la imagen (`Dockerfile` de la raíz).
+3. **Pre-deploy**: corre el script de índices (`apps/api/src/scripts/sync-indexes.ts`,
+   `createIndexes()` por modelo — solo agrega, nunca borra; `diffIndexes()` reporta sobrantes, que
+   se borran solo con `--prune` explícito, corrido a mano y nunca en el pre-deploy automático).
+   Exit code ≠ 0 aborta el deploy antes de cortar tráfico al código nuevo.
+4. Railway espera a que `/api/v1/health/ready` responda 200 (Mongo conectado y respondiendo al
+   `ping`) antes de mandarle tráfico a la instancia nueva.
+5. Instancia vieja se apaga: `SIGTERM` → `server.closeIdleConnections()` → cierre ordenado del
+   cron y la conexión a Mongo (`apps/api/src/server.ts`, con guarda contra una segunda señal).
+
+### 6. Primer admin en producción
+
+`pnpm seed:admin:prod` (`node dist/scripts/seed-admin.js --force`) — se niega a tocar un admin ya
+existente salvo que además se pase `--overwrite-existing` (Milestone 1.10: evita que correrlo dos
+veces por hábito resetee en silencio la contraseña del admin real). Pasos:
+
+1. En Railway, setear temporalmente `SEED_ADMIN_EMAIL` y `SEED_ADMIN_PASSWORD`.
+2. `railway ssh` hacia el servicio ya desplegado y, dentro, `node dist/scripts/seed-admin.js
+   --force` (una sola vez). Se usa `ssh` y no `railway run`: este último corre el comando en la
+   máquina local con las variables de Railway inyectadas, no dentro del contenedor — exigiría tener
+   `dist/` compilado localmente y en el mismo estado que la imagen desplegada. `pnpm
+   seed:admin:prod` (`apps/api/package.json`) documenta el mismo comando para cuando sí se corre
+   desde dentro del contenedor (o un entorno con ese `dist/`).
+3. **Borrar esas dos variables** de Railway — no deben quedar configuradas de forma permanente.
+4. Iniciar sesión con ese admin y cambiar la contraseña desde el panel.
+
+### 7. Integraciones externas
+
+- **Webhook de Stripe en modo live**: apuntar a `https://api.<dominio>/api/v1/webhooks/stripe`,
+  copiar el signing secret nuevo (live, no test) a `STRIPE_WEBHOOK_SECRET` en Railway.
+- **Resend**: dominio de envío verificado por DNS (registros que Resend pide, en Cloudflare) antes
+  de fijar `RESEND_FROM_EMAIL` a una dirección de ese dominio — el modo sandbox de Resend no sirve
+  para producción.
+- **Skydropx (Milestone 1.9b)**: sigue bloqueado (faltan datos fiscales de Manuel). Las rutas de
+  cotización/guía que lo necesitan responden `503` en producción hasta que se resuelva — no es un
+  bug, es el estado esperado mientras 1.9b no esté implementado.
+- **Sentry**: `SENTRY_DSN` se lee en `config/env.ts` pero el paquete de Sentry **no está
+  instalado** — dejar la variable vacía. Instalarlo es trabajo de otra sesión, no de este runbook.
+
+### 8. Verificación post-deploy
+
+- IP real del cliente en el primer log de una petición real (confirma que `TRUST_PROXY_HOPS` quedó
+  bien, ver §4).
+- Login end-to-end desde el front contra `api.<dominio>` (confirma cookie `SameSite=strict` +
+  dominio compartido).
+- `stripe trigger checkout.session.completed` (o el evento que corresponda) contra el webhook live,
+  confirmar que llega y se procesa.
+- `GET /api/v1/health/ready` → 200.
+
+### 9. Rollback
+
+Redesplegar la imagen anterior desde el historial de deploys de Railway. El script de índices solo
+agrega — un rollback de código nunca deja índices "de más" que rompan el código viejo. Si el
+rollback es por un índice roto (`--prune` corrido por error, o una migración de datos mala), ese
+caso es manual: no hay automatización de rollback de datos en este milestone.
+
+### 10. Antes de escalar a más de 1 instancia
+
+El rate limiting (`express-rate-limit`) es **en memoria** y el cron (`node-cron`) corre **en
+proceso** — con 2+ réplicas cada una tendría su propio bucket de rate limit (el límite real se
+multiplica por el número de instancias) y el cron correría duplicado en cada una. Antes de subir
+`numReplicas` en Railway hace falta mover ambos a algo compartido entre instancias — típicamente
+Redis (rate limit distribuido + lock del cron, o un scheduler externo). Fuera de alcance de 1.10.
 
 ## Estructura
 
