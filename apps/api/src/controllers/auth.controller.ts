@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import { UserRole } from "@esencia-glow/shared";
 import { asyncHandler } from "../utils/async-handler.js";
 import { sendResponse } from "../utils/send-response.js";
 import { AppError } from "../utils/app-error.js";
@@ -12,7 +13,7 @@ import {
   setAuthCookies,
   setPendingTwoFactorCookie,
 } from "../utils/cookies.js";
-import { signAccessToken, verifyPendingTwoFactorToken } from "../utils/jwt.js";
+import { signAccessToken, verifyPendingEnrollmentToken, verifyPendingTwoFactorToken } from "../utils/jwt.js";
 import * as authService from "../services/auth.service.js";
 import * as accountService from "../services/account.service.js";
 import { rotateSession } from "../services/session.service.js";
@@ -36,16 +37,22 @@ const register = asyncHandler(async (req: Request, res: Response) => {
 const login = asyncHandler(async (req: Request, res: Response) => {
   const result = await authService.login(req.body, sessionMeta(req));
 
-  if (result.twoFactorRequired) {
+  if (result.outcome === "twoFactorRequired") {
     setPendingTwoFactorCookie(res, result.pendingToken);
-    sendResponse(res, 200, "Ingresa tu código de verificación en dos pasos.", {
-      twoFactorRequired: true,
+    sendResponse(res, 200, "Ingresa tu código de verificación en dos pasos.", { next: "twoFactor" });
+    return;
+  }
+
+  if (result.outcome === "twoFactorSetupRequired") {
+    setPendingTwoFactorCookie(res, result.pendingToken);
+    sendResponse(res, 200, "Activa la verificación en dos pasos para continuar.", {
+      next: "twoFactorSetup",
     });
     return;
   }
 
   setAuthCookies(res, result.session);
-  sendResponse(res, 200, "Sesión iniciada.", { user: result.user });
+  sendResponse(res, 200, "Sesión iniciada.", { next: "session", user: result.user });
 });
 
 const completeTwoFactorLogin = asyncHandler(async (req: Request, res: Response) => {
@@ -54,9 +61,10 @@ const completeTwoFactorLogin = asyncHandler(async (req: Request, res: Response) 
     throw new AppError("No hay un inicio de sesión pendiente de verificación", 401);
   }
 
-  const { sub } = verifyPendingTwoFactorToken(pendingToken);
+  const { sub, sessionVersion } = verifyPendingTwoFactorToken(pendingToken);
   const { session, user } = await authService.completeTwoFactorLogin(
     sub,
+    sessionVersion,
     req.body.code,
     sessionMeta(req),
   );
@@ -64,6 +72,44 @@ const completeTwoFactorLogin = asyncHandler(async (req: Request, res: Response) 
   clearPendingTwoFactorCookie(res);
   setAuthCookies(res, session);
   sendResponse(res, 200, "Sesión iniciada.", { user });
+});
+
+/**
+ * Enrolamiento obligatorio de 2FA para un admin sin 2FA (Milestone 2.1):
+ * `login()` no le dio sesión, solo el pending token de enrolamiento — estos
+ * dos handlers, igual que `completeTwoFactorLogin`, leen la cookie sin pasar
+ * por `protect`. `verifyPendingEnrollmentToken` (purpose `pending_2fa_setup`)
+ * es lo que impide que el pending token de un login normal con 2FA YA activo
+ * sirva aquí — ver el comentario de jwt.ts.
+ */
+const beginTwoFactorEnrollment = asyncHandler(async (req: Request, res: Response) => {
+  const pendingToken = req.cookies?.[PENDING_TWO_FACTOR_COOKIE_NAME] as string | undefined;
+  if (!pendingToken) {
+    throw new AppError("No hay un inicio de sesión pendiente de verificación", 401);
+  }
+
+  const { sub, sessionVersion } = verifyPendingEnrollmentToken(pendingToken);
+  const enrollment = await authService.beginTwoFactorEnrollment(sub, sessionVersion);
+  sendResponse(res, 200, "Escanea el código QR con tu app de autenticación.", enrollment);
+});
+
+const completeTwoFactorEnrollment = asyncHandler(async (req: Request, res: Response) => {
+  const pendingToken = req.cookies?.[PENDING_TWO_FACTOR_COOKIE_NAME] as string | undefined;
+  if (!pendingToken) {
+    throw new AppError("No hay un inicio de sesión pendiente de verificación", 401);
+  }
+
+  const { sub, sessionVersion } = verifyPendingEnrollmentToken(pendingToken);
+  const { session, user } = await authService.completeTwoFactorEnrollment(
+    sub,
+    sessionVersion,
+    req.body.code,
+    sessionMeta(req),
+  );
+
+  clearPendingTwoFactorCookie(res);
+  setAuthCookies(res, session);
+  sendResponse(res, 200, "2FA activado. Sesión iniciada.", { user });
 });
 
 const refresh = asyncHandler(async (req: Request, res: Response) => {
@@ -76,6 +122,12 @@ const refresh = asyncHandler(async (req: Request, res: Response) => {
   const user = await User.findById(rotated.userId);
   if (!user) {
     throw new AppError("No autenticado", 401);
+  }
+
+  // Misma guarda que `protect` (ver su comentario): un admin sin 2FA no
+  // conserva sesión, tampoco a través de un refresh token todavía válido.
+  if (user.role === UserRole.ADMIN && !user.twoFactor.enabled) {
+    throw new AppError("Sesión expirada, inicia sesión de nuevo", 401);
   }
 
   const accessToken = signAccessToken({
@@ -166,6 +218,8 @@ export {
   register,
   login,
   completeTwoFactorLogin,
+  beginTwoFactorEnrollment,
+  completeTwoFactorEnrollment,
   refresh,
   logout,
   logoutAll,

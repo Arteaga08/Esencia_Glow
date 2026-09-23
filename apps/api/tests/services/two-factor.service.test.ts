@@ -6,6 +6,7 @@ import { Session } from "../../src/models/session.model.js";
 import {
   disableTwoFactor,
   enableTwoFactor,
+  ensureEnrollmentSecret,
   setupTwoFactor,
   verifyTwoFactorCode,
 } from "../../src/services/two-factor.service.js";
@@ -106,5 +107,50 @@ describe("services/two-factor — activación en dos pasos", () => {
     const sessionDoc = await Session.findOne({ userId: user._id });
     expect(sessionDoc?.revokedAt).toBeDefined();
     void session;
+  });
+});
+
+describe("services/two-factor — ensureEnrollmentSecret (enrolamiento pre-auth)", () => {
+  it("dos llamadas seguidas devuelven el mismo secreto (idempotente dentro de la ventana)", async () => {
+    const user = await createUser();
+    const first = await ensureEnrollmentSecret(user._id);
+    const second = await ensureEnrollmentSecret(user._id);
+
+    expect(second.secret).toBe(first.secret);
+    expect(second.otpauthUrl).toBe(first.otpauthUrl);
+  });
+
+  it("tras expirar la ventana de 15 minutos, rota el secreto", async () => {
+    const user = await createUser();
+    const first = await ensureEnrollmentSecret(user._id);
+
+    // Simula el paso del tiempo escribiendo `pendingSince` directo en BD, en
+    // vez de fake timers: el driver de Mongo depende de sus propios timers
+    // reales (heartbeats de la conexión), y congelarlos globalmente arriesga
+    // colgar la suite en vez de solo esta prueba.
+    await User.updateOne(
+      { _id: user._id },
+      { $set: { "twoFactor.pendingSince": new Date(Date.now() - 16 * 60 * 1000) } },
+    );
+
+    const second = await ensureEnrollmentSecret(user._id);
+    expect(second.secret).not.toBe(first.secret);
+  });
+
+  it("nunca expone el secreto en claro en BD", async () => {
+    const user = await createUser();
+    const result = await ensureEnrollmentSecret(user._id);
+
+    const reloaded = await User.findById(user._id).select("+twoFactor.secret");
+    expect(reloaded?.twoFactor.enabled).toBe(false);
+    expect(reloaded?.twoFactor.secret).not.toContain(result.secret);
+  });
+
+  it("se rehúsa si la cuenta ya tiene 2FA activo", async () => {
+    const user = await createUser();
+    const setup = await setupTwoFactor(user._id);
+    await enableTwoFactor(user._id, authenticator.generate(setup.secret));
+
+    await expect(ensureEnrollmentSecret(user._id)).rejects.toThrow();
   });
 });

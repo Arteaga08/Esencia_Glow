@@ -193,7 +193,141 @@ describe("routes/auth — golden path", () => {
   });
 });
 
-describe("routes/auth — 2FA de dos pasos para admin", () => {
+/**
+ * Lleva a un admin sin 2FA hasta tener 2FA activo y sesión, pasando por el
+ * flujo pre-auth de enrolamiento obligatorio (login -> setup -> enroll) —
+ * el único camino que existe ahora que un admin sin 2FA nunca recibe sesión
+ * directa de `/login`. Devuelve el secreto en claro para que el test pueda
+ * generar más códigos TOTP después.
+ */
+async function bootstrapAdminWithTwoFactor(email: string, password: string) {
+  const agent = request.agent(app);
+  const loginResponse = await agent.post("/api/v1/auth/login").send({ email, password });
+  expect(loginResponse.body.data.next).toBe("twoFactorSetup");
+
+  const setupResponse = await agent.post("/api/v1/auth/login/2fa/setup");
+  expect(setupResponse.status).toBe(200);
+  const { manualEntryKey } = setupResponse.body.data as { manualEntryKey: string };
+
+  const enrollResponse = await agent
+    .post("/api/v1/auth/login/2fa/enroll")
+    .send({ code: authenticator.generate(manualEntryKey) });
+  expect(enrollResponse.status).toBe(200);
+
+  return { agent, secret: manualEntryKey };
+}
+
+describe("routes/auth — enrolamiento obligatorio de 2FA para admin sin 2FA", () => {
+  beforeEach(() => {
+    vi.spyOn(emailService, "sendVerificationEmail").mockResolvedValue(undefined);
+  });
+
+  it("login de un admin sin 2FA no deja cookies de sesión, solo el pending token de enrolamiento", async () => {
+    const { email, userId } = await registerAndVerify();
+    await User.updateOne({ _id: userId }, { $set: { role: "admin" } });
+
+    const agent = request.agent(app);
+    const loginResponse = await agent.post("/api/v1/auth/login").send({ email, password: "Contrasena1" });
+
+    expect(loginResponse.status).toBe(200);
+    expect(loginResponse.body.data).toEqual({ next: "twoFactorSetup" });
+
+    const meResponse = await agent.get("/api/v1/auth/me");
+    expect(meResponse.status).toBe(401);
+  });
+
+  it("setup es idempotente: recargar la pantalla de enrolamiento no invalida el QR ya escaneado", async () => {
+    const { email, userId } = await registerAndVerify();
+    await User.updateOne({ _id: userId }, { $set: { role: "admin" } });
+
+    const agent = request.agent(app);
+    await agent.post("/api/v1/auth/login").send({ email, password: "Contrasena1" });
+
+    const first = await agent.post("/api/v1/auth/login/2fa/setup");
+    const second = await agent.post("/api/v1/auth/login/2fa/setup");
+
+    expect(first.body.data.manualEntryKey).toBe(second.body.data.manualEntryKey);
+  });
+
+  it("enroll con código inválido no activa 2FA ni dificulta reintentar", async () => {
+    const { email, userId } = await registerAndVerify();
+    await User.updateOne({ _id: userId }, { $set: { role: "admin" } });
+
+    const agent = request.agent(app);
+    await agent.post("/api/v1/auth/login").send({ email, password: "Contrasena1" });
+    const setup = await agent.post("/api/v1/auth/login/2fa/setup");
+    const { manualEntryKey } = setup.body.data as { manualEntryKey: string };
+
+    const wrongCode = await agent.post("/api/v1/auth/login/2fa/enroll").send({ code: "000000" });
+    expect(wrongCode.status).toBe(401);
+
+    const untouched = await User.findById(userId);
+    expect(untouched?.twoFactor.enabled).toBe(false);
+
+    const validCode = await agent
+      .post("/api/v1/auth/login/2fa/enroll")
+      .send({ code: authenticator.generate(manualEntryKey) });
+    expect(validCode.status).toBe(200);
+  });
+
+  /**
+   * El test que justifica tener un `purpose` de token separado para el
+   * enrolamiento (jwt.ts): el pending token que deja un login normal con 2FA
+   * YA activo no debe servir para llamar al setup de enrolamiento — si lo
+   * hiciera, cualquiera con la contraseña de un admin ya protegido podría
+   * reemplazar su secreto de 2FA por uno propio.
+   */
+  it("el pending token de un login con 2FA ya activo NO sirve en /login/2fa/setup (regresión del bypass)", async () => {
+    const { email, userId } = await registerAndVerify();
+    await User.updateOne({ _id: userId }, { $set: { role: "admin" } });
+    const { secret: originalSecret } = await bootstrapAdminWithTwoFactor(email, "Contrasena1");
+
+    const beforeAttack = await User.findById(userId).select("+twoFactor.secret");
+
+    // Nuevo login: como el admin ya tiene 2FA, esto deja el pending token
+    // "pending_2fa" (login-2FA), no el de enrolamiento.
+    const attackerAgent = request.agent(app);
+    const loginResponse = await attackerAgent
+      .post("/api/v1/auth/login")
+      .send({ email, password: "Contrasena1" });
+    expect(loginResponse.body.data.next).toBe("twoFactor");
+
+    const setupAttempt = await attackerAgent.post("/api/v1/auth/login/2fa/setup");
+    expect(setupAttempt.status).toBe(401);
+
+    const afterAttack = await User.findById(userId).select("+twoFactor.secret");
+    expect(afterAttack?.twoFactor.secret).toBe(beforeAttack?.twoFactor.secret);
+    expect(afterAttack?.twoFactor.enabled).toBe(true);
+
+    // El dueño real de la cuenta sigue pudiendo loguearse con su código.
+    const validLogin = await attackerAgent
+      .post("/api/v1/auth/login/2fa")
+      .send({ code: authenticator.generate(originalSecret) });
+    expect(validLogin.status).toBe(200);
+  });
+
+  it("happy path completo: login -> setup -> enroll deja sesión, 2FA activo, y el próximo login pide solo el código", async () => {
+    const { email, userId } = await registerAndVerify();
+    await User.updateOne({ _id: userId }, { $set: { role: "admin" } });
+
+    const { agent } = await bootstrapAdminWithTwoFactor(email, "Contrasena1");
+
+    const meResponse = await agent.get("/api/v1/auth/me");
+    expect(meResponse.status).toBe(200);
+    expect(meResponse.body.data.user.role).toBe("admin");
+
+    const reloaded = await User.findById(userId);
+    expect(reloaded?.twoFactor.enabled).toBe(true);
+
+    const secondAgent = request.agent(app);
+    const nextLogin = await secondAgent
+      .post("/api/v1/auth/login")
+      .send({ email, password: "Contrasena1" });
+    expect(nextLogin.body.data.next).toBe("twoFactor");
+  });
+});
+
+describe("routes/auth — 2FA de dos pasos para admin (ya enrolado)", () => {
   beforeEach(() => {
     vi.spyOn(emailService, "sendVerificationEmail").mockResolvedValue(undefined);
   });
@@ -201,20 +335,7 @@ describe("routes/auth — 2FA de dos pasos para admin", () => {
   it("login con 2FA activo exige el segundo paso antes de emitir sesión", async () => {
     const { email, userId } = await registerAndVerify();
     await User.updateOne({ _id: userId }, { $set: { role: "admin" } });
-
-    const agent = request.agent(app);
-    await agent.post("/api/v1/auth/login").send({ email, password: "Contrasena1" });
-
-    const setupResponse = await agent.post("/api/v1/auth/2fa/setup");
-    expect(setupResponse.status).toBe(200);
-
-    const user = await User.findById(userId).select("+twoFactor.secret");
-    const { decryptSecret } = await import("../../src/utils/crypto.js");
-    const secret = decryptSecret(user!.twoFactor.secret!);
-    const validCode = authenticator.generate(secret);
-
-    const enableResponse = await agent.post("/api/v1/auth/2fa/enable").send({ code: validCode });
-    expect(enableResponse.status).toBe(200);
+    const { secret } = await bootstrapAdminWithTwoFactor(email, "Contrasena1");
 
     // Nuevo login: ahora debe pedir el segundo paso.
     const secondAgent = request.agent(app);
@@ -222,7 +343,7 @@ describe("routes/auth — 2FA de dos pasos para admin", () => {
       .post("/api/v1/auth/login")
       .send({ email, password: "Contrasena1" });
     expect(loginResponse.status).toBe(200);
-    expect(loginResponse.body.data.twoFactorRequired).toBe(true);
+    expect(loginResponse.body.data.next).toBe("twoFactor");
 
     // Sin haber completado el 2FA, /me no debe funcionar.
     const meBeforeTwoFactor = await secondAgent.get("/api/v1/auth/me");
@@ -241,15 +362,7 @@ describe("routes/auth — 2FA de dos pasos para admin", () => {
   it("con 2FA ya activo, /2fa/setup exige el código vigente antes de reemplazar el secreto", async () => {
     const { email, userId } = await registerAndVerify();
     await User.updateOne({ _id: userId }, { $set: { role: "admin" } });
-
-    const agent = request.agent(app);
-    await agent.post("/api/v1/auth/login").send({ email, password: "Contrasena1" });
-
-    await agent.post("/api/v1/auth/2fa/setup");
-    const user = await User.findById(userId).select("+twoFactor.secret");
-    const { decryptSecret } = await import("../../src/utils/crypto.js");
-    const originalSecret = decryptSecret(user!.twoFactor.secret!);
-    await agent.post("/api/v1/auth/2fa/enable").send({ code: authenticator.generate(originalSecret) });
+    const { agent, secret: originalSecret } = await bootstrapAdminWithTwoFactor(email, "Contrasena1");
 
     // Sesión robada intenta re-enrolar 2FA sin el código actual.
     const withoutCode = await agent.post("/api/v1/auth/2fa/setup");
@@ -275,5 +388,38 @@ describe("routes/auth — 2FA de dos pasos para admin", () => {
 
     const response = await agent.post("/api/v1/auth/2fa/setup");
     expect(response.status).toBe(403);
+  });
+});
+
+describe("routes/auth — un admin sin 2FA nunca conserva sesión", () => {
+  beforeEach(() => {
+    vi.spyOn(emailService, "sendVerificationEmail").mockResolvedValue(undefined);
+  });
+
+  /**
+   * Red de seguridad independiente del cambio en `login()`: aunque algo
+   * emitiera cookies de sesión para un admin sin 2FA, `protect` y `refresh`
+   * las rechazan igual. Se prueba forzando el estado directo en BD (en vez
+   * de depender del login) para que este test no se vuelva un no-op el día
+   * que `login()` cambie.
+   */
+  it("protect rechaza un access token de admin sin 2FA aunque sea válido", async () => {
+    const { email, userId } = await registerAndVerify();
+    const agent = request.agent(app);
+    await agent.post("/api/v1/auth/login").send({ email, password: "Contrasena1" });
+    await User.updateOne({ _id: userId }, { $set: { role: "admin" } });
+
+    const response = await agent.get("/api/v1/auth/me");
+    expect(response.status).toBe(401);
+  });
+
+  it("refresh rechaza a un admin sin 2FA aunque el refresh token sea válido", async () => {
+    const { email, userId } = await registerAndVerify();
+    const agent = request.agent(app);
+    await agent.post("/api/v1/auth/login").send({ email, password: "Contrasena1" });
+    await User.updateOne({ _id: userId }, { $set: { role: "admin" } });
+
+    const response = await agent.post("/api/v1/auth/refresh");
+    expect(response.status).toBe(401);
   });
 });

@@ -5,7 +5,7 @@ import * as twoFactorController from "../controllers/two-factor.controller.js";
 import { validate } from "../middlewares/validate.js";
 import { protect } from "../middlewares/protect.js";
 import { restrictTo } from "../middlewares/restrict-to.js";
-import { createRateLimiter, loginRateLimiter } from "../middlewares/rate-limit.js";
+import { createRateLimiter, loginRateLimiter, twoFactorEnrollmentRateLimiter } from "../middlewares/rate-limit.js";
 import {
   changePasswordSchema,
   emailOnlySchema,
@@ -13,6 +13,7 @@ import {
   registerSchema,
   resetPasswordSchema,
   twoFactorCodeSchema,
+  twoFactorEnrollmentSetupSchema,
   twoFactorLoginSchema,
   twoFactorSetupSchema,
   verifyEmailSchema,
@@ -54,6 +55,18 @@ router.post(
   loginRateLimiter,
   validate(twoFactorLoginSchema),
   authController.completeTwoFactorLogin,
+);
+router.post(
+  "/login/2fa/setup",
+  twoFactorEnrollmentRateLimiter,
+  validate(twoFactorEnrollmentSetupSchema),
+  authController.beginTwoFactorEnrollment,
+);
+router.post(
+  "/login/2fa/enroll",
+  twoFactorEnrollmentRateLimiter,
+  validate(twoFactorLoginSchema),
+  authController.completeTwoFactorEnrollment,
 );
 router.post("/refresh", authController.refresh);
 router.post("/logout", authController.logout);

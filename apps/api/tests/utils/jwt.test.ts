@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import { UserRole } from "@esencia-glow/shared";
 import {
   signAccessToken,
+  signPendingEnrollmentToken,
   signPendingTwoFactorToken,
   verifyAccessToken,
+  verifyPendingEnrollmentToken,
   verifyPendingTwoFactorToken,
 } from "../../src/utils/jwt.js";
 
@@ -23,7 +25,7 @@ describe("utils/jwt — tokens de acceso y de segundo factor pendiente", () => {
   });
 
   it("un token pending_2fa no es aceptado por verifyAccessToken (purpose cruzado)", () => {
-    const pending = signPendingTwoFactorToken({ sub: "user-1" });
+    const pending = signPendingTwoFactorToken({ sub: "user-1", sessionVersion: 0 });
     expect(() => verifyAccessToken(pending)).toThrow();
   });
 
@@ -32,9 +34,41 @@ describe("utils/jwt — tokens de acceso y de segundo factor pendiente", () => {
     expect(() => verifyPendingTwoFactorToken(access)).toThrow();
   });
 
-  it("verifyPendingTwoFactorToken acepta el token correcto y expone el sub", () => {
-    const pending = signPendingTwoFactorToken({ sub: "user-42" });
+  it("verifyPendingTwoFactorToken acepta el token correcto y expone sub y sessionVersion", () => {
+    const pending = signPendingTwoFactorToken({ sub: "user-42", sessionVersion: 3 });
     const payload = verifyPendingTwoFactorToken(pending);
     expect(payload.sub).toBe("user-42");
+    expect(payload.sessionVersion).toBe(3);
+  });
+});
+
+describe("utils/jwt — token de enrolamiento de 2FA (purpose separado del de login-2FA)", () => {
+  /**
+   * Este es el test que justifica tener un `purpose` propio en vez de
+   * reusar `pending_2fa`: sin esta separación, el pending token que recibe
+   * cualquier login (incluido el de una cuenta que YA tiene 2FA activo)
+   * serviría para llamar al endpoint de enrolamiento y reemplazar el
+   * secreto de esa cuenta — 2FA degradado a solo-contraseña.
+   */
+  it("un token pending_2fa no es aceptado por verifyPendingEnrollmentToken (purpose cruzado)", () => {
+    const loginTwoFactorToken = signPendingTwoFactorToken({ sub: "user-1", sessionVersion: 0 });
+    expect(() => verifyPendingEnrollmentToken(loginTwoFactorToken)).toThrow();
+  });
+
+  it("un token pending_2fa_setup no es aceptado por verifyPendingTwoFactorToken (purpose cruzado)", () => {
+    const enrollmentToken = signPendingEnrollmentToken({ sub: "user-1", sessionVersion: 0 });
+    expect(() => verifyPendingTwoFactorToken(enrollmentToken)).toThrow();
+  });
+
+  it("un token de enrolamiento no es aceptado por verifyAccessToken (purpose cruzado)", () => {
+    const enrollmentToken = signPendingEnrollmentToken({ sub: "user-1", sessionVersion: 0 });
+    expect(() => verifyAccessToken(enrollmentToken)).toThrow();
+  });
+
+  it("verifyPendingEnrollmentToken acepta el token correcto y expone sub y sessionVersion", () => {
+    const enrollmentToken = signPendingEnrollmentToken({ sub: "user-42", sessionVersion: 5 });
+    const payload = verifyPendingEnrollmentToken(enrollmentToken);
+    expect(payload.sub).toBe("user-42");
+    expect(payload.sessionVersion).toBe(5);
   });
 });

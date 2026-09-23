@@ -1,6 +1,8 @@
 import rateLimit, { MemoryStore, type Options } from "express-rate-limit";
 import type { NextFunction, Request, Response } from "express";
 import { env } from "../config/env.js";
+import { PENDING_TWO_FACTOR_COOKIE_NAME } from "../utils/cookies.js";
+import { verifyPendingEnrollmentToken } from "../utils/jwt.js";
 
 interface RateLimiterConfig {
   windowMs: number;
@@ -59,6 +61,34 @@ const loginRateLimiter = createRateLimiter({
   windowMs: 15 * 60 * 1000,
   max: 5,
   message: "Demasiados intentos de inicio de sesión, intenta de nuevo más tarde.",
+});
+
+/**
+ * `POST /login/2fa/setup` y `/login/2fa/enroll` (Milestone 2.1, enrolamiento
+ * obligatorio de 2FA para admins). NO reusan `loginRateLimiter`: ese es
+ * 5/15min por IP y ya lo consume `/login`, así que un enrolamiento legítimo
+ * (login + setup + un código mal tecleado) agotaría la cuota entera y
+ * dejaría al admin bloqueado 15 minutos tratando de activar 2FA por primera
+ * vez. Cuenta por el `sub` del token de enrolamiento pendiente, no por IP
+ * (mismo criterio que `refundRateLimiter`): dos admins detrás del mismo NAT
+ * no deben compartir cuota, y sin sesión todavía no hay `req.user` del que
+ * leerlo — se decodifica el token pendiente directo. Si el token falta o es
+ * inválido cae a IP: ese request va a fallar igual más adelante en el
+ * controller, pero el limiter necesita una key aunque sea así.
+ */
+const twoFactorEnrollmentRateLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: "Demasiados intentos, intenta de nuevo más tarde.",
+  keyGenerator: (req) => {
+    const token = req.cookies?.[PENDING_TWO_FACTOR_COOKIE_NAME] as string | undefined;
+    if (!token) return req.ip ?? "unknown";
+    try {
+      return verifyPendingEnrollmentToken(token).sub;
+    } catch {
+      return req.ip ?? "unknown";
+    }
+  },
 });
 
 /**
@@ -194,6 +224,7 @@ export {
   createRateLimiter,
   globalRateLimiter,
   loginRateLimiter,
+  twoFactorEnrollmentRateLimiter,
   uploadRateLimiter,
   catalogRateLimiter,
   checkoutRateLimiter,

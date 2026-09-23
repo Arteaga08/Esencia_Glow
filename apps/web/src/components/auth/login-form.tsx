@@ -1,16 +1,13 @@
 "use client";
 
 import { WarningCircle } from "@phosphor-icons/react";
+import type { LoginOutcome, TwoFactorEnrollment } from "@esencia-glow/shared";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { ApiRequestError, apiRequest } from "../../lib/api";
 import { Destello } from "../shell/destello";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
-
-interface CredentialsResult {
-  twoFactorRequired?: boolean;
-}
 
 const NETWORK_ERROR = "No pudimos conectar con el servidor. Revisa tu conexión e intenta de nuevo.";
 const UNEXPECTED_ERROR = "Algo salió mal de nuestro lado. Intenta de nuevo en un momento.";
@@ -57,17 +54,25 @@ function FormError({ message }: { message: string }) {
 }
 
 /**
- * Login en dos pasos: correo+contraseña, y si la cuenta tiene 2FA activo
- * (auth.service.ts:125), un segundo paso de código de 6 dígitos contra
- * `POST /auth/login/2fa`. La cookie `pending_2fa_token` ya la dejó el primer
- * paso — el front nunca la toca directamente.
+ * Login con hasta tres pasos, según lo que devuelva `LoginOutcome.next`
+ * (packages/shared/src/types/auth.ts) tras correo+contraseña:
+ * - `"session"`: entra directo.
+ * - `"twoFactor"`: la cuenta ya tiene 2FA activo (auth.service.ts) — pide el
+ *   código de 6 dígitos contra `POST /auth/login/2fa`.
+ * - `"twoFactorSetup"`: es un admin sin 2FA — el enrolamiento es obligatorio
+ *   (BACKEND_SECURITY_GUIDELINES.md §2), así que en vez de sesión se le pide
+ *   escanear un QR y confirmar un código antes de entrar, contra
+ *   `POST /auth/login/2fa/setup` + `/login/2fa/enroll`.
+ * En los tres casos la cookie `pending_2fa_token` la pone/borra el backend —
+ * el front nunca la toca directamente.
  */
 function LoginForm() {
   const router = useRouter();
-  const [step, setStep] = useState<"credentials" | "twoFactor">("credentials");
+  const [step, setStep] = useState<"credentials" | "twoFactor" | "twoFactorSetup">("credentials");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
+  const [enrollment, setEnrollment] = useState<TwoFactorEnrollment | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -76,19 +81,35 @@ function LoginForm() {
     setFormError(null);
     setSubmitting(true);
     try {
-      const result = await apiRequest<CredentialsResult>("/api/v1/auth/login", {
+      const result = await apiRequest<LoginOutcome>("/api/v1/auth/login", {
         method: "POST",
         authenticated: true,
         body: { email, password },
       });
 
-      if (result.data.twoFactorRequired) {
+      if (result.data.next === "session") {
+        router.replace("/");
+        router.refresh();
+        return;
+      }
+
+      if (result.data.next === "twoFactor") {
         setStep("twoFactor");
         return;
       }
 
-      router.replace("/");
-      router.refresh();
+      // next === "twoFactorSetup": ya hay pending token de enrolamiento, se
+      // pide el QR de una vez para no obligar a un segundo clic.
+      try {
+        const setup = await apiRequest<TwoFactorEnrollment>("/api/v1/auth/login/2fa/setup", {
+          method: "POST",
+          authenticated: true,
+        });
+        setEnrollment(setup.data);
+        setStep("twoFactorSetup");
+      } catch {
+        setFormError(UNEXPECTED_ERROR);
+      }
     } catch (error) {
       setFormError(credentialsErrorMessage(error));
     } finally {
@@ -102,6 +123,25 @@ function LoginForm() {
     setSubmitting(true);
     try {
       await apiRequest("/api/v1/auth/login/2fa", {
+        method: "POST",
+        authenticated: true,
+        body: { code },
+      });
+      router.replace("/");
+      router.refresh();
+    } catch (error) {
+      setFormError(twoFactorErrorMessage(error));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleTwoFactorSetupSubmit(event: FormEvent) {
+    event.preventDefault();
+    setFormError(null);
+    setSubmitting(true);
+    try {
+      await apiRequest("/api/v1/auth/login/2fa/enroll", {
         method: "POST",
         authenticated: true,
         body: { code },
@@ -148,7 +188,9 @@ function LoginForm() {
             Entrar
           </Button>
         </form>
-      ) : (
+      ) : null}
+
+      {step === "twoFactor" ? (
         <form onSubmit={handleTwoFactorSubmit} className="flex flex-col gap-5" noValidate>
           <h2 className="text-section-title text-center text-foreground">
             Verificación en dos pasos
@@ -171,7 +213,51 @@ function LoginForm() {
             Verificar
           </Button>
         </form>
-      )}
+      ) : null}
+
+      {step === "twoFactorSetup" && enrollment ? (
+        <form onSubmit={handleTwoFactorSetupSubmit} className="flex flex-col gap-5" noValidate>
+          <h2 className="text-section-title text-center text-foreground">
+            Activa la verificación en dos pasos
+          </h2>
+          <p className="text-center text-body-sm text-muted-foreground-strong">
+            Tu cuenta de administrador requiere un segundo factor. Escanea este código con tu app de
+            autenticación (Google Authenticator, Authy, 1Password…).
+          </p>
+          {/* eslint-disable-next-line @next/next/no-img-element -- el QR llega
+              como data URL ya generado por el backend; next/image no aporta
+              nada sobre una imagen que nunca se sirve desde una URL propia. */}
+          <img
+            src={enrollment.qrCodeDataUrl}
+            alt="Código QR para activar la verificación en dos pasos"
+            width={200}
+            height={200}
+            className="mx-auto rounded-md border border-border-strong"
+          />
+          <div className="rounded-md border border-border-strong bg-muted/40 p-3 text-center">
+            <p className="font-mono text-label uppercase tracking-[0.06em] text-muted-foreground-strong">
+              ¿No puedes escanear?
+            </p>
+            <p className="mt-1 select-all break-all font-mono text-body-sm text-foreground">
+              {enrollment.manualEntryKey}
+            </p>
+          </div>
+          <Input
+            label="Código"
+            placeholder="123456"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            maxLength={6}
+            required
+            value={code}
+            onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))}
+          />
+          {formError ? <FormError message={formError} /> : null}
+          <Button type="submit" loading={submitting} className="w-full">
+            Activar y entrar
+          </Button>
+        </form>
+      ) : null}
     </div>
   );
 }

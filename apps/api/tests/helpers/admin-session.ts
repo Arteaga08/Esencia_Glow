@@ -5,9 +5,17 @@ import { User } from "../../src/models/user.model.js";
 import { encryptSecret } from "../../src/utils/crypto.js";
 
 /**
- * Crea un admin ya verificado (sin 2FA, que es opt-in) y devuelve un agente
- * de supertest con la cookie de sesión ya puesta — evita repetir el flujo de
- * registro/login en cada test de ruta admin del catálogo.
+ * Crea un admin ya verificado y devuelve un agente de supertest con la
+ * cookie de sesión ya puesta — evita repetir el flujo de registro/login en
+ * cada test de ruta admin del catálogo.
+ *
+ * Un admin sin 2FA ya no recibe sesión directa de `/login` (Milestone 2.1,
+ * enrolamiento obligatorio) — `login()` solo deja un pending token de
+ * enrolamiento. Este helper pasa por el mismo camino pre-auth que un admin
+ * real recorrería la primera vez (login -> `/login/2fa/setup` ->
+ * `/login/2fa/enroll`) en vez de activar 2FA directo en BD, para que los
+ * tests de rutas admin ejerciten sesiones que de verdad pasarían por
+ * `protect` (que ahora rechaza a un admin con `twoFactor.enabled: false`).
  */
 async function createAdminSession(app: Express) {
   const email = `admin-${Date.now()}-${Math.random()}@example.com`;
@@ -24,8 +32,21 @@ async function createAdminSession(app: Express) {
 
   const agent = request.agent(app);
   const login = await agent.post("/api/v1/auth/login").send({ email, password });
-  if (login.status !== 200) {
-    throw new Error(`No se pudo crear la sesión de admin de prueba: ${JSON.stringify(login.body)}`);
+  if (login.status !== 200 || login.body.data?.next !== "twoFactorSetup") {
+    throw new Error(`No se pudo iniciar el enrolamiento de 2FA de prueba: ${JSON.stringify(login.body)}`);
+  }
+
+  const setup = await agent.post("/api/v1/auth/login/2fa/setup");
+  if (setup.status !== 200) {
+    throw new Error(`No se pudo generar el secreto de 2FA de prueba: ${JSON.stringify(setup.body)}`);
+  }
+  const { manualEntryKey } = setup.body.data as { manualEntryKey: string };
+
+  const enroll = await agent
+    .post("/api/v1/auth/login/2fa/enroll")
+    .send({ code: authenticator.generate(manualEntryKey) });
+  if (enroll.status !== 200) {
+    throw new Error(`No se pudo completar el enrolamiento de 2FA de prueba: ${JSON.stringify(enroll.body)}`);
   }
 
   return { agent, email, adminId: admin._id.toString() };

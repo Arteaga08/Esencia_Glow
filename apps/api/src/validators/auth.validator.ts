@@ -73,6 +73,14 @@ const twoFactorSetupSchema = Joi.object({
   }),
 }).default({});
 
+// Body vacío a propósito: a diferencia de `twoFactorSetupSchema` (setup
+// AUTENTICADO, que acepta un `code` opcional para reconfigurar 2FA ya
+// activo), este es el paso pre-auth de enrolamiento OBLIGATORIO — nunca debe
+// poder derivar a esa rama de reconfiguración, así que ni siquiera declara
+// el campo (con `stripUnknown` de `validate()`, cualquier `code` que llegue
+// se descarta antes de tocar el service).
+const twoFactorEnrollmentSetupSchema = Joi.object({}).default({});
+
 export {
   registerSchema,
   loginSchema,
@@ -83,4 +91,5 @@ export {
   changePasswordSchema,
   twoFactorCodeSchema,
   twoFactorSetupSchema,
+  twoFactorEnrollmentSetupSchema,
 };

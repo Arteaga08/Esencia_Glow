@@ -64,17 +64,14 @@ describe("routes/admin-order — POST /:id/refund", () => {
     expect(res.status).toBe(400);
   });
 
-  it("admin sin 2FA activo -> 403, sin llamar a refund", async () => {
-    const order = await seedPaidOrder();
-    const { agent } = await createAdminSession(app);
-    const fake = buildFakePaymentProvider();
-    __setPaymentProviderForTests(fake);
-
-    const res = await agent.post(`/api/v1/admin/orders/${order._id}/refund`).send({ twoFactorCode: "123456" });
-
-    expect(res.status).toBe(403);
-    expect(fake.refund).not.toHaveBeenCalled();
-  });
+  // La prueba "admin sin 2FA activo -> 403" que vivía acá se quitó: desde el
+  // enrolamiento obligatorio de 2FA (Milestone 2.1), un admin sin 2FA no
+  // puede sostener NINGUNA sesión autenticada (`protect` lo rechaza con 401
+  // antes de llegar a cualquier controller — ver
+  // routes/auth.routes.test.ts "un admin sin 2FA nunca conserva sesión"), así
+  // que `createAdminSession` ya no puede producir ese estado para probarlo
+  // vía HTTP. El check de `order-refund.service.ts:69` (`!admin.twoFactor.enabled`)
+  // queda igual, como defensa en profundidad si `protect` alguna vez fallara.
 
   it("código 2FA inválido -> 401, sin llamar a refund", async () => {
     const order = await seedPaidOrder();

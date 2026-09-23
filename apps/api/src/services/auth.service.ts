@@ -1,13 +1,13 @@
 import bcrypt from "bcrypt";
 import type { Types } from "mongoose";
-import { AuthAction, UserRole, type PublicUser } from "@esencia-glow/shared";
-import { User, SALT_ROUNDS } from "../models/user.model.js";
+import { AuthAction, UserRole, type PublicUser, type TwoFactorEnrollment } from "@esencia-glow/shared";
+import { User, SALT_ROUNDS, type UserDocument } from "../models/user.model.js";
 import { AppError } from "../utils/app-error.js";
-import { signAccessToken, signPendingTwoFactorToken } from "../utils/jwt.js";
+import { signAccessToken, signPendingEnrollmentToken, signPendingTwoFactorToken } from "../utils/jwt.js";
 import { issueSession, revokeAllForUser, revokeSession, type SessionMeta } from "./session.service.js";
 import { sendVerificationEmail } from "./email.service.js";
 import { issueVerificationTokenForRegistration } from "./account.service.js";
-import { verifyTwoFactorCode } from "./two-factor.service.js";
+import { enableTwoFactor, ensureEnrollmentSecret, verifyTwoFactorCode } from "./two-factor.service.js";
 import { recordAudit } from "./audit.service.js";
 
 /**
@@ -40,9 +40,16 @@ interface AuthenticatedSession {
   refreshToken: string;
 }
 
+/**
+ * Igual criterio que `LoginOutcome` de shared (ver su comentario): unión por
+ * `outcome`, no boolean(es) opcionales — un estado inválido representable acá
+ * (p. ej. ninguna rama con `pendingToken` ni `session`) se propagaría directo
+ * al controller.
+ */
 type LoginResult =
-  | { twoFactorRequired: false; session: AuthenticatedSession; user: PublicUser }
-  | { twoFactorRequired: true; pendingToken: string };
+  | { outcome: "session"; session: AuthenticatedSession; user: PublicUser }
+  | { outcome: "twoFactorRequired"; pendingToken: string }
+  | { outcome: "twoFactorSetupRequired"; pendingToken: string };
 
 /** Único lugar que decide qué campos de User cruzan al cliente. */
 function buildPublicUser(user: {
@@ -123,27 +130,106 @@ async function login(input: LoginInput, meta: SessionMeta): Promise<LoginResult>
   }
 
   if (user.twoFactor.enabled) {
-    const pendingToken = signPendingTwoFactorToken({ sub: user._id.toString() });
-    return { twoFactorRequired: true, pendingToken };
+    const pendingToken = signPendingTwoFactorToken({
+      sub: user._id.toString(),
+      sessionVersion: user.sessionVersion,
+    });
+    return { outcome: "twoFactorRequired", pendingToken };
+  }
+
+  // Un admin sin 2FA nunca recibe sesión: BACKEND_SECURITY_GUIDELINES.md §2
+  // exige 2FA para cuentas admin pero nunca dijo CUÁNDO se enrola, y hasta
+  // ahora el enrolamiento era un endpoint autenticado sin ninguna UI que lo
+  // llamara — la cuenta más privilegiada del sistema podía operar
+  // indefinidamente con un solo factor. El `pendingToken` de este camino usa
+  // `signPendingEnrollmentToken` (purpose `pending_2fa_setup`), NUNCA
+  // `signPendingTwoFactorToken`: ver el comentario de jwt.ts sobre por qué
+  // compartir purpose entre login-2FA y enrolamiento sería un bypass total
+  // de 2FA para cualquier cuenta que ya lo tenga activo.
+  if (user.role === UserRole.ADMIN) {
+    const pendingToken = signPendingEnrollmentToken({
+      sub: user._id.toString(),
+      sessionVersion: user.sessionVersion,
+    });
+    return { outcome: "twoFactorSetupRequired", pendingToken };
   }
 
   const session = await issueAuthenticatedSession(user, meta);
   await recordAudit({ action: AuthAction.LOGIN, actorId: user._id, targetId: user._id });
-  return { twoFactorRequired: false, session, user: buildPublicUser(user) };
+  return { outcome: "session", session, user: buildPublicUser(user) };
 }
 
 async function completeTwoFactorLogin(
   userId: string,
+  sessionVersion: number,
   code: string,
   meta: SessionMeta,
 ): Promise<{ session: AuthenticatedSession; user: ReturnType<typeof buildPublicUser> }> {
   const user = await User.findById(userId);
   if (!user) throw new AppError("Sesión inválida, inicia sesión de nuevo", 401);
+  if (user.sessionVersion !== sessionVersion) {
+    throw new AppError("Sesión inválida, inicia sesión de nuevo", 401);
+  }
 
   await verifyTwoFactorCode(user._id, code);
 
   const session = await issueAuthenticatedSession(user, meta);
   await recordAudit({ action: AuthAction.LOGIN_2FA, actorId: user._id, targetId: user._id });
+  return { session, user: buildPublicUser(user) };
+}
+
+/**
+ * Re-verifica rol, `sessionVersion` y estado de 2FA contra la BD (no solo el
+ * pending token) en ambas funciones de enrolamiento: el token vive hasta 5
+ * minutos, ventana en la que el rol pudo cambiar, la sesión pudo revocarse en
+ * masa, o alguien más pudo activar 2FA en la cuenta.
+ */
+async function assertPendingEnrollment(userId: string, sessionVersion: number): Promise<UserDocument> {
+  const user = await User.findById(userId);
+  if (!user) throw new AppError("Sesión inválida, inicia sesión de nuevo", 401);
+  if (user.sessionVersion !== sessionVersion) {
+    throw new AppError("Sesión inválida, inicia sesión de nuevo", 401);
+  }
+  if (user.role !== UserRole.ADMIN) {
+    throw new AppError("Sesión inválida, inicia sesión de nuevo", 401);
+  }
+  if (user.twoFactor.enabled) {
+    throw new AppError("Esta cuenta ya tiene 2FA activo, inicia sesión de nuevo", 409);
+  }
+  return user;
+}
+
+async function beginTwoFactorEnrollment(
+  userId: string,
+  sessionVersion: number,
+): Promise<TwoFactorEnrollment> {
+  const user = await assertPendingEnrollment(userId, sessionVersion);
+  const result = await ensureEnrollmentSecret(user._id);
+  return {
+    otpauthUrl: result.otpauthUrl,
+    qrCodeDataUrl: result.qrCodeDataUrl,
+    manualEntryKey: result.secret,
+  };
+}
+
+async function completeTwoFactorEnrollment(
+  userId: string,
+  sessionVersion: number,
+  code: string,
+  meta: SessionMeta,
+): Promise<{ session: AuthenticatedSession; user: ReturnType<typeof buildPublicUser> }> {
+  const user = await assertPendingEnrollment(userId, sessionVersion);
+  if (!user.emailVerified) {
+    throw new AppError("Verifica tu correo antes de iniciar sesión", 403);
+  }
+
+  await enableTwoFactor(user._id, code);
+
+  const session = await issueAuthenticatedSession(user, meta);
+  // Se audita LOGIN además del TWO_FACTOR_ENABLED que ya deja `enableTwoFactor`:
+  // este canje también emite sesión, y sin este registro habría inicios de
+  // sesión de admin sin traza en el audit trail.
+  await recordAudit({ action: AuthAction.LOGIN, actorId: user._id, targetId: user._id });
   return { session, user: buildPublicUser(user) };
 }
 
@@ -161,6 +247,8 @@ export {
   register,
   login,
   completeTwoFactorLogin,
+  beginTwoFactorEnrollment,
+  completeTwoFactorEnrollment,
   logout,
   logoutAll,
   buildPublicUser,
