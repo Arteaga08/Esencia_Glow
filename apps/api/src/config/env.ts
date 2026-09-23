@@ -108,6 +108,16 @@ function buildEnv() {
     // pero cualquier ruta que las necesite responde 503 "no configurado".
     clientUrl: requireInProduction("CLIENT_URL", nodeEnv) ?? "http://localhost:3000",
 
+    // Alcance de dominio de las cookies de sesión (Milestone 2.1). Sin valor,
+    // la cookie es host-only: solo vuelve al host que la emitió. Eso alcanza en
+    // dev (front y API comparten el host `localhost`; el puerto no cuenta para
+    // el alcance de una cookie), pero en producción el front vive en
+    // `www.<dominio>` y la API en `api.<dominio>`: sin `domain`, el servidor
+    // del front nunca recibe la cookie y su guard de sesión no puede validarla
+    // contra /auth/me. Se fija a `.<dominio>` en producción. No debilita
+    // `sameSite: "strict"`: `www.` y `api.` son el mismo sitio registrable.
+    cookieDomain: process.env.COOKIE_DOMAIN,
+
     // Integraciones de las que depende un flujo de negocio central (pagos,
     // correo transaccional del flujo de auth): requeridas en producción,
     // opcionales en dev — su ausencia en dev responde 503, nunca finge éxito.
