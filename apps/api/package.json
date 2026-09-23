@@ -17,7 +17,11 @@
     "seed:admin": "NODE_ENV=development DOTENV_CONFIG_PATH=.env.development.local tsx src/scripts/seed-admin.ts",
     "seed:admin:prod": "node dist/scripts/seed-admin.js --force",
     "sync-indexes": "node dist/scripts/sync-indexes.js",
-    "sync-indexes:dev": "NODE_ENV=development DOTENV_CONFIG_PATH=.env.development.local tsx src/scripts/sync-indexes.ts"
+    "sync-indexes:dev": "NODE_ENV=development DOTENV_CONFIG_PATH=.env.development.local tsx src/scripts/sync-indexes.ts",
+    "2fa:revoke-admins-without": "node dist/scripts/revoke-admins-without-2fa.js",
+    "2fa:revoke-admins-without:dev": "NODE_ENV=development DOTENV_CONFIG_PATH=.env.development.local tsx src/scripts/revoke-admins-without-2fa.ts",
+    "2fa:reset-admin": "node dist/scripts/reset-admin-two-factor.js --force",
+    "2fa:reset-admin:dev": "NODE_ENV=development DOTENV_CONFIG_PATH=.env.development.local tsx src/scripts/reset-admin-two-factor.ts"
   },
   "dependencies": {
     "@esencia-glow/shared": "workspace:*",

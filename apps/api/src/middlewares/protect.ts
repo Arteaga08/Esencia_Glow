@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
+import { UserRole } from "@esencia-glow/shared";
 import { AppError } from "../utils/app-error.js";
 import { verifyAccessToken } from "../utils/jwt.js";
 import { ACCESS_COOKIE_NAME } from "../utils/cookies.js";
@@ -11,6 +12,14 @@ import { asyncHandler } from "../utils/async-handler.js";
  * revocada en masa) o si la contraseña cambió después de que el token fue
  * emitido — ambos casos matan de inmediato un access token que, al ser JWT,
  * no es revocable por sí mismo (BACKEND_SECURITY_GUIDELINES.md §3).
+ *
+ * También rechaza a un admin con `twoFactor.enabled: false`: es la defensa en
+ * profundidad del enrolamiento obligatorio de 2FA (`auth.service.ts login()`)
+ * — cuesta cero consultas extra porque el usuario ya se cargó de la BD para
+ * las verificaciones de arriba. Sin esto, una sesión de admin ya emitida
+ * antes de activar el enrolamiento obligatorio (o una emitida por un bug
+ * futuro que se salte esa regla) seguiría dando acceso admin de un solo
+ * factor hasta que expirase por sí sola.
  */
 const protect = asyncHandler(async (req: Request, _res: Response, next: NextFunction) => {
   const token = req.cookies?.[ACCESS_COOKIE_NAME] as string | undefined;
@@ -34,6 +43,10 @@ const protect = asyncHandler(async (req: Request, _res: Response, next: NextFunc
     if (user.passwordChangedAt.getTime() > issuedAtMs) {
       throw new AppError("Sesión expirada, inicia sesión de nuevo", 401);
     }
+  }
+
+  if (user.role === UserRole.ADMIN && !user.twoFactor.enabled) {
+    throw new AppError("Sesión expirada, inicia sesión de nuevo", 401);
   }
 
   req.user = { id: user._id.toString(), role: user.role };
