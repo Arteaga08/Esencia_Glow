@@ -448,9 +448,13 @@ pestaña de archivo sobre el borde de una tarjeta.
   para la ruta actual — nunca un borde lateral de color para marcar el activo (prohibición
   explícita: franja lateral). El grupo de Gestión queda anclado al fondo del sidebar,
   visualmente separado del resto por `spacing.8` (32px) de aire.
-- **Barra superior:** fondo `surface`, borde inferior `border`, altura 64px. Búsqueda con atajo
-  ⌘K a la izquierda del centro, acciones (notificaciones, cuenta) a la derecha. Sin toggle de tema
-  (solo claro), sin asistente de IA decorativo.
+- **Barra superior:** fondo `surface`, borde inferior `border`, altura 64px. Campo de búsqueda normal
+  (sin paleta de comandos ⌘K — se quitó del sistema en el Milestone 2.1: no hay todavía suficientes
+  destinos para justificarla) al centro, notificaciones y cuenta a la derecha. Búsqueda y
+  notificaciones se **colocan pero quedan inertes** hasta que su sección tenga datos reales que
+  buscar o pendientes que mostrar — un control deshabilitado que dice "Próximamente" es honesto; uno
+  que aparenta funcionar sin hacerlo no lo es (PRODUCT.md, principio 3). Sin toggle de tema (solo
+  claro), sin asistente de IA decorativo.
 - **Región de contenido:** título de página (Título de página) + acciones alineadas a la derecha en
   la misma fila, `spacing.6` (24px) de margen respecto al borde del shell.
 

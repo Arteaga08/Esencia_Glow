@@ -23,6 +23,10 @@ function baseCookieOptions() {
     httpOnly: true,
     secure: env.isProduction,
     sameSite: "strict" as const,
+    // Ver la nota de `cookieDomain` en config/env.ts: sin valor, la cookie
+    // queda host-only (comportamiento actual). El mismo `domain` debe usarse
+    // al borrarla (`clearAuthCookies`) o el navegador la ignora.
+    ...(env.cookieDomain ? { domain: env.cookieDomain } : {}),
   };
 }
 
@@ -67,6 +71,14 @@ function clearAuthCookies(res: Response): void {
   res.clearCookie(PENDING_TWO_FACTOR_COOKIE_NAME, { ...baseCookieOptions(), path: "/api/v1/auth" });
 }
 
+// Aparte de `clearAuthCookies` porque completar el 2FA no cierra la sesión —
+// solo consume el token pendiente, dejando la de acceso/refresh intactas.
+// Debe pasar por `baseCookieOptions()` igual que las demás: un `clearCookie`
+// sin `domain` no borra una cookie que sí se puso con `domain` (Milestone 2.1).
+function clearPendingTwoFactorCookie(res: Response): void {
+  res.clearCookie(PENDING_TWO_FACTOR_COOKIE_NAME, { ...baseCookieOptions(), path: "/api/v1/auth" });
+}
+
 export {
   ACCESS_COOKIE_NAME,
   REFRESH_COOKIE_NAME,
@@ -75,4 +87,5 @@ export {
   setAuthCookies,
   setPendingTwoFactorCookie,
   clearAuthCookies,
+  clearPendingTwoFactorCookie,
 };

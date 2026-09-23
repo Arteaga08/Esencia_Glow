@@ -7,6 +7,7 @@ import {
   PENDING_TWO_FACTOR_COOKIE_NAME,
   REFRESH_COOKIE_NAME,
   clearAuthCookies,
+  clearPendingTwoFactorCookie,
   setAccessCookie,
   setAuthCookies,
   setPendingTwoFactorCookie,
@@ -60,7 +61,7 @@ const completeTwoFactorLogin = asyncHandler(async (req: Request, res: Response) 
     sessionMeta(req),
   );
 
-  res.clearCookie(PENDING_TWO_FACTOR_COOKIE_NAME, { path: "/api/v1/auth" });
+  clearPendingTwoFactorCookie(res);
   setAuthCookies(res, session);
   sendResponse(res, 200, "Sesión iniciada.", { user });
 });

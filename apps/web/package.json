@@ -1,0 +1,32 @@
+{
+  "name": "@esencia-glow/web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Dashboard admin de Esencia Glow — Next.js + TypeScript",
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint src",
+    "test": "echo \"@esencia-glow/web: sin tests todavía (Milestone 2.1)\" && exit 0"
+  },
+  "dependencies": {
+    "@esencia-glow/shared": "workspace:*",
+    "@phosphor-icons/react": "^2.1.10",
+    "next": "^16.3.6",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "server-only": "^0.0.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^22.15.0",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "eslint-config-next": "^16.3.6",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^5.9.3"
+  }
+}

@@ -44,6 +44,7 @@ ignora cualquier `.env`/`.env.*` real y re-permite explícitamente los `.example
 | `ENCRYPTION_KEY` | Fail-fast, siempre | ≥ 32 caracteres. Cifra secretos at-rest (2FA, Milestone 1.2) |
 | `MONGODB_URI` | Fail-fast, siempre | Atlas SRV (`mongodb+srv://…`). Debe incluir el **nombre de base explícito** en el path (`/esencia_glow_dev`), antes del `?` |
 | `CLIENT_URL` | Fail-fast en producción | Whitelist de CORS/CSRF. Default `localhost:3000` en dev |
+| `COOKIE_DOMAIN` | Opcional, siempre | Milestone 2.1: alcance de dominio de las cookies de sesión. Sin ella, host-only (alcanza en dev, front y API comparten `localhost`); en producción, con front en `www.<dominio>` y API en `api.<dominio>`, hace falta `.<dominio>` para que el guard de sesión server-side del dashboard reciba la cookie. No debilita `sameSite: "strict"` (mismo sitio registrable) |
 | `STRIPE_SECRET_KEY` | Fail-fast en producción | Requerida para el flujo de pagos (Milestone 1.6) |
 | `STRIPE_WEBHOOK_SECRET` | Fail-fast en producción | Verificación de firma del webhook de Stripe |
 | `STRIPE_WEBHOOK_TOLERANCE_SECONDS` | Con default, fail-fast si es inválida | Tolerancia de timestamp del webhook (anti-replay). Default `300` (5 min). Debe ser un entero positivo — `0` o negativo no arranca el server |
@@ -898,12 +899,56 @@ multiplica por el número de instancias) y el cron correría duplicado en cada u
 `numReplicas` en Railway hace falta mover ambos a algo compartido entre instancias — típicamente
 Redis (rate limit distribuido + lock del cron, o un scheduler externo). Fuera de alcance de 1.10.
 
+## Dashboard admin (Milestone 2.1 — shell, guard de sesión, login)
+
+Primera sesión de código del Milestone 2 (el sistema de diseño de 2.0 vive en `PRODUCT.md` y
+`DESIGN.md`, en la raíz del repo). `apps/web` es Next.js 16 (App Router) + React 19 + Tailwind v4,
+con los tokens del `DESIGN.md` traducidos a un bloque `@theme` en `src/app/globals.css`.
+
+### Levantar el dashboard en dev
+
+```bash
+cp apps/web/.env.example apps/web/.env.local   # NEXT_PUBLIC_API_URL=http://localhost:4000
+pnpm dev        # API (:4000) + dashboard (:3000) juntos, con `concurrently`
+```
+
+`pnpm dev:api` / `pnpm dev:web` siguen disponibles por separado (dos terminales) cuando conviene ver
+los logs de cada uno sin el prefijo `[api]`/`[web]` de `concurrently`. Requiere un admin sembrado
+(`pnpm --filter @esencia-glow/api seed:admin`) para poder entrar.
+
+### Guard de sesión y `COOKIE_DOMAIN`
+
+`app/(admin)/layout.tsx` valida la sesión **server-side** contra `GET /auth/me` con
+`cache: "no-store"` (nunca solo la presencia de la cookie). Esto funciona en dev porque front y API
+comparten el host `localhost`, pero en producción — front en `www.<dominio>`, API en `api.<dominio>`
+— la cookie de sesión no cruza de un subdominio a otro sin `COOKIE_DOMAIN=.<dominio>` en la API
+(ver la tabla de variables de entorno arriba). Sin esa variable, el guard del dashboard desplegado
+mandaría a login sesiones válidas.
+
+Un usuario con sesión válida pero sin rol `admin` ve el estado "Sin permisos" (`NoAccess`) en vez de
+un redirect silencioso a `/login`, que crearía un ciclo entre las dos rutas.
+
+### Qué incluye esta sesión
+
+- **Shell:** sidebar (260px expandida / 72px colapsada, con las rutas de las 8 secciones de 2.2–2.8
+  ya mapeadas, cada una como stub honesto — dice en qué sesión se construye, nunca 404) + barra
+  superior (título de página derivado de la ruta, menú de cuenta con logout). Búsqueda y campana de
+  notificaciones están colocadas pero **inertes** (`disabled`, "Próximamente") — se quitó la paleta
+  de comandos ⌘K del sistema de diseño original por falta de destinos reales todavía.
+- **Login:** dos pasos (correo/contraseña → código de 6 dígitos si la cuenta tiene 2FA activo,
+  `POST /auth/login/2fa`), mensajes de error tal cual los devuelve la API (genéricos donde
+  corresponde, para no dar un oráculo de enumeración de cuentas).
+- **Primitivos de UI** (`components/ui/`): solo los que usa esta sesión —Button, Input (etiqueta de
+  muesca), Toast, Skeleton, EmptyState, ErrorState. El resto (Table, Badge, Modal, Select, Tabs) se
+  construye cuando su sección lo pida.
+
 ## Estructura
 
 ```
 esencia_glow/
 ├── apps/
-│   └── api/            # Express 5 + TS — routes/controllers/services/models/validators/middlewares/utils
+│   ├── api/             # Express 5 + TS — routes/controllers/services/models/validators/middlewares/utils
+│   └── web/              # Next.js 16 + React 19 + Tailwind v4 — dashboard admin (Milestone 2)
 └── packages/
     └── shared/          # Tipos y enums compartidos (ApiResponse, OrderStatus, ...)
 ```
