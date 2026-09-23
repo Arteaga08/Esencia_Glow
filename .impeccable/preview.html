@@ -1,0 +1,695 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Design System: Esencia Glow — Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=PT+Mono&family=Schibsted+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: oklch(0.9873 0.0069 354.7893);
+    color: oklch(0.4015 0.0436 37.9587);
+    font-family: 'Schibsted Grotesk', ui-sans-serif, system-ui, sans-serif;
+    font-synthesis: none;
+    padding: 48px 32px 80px;
+  }
+  .wrap { max-width: 1040px; margin: 0 auto; }
+  header.page-head { margin-bottom: 56px; }
+  header.page-head h1 { font-size: 36px; font-weight: 600; line-height: 1.15; letter-spacing: -0.01em; margin: 0 0 8px; }
+  header.page-head p { font-family: 'PT Mono', monospace; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: oklch(0.50 0.0418 357.7265); margin: 0; }
+  h2.section-head { font-size: 20px; font-weight: 600; margin: 64px 0 24px; padding-bottom: 12px; border-bottom: 1px solid oklch(0.66 0.0345 359.8126); }
+  .grid-colors { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; }
+  .swatch { border: 1px solid oklch(0.9366 0.0345 359.8126); border-radius: 8px; overflow: hidden; background: #fff; }
+  .swatch-main { height: 64px; }
+  .swatch-ramp { display: flex; height: 20px; }
+  .ramp-step { flex: 1; }
+  .swatch-label { padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; }
+  .swatch-label strong { font-size: 13px; color: oklch(0.4015 0.0436 37.9587); }
+  .swatch-label code { font-family: 'PT Mono', monospace; font-size: 11px; color: oklch(0.50 0.0418 357.7265); }
+  .swatch-label .swatch-oklch { font-family: 'PT Mono', monospace; font-size: 10px; color: oklch(0.6265 0.0418 357.7265); }
+  .type-row { display: grid; grid-template-columns: 260px 1fr; gap: 24px; padding: 20px 0; border-bottom: 1px solid oklch(0.9366 0.0345 359.8126); align-items: center; }
+  .type-meta strong { display: block; font-size: 14px; margin-bottom: 4px; color: oklch(0.4015 0.0436 37.9587); }
+  .type-meta span { font-family: 'PT Mono', monospace; font-size: 11px; color: oklch(0.50 0.0418 357.7265); display: block; margin-bottom: 6px; }
+  .type-meta p { font-size: 12px; color: oklch(0.50 0.0418 357.7265); margin: 0; line-height: 1.4; }
+  .type-sample { color: oklch(0.4015 0.0436 37.9587); }
+  .component-block { margin-bottom: 40px; padding: 24px; background: #fff; border: 1px solid oklch(0.66 0.0345 359.8126); border-radius: 12px; }
+  .component-block h3 { margin: 0 0 4px; font-size: 16px; font-weight: 600; }
+  .component-desc { font-size: 13px; color: oklch(0.50 0.0418 357.7265); margin: 0 0 20px; }
+  .component-stage { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; padding: 24px 20px; background: oklch(0.9873 0.0069 354.7893); border-radius: 8px; }
+  .shadow-demo { background: #fff; border-radius: 12px; padding: 24px; width: 220px; display: inline-block; margin-right: 20px; }
+  .shadow-demo strong { display: block; font-family: 'PT Mono', monospace; font-size: 12px; text-transform: uppercase; margin-bottom: 6px; color: oklch(0.4015 0.0436 37.9587); }
+  .shadow-demo code { display: block; font-size: 10px; color: oklch(0.50 0.0418 357.7265); word-break: break-all; margin-bottom: 8px; }
+  .shadow-demo p { font-size: 12px; color: oklch(0.50 0.0418 357.7265); margin: 0; }
+  .rules-list, .dos-donts ul { padding-left: 20px; }
+  .rules-list li, .dos-donts li { margin-bottom: 12px; font-size: 14px; line-height: 1.5; }
+  .dos-donts { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+  .dos-donts h3 { font-family: 'PT Mono', monospace; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .dos-donts .dos h3 { color: oklch(0.3821 0.0407 166.3004); }
+  .dos-donts .donts h3 { color: oklch(0.56 0.1404 16.0328); }
+  .dos-donts li { font-size: 13px; }
+  footer { margin-top: 80px; padding-top: 24px; border-top: 1px solid oklch(0.9366 0.0345 359.8126); font-family: 'PT Mono', monospace; font-size: 11px; color: oklch(0.50 0.0418 357.7265); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="page-head">
+    <h1>Design System: Esencia Glow — Dashboard</h1>
+    <p>Vitrina generada directo de .impeccable/design.json — no hay valores escritos a mano aquí</p>
+  </header>
+  <h2 class="section-head">Colores + rampas tonales</h2>
+  <div class="grid-colors">
+
+    <div class="swatch">
+      <div class="swatch-main" style="background:oklch(0.9873 0.0069 354.7893)"></div>
+      <div class="swatch-ramp">
+        <div class="ramp-step" style="background:#0e0a0b" title="#0e0a0b"></div>
+        <div class="ramp-step" style="background:#292527" title="#292527"></div>
+        <div class="ramp-step" style="background:#484445" title="#484445"></div>
+        <div class="ramp-step" style="background:#6a6466" title="#6a6466"></div>
+        <div class="ramp-step" style="background:#8d8789" title="#8d8789"></div>
+        <div class="ramp-step" style="background:#b2acae" title="#b2acae"></div>
+        <div class="ramp-step" style="background:#d8d2d4" title="#d8d2d4"></div>
+        <div class="ramp-step" style="background:#f3edef" title="#f3edef"></div>
+      </div>
+      <div class="swatch-label">
+        <strong>Fondo</strong>
+        <code>background</code>
+        <span class="swatch-oklch">oklch(0.9873 0.0069 354.7893)</span>
+      </div>
+    </div>
+
+    <div class="swatch">
+      <div class="swatch-main" style="background:oklch(0.4015 0.0436 37.9587)"></div>
+      <div class="swatch-ramp">
+        <div class="ramp-step" style="background:#1a0401" title="#1a0401"></div>
+        <div class="ramp-step" style="background:#391f16" title="#391f16"></div>
+        <div class="ramp-step" style="background:#5a3d34" title="#5a3d34"></div>
+        <div class="ramp-step" style="background:#7d5e54" title="#7d5e54"></div>
+        <div class="ramp-step" style="background:#a18176" title="#a18176"></div>
+        <div class="ramp-step" style="background:#c8a59a" title="#c8a59a"></div>
+        <div class="ramp-step" style="background:#efcbc0" title="#efcbc0"></div>
+        <div class="ramp-step" style="background:#ffe5da" title="#ffe5da"></div>
+      </div>
+      <div class="swatch-label">
+        <strong>Tinta</strong>
+        <code>foreground</code>
+        <span class="swatch-oklch">oklch(0.4015 0.0436 37.9587)</span>
+      </div>
+    </div>
+
+    <div class="swatch">
+      <div class="swatch-main" style="background:oklch(1.0000 0 0)"></div>
+      <div class="swatch-ramp">
+        <div class="ramp-step" style="background:#0b0b0b" title="#0b0b0b"></div>
+        <div class="ramp-step" style="background:#262626" title="#262626"></div>
+        <div class="ramp-step" style="background:#454545" title="#454545"></div>
+        <div class="ramp-step" style="background:#666666" title="#666666"></div>
+        <div class="ramp-step" style="background:#898989" title="#898989"></div>
+        <div class="ramp-step" style="background:#aeaeae" title="#aeaeae"></div>
+        <div class="ramp-step" style="background:#d4d4d4" title="#d4d4d4"></div>
+        <div class="ramp-step" style="background:#eeeeee" title="#eeeeee"></div>
+      </div>
+      <div class="swatch-label">
+        <strong>Superficie</strong>
+        <code>surface</code>
+        <span class="swatch-oklch">oklch(1.0000 0 0)</span>
+      </div>
+    </div>
+
+    <div class="swatch">
+      <div class="swatch-main" style="background:oklch(0.8502 0.0851 6.1876)"></div>
+      <div class="swatch-ramp">
+        <div class="ramp-step" style="background:#240006" title="#240006"></div>
+        <div class="ramp-step" style="background:#460f20" title="#460f20"></div>
+        <div class="ramp-step" style="background:#6a2f3e" title="#6a2f3e"></div>
+        <div class="ramp-step" style="background:#8f505e" title="#8f505e"></div>
+        <div class="ramp-step" style="background:#b57381" title="#b57381"></div>
+        <div class="ramp-step" style="background:#dd97a5" title="#dd97a5"></div>
+        <div class="ramp-step" style="background:#ffbdcb" title="#ffbdcb"></div>
+        <div class="ramp-step" style="background:#ffd7e5" title="#ffd7e5"></div>
+      </div>
+      <div class="swatch-label">
+        <strong>Rosa Bitácora</strong>
+        <code>primary</code>
+        <span class="swatch-oklch">oklch(0.8502 0.0851 6.1876)</span>
+      </div>
+    </div>
+
+    <div class="swatch">
+      <div class="swatch-main" style="background:oklch(0.56 0.0851 6.1876)"></div>
+      <div class="swatch-ramp">
+        <div class="ramp-step" style="background:#240006" title="#240006"></div>
+        <div class="ramp-step" style="background:#460f20" title="#460f20"></div>
+        <div class="ramp-step" style="background:#6a2f3e" title="#6a2f3e"></div>
+        <div class="ramp-step" style="background:#8f505e" title="#8f505e"></div>
+        <div class="ramp-step" style="background:#b57381" title="#b57381"></div>
+        <div class="ramp-step" style="background:#dd97a5" title="#dd97a5"></div>
+        <div class="ramp-step" style="background:#ffbdcb" title="#ffbdcb"></div>
+        <div class="ramp-step" style="background:#ffd7e5" title="#ffd7e5"></div>
+      </div>
+      <div class="swatch-label">
+        <strong>Rosa Acción</strong>
+        <code>primary-action</code>
+        <span class="swatch-oklch">oklch(0.56 0.0851 6.1876)</span>
+      </div>
+    </div>
+
+    <div class="swatch">
+      <div class="swatch-main" style="background:oklch(0.8747 0.0544 172.6283)"></div>
+      <div class="swatch-ramp">
+        <div class="ramp-step" style="background:#001209" title="#001209"></div>
+        <div class="ramp-step" style="background:#002f24" title="#002f24"></div>
+        <div class="ramp-step" style="background:#224f42" title="#224f42"></div>
+        <div class="ramp-step" style="background:#447063" title="#447063"></div>
+        <div class="ramp-step" style="background:#679486" title="#679486"></div>
+        <div class="ramp-step" style="background:#8bbaaa" title="#8bbaaa"></div>
+        <div class="ramp-step" style="background:#b0e0d0" title="#b0e0d0"></div>
+        <div class="ramp-step" style="background:#cafbeb" title="#cafbeb"></div>
+      </div>
+      <div class="swatch-label">
+        <strong>Menta</strong>
+        <code>secondary</code>
+        <span class="swatch-oklch">oklch(0.8747 0.0544 172.6283)</span>
+      </div>
+    </div>
+
+    <div class="swatch">
+      <div class="swatch-main" style="background:oklch(0.3821 0.0407 166.3004)"></div>
+      <div class="swatch-ramp">
+        <div class="ramp-step" style="background:#001007" title="#001007"></div>
+        <div class="ramp-step" style="background:#102d22" title="#102d22"></div>
+        <div class="ramp-step" style="background:#2f4c40" title="#2f4c40"></div>
+        <div class="ramp-step" style="background:#506e61" title="#506e61"></div>
+        <div class="ramp-step" style="background:#729184" title="#729184"></div>
+        <div class="ramp-step" style="background:#96b7a8" title="#96b7a8"></div>
+        <div class="ramp-step" style="background:#bcddce" title="#bcddce"></div>
+        <div class="ramp-step" style="background:#d6f8e8" title="#d6f8e8"></div>
+      </div>
+      <div class="swatch-label">
+        <strong>Menta Tinta</strong>
+        <code>secondary-foreground</code>
+        <span class="swatch-oklch">oklch(0.3821 0.0407 166.3004)</span>
+      </div>
+    </div>
+
+    <div class="swatch">
+      <div class="swatch-main" style="background:oklch(0.9706 0.0124 358.7577)"></div>
+      <div class="swatch-ramp">
+        <div class="ramp-step" style="background:#10090b" title="#10090b"></div>
+        <div class="ramp-step" style="background:#2c2426" title="#2c2426"></div>
+        <div class="ramp-step" style="background:#4b4245" title="#4b4245"></div>
+        <div class="ramp-step" style="background:#6c6366" title="#6c6366"></div>
+        <div class="ramp-step" style="background:#908689" title="#908689"></div>
+        <div class="ramp-step" style="background:#b5abae" title="#b5abae"></div>
+        <div class="ramp-step" style="background:#dcd1d4" title="#dcd1d4"></div>
+        <div class="ramp-step" style="background:#f6ebee" title="#f6ebee"></div>
+      </div>
+      <div class="swatch-label">
+        <strong>Neutro Tenue</strong>
+        <code>muted</code>
+        <span class="swatch-oklch">oklch(0.9706 0.0124 358.7577)</span>
+      </div>
+    </div>
+
+    <div class="swatch">
+      <div class="swatch-main" style="background:oklch(0.6265 0.0418 357.7265)"></div>
+      <div class="swatch-ramp">
+        <div class="ramp-step" style="background:#18040b" title="#18040b"></div>
+        <div class="ramp-step" style="background:#371d26" title="#371d26"></div>
+        <div class="ramp-step" style="background:#583c45" title="#583c45"></div>
+        <div class="ramp-step" style="background:#7b5c66" title="#7b5c66"></div>
+        <div class="ramp-step" style="background:#9f7f89" title="#9f7f89"></div>
+        <div class="ramp-step" style="background:#c5a3ae" title="#c5a3ae"></div>
+        <div class="ramp-step" style="background:#ecc9d4" title="#ecc9d4"></div>
+        <div class="ramp-step" style="background:#ffe4ee" title="#ffe4ee"></div>
+      </div>
+      <div class="swatch-label">
+        <strong>Tinta Tenue</strong>
+        <code>muted-foreground</code>
+        <span class="swatch-oklch">oklch(0.6265 0.0418 357.7265)</span>
+      </div>
+    </div>
+
+    <div class="swatch">
+      <div class="swatch-main" style="background:oklch(0.50 0.0418 357.7265)"></div>
+      <div class="swatch-ramp">
+        <div class="ramp-step" style="background:#18040b" title="#18040b"></div>
+        <div class="ramp-step" style="background:#371d26" title="#371d26"></div>
+        <div class="ramp-step" style="background:#583c45" title="#583c45"></div>
+        <div class="ramp-step" style="background:#7b5c66" title="#7b5c66"></div>
+        <div class="ramp-step" style="background:#9f7f89" title="#9f7f89"></div>
+        <div class="ramp-step" style="background:#c5a3ae" title="#c5a3ae"></div>
+        <div class="ramp-step" style="background:#ecc9d4" title="#ecc9d4"></div>
+        <div class="ramp-step" style="background:#ffe4ee" title="#ffe4ee"></div>
+      </div>
+      <div class="swatch-label">
+        <strong>Tinta Tenue Fuerte</strong>
+        <code>muted-foreground-strong</code>
+        <span class="swatch-oklch">oklch(0.50 0.0418 357.7265)</span>
+      </div>
+    </div>
+
+    <div class="swatch">
+      <div class="swatch-main" style="background:oklch(0.9557 0.0615 92.1287)"></div>
+      <div class="swatch-ramp">
+        <div class="ramp-step" style="background:#140900" title="#140900"></div>
+        <div class="ramp-step" style="background:#312500" title="#312500"></div>
+        <div class="ramp-step" style="background:#51441a" title="#51441a"></div>
+        <div class="ramp-step" style="background:#73653c" title="#73653c"></div>
+        <div class="ramp-step" style="background:#96885e" title="#96885e"></div>
+        <div class="ramp-step" style="background:#bcad81" title="#bcad81"></div>
+        <div class="ramp-step" style="background:#e2d4a7" title="#e2d4a7"></div>
+        <div class="ramp-step" style="background:#fdeec0" title="#fdeec0"></div>
+      </div>
+      <div class="swatch-label">
+        <strong>Mantequilla</strong>
+        <code>accent</code>
+        <span class="swatch-oklch">oklch(0.9557 0.0615 92.1287)</span>
+      </div>
+    </div>
+
+    <div class="swatch">
+      <div class="swatch-main" style="background:oklch(0.53 0.0874 87.6337)"></div>
+      <div class="swatch-ramp">
+        <div class="ramp-step" style="background:#1a0500" title="#1a0500"></div>
+        <div class="ramp-step" style="background:#382200" title="#382200"></div>
+        <div class="ramp-step" style="background:#594100" title="#594100"></div>
+        <div class="ramp-step" style="background:#7b6322" title="#7b6322"></div>
+        <div class="ramp-step" style="background:#9f8647" title="#9f8647"></div>
+        <div class="ramp-step" style="background:#c5ab6c" title="#c5ab6c"></div>
+        <div class="ramp-step" style="background:#edd191" title="#edd191"></div>
+        <div class="ramp-step" style="background:#ffecab" title="#ffecab"></div>
+      </div>
+      <div class="swatch-label">
+        <strong>Mantequilla Tinta</strong>
+        <code>accent-foreground-strong</code>
+        <span class="swatch-oklch">oklch(0.53 0.0874 87.6337)</span>
+      </div>
+    </div>
+
+    <div class="swatch">
+      <div class="swatch-main" style="background:oklch(0.7653 0.1404 16.0328)"></div>
+      <div class="swatch-ramp">
+        <div class="ramp-step" style="background:#310000" title="#310000"></div>
+        <div class="ramp-step" style="background:#58000c" title="#58000c"></div>
+        <div class="ramp-step" style="background:#7f132a" title="#7f132a"></div>
+        <div class="ramp-step" style="background:#a73c4a" title="#a73c4a"></div>
+        <div class="ramp-step" style="background:#d0616c" title="#d0616c"></div>
+        <div class="ramp-step" style="background:#fa868f" title="#fa868f"></div>
+        <div class="ramp-step" style="background:#ffacb5" title="#ffacb5"></div>
+        <div class="ramp-step" style="background:#ffc7ce" title="#ffc7ce"></div>
+      </div>
+      <div class="swatch-label">
+        <strong>Rojo Suave</strong>
+        <code>destructive</code>
+        <span class="swatch-oklch">oklch(0.7653 0.1404 16.0328)</span>
+      </div>
+    </div>
+
+    <div class="swatch">
+      <div class="swatch-main" style="background:oklch(0.56 0.1404 16.0328)"></div>
+      <div class="swatch-ramp">
+        <div class="ramp-step" style="background:#310000" title="#310000"></div>
+        <div class="ramp-step" style="background:#58000c" title="#58000c"></div>
+        <div class="ramp-step" style="background:#7f132a" title="#7f132a"></div>
+        <div class="ramp-step" style="background:#a73c4a" title="#a73c4a"></div>
+        <div class="ramp-step" style="background:#d0616c" title="#d0616c"></div>
+        <div class="ramp-step" style="background:#fa868f" title="#fa868f"></div>
+        <div class="ramp-step" style="background:#ffacb5" title="#ffacb5"></div>
+        <div class="ramp-step" style="background:#ffc7ce" title="#ffc7ce"></div>
+      </div>
+      <div class="swatch-label">
+        <strong>Rojo Acción</strong>
+        <code>destructive-action</code>
+        <span class="swatch-oklch">oklch(0.56 0.1404 16.0328)</span>
+      </div>
+    </div>
+
+    <div class="swatch">
+      <div class="swatch-main" style="background:oklch(0.9366 0.0345 359.8126)"></div>
+      <div class="swatch-ramp">
+        <div class="ramp-step" style="background:#16050b" title="#16050b"></div>
+        <div class="ramp-step" style="background:#341f26" title="#341f26"></div>
+        <div class="ramp-step" style="background:#553d44" title="#553d44"></div>
+        <div class="ramp-step" style="background:#775e65" title="#775e65"></div>
+        <div class="ramp-step" style="background:#9c8188" title="#9c8188"></div>
+        <div class="ramp-step" style="background:#c2a5ad" title="#c2a5ad"></div>
+        <div class="ramp-step" style="background:#e9cbd3" title="#e9cbd3"></div>
+        <div class="ramp-step" style="background:#ffe5ed" title="#ffe5ed"></div>
+      </div>
+      <div class="swatch-label">
+        <strong>Borde Susurro</strong>
+        <code>border</code>
+        <span class="swatch-oklch">oklch(0.9366 0.0345 359.8126)</span>
+      </div>
+    </div>
+
+    <div class="swatch">
+      <div class="swatch-main" style="background:oklch(0.66 0.0345 359.8126)"></div>
+      <div class="swatch-ramp">
+        <div class="ramp-step" style="background:#16050b" title="#16050b"></div>
+        <div class="ramp-step" style="background:#341f26" title="#341f26"></div>
+        <div class="ramp-step" style="background:#553d44" title="#553d44"></div>
+        <div class="ramp-step" style="background:#775e65" title="#775e65"></div>
+        <div class="ramp-step" style="background:#9c8188" title="#9c8188"></div>
+        <div class="ramp-step" style="background:#c2a5ad" title="#c2a5ad"></div>
+        <div class="ramp-step" style="background:#e9cbd3" title="#e9cbd3"></div>
+        <div class="ramp-step" style="background:#ffe5ed" title="#ffe5ed"></div>
+      </div>
+      <div class="swatch-label">
+        <strong>Borde Estructural</strong>
+        <code>border-strong</code>
+        <span class="swatch-oklch">oklch(0.66 0.0345 359.8126)</span>
+      </div>
+    </div>
+  </div>
+  <h2 class="section-head">Escala tipográfica</h2>
+  <div class="type-scale">
+
+    <div class="type-row">
+      <div class="type-meta">
+        <strong>Display</strong>
+        <span>Schibsted Grotesk · 600 · 36px / 1.15</span>
+        <p>Una sola cifra dominante por vista, cuando de verdad hay un número que manda (total de un pedido, monto a reembolsar). No es un patrón recurrente de KPI.</p>
+      </div>
+      <div class="type-sample" style="font-family:'Schibsted Grotesk', sans-serif; font-size:36px; font-weight:600; line-height:1.15; letter-spacing:normal; text-transform:none;">Serum reparador de noche</div>
+    </div>
+
+    <div class="type-row">
+      <div class="type-meta">
+        <strong>Título de página</strong>
+        <span>Schibsted Grotesk · 600 · 28px / 1.2</span>
+        <p>Nombre de la sección actual, siempre en la misma posición del layout.</p>
+      </div>
+      <div class="type-sample" style="font-family:'Schibsted Grotesk', sans-serif; font-size:28px; font-weight:600; line-height:1.2; letter-spacing:normal; text-transform:none;">Serum reparador de noche</div>
+    </div>
+
+    <div class="type-row">
+      <div class="type-meta">
+        <strong>Título de sección</strong>
+        <span>Schibsted Grotesk · 600 · 20px / 1.25</span>
+        <p>Encabezado de un bloque dentro de una página (p. ej. 'Artículos' dentro del detalle de un pedido).</p>
+      </div>
+      <div class="type-sample" style="font-family:'Schibsted Grotesk', sans-serif; font-size:20px; font-weight:600; line-height:1.25; letter-spacing:normal; text-transform:none;">Serum reparador de noche</div>
+    </div>
+
+    <div class="type-row">
+      <div class="type-meta">
+        <strong>Subtítulo</strong>
+        <span>Schibsted Grotesk · 500 · 16px / 1.4</span>
+        <p>Dato secundario con peso propio, como el nombre de un producto en una fila expandida.</p>
+      </div>
+      <div class="type-sample" style="font-family:'Schibsted Grotesk', sans-serif; font-size:16px; font-weight:500; line-height:1.4; letter-spacing:normal; text-transform:none;">Serum reparador de noche</div>
+    </div>
+
+    <div class="type-row">
+      <div class="type-meta">
+        <strong>Cuerpo</strong>
+        <span>Schibsted Grotesk · 400 · 14px / 1.55</span>
+        <p>Texto corrido: descripciones, notas, confirmaciones. Tope de 65–75ch.</p>
+      </div>
+      <div class="type-sample" style="font-family:'Schibsted Grotesk', sans-serif; font-size:14px; font-weight:400; line-height:1.55; letter-spacing:normal; text-transform:none;">Serum reparador de noche</div>
+    </div>
+
+    <div class="type-row">
+      <div class="type-meta">
+        <strong>Cuerpo pequeño</strong>
+        <span>Schibsted Grotesk · 400 · 13px / 1.5</span>
+        <p>Ayuda de campo, nota al pie de tabla.</p>
+      </div>
+      <div class="type-sample" style="font-family:'Schibsted Grotesk', sans-serif; font-size:13px; font-weight:400; line-height:1.5; letter-spacing:normal; text-transform:none;">Serum reparador de noche</div>
+    </div>
+
+    <div class="type-row">
+      <div class="type-meta">
+        <strong>Etiqueta</strong>
+        <span>PT Mono · 400 · 12px / 1.3</span>
+        <p>Nombre de campo, encabezado de columna, ítem de navegación, texto de badge. PT Mono en mayúsculas.</p>
+      </div>
+      <div class="type-sample" style="font-family:'PT Mono', monospace; font-size:12px; font-weight:400; line-height:1.3; letter-spacing:0.06em; text-transform:uppercase;">ENCABEZADO DE COLUMNA</div>
+    </div>
+
+    <div class="type-row">
+      <div class="type-meta">
+        <strong>Dato</strong>
+        <span>PT Mono · 400 · 14px / 1.4</span>
+        <p>SKU, precio, cantidad, fecha corta — cualquier cifra que deba alinearse en columna. PT Mono con tabular-nums.</p>
+      </div>
+      <div class="type-sample" style="font-family:'PT Mono', monospace; font-size:14px; font-weight:400; line-height:1.4; letter-spacing:normal; text-transform:none;">EG-SER-30   $ 680.00</div>
+    </div>
+  </div>
+  <h2 class="section-head">Sombras (solo overlays)</h2>
+  <div class="shadows">
+
+    <div class="shadow-demo" style="box-shadow:0 8px 24px -6px oklch(0.4015 0.0436 37.9587 / 0.18)">
+      <strong>overlay</strong>
+      <code>0 8px 24px -6px oklch(0.4015 0.0436 37.9587 / 0.18)</code>
+      <p>Menú de select, dropdown, popover, tooltip. La sombra tiñe la tinta del sistema, nunca el rosa de marca.</p>
+    </div>
+
+    <div class="shadow-demo" style="box-shadow:0 16px 48px -8px oklch(0.4015 0.0436 37.9587 / 0.22)">
+      <strong>modal</strong>
+      <code>0 16px 48px -8px oklch(0.4015 0.0436 37.9587 / 0.22)</code>
+      <p>Modal, hoja lateral, toast — lo único que de verdad bloquea o interrumpe el flujo.</p>
+    </div>
+  </div>
+  <h2 class="section-head">Componentes con sus estados</h2>
+
+    <section class="component-block">
+      <h3>Botón primario</h3>
+      <p class="component-desc">Acción principal de una vista. Estados default/hover/focus-visible/disabled inline.</p>
+      <style>.ds-btn-primary {
+  background: #9f5f6d;
+  color: #ffffff;
+  font-family: 'Schibsted Grotesk', ui-sans-serif, system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.55;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 120ms cubic-bezier(0.25, 1, 0.5, 1);
+}
+.ds-btn-primary:hover { background: #8a4d5a; }
+.ds-btn-primary:focus-visible { outline: 2px solid #9f5f6d; outline-offset: 2px; }
+.ds-btn-primary:active { background: #7a4049; }
+.ds-btn-primary:disabled { background: #f4eef1; color: #9e7e88; cursor: not-allowed; }</style>
+      <div class="component-stage"><button class="ds-btn-primary">Guardar cambios</button>
+<button class="ds-btn-primary" disabled>Guardar cambios</button></div>
+    </section>
+
+    <section class="component-block">
+      <h3>Botón secundario</h3>
+      <p class="component-desc">Acción secundaria, con borde estructural en vez de fondo sólido.</p>
+      <style>.ds-btn-secondary {
+  background: #ffffff;
+  color: #5d4037;
+  font-family: 'Schibsted Grotesk', ui-sans-serif, system-ui, sans-serif;
+  font-size: 14px;
+  padding: 10px 16px;
+  border: 1px solid #a58a91;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 120ms cubic-bezier(0.25, 1, 0.5, 1), border-color 120ms cubic-bezier(0.25, 1, 0.5, 1);
+}
+.ds-btn-secondary:hover { background: #fdf2f5; border-color: #5d4037; }
+.ds-btn-secondary:focus-visible { outline: 2px solid #9f5f6d; outline-offset: 2px; }</style>
+      <div class="component-stage"><button class="ds-btn-secondary">Cancelar</button></div>
+    </section>
+
+    <section class="component-block">
+      <h3>Campo con etiqueta de muesca</h3>
+      <p class="component-desc">La etiqueta se recorta sobre la línea del borde, como la pestaña de una ficha de bitácora. El fondo del label lee var(--surface-bg) de su contenedor, por eso el segundo ejemplo (dentro de una tarjeta blanca) se recorta limpio también.</p>
+      <style>.ds-field-notch { position: relative; display: inline-block; width: 220px; margin: 4px 12px 16px 0; }
+.ds-notch-label {
+  position: absolute;
+  top: -9px;
+  left: 10px;
+  padding: 0 4px;
+  background: var(--surface-bg, #fff9fb); /* hereda de la superficie que lo contiene: body, Card, Modal... */
+  font-family: 'PT Mono', ui-monospace, monospace;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #785a63;
+  transition: color 120ms cubic-bezier(0.25, 1, 0.5, 1);
+}
+.ds-notch-input {
+  width: 100%;
+  padding: 11px 12px;
+  font-family: 'Schibsted Grotesk', sans-serif;
+  font-size: 14px;
+  color: #5d4037;
+  background: #fffcfd;
+  border: 1.5px solid #a58a91;
+  border-radius: 8px;
+  transition: border-color 120ms cubic-bezier(0.25, 1, 0.5, 1);
+}
+.ds-notch-input:focus { outline: none; border-color: #9f5f6d; }
+.ds-notch-input:focus + .ds-notch-label,
+.ds-notch-label--focus { color: #9f5f6d; }
+.ds-notch-input--focus { border-color: #9f5f6d; }
+.ds-notch-label--error { color: #b84c58; }
+.ds-notch-input--error { border-color: #b84c58; }
+.ds-notch-help { display: block; margin-top: 6px; font-size: 13px; color: #b84c58; }</style>
+      <div class="component-stage"><div style="--surface-bg:#fff9fb;">
+  <div class="ds-field-notch">
+    <label class="ds-notch-label" for="ds-name">Nombre del producto</label>
+    <input class="ds-notch-input" id="ds-name" type="text" value="Serum reparador de noche" />
+  </div>
+  <div class="ds-field-notch">
+    <label class="ds-notch-label ds-notch-label--focus" for="ds-price">Precio</label>
+    <input class="ds-notch-input ds-notch-input--focus" id="ds-price" type="text" value="680.00" />
+  </div>
+  <div class="ds-field-notch">
+    <label class="ds-notch-label ds-notch-label--error" for="ds-sku">SKU</label>
+    <input class="ds-notch-input ds-notch-input--error" id="ds-sku" type="text" value="eg 30" />
+    <span class="ds-notch-help">Solo mayúsculas y guiones</span>
+  </div>
+</div>
+<div style="--surface-bg:#ffffff; background:#ffffff; border:1px solid #a58a91; border-radius:12px; padding:20px;">
+  <div class="ds-field-notch" style="margin-bottom:0;">
+    <label class="ds-notch-label" for="ds-name-card">Dentro de una tarjeta</label>
+    <input class="ds-notch-input" id="ds-name-card" type="text" value="--surface-bg: #ffffff aquí" />
+  </div>
+</div></div>
+    </section>
+
+    <section class="component-block">
+      <h3>Select cerrado/abierto</h3>
+      <p class="component-desc">Disparador de select con caret Phosphor y menú de opciones (una resaltada, una seleccionada).</p>
+      <style>.ds-select { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 220px; background: #fffcfd; color: #5d4037; font-family: 'Schibsted Grotesk', sans-serif; font-size: 14px; padding: 9px 12px; border: 1px solid #a58a91; border-radius: 8px; cursor: pointer; }
+.ds-select:focus-visible { outline: none; border-color: #9f5f6d; box-shadow: 0 0 0 2px rgba(159,95,109,0.2); }
+.ds-select-menu { list-style: none; margin: 4px 0 0; padding: 4px; width: 220px; background: #ffffff; border: 1px solid #a58a91; border-radius: 8px; box-shadow: 0 8px 24px -6px rgba(93,64,55,0.18); font-family: 'Schibsted Grotesk', sans-serif; font-size: 14px; }
+.ds-select-option { padding: 8px 10px; border-radius: 6px; display: flex; align-items: center; justify-content: space-between; }
+.ds-select-option--highlighted { background: #f4eef1; }
+.ds-select-option--selected { background: #ffb7c5; color: #5d4037; }
+.ds-select-option--selected svg { flex-shrink: 0; }</style>
+      <div class="component-stage"><button class="ds-select">
+  <span>Rostro</span>
+  <svg width="16" height="16" viewBox="0 0 256 256" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80A8,8,0,0,1,53.66,90.34L128,164.69l74.34-74.35a8,8,0,0,1,11.32,11.32Z"/></svg>
+</button>
+<ul class="ds-select-menu">
+  <li class="ds-select-option">Cuerpo</li>
+  <li class="ds-select-option ds-select-option--highlighted">Cabello</li>
+  <li class="ds-select-option ds-select-option--selected">Rostro <svg width="12" height="12" viewBox="0 0 256 256" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"/></svg></li>
+</ul></div>
+    </section>
+
+    <section class="component-block">
+      <h3>Checkbox</h3>
+      <p class="component-desc">Casilla con estado marcado y sin marcar.</p>
+      <style>.ds-checkbox { display: inline-flex; align-items: center; gap: 8px; font-family: 'Schibsted Grotesk', sans-serif; font-size: 14px; color: #5d4037; cursor: pointer; }
+.ds-checkbox input { position: absolute; opacity: 0; width: 18px; height: 18px; }
+.ds-checkbox-box { width: 18px; height: 18px; border: 1px solid #a58a91; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; background: #ffffff; }
+.ds-checkbox input:checked + .ds-checkbox-box { background: #9f5f6d; border-color: #9f5f6d; color: #ffffff; }
+.ds-checkbox input:focus-visible + .ds-checkbox-box { outline: 2px solid #9f5f6d; outline-offset: 2px; }</style>
+      <div class="component-stage"><label class="ds-checkbox"><input type="checkbox" checked /><span class="ds-checkbox-box"><svg width="12" height="12" viewBox="0 0 256 256" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"/></svg></span> Publicar en catálogo</label></div>
+    </section>
+
+    <section class="component-block">
+      <h3>Badge</h3>
+      <p class="component-desc">Etiqueta de estado en sus cuatro variantes semánticas.</p>
+      <style>.ds-badge { font-family: 'PT Mono', ui-monospace, monospace; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; padding: 3px 10px; border-radius: 999px; display: inline-block; }
+.ds-badge--neutral { background: #f4eef1; color: #785a63; }
+.ds-badge--positive { background: #b2e2d2; color: #2d4a3e; }
+.ds-badge--attention { background: #fff0c2; color: #816829; }
+.ds-badge--negative { background: #ffcdd6; color: #b84c58; }</style>
+      <div class="component-stage"><span class="ds-badge ds-badge--neutral">Borrador</span>
+<span class="ds-badge ds-badge--positive">Pagado</span>
+<span class="ds-badge ds-badge--attention">Stock bajo</span>
+<span class="ds-badge ds-badge--negative">Cancelado</span></div>
+    </section>
+
+    <section class="component-block">
+      <h3>Ítem de navegación</h3>
+      <p class="component-desc">Ítem del sidebar en reposo y activo — sin franja lateral de color.</p>
+      <style>.ds-nav { display: flex; flex-direction: column; gap: 2px; font-family: 'Schibsted Grotesk', sans-serif; font-size: 14px; width: 200px; }
+.ds-nav-item { color: #785a63; text-decoration: none; padding: 8px 12px; border-radius: 6px; }
+.ds-nav-item:hover { background: #fdf2f5; }
+.ds-nav-item:focus-visible { outline: 2px solid #9f5f6d; outline-offset: 2px; }
+.ds-nav-item--active { background: #ffb7c5; color: #5d4037; }</style>
+      <div class="component-stage"><nav class="ds-nav">
+  <a class="ds-nav-item" href="#">Productos</a>
+  <a class="ds-nav-item ds-nav-item--active" href="#">Pedidos</a>
+  <a class="ds-nav-item" href="#">Inventario</a>
+</nav></div>
+    </section>
+
+    <section class="component-block">
+      <h3>Tabla</h3>
+      <p class="component-desc">Encabezado en PT Mono y celdas de dato alineadas en columna.</p>
+      <style>.ds-table { width: 100%; border-collapse: collapse; font-family: 'Schibsted Grotesk', sans-serif; font-size: 14px; color: #5d4037; }
+.ds-table thead th { font-family: 'PT Mono', ui-monospace, monospace; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: #785a63; text-align: left; padding: 10px 12px; border-bottom: 1px solid #a58a91; }
+.ds-table tbody td { padding: 10px 12px; border-bottom: 1px solid #ffe1e9; font-family: 'PT Mono', ui-monospace, monospace; }
+.ds-table-num { text-align: right; font-variant-numeric: tabular-nums; }
+.ds-table-row--hover td { background: #fdf7f8; }</style>
+      <div class="component-stage"><table class="ds-table">
+  <thead>
+    <tr><th>SKU</th><th>Producto</th><th class="ds-table-num">Stock</th><th class="ds-table-num">Precio</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>EG-SER-30</td><td>Serum reparador</td><td class="ds-table-num">124</td><td class="ds-table-num">$ 680.00</td></tr>
+    <tr class="ds-table-row--hover"><td>EG-SER-50</td><td>Serum reparador 50ml</td><td class="ds-table-num">18</td><td class="ds-table-num">$ 940.00</td></tr>
+  </tbody>
+</table></div>
+    </section>
+
+    <section class="component-block">
+      <h3>Destello (marca)</h3>
+      <p class="component-desc">Activo decorativo de marca (Phosphor StarFour, no Sparkle) — remate junto al wordmark y flourish aislado en momentos de confirmación. Único elemento del sistema con color propio, fuera de contexto de UI funcional.</p>
+      <style>.ds-wordmark { display: inline-flex; align-items: center; gap: 6px; font-family: 'Schibsted Grotesk', sans-serif; font-size: 20px; font-weight: 600; color: #5d4037; }
+.ds-sparkle { fill: #816829; }
+.ds-sparkle--outline { width: 16px; height: 16px; }
+.ds-sparkle--fill { width: 28px; height: 28px; }
+.ds-sparkle-moment { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 8px 16px; }
+.ds-sparkle-moment p { margin: 0; font-family: 'Schibsted Grotesk', sans-serif; font-size: 14px; color: #5d4037; }</style>
+      <div class="component-stage"><div class="ds-wordmark">
+  <span>Esencia Glow</span>
+  <svg class="ds-sparkle ds-sparkle--outline" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg"><path d="M229.5,113,166.06,89.94,143,26.5a16,16,0,0,0-30,0L89.94,89.94,26.5,113a16,16,0,0,0,0,30l63.44,23.07L113,229.5a16,16,0,0,0,30,0l23.07-63.44L229.5,143a16,16,0,0,0,0-30ZM157.08,152.3a8,8,0,0,0-4.78,4.78L128,223.9l-24.3-66.82a8,8,0,0,0-4.78-4.78L32.1,128l66.82-24.3a8,8,0,0,0,4.78-4.78L128,32.1l24.3,66.82a8,8,0,0,0,4.78,4.78L223.9,128Z"/></svg>
+</div>
+<div class="ds-sparkle-moment">
+  <svg class="ds-sparkle ds-sparkle--fill" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg"><path d="M240,128a15.79,15.79,0,0,1-10.5,15l-63.44,23.07L143,229.5a16,16,0,0,1-30,0L89.94,166.06,26.5,143a16,16,0,0,1,0-30L89.94,89.94,113,26.5a16,16,0,0,1,30,0l23.07,63.44L229.5,113A15.79,15.79,0,0,1,240,128Z"/></svg>
+  <p>Pedido confirmado</p>
+</div></div>
+    </section>
+  <h2 class="section-head">Reglas nombradas</h2>
+  <ul class="rules-list">
+      <li><strong>La Regla del Listón</strong> El rosa marca una sola cosa a la vez por vista: la acción primaria o el ítem activo de navegación. Nunca es el fondo de una sección completa ni el color de más de un elemento simultáneo en la misma pantalla — como un listón, señala un lugar, no tiñe el libro.</li>
+      <li><strong>La Regla de las Dos Tintas</strong> Todo texto secundario usa muted-foreground (tenue) o muted-foreground-strong (tenue fuerte) según si el contenido es decorativo/exento de WCAG (placeholder, disabled) o texto real que alguien debe poder leer siempre. Nunca se decide a ojo.</li>
+      <li><strong>La Regla del Peso Único</strong> PT Mono nunca simula un peso que no tiene. Cualquier énfasis dentro de un dato se logra con color o con la etiqueta de estado que lo acompaña, nunca con font-weight: 700 sobre PT Mono.</li>
+      <li><strong>La Regla de lo que Flota</strong> Si un elemento no se despega físicamente del documento, no lleva sombra. Una tarjeta en reposo se separa con border-strong, nunca con box-shadow.</li>
+  </ul>
+  <h2 class="section-head">Do's and Don'ts</h2>
+  <div class="dos-donts">
+    <div class="dos"><h3>Do</h3><ul>
+      <li>Do usar PT Mono exclusivamente en dato, etiqueta y navegación; Schibsted Grotesk en todo lo demás. Nunca mezclar los dos roles dentro del mismo elemento.</li>
+      <li>Do usar border-strong (3:1 contra fondo/superficie, medido) en cualquier borde que funcione como límite de un control.</li>
+      <li>Do reservar la sombra (overlay/modal) exclusivamente para lo que se despega del documento.</li>
+      <li>Do usar primary-action (no primary) en cualquier superficie sólida con texto blanco encima.</li>
+      <li>Do diseñar explícitamente los seis estados de cada control interactivo antes de dar por terminado un componente.</li>
+      <li>Do citar el mismo texto de las anti-referencias de PRODUCT.md cuando se rechace un patrón.</li>
+    </ul></div>
+    <div class="donts"><h3>Don't</h3><ul>
+      <li>Don't poner texto blanco sobre primary (el rosa de superficie suave) — mide 1.64:1, muy por debajo de AA.</li>
+      <li>Don't usar franjas laterales de color en tarjetas, toasts, ítems de lista o el ítem activo del sidebar.</li>
+      <li>Don't construir la fila de cuatro KPI idénticos con número gigante + delta verde/rojo.</li>
+      <li>Don't responder a 'necesito mostrar contenido' con una rejilla de tarjetas idénticas por reflejo.</li>
+      <li>Don't usar rounded.full fuera de badges y avatares.</li>
+      <li>Don't usar degradados en texto ni glassmorphism decorativo en ninguna superficie.</li>
+      <li>Don't usar un modal como primera respuesta a una interacción que cabe inline o en un panel lateral.</li>
+      <li>Don't dejar font-weight distinto de 400 sobre PT Mono sin font-synthesis: none activo.</li>
+      <li>Don't usar rayas em en ningún copy del panel.</li>
+      <li>Don't ofrecer un toggle de tema oscuro que no hace nada.</li>
+    </ul></div>
+  </div>
+  <footer>Generado 2026-09-23T01:12:22.728Z · schemaVersion 2 · Esencia Glow, Milestone 2.0</footer>
+</div>
+</body>
+</html>

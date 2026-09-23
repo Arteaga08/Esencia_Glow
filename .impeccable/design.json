@@ -1,0 +1,461 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-23T01:12:22.728Z",
+  "title": "Design System: Esencia Glow — Dashboard",
+  "extensions": {
+    "colorMeta": {
+      "background": {
+        "role": "neutral",
+        "displayName": "Fondo",
+        "canonical": "oklch(0.9873 0.0069 354.7893)",
+        "tonalRamp": [
+          "#0e0a0b",
+          "#292527",
+          "#484445",
+          "#6a6466",
+          "#8d8789",
+          "#b2acae",
+          "#d8d2d4",
+          "#f3edef"
+        ]
+      },
+      "foreground": {
+        "role": "neutral",
+        "displayName": "Tinta",
+        "canonical": "oklch(0.4015 0.0436 37.9587)",
+        "tonalRamp": [
+          "#1a0401",
+          "#391f16",
+          "#5a3d34",
+          "#7d5e54",
+          "#a18176",
+          "#c8a59a",
+          "#efcbc0",
+          "#ffe5da"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Superficie",
+        "canonical": "oklch(1.0000 0 0)",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#262626",
+          "#454545",
+          "#666666",
+          "#898989",
+          "#aeaeae",
+          "#d4d4d4",
+          "#eeeeee"
+        ]
+      },
+      "primary": {
+        "role": "primary",
+        "displayName": "Rosa Bitácora",
+        "canonical": "oklch(0.8502 0.0851 6.1876)",
+        "tonalRamp": [
+          "#240006",
+          "#460f20",
+          "#6a2f3e",
+          "#8f505e",
+          "#b57381",
+          "#dd97a5",
+          "#ffbdcb",
+          "#ffd7e5"
+        ]
+      },
+      "primary-action": {
+        "role": "primary",
+        "displayName": "Rosa Acción",
+        "canonical": "oklch(0.56 0.0851 6.1876)",
+        "tonalRamp": [
+          "#240006",
+          "#460f20",
+          "#6a2f3e",
+          "#8f505e",
+          "#b57381",
+          "#dd97a5",
+          "#ffbdcb",
+          "#ffd7e5"
+        ]
+      },
+      "secondary": {
+        "role": "secondary",
+        "displayName": "Menta",
+        "canonical": "oklch(0.8747 0.0544 172.6283)",
+        "tonalRamp": [
+          "#001209",
+          "#002f24",
+          "#224f42",
+          "#447063",
+          "#679486",
+          "#8bbaaa",
+          "#b0e0d0",
+          "#cafbeb"
+        ]
+      },
+      "secondary-foreground": {
+        "role": "secondary",
+        "displayName": "Menta Tinta",
+        "canonical": "oklch(0.3821 0.0407 166.3004)",
+        "tonalRamp": [
+          "#001007",
+          "#102d22",
+          "#2f4c40",
+          "#506e61",
+          "#729184",
+          "#96b7a8",
+          "#bcddce",
+          "#d6f8e8"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Neutro Tenue",
+        "canonical": "oklch(0.9706 0.0124 358.7577)",
+        "tonalRamp": [
+          "#10090b",
+          "#2c2426",
+          "#4b4245",
+          "#6c6366",
+          "#908689",
+          "#b5abae",
+          "#dcd1d4",
+          "#f6ebee"
+        ]
+      },
+      "muted-foreground": {
+        "role": "neutral",
+        "displayName": "Tinta Tenue",
+        "canonical": "oklch(0.6265 0.0418 357.7265)",
+        "tonalRamp": [
+          "#18040b",
+          "#371d26",
+          "#583c45",
+          "#7b5c66",
+          "#9f7f89",
+          "#c5a3ae",
+          "#ecc9d4",
+          "#ffe4ee"
+        ]
+      },
+      "muted-foreground-strong": {
+        "role": "neutral",
+        "displayName": "Tinta Tenue Fuerte",
+        "canonical": "oklch(0.50 0.0418 357.7265)",
+        "tonalRamp": [
+          "#18040b",
+          "#371d26",
+          "#583c45",
+          "#7b5c66",
+          "#9f7f89",
+          "#c5a3ae",
+          "#ecc9d4",
+          "#ffe4ee"
+        ]
+      },
+      "accent": {
+        "role": "tertiary",
+        "displayName": "Mantequilla",
+        "canonical": "oklch(0.9557 0.0615 92.1287)",
+        "tonalRamp": [
+          "#140900",
+          "#312500",
+          "#51441a",
+          "#73653c",
+          "#96885e",
+          "#bcad81",
+          "#e2d4a7",
+          "#fdeec0"
+        ]
+      },
+      "accent-foreground-strong": {
+        "role": "tertiary",
+        "displayName": "Mantequilla Tinta",
+        "canonical": "oklch(0.53 0.0874 87.6337)",
+        "tonalRamp": [
+          "#1a0500",
+          "#382200",
+          "#594100",
+          "#7b6322",
+          "#9f8647",
+          "#c5ab6c",
+          "#edd191",
+          "#ffecab"
+        ]
+      },
+      "destructive": {
+        "role": "destructive",
+        "displayName": "Rojo Suave",
+        "canonical": "oklch(0.7653 0.1404 16.0328)",
+        "tonalRamp": [
+          "#310000",
+          "#58000c",
+          "#7f132a",
+          "#a73c4a",
+          "#d0616c",
+          "#fa868f",
+          "#ffacb5",
+          "#ffc7ce"
+        ]
+      },
+      "destructive-action": {
+        "role": "destructive",
+        "displayName": "Rojo Acción",
+        "canonical": "oklch(0.56 0.1404 16.0328)",
+        "tonalRamp": [
+          "#310000",
+          "#58000c",
+          "#7f132a",
+          "#a73c4a",
+          "#d0616c",
+          "#fa868f",
+          "#ffacb5",
+          "#ffc7ce"
+        ]
+      },
+      "border": {
+        "role": "neutral",
+        "displayName": "Borde Susurro",
+        "canonical": "oklch(0.9366 0.0345 359.8126)",
+        "tonalRamp": [
+          "#16050b",
+          "#341f26",
+          "#553d44",
+          "#775e65",
+          "#9c8188",
+          "#c2a5ad",
+          "#e9cbd3",
+          "#ffe5ed"
+        ]
+      },
+      "border-strong": {
+        "role": "neutral",
+        "displayName": "Borde Estructural",
+        "canonical": "oklch(0.66 0.0345 359.8126)",
+        "tonalRamp": [
+          "#16050b",
+          "#341f26",
+          "#553d44",
+          "#775e65",
+          "#9c8188",
+          "#c2a5ad",
+          "#e9cbd3",
+          "#ffe5ed"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Una sola cifra dominante por vista, cuando de verdad hay un número que manda (total de un pedido, monto a reembolsar). No es un patrón recurrente de KPI."
+      },
+      "page-title": {
+        "displayName": "Título de página",
+        "purpose": "Nombre de la sección actual, siempre en la misma posición del layout."
+      },
+      "section-title": {
+        "displayName": "Título de sección",
+        "purpose": "Encabezado de un bloque dentro de una página (p. ej. 'Artículos' dentro del detalle de un pedido)."
+      },
+      "subtitle": {
+        "displayName": "Subtítulo",
+        "purpose": "Dato secundario con peso propio, como el nombre de un producto en una fila expandida."
+      },
+      "body": {
+        "displayName": "Cuerpo",
+        "purpose": "Texto corrido: descripciones, notas, confirmaciones. Tope de 65–75ch."
+      },
+      "body-sm": {
+        "displayName": "Cuerpo pequeño",
+        "purpose": "Ayuda de campo, nota al pie de tabla."
+      },
+      "label": {
+        "displayName": "Etiqueta",
+        "purpose": "Nombre de campo, encabezado de columna, ítem de navegación, texto de badge. PT Mono en mayúsculas."
+      },
+      "data": {
+        "displayName": "Dato",
+        "purpose": "SKU, precio, cantidad, fecha corta — cualquier cifra que deba alinearse en columna. PT Mono con tabular-nums."
+      }
+    },
+    "shadows": [
+      {
+        "name": "overlay",
+        "value": "0 8px 24px -6px oklch(0.4015 0.0436 37.9587 / 0.18)",
+        "purpose": "Menú de select, dropdown, popover, tooltip. La sombra tiñe la tinta del sistema, nunca el rosa de marca."
+      },
+      {
+        "name": "modal",
+        "value": "0 16px 48px -8px oklch(0.4015 0.0436 37.9587 / 0.22)",
+        "purpose": "Modal, hoja lateral, toast — lo único que de verdad bloquea o interrumpe el flujo."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-out-quart",
+        "value": "cubic-bezier(0.25, 1, 0.5, 1)",
+        "purpose": "Curva por default de toda transición de estado (hover, colapso de sidebar, apertura de menú). Nunca rebote ni elástico."
+      },
+      {
+        "name": "duration-fast",
+        "value": "120ms",
+        "purpose": "Hover, focus, cambios de color puntuales."
+      },
+      {
+        "name": "duration-base",
+        "value": "200ms",
+        "purpose": "Colapso de sidebar, apertura de menú/popover, transición de tab activo."
+      },
+      {
+        "name": "duration-slow",
+        "value": "280ms",
+        "purpose": "Entrada/salida de modal y toast."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "md",
+        "value": "768px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      },
+      {
+        "name": "xl",
+        "value": "1280px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Botón primario",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Acción principal de una vista. Estados default/hover/focus-visible/disabled inline.",
+      "html": "<button class=\"ds-btn-primary\">Guardar cambios</button>\n<button class=\"ds-btn-primary\" disabled>Guardar cambios</button>",
+      "css": ".ds-btn-primary {\n  background: #9f5f6d;\n  color: #ffffff;\n  font-family: 'Schibsted Grotesk', ui-sans-serif, system-ui, sans-serif;\n  font-size: 14px;\n  font-weight: 400;\n  line-height: 1.55;\n  padding: 10px 16px;\n  border: none;\n  border-radius: 8px;\n  cursor: pointer;\n  transition: background-color 120ms cubic-bezier(0.25, 1, 0.5, 1);\n}\n.ds-btn-primary:hover { background: #8a4d5a; }\n.ds-btn-primary:focus-visible { outline: 2px solid #9f5f6d; outline-offset: 2px; }\n.ds-btn-primary:active { background: #7a4049; }\n.ds-btn-primary:disabled { background: #f4eef1; color: #9e7e88; cursor: not-allowed; }"
+    },
+    {
+      "name": "Botón secundario",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Acción secundaria, con borde estructural en vez de fondo sólido.",
+      "html": "<button class=\"ds-btn-secondary\">Cancelar</button>",
+      "css": ".ds-btn-secondary {\n  background: #ffffff;\n  color: #5d4037;\n  font-family: 'Schibsted Grotesk', ui-sans-serif, system-ui, sans-serif;\n  font-size: 14px;\n  padding: 10px 16px;\n  border: 1px solid #a58a91;\n  border-radius: 8px;\n  cursor: pointer;\n  transition: background-color 120ms cubic-bezier(0.25, 1, 0.5, 1), border-color 120ms cubic-bezier(0.25, 1, 0.5, 1);\n}\n.ds-btn-secondary:hover { background: #fdf2f5; border-color: #5d4037; }\n.ds-btn-secondary:focus-visible { outline: 2px solid #9f5f6d; outline-offset: 2px; }"
+    },
+    {
+      "name": "Campo con etiqueta de muesca",
+      "kind": "input",
+      "refersTo": "input-notched",
+      "description": "La etiqueta se recorta sobre la línea del borde, como la pestaña de una ficha de bitácora. El fondo del label lee var(--surface-bg) de su contenedor, por eso el segundo ejemplo (dentro de una tarjeta blanca) se recorta limpio también.",
+      "html": "<div style=\"--surface-bg:#fff9fb;\">\n  <div class=\"ds-field-notch\">\n    <label class=\"ds-notch-label\" for=\"ds-name\">Nombre del producto</label>\n    <input class=\"ds-notch-input\" id=\"ds-name\" type=\"text\" value=\"Serum reparador de noche\" />\n  </div>\n  <div class=\"ds-field-notch\">\n    <label class=\"ds-notch-label ds-notch-label--focus\" for=\"ds-price\">Precio</label>\n    <input class=\"ds-notch-input ds-notch-input--focus\" id=\"ds-price\" type=\"text\" value=\"680.00\" />\n  </div>\n  <div class=\"ds-field-notch\">\n    <label class=\"ds-notch-label ds-notch-label--error\" for=\"ds-sku\">SKU</label>\n    <input class=\"ds-notch-input ds-notch-input--error\" id=\"ds-sku\" type=\"text\" value=\"eg 30\" />\n    <span class=\"ds-notch-help\">Solo mayúsculas y guiones</span>\n  </div>\n</div>\n<div style=\"--surface-bg:#ffffff; background:#ffffff; border:1px solid #a58a91; border-radius:12px; padding:20px;\">\n  <div class=\"ds-field-notch\" style=\"margin-bottom:0;\">\n    <label class=\"ds-notch-label\" for=\"ds-name-card\">Dentro de una tarjeta</label>\n    <input class=\"ds-notch-input\" id=\"ds-name-card\" type=\"text\" value=\"--surface-bg: #ffffff aquí\" />\n  </div>\n</div>",
+      "css": ".ds-field-notch { position: relative; display: inline-block; width: 220px; margin: 4px 12px 16px 0; }\n.ds-notch-label {\n  position: absolute;\n  top: -9px;\n  left: 10px;\n  padding: 0 4px;\n  background: var(--surface-bg, #fff9fb); /* hereda de la superficie que lo contiene: body, Card, Modal... */\n  font-family: 'PT Mono', ui-monospace, monospace;\n  font-size: 12px;\n  letter-spacing: 0.06em;\n  text-transform: uppercase;\n  color: #785a63;\n  transition: color 120ms cubic-bezier(0.25, 1, 0.5, 1);\n}\n.ds-notch-input {\n  width: 100%;\n  padding: 11px 12px;\n  font-family: 'Schibsted Grotesk', sans-serif;\n  font-size: 14px;\n  color: #5d4037;\n  background: #fffcfd;\n  border: 1.5px solid #a58a91;\n  border-radius: 8px;\n  transition: border-color 120ms cubic-bezier(0.25, 1, 0.5, 1);\n}\n.ds-notch-input:focus { outline: none; border-color: #9f5f6d; }\n.ds-notch-input:focus + .ds-notch-label,\n.ds-notch-label--focus { color: #9f5f6d; }\n.ds-notch-input--focus { border-color: #9f5f6d; }\n.ds-notch-label--error { color: #b84c58; }\n.ds-notch-input--error { border-color: #b84c58; }\n.ds-notch-help { display: block; margin-top: 6px; font-size: 13px; color: #b84c58; }"
+    },
+    {
+      "name": "Select cerrado/abierto",
+      "kind": "input",
+      "refersTo": "select-trigger",
+      "description": "Disparador de select con caret Phosphor y menú de opciones (una resaltada, una seleccionada).",
+      "html": "<button class=\"ds-select\">\n  <span>Rostro</span>\n  <svg width=\"16\" height=\"16\" viewBox=\"0 0 256 256\" fill=\"currentColor\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80A8,8,0,0,1,53.66,90.34L128,164.69l74.34-74.35a8,8,0,0,1,11.32,11.32Z\"/></svg>\n</button>\n<ul class=\"ds-select-menu\">\n  <li class=\"ds-select-option\">Cuerpo</li>\n  <li class=\"ds-select-option ds-select-option--highlighted\">Cabello</li>\n  <li class=\"ds-select-option ds-select-option--selected\">Rostro <svg width=\"12\" height=\"12\" viewBox=\"0 0 256 256\" fill=\"currentColor\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z\"/></svg></li>\n</ul>",
+      "css": ".ds-select { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 220px; background: #fffcfd; color: #5d4037; font-family: 'Schibsted Grotesk', sans-serif; font-size: 14px; padding: 9px 12px; border: 1px solid #a58a91; border-radius: 8px; cursor: pointer; }\n.ds-select:focus-visible { outline: none; border-color: #9f5f6d; box-shadow: 0 0 0 2px rgba(159,95,109,0.2); }\n.ds-select-menu { list-style: none; margin: 4px 0 0; padding: 4px; width: 220px; background: #ffffff; border: 1px solid #a58a91; border-radius: 8px; box-shadow: 0 8px 24px -6px rgba(93,64,55,0.18); font-family: 'Schibsted Grotesk', sans-serif; font-size: 14px; }\n.ds-select-option { padding: 8px 10px; border-radius: 6px; display: flex; align-items: center; justify-content: space-between; }\n.ds-select-option--highlighted { background: #f4eef1; }\n.ds-select-option--selected { background: #ffb7c5; color: #5d4037; }\n.ds-select-option--selected svg { flex-shrink: 0; }"
+    },
+    {
+      "name": "Checkbox",
+      "kind": "input",
+      "refersTo": "checkbox",
+      "description": "Casilla con estado marcado y sin marcar.",
+      "html": "<label class=\"ds-checkbox\"><input type=\"checkbox\" checked /><span class=\"ds-checkbox-box\"><svg width=\"12\" height=\"12\" viewBox=\"0 0 256 256\" fill=\"currentColor\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z\"/></svg></span> Publicar en catálogo</label>",
+      "css": ".ds-checkbox { display: inline-flex; align-items: center; gap: 8px; font-family: 'Schibsted Grotesk', sans-serif; font-size: 14px; color: #5d4037; cursor: pointer; }\n.ds-checkbox input { position: absolute; opacity: 0; width: 18px; height: 18px; }\n.ds-checkbox-box { width: 18px; height: 18px; border: 1px solid #a58a91; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; background: #ffffff; }\n.ds-checkbox input:checked + .ds-checkbox-box { background: #9f5f6d; border-color: #9f5f6d; color: #ffffff; }\n.ds-checkbox input:focus-visible + .ds-checkbox-box { outline: 2px solid #9f5f6d; outline-offset: 2px; }"
+    },
+    {
+      "name": "Badge",
+      "kind": "chip",
+      "refersTo": "badge",
+      "description": "Etiqueta de estado en sus cuatro variantes semánticas.",
+      "html": "<span class=\"ds-badge ds-badge--neutral\">Borrador</span>\n<span class=\"ds-badge ds-badge--positive\">Pagado</span>\n<span class=\"ds-badge ds-badge--attention\">Stock bajo</span>\n<span class=\"ds-badge ds-badge--negative\">Cancelado</span>",
+      "css": ".ds-badge { font-family: 'PT Mono', ui-monospace, monospace; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; padding: 3px 10px; border-radius: 999px; display: inline-block; }\n.ds-badge--neutral { background: #f4eef1; color: #785a63; }\n.ds-badge--positive { background: #b2e2d2; color: #2d4a3e; }\n.ds-badge--attention { background: #fff0c2; color: #816829; }\n.ds-badge--negative { background: #ffcdd6; color: #b84c58; }"
+    },
+    {
+      "name": "Ítem de navegación",
+      "kind": "nav",
+      "refersTo": "nav-item",
+      "description": "Ítem del sidebar en reposo y activo — sin franja lateral de color.",
+      "html": "<nav class=\"ds-nav\">\n  <a class=\"ds-nav-item\" href=\"#\">Productos</a>\n  <a class=\"ds-nav-item ds-nav-item--active\" href=\"#\">Pedidos</a>\n  <a class=\"ds-nav-item\" href=\"#\">Inventario</a>\n</nav>",
+      "css": ".ds-nav { display: flex; flex-direction: column; gap: 2px; font-family: 'Schibsted Grotesk', sans-serif; font-size: 14px; width: 200px; }\n.ds-nav-item { color: #785a63; text-decoration: none; padding: 8px 12px; border-radius: 6px; }\n.ds-nav-item:hover { background: #fdf2f5; }\n.ds-nav-item:focus-visible { outline: 2px solid #9f5f6d; outline-offset: 2px; }\n.ds-nav-item--active { background: #ffb7c5; color: #5d4037; }"
+    },
+    {
+      "name": "Tabla",
+      "kind": "custom",
+      "refersTo": "table",
+      "description": "Encabezado en PT Mono y celdas de dato alineadas en columna.",
+      "html": "<table class=\"ds-table\">\n  <thead>\n    <tr><th>SKU</th><th>Producto</th><th class=\"ds-table-num\">Stock</th><th class=\"ds-table-num\">Precio</th></tr>\n  </thead>\n  <tbody>\n    <tr><td>EG-SER-30</td><td>Serum reparador</td><td class=\"ds-table-num\">124</td><td class=\"ds-table-num\">$ 680.00</td></tr>\n    <tr class=\"ds-table-row--hover\"><td>EG-SER-50</td><td>Serum reparador 50ml</td><td class=\"ds-table-num\">18</td><td class=\"ds-table-num\">$ 940.00</td></tr>\n  </tbody>\n</table>",
+      "css": ".ds-table { width: 100%; border-collapse: collapse; font-family: 'Schibsted Grotesk', sans-serif; font-size: 14px; color: #5d4037; }\n.ds-table thead th { font-family: 'PT Mono', ui-monospace, monospace; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: #785a63; text-align: left; padding: 10px 12px; border-bottom: 1px solid #a58a91; }\n.ds-table tbody td { padding: 10px 12px; border-bottom: 1px solid #ffe1e9; font-family: 'PT Mono', ui-monospace, monospace; }\n.ds-table-num { text-align: right; font-variant-numeric: tabular-nums; }\n.ds-table-row--hover td { background: #fdf7f8; }"
+    },
+    {
+      "name": "Destello (marca)",
+      "kind": "custom",
+      "refersTo": "sparkle-brand",
+      "description": "Activo decorativo de marca (Phosphor StarFour, no Sparkle) — remate junto al wordmark y flourish aislado en momentos de confirmación. Único elemento del sistema con color propio, fuera de contexto de UI funcional.",
+      "html": "<div class=\"ds-wordmark\">\n  <span>Esencia Glow</span>\n  <svg class=\"ds-sparkle ds-sparkle--outline\" viewBox=\"0 0 256 256\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M229.5,113,166.06,89.94,143,26.5a16,16,0,0,0-30,0L89.94,89.94,26.5,113a16,16,0,0,0,0,30l63.44,23.07L113,229.5a16,16,0,0,0,30,0l23.07-63.44L229.5,143a16,16,0,0,0,0-30ZM157.08,152.3a8,8,0,0,0-4.78,4.78L128,223.9l-24.3-66.82a8,8,0,0,0-4.78-4.78L32.1,128l66.82-24.3a8,8,0,0,0,4.78-4.78L128,32.1l24.3,66.82a8,8,0,0,0,4.78,4.78L223.9,128Z\"/></svg>\n</div>\n<div class=\"ds-sparkle-moment\">\n  <svg class=\"ds-sparkle ds-sparkle--fill\" viewBox=\"0 0 256 256\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M240,128a15.79,15.79,0,0,1-10.5,15l-63.44,23.07L143,229.5a16,16,0,0,1-30,0L89.94,166.06,26.5,143a16,16,0,0,1,0-30L89.94,89.94,113,26.5a16,16,0,0,1,30,0l23.07,63.44L229.5,113A15.79,15.79,0,0,1,240,128Z\"/></svg>\n  <p>Pedido confirmado</p>\n</div>",
+      "css": ".ds-wordmark { display: inline-flex; align-items: center; gap: 6px; font-family: 'Schibsted Grotesk', sans-serif; font-size: 20px; font-weight: 600; color: #5d4037; }\n.ds-sparkle { fill: #816829; }\n.ds-sparkle--outline { width: 16px; height: 16px; }\n.ds-sparkle--fill { width: 28px; height: 28px; }\n.ds-sparkle-moment { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 8px 16px; }\n.ds-sparkle-moment p { margin: 0; font-family: 'Schibsted Grotesk', sans-serif; font-size: 14px; color: #5d4037; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "La Bitácora de Esencia Glow",
+    "overview": "El panel se piensa como el cuaderno de bitácora de una botica: cada pantalla es un registro preciso de lo que pasa en el negocio, no un escaparate. La voz tipográfica lo declara desde el primer trazo — PT Mono en cada dato, SKU, precio y etiqueta se alinea solo, como una columna de libro mayor; Schibsted Grotesk lleva la conversación humana (títulos, texto corrido) con calidez contenida. El rosa de la marca aparece como aparecería un listón en un cuaderno real: marca lo que importa ahora mismo — una acción primaria, un ítem activo — y desaparece en todo lo demás. La estructura es plana y editorial: bordes de un pixel dividen la página como líneas de una hoja rayada, nunca sombras decorativas fingiendo profundidad.\n\nEsto rechaza explícitamente lo que PRODUCT.md nombra como anti-referencia: la fila de métricas heroicas, la rejilla de tarjetas idénticas, las franjas de color decorativas, la tarjeta de upsell con degradado y el asistente de IA con esfera. Ninguna pantalla del panel se apoya en esos recursos para parecer 'terminada' — se apoya en que el dato correcto esté donde se necesita.\n\nDivergencia deliberada del starter de paleta: los valores de color que Manuel entregó (paleta OKLCH) son la fuente de verdad y no se tocan. El --radius: 1.25rem y las sombras rosas difusas de ese mismo archivo, en cambio, eran parte de un ejemplo de partida, no una decisión cerrada — el plan aprobado de esta sesión fija el radio en 8–12px y elimina la sombra decorativa a favor de bordes estructurales.",
+    "keyCharacteristics": [
+      "Datos y etiquetas en PT Mono; conversación humana en Schibsted Grotesk. Nunca se mezclan roles.",
+      "Plano por default; sombra solo en lo que literalmente flota sobre el contenido (menú, popover, modal, toast).",
+      "El rosa es un acento que se gana su lugar: una acción primaria, un estado activo, nunca un fondo grande.",
+      "Todo estado (carga, error, vacío, deshabilitado, sin permiso) se diseña explícitamente — nunca se improvisa en el momento de construir la pantalla."
+    ],
+    "rules": [
+      {
+        "name": "La Regla del Listón",
+        "body": "El rosa marca una sola cosa a la vez por vista: la acción primaria o el ítem activo de navegación. Nunca es el fondo de una sección completa ni el color de más de un elemento simultáneo en la misma pantalla — como un listón, señala un lugar, no tiñe el libro.",
+        "section": "colors"
+      },
+      {
+        "name": "La Regla de las Dos Tintas",
+        "body": "Todo texto secundario usa muted-foreground (tenue) o muted-foreground-strong (tenue fuerte) según si el contenido es decorativo/exento de WCAG (placeholder, disabled) o texto real que alguien debe poder leer siempre. Nunca se decide a ojo.",
+        "section": "colors"
+      },
+      {
+        "name": "La Regla del Peso Único",
+        "body": "PT Mono nunca simula un peso que no tiene. Cualquier énfasis dentro de un dato se logra con color o con la etiqueta de estado que lo acompaña, nunca con font-weight: 700 sobre PT Mono.",
+        "section": "typography"
+      },
+      {
+        "name": "La Regla de lo que Flota",
+        "body": "Si un elemento no se despega físicamente del documento, no lleva sombra. Una tarjeta en reposo se separa con border-strong, nunca con box-shadow.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do usar PT Mono exclusivamente en dato, etiqueta y navegación; Schibsted Grotesk en todo lo demás. Nunca mezclar los dos roles dentro del mismo elemento.",
+      "Do usar border-strong (3:1 contra fondo/superficie, medido) en cualquier borde que funcione como límite de un control.",
+      "Do reservar la sombra (overlay/modal) exclusivamente para lo que se despega del documento.",
+      "Do usar primary-action (no primary) en cualquier superficie sólida con texto blanco encima.",
+      "Do diseñar explícitamente los seis estados de cada control interactivo antes de dar por terminado un componente.",
+      "Do citar el mismo texto de las anti-referencias de PRODUCT.md cuando se rechace un patrón."
+    ],
+    "donts": [
+      "Don't poner texto blanco sobre primary (el rosa de superficie suave) — mide 1.64:1, muy por debajo de AA.",
+      "Don't usar franjas laterales de color en tarjetas, toasts, ítems de lista o el ítem activo del sidebar.",
+      "Don't construir la fila de cuatro KPI idénticos con número gigante + delta verde/rojo.",
+      "Don't responder a 'necesito mostrar contenido' con una rejilla de tarjetas idénticas por reflejo.",
+      "Don't usar rounded.full fuera de badges y avatares.",
+      "Don't usar degradados en texto ni glassmorphism decorativo en ninguna superficie.",
+      "Don't usar un modal como primera respuesta a una interacción que cabe inline o en un panel lateral.",
+      "Don't dejar font-weight distinto de 400 sobre PT Mono sin font-synthesis: none activo.",
+      "Don't usar rayas em en ningún copy del panel.",
+      "Don't ofrecer un toggle de tema oscuro que no hace nada."
+    ]
+  }
+}
