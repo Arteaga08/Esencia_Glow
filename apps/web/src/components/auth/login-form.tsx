@@ -1,5 +1,6 @@
 "use client";
 
+import { WarningCircle } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { ApiRequestError, apiRequest } from "../../lib/api";
@@ -9,6 +10,50 @@ import { Input } from "../ui/input";
 
 interface CredentialsResult {
   twoFactorRequired?: boolean;
+}
+
+const NETWORK_ERROR = "No pudimos conectar con el servidor. Revisa tu conexión e intenta de nuevo.";
+const UNEXPECTED_ERROR = "Algo salió mal de nuestro lado. Intenta de nuevo en un momento.";
+
+/**
+ * Un solo texto para cualquier credencial que no entra, y ningún campo
+ * marcado en rojo: si el correo mal escrito diera un error distinto al de la
+ * contraseña equivocada, la pantalla estaría diciendo qué correos existen en
+ * la base. Por eso el 400 (el correo no tiene forma de correo) y el 401 (no
+ * coinciden) comparten mensaje — a quien de verdad se equivocó tecleando le
+ * sirve igual, y a quien tantea cuentas no le sirve de nada.
+ */
+const CREDENTIALS_ERROR = "Correo o contraseña incorrectos.";
+
+function credentialsErrorMessage(error: unknown): string {
+  if (!(error instanceof ApiRequestError)) return NETWORK_ERROR;
+  if (error.status === 400 || error.status === 401) return CREDENTIALS_ERROR;
+  if (error.status >= 500) return UNEXPECTED_ERROR;
+  // 403 (falta verificar el correo) y 429 (demasiados intentos) ya llegan con
+  // un texto que le dice a la persona qué hacer — se muestran tal cual.
+  return error.message;
+}
+
+function twoFactorErrorMessage(error: unknown): string {
+  if (!(error instanceof ApiRequestError)) return NETWORK_ERROR;
+  if (error.status === 400) return "El código debe tener 6 dígitos.";
+  if (error.status >= 500) return UNEXPECTED_ERROR;
+  return error.message;
+}
+
+/**
+ * Error que abarca al formulario entero (credenciales malas, 2FA inválido).
+ * Mismo tratamiento que el error de campo de `Input` — ícono `WarningCircle`
+ * de 16px en `destructive-action` (DESIGN.md §5) — y `role="alert"` para que
+ * un lector de pantalla lo anuncie al aparecer, ya que nada mueve el foco.
+ */
+function FormError({ message }: { message: string }) {
+  return (
+    <p role="alert" className="flex items-start gap-1.5 text-body-sm text-destructive-action">
+      <WarningCircle size={16} weight="regular" className="mt-0.5 shrink-0" aria-hidden="true" />
+      {message}
+    </p>
+  );
 }
 
 /**
@@ -45,7 +90,7 @@ function LoginForm() {
       router.replace("/");
       router.refresh();
     } catch (error) {
-      setFormError(error instanceof ApiRequestError ? error.message : "Ocurrió un error inesperado.");
+      setFormError(credentialsErrorMessage(error));
     } finally {
       setSubmitting(false);
     }
@@ -64,7 +109,7 @@ function LoginForm() {
       router.replace("/");
       router.refresh();
     } catch (error) {
-      setFormError(error instanceof ApiRequestError ? error.message : "Ocurrió un error inesperado.");
+      setFormError(twoFactorErrorMessage(error));
     } finally {
       setSubmitting(false);
     }
@@ -79,10 +124,11 @@ function LoginForm() {
 
       {step === "credentials" ? (
         <form onSubmit={handleCredentialsSubmit} className="flex flex-col gap-5" noValidate>
-          <h2 className="text-section-title text-foreground">Iniciar sesión</h2>
+          <h2 className="text-section-title text-center text-foreground">Iniciar sesión</h2>
           <Input
             label="Correo"
             type="email"
+            placeholder="nombre@esenciaglow.com"
             autoComplete="username"
             required
             value={email}
@@ -91,24 +137,28 @@ function LoginForm() {
           <Input
             label="Contraseña"
             type="password"
+            placeholder="Tu contraseña"
             autoComplete="current-password"
             required
             value={password}
             onChange={(event) => setPassword(event.target.value)}
           />
-          {formError ? <p className="text-body-sm text-destructive-action">{formError}</p> : null}
-          <Button type="submit" loading={submitting} className="w-full">
+          {formError ? <FormError message={formError} /> : null}
+          <Button type="submit" loading={submitting} className="w-full cursor-pointer">
             Entrar
           </Button>
         </form>
       ) : (
         <form onSubmit={handleTwoFactorSubmit} className="flex flex-col gap-5" noValidate>
-          <h2 className="text-section-title text-foreground">Verificación en dos pasos</h2>
-          <p className="text-body-sm text-muted-foreground-strong">
+          <h2 className="text-section-title text-center text-foreground">
+            Verificación en dos pasos
+          </h2>
+          <p className="text-center text-body-sm text-muted-foreground-strong">
             Ingresa el código de 6 dígitos de tu app de autenticación.
           </p>
           <Input
             label="Código"
+            placeholder="123456"
             inputMode="numeric"
             autoComplete="one-time-code"
             maxLength={6}
@@ -116,7 +166,7 @@ function LoginForm() {
             value={code}
             onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))}
           />
-          {formError ? <p className="text-body-sm text-destructive-action">{formError}</p> : null}
+          {formError ? <FormError message={formError} /> : null}
           <Button type="submit" loading={submitting} className="w-full">
             Verificar
           </Button>

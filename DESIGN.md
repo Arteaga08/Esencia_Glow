@@ -187,13 +187,14 @@ los únicos acentos — sobre superficies casi blancas con un dejo cálido. Ning
 aparece salvo por los cuatro roles documentados abajo.
 
 ### Primary
-- **Rosa Bitácora** (`oklch(0.8502 0.0851 6.1876)`, ≈ `#ffb7c5`): superficie suave — fondo de un
-  chip de estado "activo", resaltado de fila seleccionada, fondo del ítem de navegación activo.
-  Nunca lleva texto blanco encima (falla WCAG con 1.64:1 — ver Regla del Listón). Con texto tinta
-  (`foreground`) encima da 5.69:1, AA limpio.
+- **Rosa Bitácora** (`oklch(0.8502 0.0851 6.1876)`, ≈ `#ffb7c5`): superficie suave — **fondo del
+  botón primario**, chip de estado "activo", resaltado de fila seleccionada, fondo del ítem de
+  navegación activo. Nunca lleva texto blanco encima (falla WCAG con 1.64:1 — ver Regla del Listón).
+  Con texto tinta (`foreground`) encima da 5.69:1, AA limpio, y así es como se usa siempre.
 - **Rosa Acción** (`oklch(0.56 0.0851 6.1876)`, ≈ `#9f5f6d`, token derivado `primary-action`):
-  superficie sólida — fondo de botón primario, anillo de foco. Con texto blanco da 4.87:1 (AA) y
-  contra el fondo de página da 4.68:1, suficiente para ser un anillo de foco visible.
+  el rosa llevado a fuerza de trazo — anillo de foco, borde de input enfocado, texto de énfasis
+  sobre fondo claro. Contra el fondo de página da 4.68:1, suficiente para leerse como anillo y como
+  borde. No es fondo de botón: ese lugar es del Rosa Bitácora con tinta.
 
 ### Secondary
 - **Menta** (`oklch(0.8747 0.0544 172.6283)`, ≈ `#b2e2d2`): reservado para el estado "pagado" /
@@ -311,10 +312,14 @@ hover es un cambio de color, no una elevación — ver Components → Buttons.
 ### Buttons
 - **Forma:** esquinas suavizadas (`rounded.md`, 8px); nunca el `rounded.full` de 999px salvo en
   badges y avatares.
-- **Primario:** fondo `primary-action` (`#9f5f6d`), texto blanco, padding `10px 16px`, tipografía
-  Cuerpo (Schibsted 400, 14px). *Hover:* fondo un paso más oscuro
-  (`oklch(0.51 0.0851 6.1876)`). *Focus-visible:* anillo de 2px en `ring` (`primary-action`) con
-  2px de offset — nunca `outline: none` sin reemplazo. *Active:* fondo un paso más oscuro que hover,
+- **Primario:** fondo `primary` (Rosa Bitácora, `#ffb7c5`), texto **tinta** (`foreground`, 5.69:1,
+  AA limpio), padding `10px 16px`, tipografía Cuerpo (Schibsted 400, 14px). El rosa suave es el que
+  identifica a la marca, así que es él —no su derivado oscuro— el que ocupa la acción primaria; lo
+  único prohibido es vestirlo de texto blanco (1.64:1, ilegible), que es justo como venía del tema
+  original. *Hover:* rosa un paso más oscuro (`oklch(0.82 0.0851 6.1876)`, tinta a 5.15:1).
+  *Focus-visible:* anillo de 2px en `ring` (`primary-action`) con
+  2px de offset — nunca `outline: none` sin reemplazo. *Active:* `oklch(0.79 0.0851 6.1876)` (tinta
+  a 4.64:1, el paso más oscuro que conserva margen sobre el 4.5:1 de AA),
   sin desplazamiento de layout (nunca `transform: scale` que mueva el contenido vecino). *Loading:*
   el label se reemplaza por un spinner de 16px en el mismo tono de texto, el botón mantiene su
   ancho (se fija con `min-width` calculado en reposo) para que el layout no salte, y queda

@@ -29,31 +29,45 @@ function SilentRefreshGate({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [state, setState] = useState<"checking" | "show-login">("checking");
   const attempted = useRef(false);
+  // Compartido entre invocaciones del efecto (a diferencia de un `let`
+  // local): el doble monta/desmonta/monta de Strict Mode en desarrollo deja
+  // el cleanup del primer montaje marcando esto en `true` justo antes de que
+  // el segundo montaje lo reponga en `false` — así la promesa lanzada en el
+  // primer montaje (la única que en verdad corre, ver `attempted` abajo)
+  // sigue pudiendo actualizar estado cuando responde. Antes esto era un
+  // `let cancelled` por invocación del efecto: como la segunda invocación
+  // hacía `return` temprano por `attempted.current`, nunca creaba su propio
+  // `cancelled`, y el de la primera invocación quedaba en `true` para
+  // siempre — el estado nunca salía de "checking" (pantalla del login
+  // atascada en los skeletons).
+  const cancelledRef = useRef(false);
 
   useEffect(() => {
+    cancelledRef.current = false;
+
     // Evita el doble intento del Strict Mode de React en desarrollo
     // (monta/desmonta/monta el efecto) — un refresh_token es de un solo uso,
     // un segundo intento con el mismo token revocaría toda la sesión
     // (rotateSession, apps/api/src/services/session.service.ts).
-    if (attempted.current) return;
-    attempted.current = true;
+    if (!attempted.current) {
+      attempted.current = true;
 
-    let cancelled = false;
-    apiRequest("/api/v1/auth/refresh", { method: "POST", authenticated: true })
-      .then(() => {
-        if (cancelled) return;
-        router.replace("/");
-        router.refresh();
-      })
-      .catch(() => {
-        // Sin refresh_token, o ya expiró: no hay nada que refrescar — se
-        // muestra el login normal, sin mensaje de error (no fue un intento
-        // fallido del operador, fue esta comprobación silenciosa).
-        if (!cancelled) setState("show-login");
-      });
+      apiRequest("/api/v1/auth/refresh", { method: "POST", authenticated: true })
+        .then(() => {
+          if (cancelledRef.current) return;
+          router.replace("/");
+          router.refresh();
+        })
+        .catch(() => {
+          // Sin refresh_token, o ya expiró: no hay nada que refrescar — se
+          // muestra el login normal, sin mensaje de error (no fue un intento
+          // fallido del operador, fue esta comprobación silenciosa).
+          if (!cancelledRef.current) setState("show-login");
+        });
+    }
 
     return () => {
-      cancelled = true;
+      cancelledRef.current = true;
     };
   }, [router]);
 
