@@ -11,8 +11,10 @@ import { ProductBaseFields, type ProductBaseFieldsValue } from "@/components/pro
 import { VariantRow } from "@/components/products/variant-row";
 import { emptyVariantDraft, type VariantDraft } from "@/components/products/variant-fields";
 import { ContentBlockEditor, type ContentItem } from "@/components/products/content-block-editor";
+import { PendingImagePicker } from "@/components/products/pending-image-picker";
 import { pesosInputToCents } from "@/lib/format-money";
 import { scopeErrors } from "@/lib/field-errors";
+import { suggestSku } from "@/lib/sku-suggestion";
 import type { AdminProduct } from "@/lib/types/admin-catalog";
 
 interface ContentState {
@@ -25,10 +27,12 @@ interface ContentState {
 /**
  * Alta de producto — el editor completo (Milestone 2.2.1, Fase 4): el
  * producto es un cascarón, las variantes llevan el precio/SKU/stock real.
- * Fotos y ajuste fino de existencias quedan para después de crear (las
- * subrutas de imágenes necesitan un `productId` que todavía no existe —
- * ver la nota en `image-manager.tsx`); al guardar se redirige al editor de
- * edición, donde sí están disponibles.
+ * Las fotos se ELIGEN aquí mismo (`PendingImagePicker`, solo en el
+ * navegador) y se SUBEN de verdad justo después de que el POST de creación
+ * responde con un `id` real — la subruta de imágenes no existe hasta
+ * entonces. El ajuste fino de existencias sí queda para después de crear
+ * (necesita el inventario, Milestone 1.4, que resuelve por variante ya
+ * persistida); por eso se redirige al editor de edición al terminar.
  */
 export default function NewProductPage() {
   const router = useRouter();
@@ -50,11 +54,35 @@ export default function NewProductPage() {
     usage: [],
     benefits: [],
   });
+  const [pendingImages, setPendingImages] = useState<File[]>([]);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
   function updateVariant(tempId: string, patch: Partial<VariantDraft>) {
-    setVariants((current) => current.map((v) => (v.tempId === tempId ? { ...v, ...patch } : v)));
+    setVariants((current) =>
+      current.map((v) => {
+        if (v.tempId !== tempId) return v;
+        const next = { ...v, ...patch };
+        // El nombre de la variante cambió y nadie tocó el SKU a mano todavía:
+        // se regenera la sugerencia contra el nombre del producto vigente.
+        if (!next.skuTouched && patch.name !== undefined) {
+          next.sku = suggestSku(base.name, next.name);
+        }
+        return next;
+      }),
+    );
+  }
+
+  /** El nombre del PRODUCTO cambió: recalcula el SKU sugerido de toda
+   * variante que el operador todavía no haya tocado a mano. */
+  function handleBaseChange(patch: Partial<ProductBaseFieldsValue>) {
+    setBase((c) => ({ ...c, ...patch }));
+    if (patch.name !== undefined) {
+      const nextName = patch.name;
+      setVariants((current) =>
+        current.map((v) => (v.skuTouched ? v : { ...v, sku: suggestSku(nextName, v.name) })),
+      );
+    }
   }
 
   function removeVariant(tempId: string) {
@@ -114,6 +142,29 @@ export default function NewProductPage() {
         },
       });
       toast({ variant: "success", title: "Producto creado", description: response.data.name });
+
+      // El producto ya tiene id: recién ahora existe la subruta de fotos.
+      // Un fallo aquí no deshace la creación — el producto es válido sin
+      // fotos, y el operador puede agregarlas en la edición.
+      if (pendingImages.length > 0) {
+        try {
+          const formData = new FormData();
+          for (const file of pendingImages) formData.append("images", file);
+          await apiRequest(`/api/v1/admin/products/${response.data.id}/images`, {
+            method: "POST",
+            authenticated: true,
+            body: formData,
+          });
+        } catch (imageError) {
+          toast({
+            variant: "error",
+            title: "El producto se creó, pero las fotos no se pudieron subir",
+            description:
+              imageError instanceof ApiRequestError ? imageError.message : "Agrégalas desde la edición.",
+          });
+        }
+      }
+
       router.push(`/products/${response.data.id}`);
     } catch (error) {
       if (error instanceof ApiRequestError && error.fieldErrors) {
@@ -132,7 +183,7 @@ export default function NewProductPage() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex max-w-4xl flex-col gap-6">
+    <form onSubmit={handleSubmit} className="flex max-w-6xl flex-col gap-6">
       <div className="flex items-center justify-between">
         <p className="text-body text-muted-foreground-strong">Nuevo producto</p>
         <Button type="submit" variant="primary" loading={submitting}>
@@ -141,7 +192,7 @@ export default function NewProductPage() {
       </div>
 
       <Card>
-        <ProductBaseFields value={base} onChange={(patch) => setBase((c) => ({ ...c, ...patch }))} errors={fieldErrors} />
+        <ProductBaseFields value={base} onChange={handleBaseChange} errors={fieldErrors} />
       </Card>
 
       <Card>
@@ -158,6 +209,7 @@ export default function NewProductPage() {
           {variants.map((draft, index) => (
             <VariantRow
               key={draft.tempId}
+              index={index}
               draft={draft}
               onChange={(patch) => updateVariant(draft.tempId, patch)}
               onRemove={() => removeVariant(draft.tempId)}
@@ -206,6 +258,14 @@ export default function NewProductPage() {
             errors={scopeErrors(fieldErrors, "content.benefits.")}
           />
         </div>
+      </Card>
+
+      <Card>
+        <PendingImagePicker
+          files={pendingImages}
+          onChange={setPendingImages}
+          onRejected={(message) => toast({ variant: "warning", title: "Foto no agregada", description: message })}
+        />
       </Card>
     </form>
   );

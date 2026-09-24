@@ -19,6 +19,7 @@ import { InventoryPanel } from "@/components/products/inventory-panel";
 import { ArchiveProductModal } from "@/components/products/archive-product-modal";
 import { centsToPesosInput, pesosInputToCents } from "@/lib/format-money";
 import { scopeErrors } from "@/lib/field-errors";
+import { suggestSku } from "@/lib/sku-suggestion";
 import type { AdminProduct, AdminProductImage, AdminVariant } from "@/lib/types/admin-catalog";
 
 interface ContentState {
@@ -33,6 +34,9 @@ function variantToDraft(variant: AdminVariant): VariantDraft {
     id: variant.id,
     tempId: variant.id,
     sku: variant.sku,
+    // Ya vive en el servidor con un SKU real — nunca se le pisa con una
+    // sugerencia, aunque el operador cambie el nombre de la variante.
+    skuTouched: true,
     name: variant.name,
     price: centsToPesosInput(variant.price),
     listPrice: variant.listPrice ? centsToPesosInput(variant.listPrice) : "",
@@ -169,7 +173,30 @@ export default function EditProductPage() {
   }
 
   function updateVariant(tempId: string, patch: Partial<VariantDraft>) {
-    setVariants((current) => current.map((v) => (v.tempId === tempId ? { ...v, ...patch } : v)));
+    setVariants((current) =>
+      current.map((v) => {
+        if (v.tempId !== tempId) return v;
+        const next = { ...v, ...patch };
+        if (!next.skuTouched && patch.name !== undefined && base) {
+          next.sku = suggestSku(base.name, next.name);
+        }
+        return next;
+      }),
+    );
+  }
+
+  /** Nombre del producto cambiado: recalcula el SKU sugerido de las
+   * variantes nuevas (sin `id`) que el operador no haya tocado a mano —
+   * las ya existentes siempre nacen con `skuTouched: true`, así que esto
+   * nunca les pisa un SKU real. */
+  function handleBaseChange(patch: Partial<ProductBaseFieldsValue>) {
+    setBase((c) => c && { ...c, ...patch });
+    if (patch.name !== undefined) {
+      const nextName = patch.name;
+      setVariants((current) =>
+        current.map((v) => (v.skuTouched ? v : { ...v, sku: suggestSku(nextName, v.name) })),
+      );
+    }
   }
 
   function addVariant() {
@@ -280,7 +307,7 @@ export default function EditProductPage() {
 
   if (!product || !base || !content) {
     return (
-      <div className="flex max-w-4xl flex-col gap-6">
+      <div className="flex max-w-6xl flex-col gap-6">
         <Skeleton className="h-10 w-full" />
         <Skeleton className="h-64 w-full" />
         <Skeleton className="h-48 w-full" />
@@ -289,7 +316,7 @@ export default function EditProductPage() {
   }
 
   return (
-    <div className="flex max-w-4xl flex-col gap-6">
+    <div className="flex max-w-6xl flex-col gap-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <p className="text-body text-muted-foreground-strong">Editando: {product.name}</p>
@@ -311,7 +338,7 @@ export default function EditProductPage() {
 
       <form onSubmit={handleSaveBase} className="flex flex-col gap-6">
         <Card>
-          <ProductBaseFields value={base} onChange={(patch) => setBase((c) => c && { ...c, ...patch })} errors={baseErrors} />
+          <ProductBaseFields value={base} onChange={handleBaseChange} errors={baseErrors} />
         </Card>
 
         <Card>
@@ -359,10 +386,6 @@ export default function EditProductPage() {
       </form>
 
       <Card>
-        <ImageManager productId={product.id} images={images} onChange={setImages} />
-      </Card>
-
-      <Card>
         <div className="mb-3 flex items-center justify-between">
           <p className="font-mono text-label uppercase tracking-[0.06em] text-muted-foreground-strong">
             Variantes
@@ -373,9 +396,10 @@ export default function EditProductPage() {
           </Button>
         </div>
         <div className="flex flex-col gap-3">
-          {variants.map((draft) => (
+          {variants.map((draft, index) => (
             <VariantRow
               key={draft.tempId}
+              index={index}
               draft={draft}
               onChange={(patch) => updateVariant(draft.tempId, patch)}
               onRemove={() => removeVariant(draft)}
@@ -390,6 +414,10 @@ export default function EditProductPage() {
 
       <Card>
         <InventoryPanel productId={product.id} />
+      </Card>
+
+      <Card>
+        <ImageManager productId={product.id} images={images} onChange={setImages} />
       </Card>
 
       <ArchiveProductModal

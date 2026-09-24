@@ -8,6 +8,14 @@ interface VariantDraft {
   id?: string;
   tempId: string;
   sku: string;
+  /** Mientras es `false`, el SKU se regenera solo desde el nombre del
+   * producto + el nombre de esta variante (ver `lib/sku-suggestion.ts`).
+   * En cuanto el operador escribe en el campo SKU a mano, pasa a `true` y
+   * deja de tocarse — mismo patrón que el `slug` del producto, pero
+   * editable porque el SKU sí lo es. Una variante que ya vive en el
+   * servidor (tiene `id`) siempre nace en `true`: nunca se le pisa un SKU
+   * real con una sugerencia. */
+  skuTouched: boolean;
   name: string;
   price: string;
   listPrice: string;
@@ -26,6 +34,7 @@ function emptyVariantDraft(tempId: string): VariantDraft {
   return {
     tempId,
     sku: "",
+    skuTouched: false,
     name: "",
     price: "",
     listPrice: "",
