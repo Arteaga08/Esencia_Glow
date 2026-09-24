@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import type { VariantDraft } from "./variant-fields";
 
 interface VariantRowProps {
+  /** 1-based — solo para el rótulo "Variante N", nunca viaja a la API. */
+  index: number;
   draft: VariantDraft;
   onChange: (patch: Partial<VariantDraft>) => void;
   onRemove: () => void;
@@ -29,6 +31,7 @@ interface VariantRowProps {
  * quién decide cuándo se manda a la API.
  */
 function VariantRow({
+  index,
   draft,
   onChange,
   onRemove,
@@ -39,12 +42,15 @@ function VariantRow({
 }: VariantRowProps) {
   return (
     <div className="rounded-md border border-border bg-surface p-3">
+      <p className="mb-2 font-mono text-label uppercase tracking-[0.06em] text-muted-foreground-strong">
+        Variante {index + 1}
+      </p>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         <Input
           label="SKU"
           placeholder="SERUM-NIA-30ML"
           value={draft.sku}
-          onChange={(e) => onChange({ sku: e.target.value.toUpperCase() })}
+          onChange={(e) => onChange({ sku: e.target.value.toUpperCase(), skuTouched: true })}
           error={errors?.sku}
         />
         <Input
@@ -64,7 +70,7 @@ function VariantRow({
           error={errors?.price}
         />
         <Input
-          label="Precio anterior (opcional)"
+          label="Precio anterior"
           type="number"
           step="0.01"
           placeholder="450.00"

@@ -1,11 +1,12 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { ArrowDown, ArrowUp, Trash, UploadSimple } from "@phosphor-icons/react";
+import { ArrowDown, ArrowUp, Image as ImageIcon, Trash } from "@phosphor-icons/react";
 import { apiRequest, ApiRequestError } from "@/lib/api";
 import { useToast } from "@/components/ui/toast";
-import { Button } from "@/components/ui/button";
 import type { AdminProduct, AdminProductImage } from "@/lib/types/admin-catalog";
+
+const MAX_IMAGES = 8;
 
 interface ImageManagerProps {
   productId: string;
@@ -23,6 +24,7 @@ interface ImageManagerProps {
 function ImageManager({ productId, images, onChange }: ImageManagerProps) {
   const { toast } = useToast();
   const [uploading, setUploading] = useState(false);
+  const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   async function handleFilesSelected(fileList: FileList | null) {
@@ -96,36 +98,52 @@ function ImageManager({ productId, images, onChange }: ImageManagerProps) {
 
   return (
     <div>
-      <div className="mb-2 flex items-center justify-between">
-        <p className="font-mono text-label uppercase tracking-[0.06em] text-muted-foreground-strong">
-          Fotos
+      <p className="mb-2 font-mono text-label uppercase tracking-[0.06em] text-muted-foreground-strong">
+        Fotos
+      </p>
+
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragging(false);
+          handleFilesSelected(e.dataTransfer.files);
+        }}
+        disabled={images.length >= MAX_IMAGES || uploading}
+        className={
+          "flex min-h-44 w-full flex-col items-center justify-center gap-2 rounded-md border-2 " +
+          "border-dashed text-center transition-colors duration-[var(--duration-fast)] " +
+          (dragging
+            ? "border-primary-action bg-muted/60"
+            : "border-border-strong bg-muted/30 hover:bg-muted/50") +
+          " disabled:cursor-not-allowed disabled:opacity-50"
+        }
+      >
+        <ImageIcon size={32} weight="regular" className="text-muted-foreground-strong" aria-hidden="true" />
+        <p className="text-body text-foreground">
+          {uploading ? "Subiendo…" : "Arrastra imágenes o haz clic para agregar"}
         </p>
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          onClick={() => inputRef.current?.click()}
-          loading={uploading}
-          disabled={images.length >= 8}
-        >
-          <UploadSimple size={14} aria-hidden="true" />
-          Subir
-        </Button>
-        <input
-          ref={inputRef}
-          type="file"
-          accept="image/jpeg,image/png,image/webp"
-          multiple
-          hidden
-          onChange={(e) => handleFilesSelected(e.target.files)}
-        />
-      </div>
-      {images.length === 0 ? (
         <p className="text-body-sm text-muted-foreground">
-          Sin fotos todavía. Hasta 8, JPG/PNG/WEBP, 5 MB cada una.
+          Hasta {MAX_IMAGES} fotos, JPG/PNG/WEBP, 5 MB cada una.
         </p>
-      ) : (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      </button>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        multiple
+        hidden
+        onChange={(e) => handleFilesSelected(e.target.files)}
+      />
+
+      {images.length > 0 ? (
+        <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
           {images.map((image, index) => (
             <div key={image.id} className="overflow-hidden rounded-md border border-border bg-surface">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -163,7 +181,7 @@ function ImageManager({ productId, images, onChange }: ImageManagerProps) {
             </div>
           ))}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
