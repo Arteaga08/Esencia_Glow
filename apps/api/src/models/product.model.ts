@@ -2,6 +2,7 @@ import { Schema, model, type HydratedDocument, type Model, type Types } from "mo
 import { ProductChannel, ProductStatus } from "@esencia-glow/shared";
 import { mediaImageSchema, type MediaImageAttrs } from "./media-image.schema.js";
 import { productVariantSchema, type ProductVariantAttrs } from "./product-variant.schema.js";
+import { productContentSchema, type ProductContentAttrs } from "./product-content.schema.js";
 
 /**
  * Producto con variantes embebidas. `minPrice` es un campo DERIVADO (precio
@@ -39,6 +40,11 @@ interface ProductAttrs {
   images: Types.DocumentArray<MediaImageAttrs>;
   variants: Types.DocumentArray<ProductVariantAttrs>;
   minPrice: number;
+  // Ingredientes/pasos de rutina/modo de uso/beneficios (Milestone 2.2.1).
+  // Opcional a nivel de documento: sin él, `content` no aparece en absoluto
+  // (mismo criterio `minimize` que `attributes` de variante) — no confundir
+  // "sin contenido capturado" con "los cuatro bloques vacíos".
+  content?: ProductContentAttrs;
 }
 
 type ProductDocument = HydratedDocument<ProductAttrs>;
@@ -71,6 +77,7 @@ const productSchema = new Schema<ProductAttrs, ProductModel>(
     images: { type: [mediaImageSchema], default: [] },
     variants: { type: [productVariantSchema], default: [] },
     minPrice: { type: Number, default: 0, min: 0 },
+    content: { type: productContentSchema },
   },
   { timestamps: true },
 );

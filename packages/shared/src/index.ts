@@ -90,6 +90,8 @@ export type {
   PublicDimensionsCm,
   PublicProductVariant,
   PublicProductCategoryRef,
+  ProductContentItem,
+  ProductContent,
   PublicProduct,
   PublicCategory,
   PublicCategoryNode,

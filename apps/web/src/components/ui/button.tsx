@@ -41,6 +41,24 @@ const SIZE_CLASSES: Record<ButtonSize, string> = {
   md: "text-body px-4 py-2.5",
 };
 
+/**
+ * Mismas clases visuales del `<button>` de abajo, para un `<Link>` que debe
+ * VERSE como botón (ej. "Nuevo producto" que navega a `/products/new`) sin
+ * volverse uno de verdad — un link de navegación real es mejor accesibilidad
+ * (abrir en pestaña nueva, clic derecho) que un botón con `onClick` +
+ * `router.push`. No incluye el `<span>` interno de loading/ícono: quien la
+ * use no tiene ese estado.
+ */
+function getButtonClassName(variant: ButtonVariant = "primary", size: ButtonSize = "md", className = ""): string {
+  return (
+    "inline-flex items-center justify-center gap-2 rounded-md " +
+    "font-sans transition-colors duration-[var(--duration-fast)] ease-out-quart " +
+    "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 " +
+    "focus-visible:outline-ring " +
+    `${VARIANT_CLASSES[variant]} ${SIZE_CLASSES[size]} ${className}`
+  );
+}
+
 function Spinner() {
   return (
     <svg
@@ -82,8 +100,15 @@ function Button({
       }
     >
       {/* El label queda invisible (no `hidden`) para conservar el ancho del
-          botón en reposo — evita el salto de layout que prohíbe DESIGN.md §5. */}
-      <span className={loading ? "invisible" : ""}>{children}</span>
+          botón en reposo — evita el salto de layout que prohíbe DESIGN.md §5.
+          `inline-flex items-center gap-2`: el reset de Tailwind pone
+          `svg { display: block }`, así que sin flex propio un ícono hijo
+          (ej. `<Plus />` antes del texto) se apila ARRIBA del texto en vez
+          de ir a su izquierda — este span es lo único entre el botón y sus
+          hijos, así que el flex tiene que vivir aquí. */}
+      <span className={"inline-flex items-center gap-2 " + (loading ? "invisible" : "")}>
+        {children}
+      </span>
       {loading ? (
         <span className="absolute inset-0 flex items-center justify-center">
           <Spinner />
@@ -94,4 +119,4 @@ function Button({
 }
 
 export type { ButtonProps, ButtonVariant, ButtonSize };
-export { Button };
+export { Button, getButtonClassName };

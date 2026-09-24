@@ -43,9 +43,24 @@ function applyVariantFields(variant: ProductVariantAttrs, input: Partial<Product
     variant.attributes = { ...variant.attributes, ...input.attributes };
   }
   if (input.price !== undefined) variant.price = input.price;
+  if (input.listPrice !== undefined) variant.listPrice = input.listPrice;
   if (input.weightGrams !== undefined) variant.weightGrams = input.weightGrams;
   if (input.dimensionsCm !== undefined) variant.dimensionsCm = input.dimensionsCm;
   if (input.isActive !== undefined) variant.isActive = input.isActive;
+}
+
+/**
+ * Joi solo puede comparar `price`/`listPrice` cuando AMBOS llegan en el mismo
+ * payload (product.validator.ts) — un `PATCH` que solo trae uno de los dos
+ * deja al otro con su valor vigente, que Joi nunca ve. Esta es la guarda que
+ * sí conoce el documento completo después de aplicar el patch.
+ */
+function assertListPriceAboveSalePrice(variant: ProductVariantAttrs): void {
+  if (variant.listPrice != null && variant.listPrice <= variant.price) {
+    throw new AppError("El precio anterior debe ser mayor al precio actual", 400, {
+      listPrice: "El precio anterior debe ser mayor al precio actual",
+    });
+  }
 }
 
 /**
@@ -61,6 +76,11 @@ async function addVariant(
 ): Promise<ProductDocument> {
   const product = await getProductOrThrow(productId);
   assertNoDuplicateSkuInDocument(product, input.sku);
+  if (input.listPrice != null && input.listPrice <= input.price) {
+    throw new AppError("El precio anterior debe ser mayor al precio actual", 400, {
+      listPrice: "El precio anterior debe ser mayor al precio actual",
+    });
+  }
 
   product.variants.push(input);
   await product.save();
@@ -85,6 +105,7 @@ async function updateVariant(
     if (!variant) throw new AppError("Variante no encontrada", 404);
 
     applyVariantFields(variant, input);
+    assertListPriceAboveSalePrice(variant);
     await product.save();
     return product;
   }
@@ -96,6 +117,7 @@ async function updateVariant(
 
     assertNoDuplicateSkuInDocument(product, input.sku!, variantId);
     applyVariantFields(variant, input);
+    assertListPriceAboveSalePrice(variant);
     await product.save({ session });
 
     await Inventory.updateOne({ variantId }, { $set: { sku: variant.sku } }, { session });
