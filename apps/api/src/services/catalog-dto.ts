@@ -10,8 +10,10 @@ import {
   type PublicProductImage,
   type PublicProductVariant,
   type ProductAttributes,
+  type ProductContent,
 } from "@esencia-glow/shared";
 import type { MediaImageAttrs } from "../models/media-image.schema.js";
+import type { ProductContentAttrs } from "../models/product-content.schema.js";
 import type {
   DimensionsCmAttrs,
   ProductVariantAttrs,
@@ -151,6 +153,7 @@ interface LeanProduct {
   images: LeanMediaImage[];
   variants: LeanVariant[];
   minPrice: number;
+  content?: ProductContentAttrs;
 }
 
 interface AdminVariant extends PublicProductVariant {
@@ -170,6 +173,20 @@ interface AdminProduct {
   images: PublicProductImage[];
   variants: AdminVariant[];
   minPrice: number;
+  content?: ProductContent;
+}
+
+/** Un bloque vacío ([]) se omite del DTO — igual criterio que `shortDescription`
+ * ausente: "sin contenido capturado" no se distingue de "un array vacío" en
+ * la UI, así que no tiene sentido mandarlo. */
+function buildContentDto(content?: ProductContentAttrs): ProductContent | undefined {
+  if (!content) return undefined;
+  const dto: ProductContent = {};
+  if (content.ingredients?.length) dto.ingredients = content.ingredients;
+  if (content.routineSteps?.length) dto.routineSteps = content.routineSteps;
+  if (content.usage?.length) dto.usage = content.usage;
+  if (content.benefits?.length) dto.benefits = content.benefits;
+  return Object.keys(dto).length > 0 ? dto : undefined;
 }
 
 // Mongoose (`minimize: true` por defecto) omite un subdocumento embebido que
@@ -191,6 +208,7 @@ function buildAdminVariant(variant: LeanVariant): AdminVariant {
     name: variant.name,
     attributes: buildAttributesDto(variant.attributes),
     price: variant.price,
+    listPrice: variant.listPrice ?? null,
     weightGrams: variant.weightGrams,
     dimensionsCm: variant.dimensionsCm,
     isActive: variant.isActive,
@@ -204,6 +222,7 @@ function buildPublicVariant(variant: LeanVariant): PublicProductVariant {
     name: variant.name,
     attributes: buildAttributesDto(variant.attributes),
     price: variant.price,
+    ...(variant.listPrice != null ? { listPrice: variant.listPrice } : {}),
     weightGrams: variant.weightGrams,
     dimensionsCm: variant.dimensionsCm,
   };
@@ -223,6 +242,7 @@ function buildAdminProduct(product: LeanProduct): AdminProduct {
     images: product.images.map((image) => buildImageDto(image)!),
     variants: product.variants.map(buildAdminVariant),
     minPrice: product.minPrice,
+    ...(buildContentDto(product.content) ? { content: buildContentDto(product.content) } : {}),
   };
 }
 
@@ -247,6 +267,7 @@ function buildPublicProduct(
     minPrice: product.minPrice,
     currency: CATALOG_CURRENCY,
     ...(badge ? { badge: buildPublicBadge(badge) } : {}),
+    ...(buildContentDto(product.content) ? { content: buildContentDto(product.content) } : {}),
   };
 }
 

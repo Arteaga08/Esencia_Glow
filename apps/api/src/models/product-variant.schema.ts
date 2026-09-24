@@ -29,6 +29,16 @@ interface ProductVariantAttrs {
   attributes: VariantAttributesAttrs;
   /** Centavos MXN. Entero — ver validator abajo. */
   price: number;
+  /**
+   * Precio de lista (Milestone 2.2.1) — centavos MXN, entero, nullable.
+   * SOLO PRESENTACIÓN: es el precio tachado que muestra el storefront junto
+   * a `price`. Nunca lo usa el checkout ni `order-totals.ts` — lo que se
+   * cobra siempre es `price`. Invariante: cuando está presente, debe ser
+   * mayor que `price` (si no, el "antes" no tiene sentido) — se valida en
+   * Joi cuando ambos llegan juntos, y en el service cuando uno se actualiza
+   * sin el otro (ver assertListPriceAboveSalePrice en product-variant.service.ts).
+   */
+  listPrice: number | null;
   /** Gramos, entero. Cotización de envío (Milestone 1.5). */
   weightGrams: number;
   dimensionsCm: DimensionsCmAttrs;
@@ -74,6 +84,15 @@ const productVariantSchema = new Schema<ProductVariantAttrs>(
       required: true,
       min: 0,
       validate: integerValidator,
+    },
+    listPrice: {
+      type: Number,
+      default: null,
+      min: 0,
+      validate: {
+        validator: (value: number | null) => value === null || Number.isInteger(value),
+        message: "{PATH} debe ser un entero",
+      },
     },
     weightGrams: {
       type: Number,

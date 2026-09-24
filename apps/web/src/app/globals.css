@@ -133,3 +133,26 @@ body {
      cascada para taparse correctamente (DESIGN.md §5, Do's and Don'ts). */
   --surface-bg: var(--color-background);
 }
+
+/*
+ * Tailwind v4 dejó de dar `cursor: pointer` por default a <button> (usa
+ * `cursor: default`, el mismo que un <div>) — sin esto, todo control
+ * clickeable del panel muestra la flecha en vez de la manita
+ * (feedback-cursor-pointer-en-controles, memoria de Manuel). Se corrige acá,
+ * una sola vez, en vez de repetir `cursor-pointer` control por control.
+ */
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]),
+summary,
+label[for] {
+  cursor: pointer;
+}
+
+select:not(:disabled) {
+  cursor: pointer;
+}
+
+button:disabled,
+[role="button"][aria-disabled="true"] {
+  cursor: not-allowed;
+}

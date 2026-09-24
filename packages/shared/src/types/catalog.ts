@@ -38,6 +38,11 @@ interface PublicProductVariant {
   attributes: ProductAttributes;
   /** Centavos de la moneda del catálogo. */
   price: number;
+  /**
+   * Precio de lista, centavos — SOLO presentación (el "antes" tachado).
+   * Nunca es lo que se cobra; ausente/`null` cuando no hay descuento visual.
+   */
+  listPrice?: number | null;
   weightGrams: number;
   dimensionsCm: PublicDimensionsCm;
 }
@@ -46,6 +51,20 @@ interface PublicProductCategoryRef {
   id: string;
   name: string;
   slug: string;
+}
+
+/** Un elemento de contenido editorial: título (en negrita en el storefront) + texto. */
+interface ProductContentItem {
+  title: string;
+  text: string;
+}
+
+/** Ingredientes, pasos de rutina, modo de uso y beneficios — cada uno opcional. */
+interface ProductContent {
+  ingredients?: ProductContentItem[];
+  routineSteps?: ProductContentItem[];
+  usage?: ProductContentItem[];
+  benefits?: ProductContentItem[];
 }
 
 interface PublicProduct {
@@ -62,6 +81,7 @@ interface PublicProduct {
   currency: Currency;
   /** A lo más una por producto (Product.badgeId). Ausente si no tiene. */
   badge?: PublicBadge;
+  content?: ProductContent;
 }
 
 interface PublicCategory {
@@ -94,6 +114,8 @@ export type {
   PublicDimensionsCm,
   PublicProductVariant,
   PublicProductCategoryRef,
+  ProductContentItem,
+  ProductContent,
   PublicProduct,
   PublicCategory,
   PublicCategoryNode,

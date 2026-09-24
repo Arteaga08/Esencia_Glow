@@ -18,10 +18,31 @@ class ApiRequestError extends Error {
   }
 }
 
+/** Valores de query aceptados por `apiRequest`/`buildQueryString` — `undefined`
+ * y `""` se omiten (no mandar `?page=` vacío), no hay forma de mandar arrays. */
+type QueryValue = string | number | boolean | undefined;
+type QueryParams = Record<string, QueryValue>;
+
+function buildQueryString(query?: QueryParams): string {
+  if (!query) return "";
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) {
+    if (value === undefined || value === "") continue;
+    params.set(key, String(value));
+  }
+  const qs = params.toString();
+  return qs ? `?${qs}` : "";
+}
+
 interface ApiRequestOptions extends Omit<RequestInit, "body"> {
-  body?: unknown;
+  /** `FormData` (subida de imágenes) viaja tal cual, sin `Content-Type` a
+   * mano — el navegador arma el boundary del multipart. Cualquier otro valor
+   * se serializa a JSON. */
+  body?: unknown | FormData;
   /** `credentials: "include"` solo en llamadas que de verdad requieren cookies. */
   authenticated?: boolean;
+  /** Query params tipados — se agregan al path, nunca al body. */
+  query?: QueryParams;
 }
 
 /**
@@ -29,18 +50,19 @@ interface ApiRequestOptions extends Omit<RequestInit, "body"> {
  * arma `sendResponse` (apps/api/src/utils/send-response.ts). Nunca se
  * redefine el DTO aquí — los tipos vienen de `@esencia-glow/shared`.
  */
-async function apiRequest<TData>(
+async function apiRequest<TData, TMeta = never>(
   path: string,
-  { authenticated = false, body, headers, ...init }: ApiRequestOptions = {},
-): Promise<ApiSuccessResponse<TData>> {
-  const response = await fetch(`${API_URL}${path}`, {
+  { authenticated = false, body, query, headers, ...init }: ApiRequestOptions = {},
+): Promise<ApiSuccessResponse<TData, TMeta extends never ? never : TMeta>> {
+  const isFormData = body instanceof FormData;
+  const response = await fetch(`${API_URL}${path}${buildQueryString(query)}`, {
     ...init,
     ...(authenticated ? { credentials: "include" } : {}),
     headers: {
-      ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
+      ...(body !== undefined && !isFormData ? { "Content-Type": "application/json" } : {}),
       ...headers,
     },
-    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+    ...(body !== undefined ? { body: isFormData ? body : JSON.stringify(body) } : {}),
   });
 
   const payload = (await response.json().catch(() => null)) as ApiResponse<TData> | null;
@@ -53,7 +75,10 @@ async function apiRequest<TData>(
     throw new ApiRequestError(response.status, (payload as ApiErrorResponse) ?? fallback);
   }
 
-  return payload;
+  // El cast es seguro: `payload.status === "success"` ya lo redujo a
+  // `ApiSuccessResponse<TData>`, solo falta anotar el tipo de `meta`.
+  return payload as ApiSuccessResponse<TData, TMeta extends never ? never : TMeta>;
 }
 
-export { apiRequest, ApiRequestError };
+export { apiRequest, buildQueryString, ApiRequestError };
+export type { QueryParams, QueryValue };

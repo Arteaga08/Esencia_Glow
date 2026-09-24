@@ -6,6 +6,7 @@ import { Badge } from "../models/badge.model.js";
 import { Bundle } from "../models/bundle.model.js";
 import { SubscriptionEdition } from "../models/subscription-edition.model.js";
 import type { DimensionsCmAttrs, VariantAttributesAttrs } from "../models/product-variant.schema.js";
+import type { ProductContentAttrs, ProductContentItemAttrs } from "../models/product-content.schema.js";
 import { AppError } from "../utils/app-error.js";
 import { slugify } from "../utils/slugify.js";
 import { buildMeta } from "../utils/parse-list-query.js";
@@ -22,9 +23,19 @@ interface ProductVariantInput {
   name: string;
   attributes?: VariantAttributesAttrs;
   price: number;
+  listPrice?: number | null;
   weightGrams: number;
   dimensionsCm: DimensionsCmAttrs;
   isActive?: boolean;
+}
+
+/** Contenido editorial parcial: cada bloque se reemplaza completo cuando
+ * llega, igual que `Bundle.items` — no hay sub-CRUD por línea. */
+interface ProductContentInput {
+  ingredients?: ProductContentItemAttrs[];
+  routineSteps?: ProductContentItemAttrs[];
+  usage?: ProductContentItemAttrs[];
+  benefits?: ProductContentItemAttrs[];
 }
 
 /**
@@ -44,6 +55,7 @@ interface CreateProductInput {
   categoryId: string;
   badgeId?: string | null;
   channel?: ProductChannel;
+  content?: ProductContentInput;
   variants: CreateProductVariantInput[];
 }
 
@@ -55,6 +67,7 @@ interface UpdateProductInput {
   badgeId?: string | null;
   status?: ProductStatus;
   channel?: ProductChannel;
+  content?: ProductContentInput;
 }
 
 interface ListProductsInput extends ListQuery {
@@ -114,6 +127,7 @@ async function createProduct(input: CreateProductInput): Promise<ProductDocument
       categoryId: input.categoryId,
       badgeId: input.badgeId ?? null,
       channel: input.channel,
+      content: input.content,
       variants,
     });
     await product.save({ session });
@@ -195,6 +209,9 @@ async function updateProduct(id: string, input: UpdateProductInput): Promise<Pro
     await assertChannelChangeAllowed(product, input.channel);
     product.channel = input.channel;
   }
+  if (input.content !== undefined) {
+    product.content = { ...product.content, ...input.content } as ProductContentAttrs;
+  }
 
   await product.save();
   return product;
@@ -251,7 +268,8 @@ export {
 export type {
   CreateProductInput,
   CreateProductVariantInput,
+  ProductVariantInput,
+  ProductContentInput,
   UpdateProductInput,
   ListProductsInput,
-  ProductVariantInput,
 };
