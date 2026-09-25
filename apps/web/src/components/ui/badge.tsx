@@ -35,12 +35,41 @@ const COLOR_CLASSES: Record<BadgeColorValue, string> = {
   info: "bg-muted text-foreground",
 };
 
+/** Mismo orden en todo picker/listado de la paleta fija. */
+const BADGE_COLOR_VALUES: BadgeColorValue[] = [
+  "neutral",
+  "primary",
+  "success",
+  "warning",
+  "danger",
+  "info",
+];
+
+/** Nombre en español de cada valor — solo para UI de administración (el
+ * badge en sí no muestra el nombre del color, solo el color). */
+const BADGE_COLOR_LABELS: Record<BadgeColorValue, string> = {
+  neutral: "Neutro",
+  primary: "Marca",
+  success: "Éxito",
+  warning: "Atención",
+  danger: "Peligro",
+  info: "Información",
+};
+
 function Badge({ children, color = "neutral", className = "" }: BadgeProps) {
   return (
+    // `max-w-full truncate`: el texto de un Badge de catálogo es libre (hasta
+    // 40 caracteres, Milestone 1.4.2) y la pill no tiene ancho propio — sin
+    // esto, un texto largo se sale del espacio real donde se sobrepone (ej.
+    // la foto del producto). El límite de caracteres vive en el backend; el
+    // ancho disponible lo impone quien coloca el Badge (`max-w-[…]` en el
+    // contenedor), este componente solo garantiza que, si no cabe, se corta
+    // con elipsis en vez de desbordar.
     <span
+      title={typeof children === "string" ? children : undefined}
       className={
-        "inline-flex items-center gap-1 rounded-full px-2.5 py-0.75 font-mono text-label " +
-        "uppercase tracking-[0.06em] " +
+        "inline-flex max-w-full items-center gap-1 truncate rounded-full px-2.5 py-0.75 font-mono " +
+        "text-label uppercase tracking-[0.06em] " +
         `${COLOR_CLASSES[color]} ${className}`
       }
     >
@@ -49,5 +78,5 @@ function Badge({ children, color = "neutral", className = "" }: BadgeProps) {
   );
 }
 
-export type { BadgeProps };
-export { Badge };
+export type { BadgeProps, BadgeColorValue };
+export { Badge, COLOR_CLASSES, BADGE_COLOR_VALUES, BADGE_COLOR_LABELS };

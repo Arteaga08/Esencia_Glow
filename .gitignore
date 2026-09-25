@@ -52,6 +52,7 @@ yarn-error.log*
 .mongodb-binaries/
 tmp/
 temp/
+.worktrees/
 
 # --- Editors and OS ----------------------------------------------------------
 .DS_Store
