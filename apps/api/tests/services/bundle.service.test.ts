@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import { BundleStatus, ProductStatus } from "@esencia-glow/shared";
 import { describe, expect, it } from "vitest";
+import { Bundle } from "../../src/models/bundle.model.js";
 import { Category } from "../../src/models/category.model.js";
 import { Inventory } from "../../src/models/inventory.model.js";
 import { Product } from "../../src/models/product.model.js";
@@ -160,6 +161,39 @@ describe("services/bundle — CRUD", () => {
 
       const reloaded = await getBundleById(bundle._id.toString());
       expect(reloaded.status).toBe(BundleStatus.ARCHIVED);
+    });
+  });
+
+  describe("compatibilidad con bundles guardados antes de 2.2.3", () => {
+    it("un bundle sin listPrice/badgeId/content en Mongo se lee bien (defaults del DTO, no de Mongoose)", async () => {
+      // Inserción directa a la colección, bypaseando el schema de Mongoose,
+      // para simular de verdad un documento anterior a esta migración — un
+      // `Bundle.create()` normal ya aplicaría los `default: null` nuevos y
+      // no probaría nada. `.lean()` (que usa `getBundleById`) no aplica
+      // defaults de schema, así que esto es justo el caso que el DTO debe
+      // cubrir con `?? null` / `buildContentDto`.
+      const a = await seedVariant(10);
+      const { insertedId } = await Bundle.collection.insertOne({
+        name: "Set Legado",
+        slug: "set-legado",
+        description: "desc",
+        images: [],
+        price: 1000,
+        items: [
+          {
+            productId: new mongoose.Types.ObjectId(a.productId),
+            variantId: new mongoose.Types.ObjectId(a.variantId),
+            quantity: 1,
+          },
+        ],
+        status: BundleStatus.ACTIVE,
+        stockCache: 10,
+      });
+
+      const dto = await getBundleById(insertedId.toString());
+      expect(dto.listPrice).toBeNull();
+      expect(dto.badgeId).toBeNull();
+      expect(dto).not.toHaveProperty("content");
     });
   });
 

@@ -2,12 +2,24 @@ import { Types, type FilterQuery } from "mongoose";
 import { BundleStatus, ProductChannel, type ListQuery, type PaginationMeta } from "@esencia-glow/shared";
 import { Bundle, type BundleAttrs, type BundleDocument } from "../models/bundle.model.js";
 import { Product } from "../models/product.model.js";
+import { Badge } from "../models/badge.model.js";
+import type { ProductContentAttrs, ProductContentItemAttrs } from "../models/product-content.schema.js";
 import { AppError } from "../utils/app-error.js";
 import { slugify } from "../utils/slugify.js";
 import { buildMeta, escapeRegex } from "../utils/parse-list-query.js";
 import { resolveSort } from "../utils/resolve-sort.js";
 import { computeBundleAvailability } from "./bundle-availability.service.js";
 import { buildAdminBundle, type AdminBundle, type LeanBundle } from "./bundle-dto.js";
+
+/** Contenido editorial parcial: cada bloque se reemplaza completo cuando
+ * llega, igual que `Bundle.items` — no hay sub-CRUD por línea. Mismo criterio
+ * que `ProductContentInput` en product.service.ts. */
+interface BundleContentInput {
+  ingredients?: ProductContentItemAttrs[];
+  routineSteps?: ProductContentItemAttrs[];
+  usage?: ProductContentItemAttrs[];
+  benefits?: ProductContentItemAttrs[];
+}
 
 const BUNDLE_SORT_FIELDS = ["createdAt", "updatedAt", "name", "price", "status"] as const;
 
@@ -21,6 +33,9 @@ interface CreateBundleInput {
   name: string;
   description: string;
   price: number;
+  listPrice?: number | null;
+  badgeId?: string | null;
+  content?: BundleContentInput;
   items: BundleItemInput[];
 }
 
@@ -28,6 +43,9 @@ interface UpdateBundleInput {
   name?: string;
   description?: string;
   price?: number;
+  listPrice?: number | null;
+  badgeId?: string | null;
+  content?: BundleContentInput;
   items?: BundleItemInput[];
   status?: BundleStatus;
 }
@@ -70,8 +88,28 @@ async function assertItemsValid(items: BundleItemInput[]): Promise<void> {
   }
 }
 
+async function assertBadgeExists(badgeId: string): Promise<void> {
+  const exists = await Badge.exists({ _id: badgeId });
+  if (!exists) throw new AppError("La badge no existe", 400);
+}
+
+/**
+ * Mismo rol que `assertListPriceAboveSalePrice` en product-variant.service.ts:
+ * el `.custom()` de bundle.validator.ts solo cruza `price`/`listPrice` cuando
+ * AMBOS llegan en el mismo payload — un `PATCH` que cambia solo `listPrice`
+ * necesita compararlo contra el `price` YA GUARDADO, que Joi no conoce.
+ */
+function assertListPriceAboveSalePrice(bundle: { price: number; listPrice: number | null }): void {
+  if (bundle.listPrice != null && bundle.listPrice <= bundle.price) {
+    throw new AppError("El precio anterior debe ser mayor al precio actual", 400, {
+      listPrice: "El precio anterior debe ser mayor al precio actual",
+    });
+  }
+}
+
 async function createBundle(input: CreateBundleInput): Promise<BundleDocument> {
   await assertItemsValid(input.items);
+  if (input.badgeId) await assertBadgeExists(input.badgeId);
   const stockCache = await computeBundleAvailability(input.items);
 
   const bundle = new Bundle({
@@ -79,9 +117,13 @@ async function createBundle(input: CreateBundleInput): Promise<BundleDocument> {
     slug: slugify(input.name),
     description: input.description,
     price: input.price,
+    listPrice: input.listPrice ?? null,
+    badgeId: input.badgeId ?? null,
+    content: input.content,
     items: input.items,
     stockCache,
   });
+  assertListPriceAboveSalePrice(bundle);
   await bundle.save();
   return bundle;
 }
@@ -110,8 +152,17 @@ async function updateBundle(id: string, input: UpdateBundleInput): Promise<Bundl
   }
   if (input.description !== undefined) bundle.description = input.description;
   if (input.price !== undefined) bundle.price = input.price;
+  if (input.listPrice !== undefined) bundle.listPrice = input.listPrice;
+  if (input.badgeId !== undefined) {
+    if (input.badgeId) await assertBadgeExists(input.badgeId);
+    bundle.badgeId = input.badgeId as unknown as BundleDocument["badgeId"];
+  }
+  if (input.content !== undefined) {
+    bundle.content = { ...bundle.content, ...input.content } as ProductContentAttrs;
+  }
   if (input.status !== undefined) bundle.status = input.status;
 
+  assertListPriceAboveSalePrice({ price: bundle.price, listPrice: bundle.listPrice });
   await bundle.save();
   return bundle;
 }
