@@ -292,6 +292,7 @@ export {
   buildPublicVariant,
   buildImageDto,
   buildAttributesDto,
+  buildContentDto,
 };
 export type {
   LeanCategory,

@@ -1,6 +1,13 @@
 import Joi from "joi";
 import { ProductChannel } from "@esencia-glow/shared";
 import { SKU_PATTERN } from "../models/product-variant.schema.js";
+import {
+  badgeIdSchema,
+  contentSchema,
+  listPriceMessages,
+  listPriceSchema,
+  validateListPriceAboveSalePrice,
+} from "./catalog-content.validator.js";
 
 /**
  * `slug` y `minPrice` nunca aparecen: se derivan en el service. Las variantes
@@ -46,28 +53,6 @@ const attributesSchema = Joi.object({
   }),
 });
 
-/**
- * Cruce SKU/nombre/precio/listPrice de una sola variante. `listPrice`, si
- * viene, debe ser mayor que `price` en el MISMO payload — el caso de
- * "actualizo solo uno de los dos y el otro queda desactualizado" lo cubre
- * `assertListPriceAboveSalePrice` en product-variant.service.ts, porque ahí
- * sí se conoce el valor vigente del campo que no llegó.
- */
-function validateListPriceAboveSalePrice(
-  value: { price?: number; listPrice?: number | null },
-  helpers: Joi.CustomHelpers,
-) {
-  const { price, listPrice } = value;
-  if (listPrice != null && price != null && listPrice <= price) {
-    return helpers.error("object.listPriceNotGreater");
-  }
-  return value;
-}
-
-const listPriceMessages = {
-  "object.listPriceNotGreater": "El precio anterior debe ser mayor al precio actual",
-};
-
 const variantSchema = Joi.object({
   sku: Joi.string().trim().uppercase().pattern(SKU_PATTERN).required().messages({
     "string.pattern.base": "El SKU debe ser alfanumérico en mayúsculas (3 a 32 caracteres)",
@@ -86,11 +71,7 @@ const variantSchema = Joi.object({
     "number.min": "El precio no puede ser negativo",
     "any.required": "El precio es obligatorio",
   }),
-  listPrice: Joi.number().integer().min(0).allow(null).messages({
-    "number.base": "El precio anterior debe ser un número",
-    "number.integer": "El precio anterior debe ser un entero en centavos",
-    "number.min": "El precio anterior no puede ser negativo",
-  }),
+  listPrice: listPriceSchema,
   weightGrams: Joi.number().integer().min(1).required().messages({
     "number.base": "El peso es obligatorio",
     "number.integer": "El peso debe ser un entero en gramos",
@@ -121,38 +102,6 @@ const createProductVariantSchema = variantSchema.keys({
   }),
 });
 
-/**
- * Contenido editorial (Milestone 2.2.1): cada bloque es una lista de
- * `{ title, text }` que el storefront pinta con el título en negrita —
- * nunca texto libre, ver product-content.schema.ts. Tope de 20 líneas por
- * bloque: suficiente para cualquier rutina real, evita un payload sin límite.
- */
-const contentItemSchema = Joi.object({
-  title: Joi.string().trim().min(1).max(80).required().messages({
-    "string.empty": "El título es obligatorio",
-    "string.min": "El título es obligatorio",
-    "string.max": "El título no puede tener más de 80 caracteres",
-    "any.required": "El título es obligatorio",
-  }),
-  text: Joi.string().trim().min(1).max(400).required().messages({
-    "string.empty": "El texto es obligatorio",
-    "string.min": "El texto es obligatorio",
-    "string.max": "El texto no puede tener más de 400 caracteres",
-    "any.required": "El texto es obligatorio",
-  }),
-});
-
-const contentListSchema = Joi.array().items(contentItemSchema).max(20).messages({
-  "array.max": "No puedes agregar más de 20 elementos en esta lista",
-});
-
-const contentSchema = Joi.object({
-  ingredients: contentListSchema,
-  routineSteps: contentListSchema,
-  usage: contentListSchema,
-  benefits: contentListSchema,
-});
-
 const createProductSchema = Joi.object({
   name: Joi.string().trim().min(1).max(160).required().messages({
     "string.empty": "El nombre es obligatorio",
@@ -174,10 +123,7 @@ const createProductSchema = Joi.object({
     "string.length": "La categoría no es válida",
     "any.required": "Elige una categoría",
   }),
-  badgeId: Joi.string().hex().length(24).allow(null).messages({
-    "string.hex": "La badge no es válida",
-    "string.length": "La badge no es válida",
-  }),
+  badgeId: badgeIdSchema,
   channel: Joi.string()
     .valid(...Object.values(ProductChannel))
     .messages({
@@ -214,10 +160,7 @@ const updateProductSchema = Joi.object({
     "string.hex": "La categoría no es válida",
     "string.length": "La categoría no es válida",
   }),
-  badgeId: Joi.string().hex().length(24).allow(null).messages({
-    "string.hex": "La badge no es válida",
-    "string.length": "La badge no es válida",
-  }),
+  badgeId: badgeIdSchema,
   status: Joi.string().valid("draft", "active", "archived").messages({
     "any.only": "El estado no es válido",
   }),
@@ -245,10 +188,7 @@ const updateVariantSchema = Joi.object({
     "number.integer": "El precio debe ser un entero en centavos",
     "number.min": "El precio no puede ser negativo",
   }),
-  listPrice: Joi.number().integer().min(0).allow(null).messages({
-    "number.integer": "El precio anterior debe ser un entero en centavos",
-    "number.min": "El precio anterior no puede ser negativo",
-  }),
+  listPrice: listPriceSchema,
   weightGrams: Joi.number().integer().min(1).messages({
     "number.integer": "El peso debe ser un entero en gramos",
     "number.min": "El peso debe ser de al menos 1 gramo",

@@ -16,6 +16,7 @@
     "test:watch": "vitest",
     "seed:admin": "NODE_ENV=development DOTENV_CONFIG_PATH=.env.development.local tsx src/scripts/seed-admin.ts",
     "seed:admin:prod": "node dist/scripts/seed-admin.js --force",
+    "seed:catalog": "NODE_ENV=development DOTENV_CONFIG_PATH=.env.development.local tsx src/scripts/seed-catalog-demo.ts",
     "sync-indexes": "node dist/scripts/sync-indexes.js",
     "sync-indexes:dev": "NODE_ENV=development DOTENV_CONFIG_PATH=.env.development.local tsx src/scripts/sync-indexes.ts",
     "2fa:revoke-admins-without": "node dist/scripts/revoke-admins-without-2fa.js",
