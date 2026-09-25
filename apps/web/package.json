@@ -13,6 +13,9 @@
     "test": "echo \"@esencia-glow/web: sin tests todavía (Milestone 2.1)\" && exit 0"
   },
   "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
     "@esencia-glow/shared": "workspace:*",
     "@phosphor-icons/react": "^2.1.10",
     "next": "^16.3.6",
