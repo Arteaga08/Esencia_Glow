@@ -22,4 +22,15 @@ const updateCategorySchema = Joi.object({
   isActive: Joi.boolean(),
 }).min(1);
 
-export { createCategorySchema, updateCategorySchema };
+/**
+ * `parentId: null` reordena las categorías raíz; un id reordena las
+ * subcategorías de esa categoría. `ids` debe traer exactamente el conjunto de
+ * hermanos bajo ese padre — category.service.ts valida eso, aquí solo se
+ * valida la forma.
+ */
+const reorderCategoriesSchema = Joi.object({
+  parentId: objectId.allow(null).required(),
+  ids: Joi.array().items(objectId).min(1).required(),
+});
+
+export { createCategorySchema, updateCategorySchema, reorderCategoriesSchema };

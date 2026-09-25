@@ -1,3 +1,4 @@
+import type { Types } from "mongoose";
 import type { ListQuery, PaginationMeta } from "@esencia-glow/shared";
 import { Category, type CategoryDocument } from "../models/category.model.js";
 import { Product } from "../models/product.model.js";
@@ -117,6 +118,35 @@ async function deleteCategory(id: string): Promise<void> {
   await Category.findByIdAndDelete(id);
 }
 
+/**
+ * Conteos de hijas/productos para un lote de categorías, en dos agregaciones
+ * (no una consulta por fila): la tarjeta raíz muestra `childrenCount`, la
+ * fila de subcategoría muestra `productCount` — se calculan ambos siempre
+ * porque el mismo `listCategories` sirve a las dos pantallas.
+ */
+async function countChildrenAndProducts(
+  ids: Types.ObjectId[],
+): Promise<{
+  childrenCountById: Map<string, number>;
+  productCountById: Map<string, number>;
+}> {
+  const [childrenCounts, productCounts] = await Promise.all([
+    Category.aggregate<{ _id: Types.ObjectId; count: number }>([
+      { $match: { parentId: { $in: ids } } },
+      { $group: { _id: "$parentId", count: { $sum: 1 } } },
+    ]),
+    Product.aggregate<{ _id: Types.ObjectId; count: number }>([
+      { $match: { categoryId: { $in: ids } } },
+      { $group: { _id: "$categoryId", count: { $sum: 1 } } },
+    ]),
+  ]);
+
+  return {
+    childrenCountById: new Map(childrenCounts.map((c) => [c._id.toString(), c.count])),
+    productCountById: new Map(productCounts.map((c) => [c._id.toString(), c.count])),
+  };
+}
+
 async function listCategories(
   query: ListCategoriesInput,
 ): Promise<{ categories: AdminCategory[]; meta: PaginationMeta }> {
@@ -136,8 +166,18 @@ async function listCategories(
     Category.countDocuments(filter),
   ]);
 
+  const { childrenCountById, productCountById } = await countChildrenAndProducts(
+    documents.map((doc) => doc._id),
+  );
+
   return {
-    categories: documents.map(buildAdminCategory),
+    categories: documents.map((doc) => {
+      const id = doc._id.toString();
+      return buildAdminCategory(doc, {
+        childrenCount: childrenCountById.get(id) ?? 0,
+        productCount: productCountById.get(id) ?? 0,
+      });
+    }),
     meta: buildMeta(total, query),
   };
 }
@@ -145,7 +185,38 @@ async function listCategories(
 async function getCategoryById(id: string): Promise<AdminCategory> {
   const category = await Category.findById(id).lean<LeanCategory>();
   if (!category) throw new AppError("Categoría no encontrada", 404);
-  return buildAdminCategory(category);
+
+  const [childrenCount, productCount] = await Promise.all([
+    Category.countDocuments({ parentId: id }),
+    Product.countDocuments({ categoryId: id }),
+  ]);
+  return buildAdminCategory(category, { childrenCount, productCount });
+}
+
+/**
+ * Reordena por lote los hermanos bajo `parentId` (raíz cuando es `null`).
+ * `ids` debe ser exactamente el conjunto de hermanos actuales — ni de más, ni
+ * de menos, ni repetido — para no dejar sortOrder inconsistentes a medias.
+ * Mismo criterio que `reorderProductImages` (catalog-image.service.ts).
+ */
+async function reorderCategories(parentId: string | null, ids: string[]): Promise<void> {
+  const siblings = await Category.find({ parentId }).select("_id").lean();
+  const siblingIds = new Set(siblings.map((sibling) => sibling._id.toString()));
+  const uniqueIds = new Set(ids);
+
+  if (
+    ids.length !== siblings.length ||
+    uniqueIds.size !== ids.length ||
+    !ids.every((id) => siblingIds.has(id))
+  ) {
+    throw new AppError("La lista no coincide con las categorías actuales", 400);
+  }
+
+  await Category.bulkWrite(
+    ids.map((id, index) => ({
+      updateOne: { filter: { _id: id }, update: { $set: { sortOrder: index } } },
+    })),
+  );
 }
 
 export {
@@ -156,5 +227,6 @@ export {
   getCategoryById,
   getCategoryDocument,
   assertDepthInvariant,
+  reorderCategories,
 };
 export type { CategoryInput, ListCategoriesInput };

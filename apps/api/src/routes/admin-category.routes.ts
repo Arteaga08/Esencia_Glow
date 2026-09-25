@@ -9,7 +9,11 @@ import { uploadRateLimiter } from "../middlewares/rate-limit.js";
 import { uploadSingleImage } from "../middlewares/upload-image.js";
 import { sanitizeMultipart } from "../middlewares/sanitize-multipart.js";
 import { objectIdParamSchema, uploadImagesBodySchema } from "../validators/media.validator.js";
-import { createCategorySchema, updateCategorySchema } from "../validators/category.validator.js";
+import {
+  createCategorySchema,
+  updateCategorySchema,
+  reorderCategoriesSchema,
+} from "../validators/category.validator.js";
 import { listCategoriesQuerySchema } from "../validators/catalog-query.validator.js";
 
 /**
@@ -24,6 +28,8 @@ router.use(protect, restrictTo(UserRole.ADMIN));
 
 router.get("/", validate(listCategoriesQuerySchema, "query"), categoryController.list);
 router.post("/", validate(createCategorySchema), categoryController.create);
+// Antes de "/:id": si fuera después, "/reorder" haría match con :id="reorder".
+router.patch("/reorder", validate(reorderCategoriesSchema), categoryController.reorder);
 router.get("/:id", validate(objectIdParamSchema, "params"), categoryController.getOne);
 router.patch(
   "/:id",

@@ -83,4 +83,32 @@ describe("routes/admin-category — CRUD y jerarquía vía HTTP", () => {
     const dup = await agent.post("/api/v1/admin/categories").send({ name: "Skincare Coreano" });
     expect(dup.status).toBe(409);
   });
+
+  it("reordena categorías raíz vía PATCH /reorder", async () => {
+    const { agent } = await createAdminSession(app);
+    const a = await agent.post("/api/v1/admin/categories").send({ name: "Skincare Coreano" });
+    const b = await agent.post("/api/v1/admin/categories").send({ name: "Cuerpo" });
+    const aId = a.body.data.id as string;
+    const bId = b.body.data.id as string;
+
+    const reorder = await agent
+      .patch("/api/v1/admin/categories/reorder")
+      .send({ parentId: null, ids: [bId, aId] });
+    expect(reorder.status).toBe(200);
+
+    const list = await agent.get("/api/v1/admin/categories").query({ sort: "sortOrder" });
+    const ids = list.body.data.map((c: { id: string }) => c.id);
+    expect(ids.indexOf(bId)).toBeLessThan(ids.indexOf(aId));
+  });
+
+  it("reordenar con un id que no pertenece a los hermanos responde 400", async () => {
+    const { agent } = await createAdminSession(app);
+    const a = await agent.post("/api/v1/admin/categories").send({ name: "Skincare Coreano" });
+    const aId = a.body.data.id as string;
+
+    const reorder = await agent
+      .patch("/api/v1/admin/categories/reorder")
+      .send({ parentId: null, ids: [aId, "000000000000000000000000"] });
+    expect(reorder.status).toBe(400);
+  });
 });

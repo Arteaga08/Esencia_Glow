@@ -60,6 +60,10 @@ interface AdminCategory {
   image?: AdminProductImage;
   sortOrder: number;
   isActive: boolean;
+  /** Cuántas subcategorías tiene — solo se usa en una categoría raíz. */
+  childrenCount?: number;
+  /** Cuántos productos la usan — solo se usa en una subcategoría. */
+  productCount?: number;
 }
 
 interface AdminBadge {

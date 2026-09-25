@@ -56,6 +56,10 @@ interface AdminCategory {
   image?: PublicProductImage;
   sortOrder: number;
   isActive: boolean;
+  /** Cuántas subcategorías tiene — solo tiene sentido en una categoría raíz. */
+  childrenCount?: number;
+  /** Cuántos productos la usan — solo tiene sentido en una subcategoría. */
+  productCount?: number;
 }
 
 function buildImageDto(image?: LeanMediaImage): PublicProductImage | undefined {
@@ -69,7 +73,10 @@ function buildImageDto(image?: LeanMediaImage): PublicProductImage | undefined {
   };
 }
 
-function buildAdminCategory(category: LeanCategory): AdminCategory {
+function buildAdminCategory(
+  category: LeanCategory,
+  counts?: { childrenCount?: number; productCount?: number },
+): AdminCategory {
   return {
     id: category._id.toString(),
     name: category.name,
@@ -79,6 +86,8 @@ function buildAdminCategory(category: LeanCategory): AdminCategory {
     image: buildImageDto(category.image),
     sortOrder: category.sortOrder,
     isActive: category.isActive,
+    ...(counts?.childrenCount !== undefined ? { childrenCount: counts.childrenCount } : {}),
+    ...(counts?.productCount !== undefined ? { productCount: counts.productCount } : {}),
   };
 }
 

@@ -35,4 +35,10 @@ const remove = asyncHandler(async (req: Request<{ id: string }>, res: Response) 
   sendResponse(res, 200, "Categoría eliminada.", null);
 });
 
-export { list, create, getOne, update, remove };
+const reorder = asyncHandler(async (req: Request, res: Response) => {
+  const { parentId, ids } = req.body as { parentId: string | null; ids: string[] };
+  await categoryService.reorderCategories(parentId, ids);
+  sendResponse(res, 200, "Orden actualizado.", null);
+});
+
+export { list, create, getOne, update, remove, reorder };
