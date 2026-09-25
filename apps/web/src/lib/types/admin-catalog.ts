@@ -72,6 +72,38 @@ interface AdminBadge {
   color: "neutral" | "primary" | "success" | "warning" | "danger" | "info";
 }
 
+type AdminBundleStatus = "draft" | "active" | "archived";
+
+interface AdminBundleItem {
+  productId: string;
+  variantId: string;
+  quantity: number;
+}
+
+/**
+ * Espejo de `AdminBundle` (bundle-dto.ts, Milestone 2.2.3). A diferencia de
+ * `AdminProduct.variants`, `items` viaja SIN enriquecer — solo ids y
+ * cantidad; el panel cruza nombre/foto contra `/admin/products` del lado del
+ * cliente (ver bundle-composition-editor.tsx).
+ */
+interface AdminBundle {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  images: AdminProductImage[];
+  /** Centavos. Manual, independiente de la suma de sus componentes. */
+  price: number;
+  /** Centavos, solo presentación — nunca lo que cobra el checkout. */
+  listPrice: number | null;
+  badgeId: string | null;
+  items: AdminBundleItem[];
+  content?: ProductContent;
+  status: AdminBundleStatus;
+  /** Caché de display, no fuente de verdad — ver bundle-availability.service.ts. */
+  stockCache: number;
+}
+
 export type {
   AdminProductStatus,
   AdminProductChannel,
@@ -80,4 +112,7 @@ export type {
   AdminProduct,
   AdminCategory,
   AdminBadge,
+  AdminBundleStatus,
+  AdminBundleItem,
+  AdminBundle,
 };

@@ -4,24 +4,29 @@ import { useRef, useState } from "react";
 import { ArrowDown, ArrowUp, Image as ImageIcon, Trash } from "@phosphor-icons/react";
 import { apiRequest, ApiRequestError } from "@/lib/api";
 import { useToast } from "@/components/ui/toast";
-import type { AdminProduct, AdminProductImage } from "@/lib/types/admin-catalog";
+import type { AdminProductImage } from "@/lib/types/admin-catalog";
 
 const MAX_IMAGES = 8;
 
 interface ImageManagerProps {
-  productId: string;
+  /** Base de las subrutas de imágenes, ej. `/api/v1/admin/products/${id}` o
+   * `/api/v1/admin/bundles/${id}` — ambos recursos comparten exactamente el
+   * mismo contrato (`POST/PATCH/DELETE .../images...`), así que este
+   * componente no necesita saber de cuál de los dos se trata. */
+  basePath: string;
   images: AdminProductImage[];
   onChange: (images: AdminProductImage[]) => void;
 }
 
 /**
- * Solo existe en edición (`/products/[id]`): subir/reordenar/borrar viven en
- * subrutas del producto (`POST/PATCH/DELETE /:id/images...`), que necesitan
- * un `productId` real — en alta no hay dónde adjuntarlas todavía (ver la
- * nota en `products/new/page.tsx`). Máx 8 imágenes, 5 MB, JPG/PNG/WEBP
- * (mismos límites que multer, apps/api/src/middlewares/upload-image.ts).
+ * Solo existe en edición (`/products/[id]`, `/bundles/[id]`): subir/
+ * reordenar/borrar viven en subrutas del recurso dueño (`POST/PATCH/DELETE
+ * .../images...`), que necesitan un id real — en alta no hay dónde
+ * adjuntarlas todavía (ver la nota en `products/new/page.tsx`). Máx 8
+ * imágenes, 5 MB, JPG/PNG/WEBP (mismos límites que multer,
+ * apps/api/src/middlewares/upload-image.ts).
  */
-function ImageManager({ productId, images, onChange }: ImageManagerProps) {
+function ImageManager({ basePath, images, onChange }: ImageManagerProps) {
   const { toast } = useToast();
   const [uploading, setUploading] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -33,7 +38,7 @@ function ImageManager({ productId, images, onChange }: ImageManagerProps) {
     try {
       const formData = new FormData();
       for (const file of Array.from(fileList)) formData.append("images", file);
-      const response = await apiRequest<AdminProduct>(`/api/v1/admin/products/${productId}/images`, {
+      const response = await apiRequest<{ images: AdminProductImage[] }>(`${basePath}/images`, {
         method: "POST",
         authenticated: true,
         body: formData,
@@ -56,7 +61,7 @@ function ImageManager({ productId, images, onChange }: ImageManagerProps) {
     const previous = images;
     onChange(nextOrder); // optimista: se revierte si la API rechaza
     try {
-      const response = await apiRequest<AdminProduct>(`/api/v1/admin/products/${productId}/images/order`, {
+      const response = await apiRequest<{ images: AdminProductImage[] }>(`${basePath}/images/order`, {
         method: "PATCH",
         authenticated: true,
         body: { imageIds: nextOrder.map((img) => img.id) },
@@ -82,8 +87,8 @@ function ImageManager({ productId, images, onChange }: ImageManagerProps) {
 
   async function removeImage(imageId: string) {
     try {
-      const response = await apiRequest<AdminProduct>(
-        `/api/v1/admin/products/${productId}/images/${imageId}`,
+      const response = await apiRequest<{ images: AdminProductImage[] }>(
+        `${basePath}/images/${imageId}`,
         { method: "DELETE", authenticated: true },
       );
       onChange(response.data.images);

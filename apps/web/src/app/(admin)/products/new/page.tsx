@@ -32,7 +32,8 @@ interface ContentState {
  * responde con un `id` real — la subruta de imágenes no existe hasta
  * entonces. El ajuste fino de existencias sí queda para después de crear
  * (necesita el inventario, Milestone 1.4, que resuelve por variante ya
- * persistida); por eso se redirige al editor de edición al terminar.
+ * persistida); al guardar se cierra el alta y se vuelve al listado, desde
+ * donde el operador reabre el producto si necesita ese ajuste.
  */
 export default function NewProductPage() {
   const router = useRouter();
@@ -165,7 +166,7 @@ export default function NewProductPage() {
         }
       }
 
-      router.push(`/products/${response.data.id}`);
+      router.push("/products");
     } catch (error) {
       if (error instanceof ApiRequestError && error.fieldErrors) {
         setFieldErrors(error.fieldErrors);
@@ -184,12 +185,7 @@ export default function NewProductPage() {
 
   return (
     <form onSubmit={handleSubmit} className="flex max-w-6xl flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <p className="text-body text-muted-foreground-strong">Nuevo producto</p>
-        <Button type="submit" variant="primary" loading={submitting}>
-          Crear producto
-        </Button>
-      </div>
+      <p className="text-body text-muted-foreground-strong">Nuevo producto</p>
 
       <Card>
         <ProductBaseFields value={base} onChange={handleBaseChange} errors={fieldErrors} />
@@ -267,6 +263,12 @@ export default function NewProductPage() {
           onRejected={(message) => toast({ variant: "warning", title: "Foto no agregada", description: message })}
         />
       </Card>
+
+      <div>
+        <Button type="submit" variant="primary" loading={submitting}>
+          Crear producto
+        </Button>
+      </div>
     </form>
   );
 }

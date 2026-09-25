@@ -16,7 +16,6 @@ import { emptyVariantDraft, type VariantDraft } from "@/components/products/vari
 import { ContentBlockEditor, type ContentItem } from "@/components/products/content-block-editor";
 import { ImageManager } from "@/components/products/image-manager";
 import { InventoryPanel } from "@/components/products/inventory-panel";
-import { ArchiveProductModal } from "@/components/products/archive-product-modal";
 import { centsToPesosInput, pesosInputToCents } from "@/lib/format-money";
 import { scopeErrors } from "@/lib/field-errors";
 import { suggestSku } from "@/lib/sku-suggestion";
@@ -77,9 +76,11 @@ function draftToVariantPayload(draft: VariantDraft) {
  * Edición de producto — el mismo cascarón que la alta, pero cada pieza
  * persiste por su cuenta contra su propia subruta (así es como lo modela el
  * backend: el `PATCH` del producto no acepta `variants`, `slug` ni
- * `minPrice`). "Guardar cambios" arriba solo cubre los campos base + el
- * contenido editorial; variantes, fotos y existencias ya se guardaron en
- * cuanto el operador tocó su propio botón.
+ * `minPrice`). "Guardar cambios" (al fondo de la página, ligado al form vía
+ * `form="edit-product-form"`) solo cubre los campos base + el contenido
+ * editorial; variantes, fotos y existencias ya se guardaron en cuanto el
+ * operador tocó su propio botón. Al guardar se cierra la edición y se
+ * vuelve al listado.
  */
 export default function EditProductPage() {
   const params = useParams<{ id: string }>();
@@ -99,8 +100,6 @@ export default function EditProductPage() {
   const [savingVariantId, setSavingVariantId] = useState<string | null>(null);
   const [variantErrors, setVariantErrors] = useState<Record<string, Record<string, string>>>({});
   const [togglingPublish, setTogglingPublish] = useState(false);
-  const [archiving, setArchiving] = useState(false);
-  const [confirmingArchive, setConfirmingArchive] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -156,6 +155,7 @@ export default function EditProductPage() {
       });
       setProduct(response.data);
       toast({ variant: "success", title: "Cambios guardados" });
+      router.push("/products");
     } catch (error) {
       if (error instanceof ApiRequestError && error.fieldErrors) {
         setBaseErrors(error.fieldErrors);
@@ -282,25 +282,6 @@ export default function EditProductPage() {
     }
   }
 
-  async function handleConfirmArchive() {
-    if (!product) return;
-    setArchiving(true);
-    try {
-      await apiRequest(`/api/v1/admin/products/${product.id}`, { method: "DELETE", authenticated: true });
-      toast({ variant: "success", title: "Producto archivado", description: product.name });
-      router.push("/products");
-    } catch (error) {
-      toast({
-        variant: "error",
-        title: "No se pudo archivar el producto",
-        description: error instanceof ApiRequestError ? error.message : "Intenta de nuevo.",
-      });
-    } finally {
-      setArchiving(false);
-      setConfirmingArchive(false);
-    }
-  }
-
   if (loadError) {
     return <ErrorState description={loadError} />;
   }
@@ -317,26 +298,19 @@ export default function EditProductPage() {
 
   return (
     <div className="flex max-w-6xl flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <p className="text-body text-muted-foreground-strong">Editando: {product.name}</p>
-          {product.status !== "archived" ? (
-            <Switch
-              checked={product.status === "active"}
-              onChange={handleTogglePublish}
-              label="Publicar producto"
-              disabled={togglingPublish}
-            />
-          ) : null}
-        </div>
+      <div className="flex items-center gap-3">
+        <p className="text-body text-muted-foreground-strong">Editando: {product.name}</p>
         {product.status !== "archived" ? (
-          <Button variant="destructive" size="sm" onClick={() => setConfirmingArchive(true)}>
-            Archivar
-          </Button>
+          <Switch
+            checked={product.status === "active"}
+            onChange={handleTogglePublish}
+            label="Publicar producto"
+            disabled={togglingPublish}
+          />
         ) : null}
       </div>
 
-      <form onSubmit={handleSaveBase} className="flex flex-col gap-6">
+      <form id="edit-product-form" onSubmit={handleSaveBase} className="flex flex-col gap-6">
         <Card>
           <ProductBaseFields value={base} onChange={handleBaseChange} errors={baseErrors} />
         </Card>
@@ -377,12 +351,6 @@ export default function EditProductPage() {
             />
           </div>
         </Card>
-
-        <div>
-          <Button type="submit" variant="primary" loading={savingBase}>
-            Guardar cambios
-          </Button>
-        </div>
       </form>
 
       <Card>
@@ -417,15 +385,14 @@ export default function EditProductPage() {
       </Card>
 
       <Card>
-        <ImageManager productId={product.id} images={images} onChange={setImages} />
+        <ImageManager basePath={`/api/v1/admin/products/${product.id}`} images={images} onChange={setImages} />
       </Card>
 
-      <ArchiveProductModal
-        product={confirmingArchive ? product : null}
-        onCancel={() => setConfirmingArchive(false)}
-        onConfirm={handleConfirmArchive}
-        loading={archiving}
-      />
+      <div>
+        <Button type="submit" form="edit-product-form" variant="primary" loading={savingBase}>
+          Guardar cambios
+        </Button>
+      </div>
     </div>
   );
 }
