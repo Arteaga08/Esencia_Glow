@@ -53,7 +53,9 @@ function ProductCard({
           </div>
         )}
         {badge ? (
-          <div className="absolute top-2 left-2">
+          // max-w-[70%]: dejar aire a la derecha para el sello "Archivado" y
+          // para no tocar el borde de la tarjeta con un texto largo.
+          <div className="absolute top-2 left-2 max-w-[70%]">
             <Badge color={badge.color}>{badge.text}</Badge>
           </div>
         ) : null}
