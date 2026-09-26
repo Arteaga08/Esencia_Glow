@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { OrderPriority, type OrderStatusGroup } from "@esencia-glow/shared";
+import { ORDER_PRIORITY_LABELS, OrderPriority, type OrderStatusGroup } from "@esencia-glow/shared";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { OrderQueueSection } from "@/components/orders/order-queue-section";
@@ -12,8 +12,8 @@ const SEARCH_DEBOUNCE_MS = 300;
 const GROUPS: OrderStatusGroup[] = ["action", "progress", "shipping", "problems"];
 
 const PRIORITY_OPTIONS = [
-  { value: OrderPriority.HIGH, label: "Alta" },
-  { value: OrderPriority.URGENT, label: "Urgente" },
+  { value: OrderPriority.HIGH, label: ORDER_PRIORITY_LABELS[OrderPriority.HIGH] },
+  { value: OrderPriority.URGENT, label: ORDER_PRIORITY_LABELS[OrderPriority.URGENT] },
 ];
 
 /**
