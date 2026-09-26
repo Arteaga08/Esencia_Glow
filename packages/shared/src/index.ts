@@ -38,6 +38,8 @@ export {
   matchStatusGroup,
 } from "./constants/order-status-groups.js";
 export type { OrderStatusGroup } from "./constants/order-status-groups.js";
+export { SHIPMENT_QUEUES } from "./constants/shipment-queues.js";
+export type { ShipmentQueue } from "./constants/shipment-queues.js";
 export { ORDER_STATUS_LABELS } from "./constants/order-status-labels.js";
 export { ORDER_ACTION_LABELS } from "./constants/order-action-labels.js";
 export { ORDER_PRIORITY_LABELS } from "./constants/order-priority-labels.js";
