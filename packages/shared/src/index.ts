@@ -39,6 +39,13 @@ export {
 } from "./constants/order-status-groups.js";
 export type { OrderStatusGroup } from "./constants/order-status-groups.js";
 export { ORDER_STATUS_LABELS } from "./constants/order-status-labels.js";
+export { ORDER_ACTION_LABELS } from "./constants/order-action-labels.js";
+export { ORDER_PRIORITY_LABELS } from "./constants/order-priority-labels.js";
+export {
+  SHIPPING_LABEL_STATUS_LABELS,
+  SHIPMENT_TRACKING_STATUS_LABELS,
+  SHIPPING_CARRIER_LABELS,
+} from "./constants/shipping-labels.js";
 export {
   PAYMENT_STATE_LABELS,
   PAYMENT_METHOD_LABELS,
@@ -121,6 +128,8 @@ export type {
   AdminOrderStatusHistoryEntry,
   PublicOrder,
   AdminOrderCustomer,
+  AdminOrderNoteAuthor,
+  AdminOrderInternalNote,
   AdminOrderLabel,
   PublicTrackingEvent,
   PublicOrderTracking,

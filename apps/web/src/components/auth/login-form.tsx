@@ -1,12 +1,12 @@
 "use client";
 
-import { WarningCircle } from "@phosphor-icons/react";
 import type { LoginOutcome, TwoFactorEnrollment } from "@esencia-glow/shared";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { ApiRequestError, apiRequest } from "../../lib/api";
 import { Destello } from "../shell/destello";
 import { Button } from "../ui/button";
+import { FieldError } from "../ui/field-error";
 import { Input } from "../ui/input";
 
 const NETWORK_ERROR = "No pudimos conectar con el servidor. Revisa tu conexión e intenta de nuevo.";
@@ -36,21 +36,6 @@ function twoFactorErrorMessage(error: unknown): string {
   if (error.status === 400) return "El código debe tener 6 dígitos.";
   if (error.status >= 500) return UNEXPECTED_ERROR;
   return error.message;
-}
-
-/**
- * Error que abarca al formulario entero (credenciales malas, 2FA inválido).
- * Mismo tratamiento que el error de campo de `Input` — ícono `WarningCircle`
- * de 16px en `destructive-action` (DESIGN.md §5) — y `role="alert"` para que
- * un lector de pantalla lo anuncie al aparecer, ya que nada mueve el foco.
- */
-function FormError({ message }: { message: string }) {
-  return (
-    <p role="alert" className="flex items-start gap-1.5 text-body-sm text-destructive-action">
-      <WarningCircle size={16} weight="regular" className="mt-0.5 shrink-0" aria-hidden="true" />
-      {message}
-    </p>
-  );
 }
 
 /**
@@ -183,7 +168,7 @@ function LoginForm() {
             value={password}
             onChange={(event) => setPassword(event.target.value)}
           />
-          {formError ? <FormError message={formError} /> : null}
+          {formError ? <FieldError message={formError} /> : null}
           <Button type="submit" loading={submitting} className="w-full cursor-pointer">
             Entrar
           </Button>
@@ -208,7 +193,7 @@ function LoginForm() {
             value={code}
             onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))}
           />
-          {formError ? <FormError message={formError} /> : null}
+          {formError ? <FieldError message={formError} /> : null}
           <Button type="submit" loading={submitting} className="w-full">
             Verificar
           </Button>
@@ -252,7 +237,7 @@ function LoginForm() {
             value={code}
             onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))}
           />
-          {formError ? <FormError message={formError} /> : null}
+          {formError ? <FieldError message={formError} /> : null}
           <Button type="submit" loading={submitting} className="w-full">
             Activar y entrar
           </Button>

@@ -185,6 +185,25 @@ interface AdminOrderCustomer {
   lastName: string;
 }
 
+/** Autor de una nota interna. Sin `email`: es PII de staff que el panel no
+ * necesita para desambiguar (el `id` ya lo hace). `null` si el usuario que
+ * la escribió fue borrado — mismo criterio que `AdminOrderCustomer | null`. */
+interface AdminOrderNoteAuthor {
+  id: string;
+  firstName: string;
+  lastName: string;
+}
+
+/** `GET /:id/notes`. Sin `id` propio: el subdocumento se guarda con
+ * `_id: false` (append-only, `$slice: -50`), así que un índice de array
+ * mentiría en cuanto el recorte lo corriera — la key de React se arma con
+ * `at` + índice de la respuesta. */
+interface AdminOrderInternalNote {
+  body: string;
+  at: string;
+  author: AdminOrderNoteAuthor | null;
+}
+
 interface AdminOrder extends Omit<PublicOrder, "payment" | "statusHistory"> {
   customer: AdminOrderCustomer | null;
   payment: AdminOrderPayment;
@@ -236,6 +255,8 @@ export type {
   AdminOrderStatusHistoryEntry,
   PublicOrder,
   AdminOrderCustomer,
+  AdminOrderNoteAuthor,
+  AdminOrderInternalNote,
   AdminOrderLabel,
   PublicTrackingEvent,
   PublicOrderTracking,

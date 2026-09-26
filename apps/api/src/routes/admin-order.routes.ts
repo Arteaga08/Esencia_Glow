@@ -38,6 +38,7 @@ router.get("/", validate(listAdminOrdersQuerySchema, "query"), orderAdminControl
 router.get("/:id", validate(objectIdParamSchema, "params"), orderAdminController.getOne);
 router.get("/:id/tracking", validate(objectIdParamSchema, "params"), orderAdminController.tracking);
 router.get("/:id/activity", validate(objectIdParamSchema, "params"), orderAdminController.activity);
+router.get("/:id/notes", validate(objectIdParamSchema, "params"), orderAdminController.notes);
 router.patch(
   "/:id/status",
   validate(objectIdParamSchema, "params"),

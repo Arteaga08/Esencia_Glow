@@ -3,7 +3,12 @@ import type { OrderPriority, OrderStatus } from "@esencia-glow/shared";
 import { asyncHandler } from "../utils/async-handler.js";
 import { sendResponse } from "../utils/send-response.js";
 import { parseListQuery } from "../utils/parse-list-query.js";
-import { listAdminOrders, getAdminOrderById, getOrderActivity } from "../services/order-admin.service.js";
+import {
+  listAdminOrders,
+  getAdminOrderById,
+  getOrderActivity,
+  getOrderInternalNotes,
+} from "../services/order-admin.service.js";
 import { getOrderStatusSummary } from "../services/order-summary.service.js";
 import { changeOrderStatus, updateOrderShipment, bulkChangeStatus } from "../services/order-admin-status.service.js";
 import { correctShippingAddress, changeOrderPriority, addInternalNote } from "../services/order-admin-fields.service.js";
@@ -34,6 +39,10 @@ const getOne = asyncHandler(async (req: Request<{ id: string }>, res: Response) 
 
 const activity = asyncHandler(async (req: Request<{ id: string }>, res: Response) => {
   sendResponse(res, 200, "Bitácora del pedido.", await getOrderActivity(req.params.id));
+});
+
+const notes = asyncHandler(async (req: Request<{ id: string }>, res: Response) => {
+  sendResponse(res, 200, "Notas internas del pedido.", await getOrderInternalNotes(req.params.id));
 });
 
 const changeStatus = asyncHandler(async (req: Request<{ id: string }>, res: Response) => {
@@ -109,6 +118,7 @@ export {
   summary,
   getOne,
   activity,
+  notes,
   changeStatus,
   updateShipment,
   correctAddress,

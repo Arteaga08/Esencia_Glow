@@ -3,6 +3,7 @@ import {
   matchStatusGroup,
   type AdminOrder,
   type AdminOrderCustomer,
+  type AdminOrderInternalNote,
   type ListQuery,
   type OrderPriority,
   type OrderStatus,
@@ -144,5 +145,45 @@ async function getOrderActivity(orderId: string): Promise<OrderActivityEntry[]> 
   }));
 }
 
-export { listAdminOrders, getAdminOrderById, getOrderActivity, toAdminCustomer };
+interface LeanInternalNote {
+  body: string;
+  authorId: Types.ObjectId;
+  at: Date;
+}
+
+interface LeanOrderNotes {
+  internalNotes?: LeanInternalNote[];
+}
+
+/**
+ * `GET /:id/notes`. El subdocumento (`_id: false`, `order.model.ts`) solo
+ * guarda `{body, authorId, at}` — nunca el nombre del autor — así que hace
+ * falta un lookup. Con el techo real de `MAX_INTERNAL_NOTES` (50) un solo
+ * `User.find({_id:{$in}})` por ids distintos no es N+1. Se devuelve en
+ * orden descendente (el almacenamiento es ascendente, append-only).
+ */
+async function getOrderInternalNotes(orderId: string): Promise<AdminOrderInternalNote[]> {
+  const order = await Order.findById(orderId).select("internalNotes").lean<LeanOrderNotes>();
+  if (!order) throw new AppError("Pedido no encontrado.", 404);
+
+  const notes = order.internalNotes ?? [];
+  const authorIds = [...new Set(notes.map((note) => note.authorId.toString()))];
+  const authors = await User.find({ _id: { $in: authorIds } })
+    .select("firstName lastName")
+    .lean<Array<{ _id: Types.ObjectId; firstName: string; lastName: string }>>();
+  const authorById = new Map(authors.map((author) => [author._id.toString(), author]));
+
+  return [...notes]
+    .reverse()
+    .map((note) => {
+      const author = authorById.get(note.authorId.toString());
+      return {
+        body: note.body,
+        at: note.at.toISOString(),
+        author: author ? { id: author._id.toString(), firstName: author.firstName, lastName: author.lastName } : null,
+      };
+    });
+}
+
+export { listAdminOrders, getAdminOrderById, getOrderActivity, getOrderInternalNotes, toAdminCustomer };
 export type { ListAdminOrdersInput, OrderActivityEntry };

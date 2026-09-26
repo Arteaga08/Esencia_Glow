@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useId, useRef, type ReactNode } from "react";
 import { useFocusTrap } from "@/lib/use-focus-trap";
 
 interface ModalProps {
@@ -9,17 +9,29 @@ interface ModalProps {
   title: string;
   children: ReactNode;
   footer?: ReactNode;
+  /** `md` (default, `max-w-md`) para confirmaciones; `lg` (`max-w-2xl`)
+   * para formularios con varios campos, como corregir dirección. */
+  size?: "md" | "lg";
 }
+
+const SIZE_CLASSNAMES: Record<NonNullable<ModalProps["size"]>, string> = {
+  md: "max-w-md",
+  lg: "max-w-2xl",
+};
 
 /**
  * DESIGN.md §5: superficie `surface`, `rounded.lg`, `shadow.modal`, borde
  * `border-strong` 1px, padding 24px, scrim tinta 40% SIN blur, focus trap +
  * retorno de foco. Reservado a lo que de verdad no cabe inline ni en un
- * panel lateral (`DESIGN.md:545`) — en esta sección, solo el confirm de
- * archivar un producto.
+ * panel lateral (`DESIGN.md:545`).
+ *
+ * `titleId` es propio de cada instancia (`useId`): con dos modales en el
+ * árbol (uno de confirmación y otro con formulario, como en el detalle de
+ * pedido) un id fijo se duplicaría y rompería `aria-labelledby`.
  */
-function Modal({ open, onClose, title, children, footer }: ModalProps) {
+function Modal({ open, onClose, title, children, footer, size = "md" }: ModalProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
   useFocusTrap(containerRef, open);
 
   useEffect(() => {
@@ -44,14 +56,14 @@ function Modal({ open, onClose, title, children, footer }: ModalProps) {
         ref={containerRef}
         role="dialog"
         aria-modal="true"
-        aria-labelledby="modal-title"
+        aria-labelledby={titleId}
         style={{ "--surface-bg": "var(--color-surface)" } as React.CSSProperties}
         className={
-          "relative z-10 w-full max-w-md rounded-lg border border-border-strong bg-surface p-6 " +
-          "text-foreground shadow-[var(--shadow-modal)]"
+          `relative z-10 flex max-h-[calc(100vh-4rem)] w-full flex-col overflow-y-auto ${SIZE_CLASSNAMES[size]} ` +
+          "rounded-lg border border-border-strong bg-surface p-6 text-foreground shadow-[var(--shadow-modal)]"
         }
       >
-        <h2 id="modal-title" className="text-section-title text-foreground">
+        <h2 id={titleId} className="text-section-title text-foreground">
           {title}
         </h2>
         <div className="mt-3 text-body text-foreground">{children}</div>
