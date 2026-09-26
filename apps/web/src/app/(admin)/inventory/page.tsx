@@ -1,5 +1,5 @@
 import { SectionStub } from "../../../components/shell/section-stub";
 
 export default function Page() {
-  return <SectionStub milestone="2.3" />;
+  return <SectionStub milestone="2.5" />;
 }
