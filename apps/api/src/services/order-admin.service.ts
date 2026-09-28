@@ -33,6 +33,7 @@ interface ListAdminOrdersInput extends ListQuery {
   priority?: OrderPriority;
   orderNumber?: string;
   incident?: boolean;
+  customerId?: string;
 }
 
 interface LeanUserForOrder {
@@ -69,6 +70,7 @@ async function listAdminOrders(
   if (input.orderNumber) filter.orderNumber = input.orderNumber.toUpperCase();
   if (input.priority) filter.priority = input.priority;
   if (input.incident !== undefined) filter.inventoryIncident = input.incident;
+  if (input.customerId) filter.userId = input.customerId as unknown as Types.ObjectId;
 
   if (input.group) {
     const statuses = matchStatusGroup(input.group);

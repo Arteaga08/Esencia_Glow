@@ -11,6 +11,10 @@ const listAdminOrdersQuerySchema = listQueryBaseSchema.keys({
   priority: Joi.string().valid(...Object.values(OrderPriority)),
   orderNumber: Joi.string().trim().max(20),
   incident: Joi.boolean(),
+  // Milestone 2.6: pedidos de un solo cliente, usado por el detalle de
+  // `/admin/customers/:id`. Independiente de `group`/`status` (arriba se
+  // arman con `if/else if` en el service) — no compite con ese excluyente.
+  customerId: objectId,
 });
 
 /**
