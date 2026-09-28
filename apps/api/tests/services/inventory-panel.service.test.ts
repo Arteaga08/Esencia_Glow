@@ -134,6 +134,135 @@ describe("services/inventory-panel", () => {
     });
   });
 
+  describe("listInventoryPanel — miniatura (Milestone 2.5)", () => {
+    it("la fila trae la primera foto como portada, y null si no hay fotos", async () => {
+      const category = await seedCategory("panel-img");
+      const image = (n: number, alt?: string) => ({
+        url: `https://res.cloudinary.com/demo/image/upload/p${n}.jpg`,
+        publicId: `demo/p${n}`,
+        width: 800,
+        height: 800,
+        format: "jpg",
+        bytes: 1000,
+        ...(alt ? { alt } : {}),
+      });
+      const withPhotos = await Product.create({
+        name: "Con Fotos",
+        slug: "con-fotos",
+        description: "desc",
+        categoryId: category._id,
+        images: [image(1, "Frasco de frente"), image(2)],
+        variants: [variant("IMG-A")],
+      });
+      const withoutPhotos = await Product.create({
+        name: "Sin Fotos",
+        slug: "sin-fotos",
+        description: "desc",
+        categoryId: category._id,
+        variants: [variant("IMG-B")],
+      });
+
+      const { items } = await listInventoryPanel({ page: 1, limit: 20, sort: { field: "name", direction: "asc" } }, 5);
+
+      expect(items.find((i) => i.productId === withPhotos._id.toString())?.image).toEqual({
+        url: "https://res.cloudinary.com/demo/image/upload/p1.jpg",
+        alt: "Frasco de frente",
+      });
+      expect(items.find((i) => i.productId === withoutPhotos._id.toString())?.image).toBeNull();
+    });
+  });
+
+  describe("listInventoryPanel — categoría (Milestone 2.5)", () => {
+    it("cada fila trae su categoría directa con parentId", async () => {
+      const root = await seedCategory("panel-cat-root");
+      const sub = await Category.create({ name: "Sub Panel", slug: "sub-panel-cat", parentId: root._id });
+      const product = await Product.create({
+        name: "Producto Con Categoria",
+        slug: "producto-con-categoria",
+        description: "desc",
+        categoryId: sub._id,
+        variants: [variant("CAT-A")],
+      });
+
+      const { items } = await listInventoryPanel({ page: 1, limit: 20, sort: { field: "name", direction: "asc" } }, 5);
+
+      const row = items.find((i) => i.productId === product._id.toString());
+      expect(row?.category).toEqual({
+        id: sub._id.toString(),
+        name: "Sub Panel",
+        slug: "sub-panel-cat",
+        parentId: root._id.toString(),
+      });
+    });
+
+    it("filtrar por una raíz incluye los productos de sus subcategorías y acota statusCounts", async () => {
+      const root = await seedCategory("panel-scope-root");
+      const sub = await Category.create({ name: "Sub Scope", slug: "sub-scope", parentId: root._id });
+      const other = await seedCategory("panel-scope-other");
+
+      const inRoot = await Product.create({
+        name: "En La Raiz",
+        slug: "en-la-raiz",
+        description: "desc",
+        categoryId: root._id,
+        variants: [variant("SCOPE-ROOT")],
+      });
+      const inSub = await Product.create({
+        name: "En La Sub",
+        slug: "en-la-sub",
+        description: "desc",
+        categoryId: sub._id,
+        variants: [variant("SCOPE-SUB")],
+      });
+      const outside = await Product.create({
+        name: "Fuera",
+        slug: "fuera-del-scope",
+        description: "desc",
+        categoryId: other._id,
+        variants: [variant("SCOPE-OUT")],
+      });
+      await Inventory.create({ productId: inSub._id, variantId: inSub.variants[0]!._id, sku: "SCOPE-SUB", onHand: 0, reserved: 0 });
+      await Inventory.create({ productId: outside._id, variantId: outside.variants[0]!._id, sku: "SCOPE-OUT", onHand: 0, reserved: 0 });
+
+      const { items, statusCounts, meta } = await listInventoryPanel(
+        { page: 1, limit: 20, sort: { field: "name", direction: "asc" }, categoryId: root._id.toString() },
+        5,
+      );
+
+      expect(items.map((i) => i.productId).sort()).toEqual([inRoot._id.toString(), inSub._id.toString()].sort());
+      expect(meta.total).toBe(2);
+      expect(statusCounts[StockStatus.OUT]).toBe(1);
+      expect(statusCounts[StockStatus.UNTRACKED]).toBe(1);
+    });
+
+    it("filtrar por una subcategoría no trae a sus hermanas", async () => {
+      const root = await seedCategory("panel-sibling-root");
+      const subA = await Category.create({ name: "Sub A", slug: "sub-sibling-a", parentId: root._id });
+      const subB = await Category.create({ name: "Sub B", slug: "sub-sibling-b", parentId: root._id });
+      const inA = await Product.create({
+        name: "En A",
+        slug: "en-sub-a",
+        description: "desc",
+        categoryId: subA._id,
+        variants: [variant("SIB-A")],
+      });
+      await Product.create({
+        name: "En B",
+        slug: "en-sub-b",
+        description: "desc",
+        categoryId: subB._id,
+        variants: [variant("SIB-B")],
+      });
+
+      const { items } = await listInventoryPanel(
+        { page: 1, limit: 20, sort: { field: "name", direction: "asc" }, categoryId: subA._id.toString() },
+        5,
+      );
+
+      expect(items.map((i) => i.productId)).toEqual([inA._id.toString()]);
+    });
+  });
+
   describe("getProductInventoryDetail", () => {
     it("incluye variantes sin fila de inventario, con inventoryItemId null", async () => {
       const category = await seedCategory("panel-detail-1");
@@ -155,6 +284,7 @@ describe("services/inventory-panel", () => {
       expect(untracked?.inventoryItemId).toBeNull();
       expect(untracked?.onHand).toBeNull();
       expect(untracked?.status).toBe(StockStatus.UNTRACKED);
+      expect(detail.category?.id).toBe(category._id.toString());
     });
 
     it("responde 404 si el producto no existe", async () => {

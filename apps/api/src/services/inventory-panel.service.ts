@@ -1,6 +1,7 @@
-import type { Types } from "mongoose";
+import { Types } from "mongoose";
 import { StockStatus, type ListQuery, type PaginationMeta } from "@esencia-glow/shared";
 import { Product } from "../models/product.model.js";
+import { Category } from "../models/category.model.js";
 import { Inventory, type InventoryDocument } from "../models/inventory.model.js";
 import { AppError } from "../utils/app-error.js";
 import { buildMeta, escapeRegex } from "../utils/parse-list-query.js";
@@ -20,10 +21,17 @@ interface PanelVariantSource {
   name: string;
 }
 
+interface PanelImageSource {
+  url: string;
+  alt?: string;
+}
+
 interface PanelProductSource {
   _id: Types.ObjectId;
   name: string;
   slug: string;
+  categoryId: Types.ObjectId;
+  images: PanelImageSource[];
   variants: PanelVariantSource[];
   updatedAt: Date;
 }
@@ -55,10 +63,39 @@ interface PanelVariantRow {
   status: StockStatus;
 }
 
+/**
+ * Categoría directa del producto (normalmente una subcategoría). `parentId`
+ * viaja para que el panel sepa bajo qué raíz cae sin otra petición.
+ */
+interface PanelCategoryRef {
+  id: string;
+  name: string;
+  slug: string;
+  parentId: string | null;
+}
+
+interface CategorySource {
+  _id: Types.ObjectId;
+  name: string;
+  slug: string;
+  parentId: Types.ObjectId | null;
+}
+
+/** Primera foto del producto (la portada, por posición en `images`), para la
+ * miniatura de la fila. `null` si el producto todavía no tiene fotos. */
+interface PanelProductImage {
+  url: string;
+  alt: string | null;
+}
+
 interface PanelProductRow {
   productId: string;
   name: string;
   slug: string;
+  image: PanelProductImage | null;
+  /** `null` solo si la categoría referenciada ya no existe (borde defensivo:
+   * `categoryId` es obligatorio en el modelo). */
+  category: PanelCategoryRef | null;
   variantCount: number;
   untrackedVariantCount: number;
   totalOnHand: number;
@@ -75,6 +112,9 @@ interface ProductInventoryDetail extends Omit<PanelProductRow, "status"> {
 
 interface ListInventoryPanelInput extends ListQuery {
   status?: StockStatus;
+  /** Incluye a las subcategorías: pedir una raíz trae todo lo que cuelga de
+   * ella, porque el panel agrupa por raíz (Milestone 2.5). */
+  categoryId?: string;
 }
 
 const PANEL_SORT_FIELDS = ["name", "totalAvailable", "updatedAt"] as const;
@@ -119,6 +159,7 @@ function buildVariantRow(
 function summarizeProduct(
   product: PanelProductSource,
   rowsByVariantId: Map<string, InventoryDocument>,
+  categoriesById: Map<string, PanelCategoryRef>,
   globalThreshold: number,
 ): { row: PanelProductRow; variantRows: PanelVariantRow[] } {
   const variantRows = product.variants.map((variant) =>
@@ -131,12 +172,15 @@ function summarizeProduct(
   const totalAvailable = trackedRows.reduce((sum, v) => sum + v.available!, 0);
   const untrackedVariantCount = variantRows.length - trackedRows.length;
   const status = worstStatus(trackedRows.map((v) => v.status));
+  const cover = product.images[0];
 
   return {
     row: {
       productId: product._id.toString(),
       name: product.name,
       slug: product.slug,
+      image: cover ? { url: cover.url, alt: cover.alt ?? null } : null,
+      category: categoriesById.get(product.categoryId.toString()) ?? null,
       variantCount: product.variants.length,
       untrackedVariantCount,
       totalOnHand,
@@ -157,6 +201,32 @@ async function fetchInventoryRowsByVariant(
   return new Map(rows.map((row) => [row.variantId.toString(), row]));
 }
 
+/** Una sola consulta en lote para todas las categorías de la página, nunca una
+ * por producto (mismo criterio que `countChildrenAndProducts` en catalog-dto.ts). */
+async function fetchCategoriesById(categoryIds: Types.ObjectId[]): Promise<Map<string, PanelCategoryRef>> {
+  if (categoryIds.length === 0) return new Map();
+  const categories = await Category.find({ _id: { $in: categoryIds } })
+    .select("name slug parentId")
+    .lean<CategorySource[]>();
+  return new Map(
+    categories.map((category) => [
+      category._id.toString(),
+      {
+        id: category._id.toString(),
+        name: category.name,
+        slug: category.slug,
+        parentId: category.parentId ? category.parentId.toString() : null,
+      },
+    ]),
+  );
+}
+
+/** La categoría pedida más sus hijas directas (la jerarquía es de dos niveles). */
+async function resolveCategoryScope(categoryId: string): Promise<Types.ObjectId[]> {
+  const children = await Category.find({ parentId: categoryId }).select("_id").lean<{ _id: Types.ObjectId }[]>();
+  return [new Types.ObjectId(categoryId), ...children.map((child) => child._id)];
+}
+
 function sortPanelRows(rows: PanelProductRow[], field: string, direction: "asc" | "desc"): PanelProductRow[] {
   const sortField: PanelSortField = PANEL_SORT_FIELDS.includes(field as PanelSortField)
     ? (field as PanelSortField)
@@ -175,21 +245,28 @@ async function listInventoryPanel(
   input: ListInventoryPanelInput,
   globalThreshold: number,
 ): Promise<{ items: PanelProductRow[]; statusCounts: Record<StockStatus, number>; meta: PaginationMeta }> {
-  const filter = input.search
-    ? {
-        $or: [
-          { name: new RegExp(escapeRegex(input.search), "i") },
-          { "variants.sku": new RegExp(escapeRegex(input.search), "i") },
-        ],
-      }
-    : {};
+  const filter: Record<string, unknown> = {};
+  if (input.search) {
+    filter.$or = [
+      { name: new RegExp(escapeRegex(input.search), "i") },
+      { "variants.sku": new RegExp(escapeRegex(input.search), "i") },
+    ];
+  }
+  if (input.categoryId) {
+    filter.categoryId = { $in: await resolveCategoryScope(input.categoryId) };
+  }
 
   const products = await Product.find(filter).lean<PanelProductSource[]>();
 
   const allVariantIds = products.flatMap((product) => product.variants.map((v) => v._id));
-  const rowsByVariantId = await fetchInventoryRowsByVariant(allVariantIds);
+  const [rowsByVariantId, categoriesById] = await Promise.all([
+    fetchInventoryRowsByVariant(allVariantIds),
+    fetchCategoriesById(products.map((product) => product.categoryId)),
+  ]);
 
-  const allRows = products.map((product) => summarizeProduct(product, rowsByVariantId, globalThreshold).row);
+  const allRows = products.map(
+    (product) => summarizeProduct(product, rowsByVariantId, categoriesById, globalThreshold).row,
+  );
 
   const statusCounts: Record<StockStatus, number> = {
     [StockStatus.OUT]: 0,
@@ -215,11 +292,14 @@ async function getProductInventoryDetail(
   const product = await Product.findById(productId).lean<PanelProductSource>();
   if (!product) throw new AppError("Producto no encontrado", 404);
 
-  const rowsByVariantId = await fetchInventoryRowsByVariant(product.variants.map((v) => v._id));
-  const { row, variantRows } = summarizeProduct(product, rowsByVariantId, globalThreshold);
+  const [rowsByVariantId, categoriesById] = await Promise.all([
+    fetchInventoryRowsByVariant(product.variants.map((v) => v._id)),
+    fetchCategoriesById([product.categoryId]),
+  ]);
+  const { row, variantRows } = summarizeProduct(product, rowsByVariantId, categoriesById, globalThreshold);
 
   return { ...row, variants: variantRows };
 }
 
 export { listInventoryPanel, getProductInventoryDetail };
-export type { PanelProductRow, PanelVariantRow, ProductInventoryDetail, ListInventoryPanelInput };
+export type { PanelProductRow, PanelProductImage, PanelCategoryRef, PanelVariantRow, ProductInventoryDetail, ListInventoryPanelInput };

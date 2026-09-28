@@ -19,9 +19,14 @@ const productIdParamSchema = Joi.object({
 });
 
 /** Panel: una fila por producto, filtro por `status` derivado (no por
- * `productId`/`lowStock` crudos como en 1.4 — ver inventory-panel.service.ts). */
+ * `productId`/`lowStock` crudos como en 1.4 — ver inventory-panel.service.ts).
+ * `categoryId` incluye a las subcategorías de esa categoría (Milestone 2.5). */
 const listInventoryQuerySchema = listQueryBaseSchema.keys({
   status: Joi.string().valid(...Object.values(StockStatus)),
+  categoryId: objectId.messages({
+    "string.length": "Id de categoría inválido",
+    "string.hex": "Id de categoría inválido",
+  }),
 });
 
 const listReservationsQuerySchema = listQueryBaseSchema.keys({

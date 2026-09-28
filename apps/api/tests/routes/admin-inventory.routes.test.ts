@@ -83,6 +83,30 @@ describe("routes/admin-inventory", () => {
     });
   });
 
+  describe("GET / — filtro por categoría (Milestone 2.5)", () => {
+    it("un categoryId malformado responde 400", async () => {
+      const { agent } = await createAdminSession(app);
+      const response = await agent.get("/api/v1/admin/inventory").query({ categoryId: "no-es-un-id" });
+      expect(response.status).toBe(400);
+    });
+
+    it("filtra por categoría y cada fila trae su categoría", async () => {
+      const { agent } = await createAdminSession(app);
+      const { productId } = await seedInventoryRow({ onHand: 10, reserved: 0, sku: "CAT-ROUTE-A" });
+      await seedInventoryRow({ onHand: 10, reserved: 0, sku: "CAT-ROUTE-B" });
+      const product = await Product.findById(productId).lean();
+
+      const response = await agent
+        .get("/api/v1/admin/inventory")
+        .query({ categoryId: product!.categoryId.toString() });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.items).toHaveLength(1);
+      expect(response.body.data.items[0].productId).toBe(productId.toString());
+      expect(response.body.data.items[0].category.id).toBe(product!.categoryId.toString());
+    });
+  });
+
   describe("GET /products/:productId — detalle", () => {
     it("incluye variantes sin fila de inventario", async () => {
       const { agent } = await createAdminSession(app);
