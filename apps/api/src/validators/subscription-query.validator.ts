@@ -26,6 +26,10 @@ const listSubscriptionShipmentsQuerySchema = listQueryBaseSchema.keys({
   cycleMonth: Joi.number().integer().min(1).max(12),
   status: Joi.string().valid(...Object.values(SubscriptionShipmentStatus)),
   incident: Joi.boolean(),
+  // Milestone 2.7a: cajas de UNA cuenta, usado por el detalle de
+  // `/admin/subscriptions/:id`. Mismo criterio que `customerId` en
+  // order-admin.validator.ts.
+  accountId: objectId,
 });
 
 export {

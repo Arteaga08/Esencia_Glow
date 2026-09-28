@@ -15,14 +15,15 @@ import {
 
 const list = asyncHandler(async (req: Request, res: Response) => {
   const query = parseListQuery(req.query);
-  const { status, planId, cycleYear, cycleMonth, incident } = req.query as {
+  const { status, planId, cycleYear, cycleMonth, incident, accountId } = req.query as {
     status?: SubscriptionShipmentStatus;
     planId?: string;
     cycleYear?: number;
     cycleMonth?: number;
     incident?: boolean;
+    accountId?: string;
   };
-  const { rows, meta } = await listAdminShipments({ ...query, status, planId, cycleYear, cycleMonth, incident });
+  const { rows, meta } = await listAdminShipments({ ...query, status, planId, cycleYear, cycleMonth, incident, accountId });
   sendResponse(res, 200, "Envíos de suscripción obtenidos.", rows, meta);
 });
 

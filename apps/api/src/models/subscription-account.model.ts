@@ -137,6 +137,10 @@ const subscriptionAccountSchema = new Schema<SubscriptionAccountAttrs, Subscript
 
 subscriptionAccountSchema.index({ userId: 1 }, { unique: true });
 subscriptionAccountSchema.index({ planId: 1, status: 1 });
+// Milestone 2.7a: panel admin de cuentas — listar/filtrar por estado
+// ordenado por próximo cobro (`?sort=currentPeriodEnd`, default del
+// listado). Sin este índice ese sort obligaría a un scan completo.
+subscriptionAccountSchema.index({ status: 1, currentPeriodEnd: 1 });
 subscriptionAccountSchema.index(
   { providerSubscriptionId: 1 },
   { unique: true, partialFilterExpression: { providerSubscriptionId: { $type: "string" } } },
