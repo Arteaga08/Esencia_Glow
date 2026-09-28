@@ -18,14 +18,15 @@ import { retryOrderLabel } from "../services/order-label-admin.service.js";
 
 const list = asyncHandler(async (req: Request, res: Response) => {
   const query = parseListQuery(req.query);
-  const { status, group, priority, orderNumber, incident } = req.query as {
+  const { status, group, priority, orderNumber, incident, customerId } = req.query as {
     status?: OrderStatus;
     group?: string;
     priority?: OrderPriority;
     orderNumber?: string;
     incident?: boolean;
+    customerId?: string;
   };
-  const { rows, meta } = await listAdminOrders({ ...query, status, group, priority, orderNumber, incident });
+  const { rows, meta } = await listAdminOrders({ ...query, status, group, priority, orderNumber, incident, customerId });
   sendResponse(res, 200, "Pedidos.", rows, meta);
 });
 

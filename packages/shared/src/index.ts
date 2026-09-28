@@ -142,6 +142,13 @@ export type {
   CreateOrderLineInput,
 } from "./types/order.js";
 export type { SubscriberCapability, UserCapabilities } from "./types/capabilities.js";
+export type {
+  AdminCustomerStats,
+  AdminCustomerListItem,
+  AdminCustomerSubscriptionPlan,
+  AdminCustomerSubscription,
+  AdminCustomerDetail,
+} from "./types/customer.js";
 export {
   MAX_EDITION_ITEMS,
   DEFAULT_SUBSCRIPTION_SETTINGS,

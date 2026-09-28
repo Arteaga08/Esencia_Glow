@@ -97,6 +97,11 @@ userSchema.methods.comparePassword = function comparePassword(candidate: string)
   return bcrypt.compare(candidate, this.password);
 };
 
+// Milestone 2.6: el listado admin de Clientes filtra por `{role: customer}`
+// y ordena por `createdAt` default — sin este índice, ese filtro+sort
+// escanearía la colección completa a medida que crezca.
+userSchema.index({ role: 1, createdAt: -1 });
+
 const User = model<UserAttrs, UserModel>("User", userSchema);
 
 export { User, SALT_ROUNDS };
