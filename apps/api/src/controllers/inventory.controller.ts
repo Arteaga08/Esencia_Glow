@@ -13,11 +13,11 @@ import { buildAdminInventoryRow, buildAdminReservation } from "../services/inven
 
 const list = asyncHandler(async (req: Request, res: Response) => {
   const query = parseListQuery(req.query, "name");
-  const { status } = req.query as { status?: StockStatus };
+  const { status, categoryId } = req.query as { status?: StockStatus; categoryId?: string };
   const settings = await getSettings();
 
   const { items, statusCounts, meta } = await panelService.listInventoryPanel(
-    { ...query, status },
+    { ...query, status, categoryId },
     settings.inventory.lowStockThreshold,
   );
   sendResponse(res, 200, "Inventario obtenido.", { items, statusCounts }, meta);

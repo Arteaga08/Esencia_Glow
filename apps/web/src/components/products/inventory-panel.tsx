@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { StockStatus } from "@esencia-glow/shared";
 import { apiRequest, ApiRequestError } from "@/lib/api";
 import { useToast } from "@/components/ui/toast";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { STOCK_STATUS_BADGE } from "@/components/inventory/stock-status";
 
 interface VariantInventoryRow {
   variantId: string;
@@ -14,20 +16,13 @@ interface VariantInventoryRow {
   onHand: number | null;
   reserved: number | null;
   available: number | null;
-  status: "out" | "low" | "ok" | "untracked";
+  status: StockStatus;
 }
 
 interface InventoryDetail {
   productId: string;
   variants: VariantInventoryRow[];
 }
-
-const STATUS_BADGE: Record<VariantInventoryRow["status"], { color: "danger" | "warning" | "success" | "neutral"; label: string }> = {
-  out: { color: "danger", label: "Agotado" },
-  low: { color: "warning", label: "Stock bajo" },
-  ok: { color: "success", label: "OK" },
-  untracked: { color: "neutral", label: "Sin registro" },
-};
 
 /**
  * Existencias por variante, dentro del editor de producto (Milestone 2.2.1).
@@ -117,7 +112,7 @@ function InventoryPanel({ productId }: { productId: string }) {
               <p className="truncate text-body-sm font-medium text-foreground">{row.name}</p>
               <p className="font-mono text-body-sm tabular-nums text-muted-foreground-strong">{row.sku}</p>
             </div>
-            <Badge color={STATUS_BADGE[row.status].color}>{STATUS_BADGE[row.status].label}</Badge>
+            <Badge color={STOCK_STATUS_BADGE[row.status].color}>{STOCK_STATUS_BADGE[row.status].label}</Badge>
             <div className="font-mono text-body-sm tabular-nums text-muted-foreground-strong">
               disponible: {row.available ?? "—"} · reservado: {row.reserved ?? "—"}
             </div>
