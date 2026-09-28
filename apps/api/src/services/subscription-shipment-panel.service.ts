@@ -35,6 +35,10 @@ interface ListAdminShipmentsInput extends ListQuery {
   cycleYear?: number;
   cycleMonth?: number;
   incident?: boolean;
+  /** Milestone 2.7a: cajas de una sola cuenta, usado por el detalle de
+   * `/admin/subscriptions/:id`. Mismo criterio que `customerId` en
+   * order-admin.service.ts. */
+  accountId?: string;
 }
 
 interface LeanUserForShipment {
@@ -83,6 +87,7 @@ function buildFilter(input: ListAdminShipmentsInput): FilterQuery<SubscriptionSh
   const filter: FilterQuery<SubscriptionShipmentAttrs> = {};
   if (input.status) filter.status = input.status;
   if (input.planId) filter.planId = input.planId;
+  if (input.accountId) filter.accountId = input.accountId;
   if (input.cycleYear !== undefined) filter.cycleYear = input.cycleYear;
   if (input.cycleMonth !== undefined) filter.cycleMonth = input.cycleMonth;
   if (input.incident === true) {
