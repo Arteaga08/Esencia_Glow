@@ -13,6 +13,7 @@ import { Table, type TableColumn } from "@/components/ui/table";
 import { useDebouncedValue } from "@/components/inventory/use-debounced-value";
 import { useCustomerList } from "@/components/customers/use-customer-list";
 import { SubscriptionStatusBadge } from "@/components/customers/subscription-status-badge";
+import { TopCustomersSection } from "@/components/customers/top-customers-section";
 import { formatMoneyMXN } from "@/lib/format-money";
 import { formatShortDate } from "@/lib/format-date";
 import type { AdminCustomerListItem } from "@esencia-glow/shared";
@@ -25,7 +26,7 @@ const ITEM_LABEL = { singular: "cliente", plural: "clientes" };
  * vez. El nombre y el correo van juntos en la primera columna (mismo
  * criterio que `order-row.tsx`), el resto son cifras alineadas a la
  * derecha. Propuesta A elegida por Manuel de tres presentadas en
- * `/customers/preview`.
+ * `/customers/preview`. Arriba, el ranking de mejores clientes (2.6.1).
  */
 export default function CustomersPage() {
   const [search, setSearch] = useState("");
@@ -64,6 +65,9 @@ export default function CustomersPage() {
 
   return (
     <div>
+      <TopCustomersSection />
+
+      <h2 className="mb-4 text-section-title text-foreground">Todos los clientes</h2>
       <div className="mb-6 w-72">
         <Input
           label="Buscar"
