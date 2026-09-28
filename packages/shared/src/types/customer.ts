@@ -1,5 +1,7 @@
 import type { SubscriptionStatus } from "../enums/subscription-status.js";
 import type { PublicShippingAddress } from "./shipping.js";
+import type { TopCustomersPeriod } from "../enums/top-customers-period.js";
+import type { TopCustomersSort } from "../enums/top-customers-sort.js";
 
 /**
  * Métricas de compra de un cliente (Milestone 2.6), calculadas al leer sobre
@@ -68,7 +70,36 @@ interface AdminCustomerDetail extends AdminCustomerListItem {
   subscription: AdminCustomerSubscription | null;
 }
 
+/**
+ * Fila del ranking `GET /admin/customers/top` (Milestone 2.6.1). Mismas
+ * métricas que `AdminCustomerStats` pero acotadas al periodo pedido, no al
+ * historial completo del cliente.
+ */
+interface TopCustomerRow {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  orderCount: number;
+  spentCents: number;
+}
+
+/**
+ * Respuesta del ranking: el rango exacto que se consultó (`from` inclusivo,
+ * `to` = instante de la consulta) viaja con las filas para que el panel lo
+ * muestre tal cual, sin recalcular la zona horaria en el navegador.
+ */
+interface TopCustomersResult {
+  period: TopCustomersPeriod;
+  sortBy: TopCustomersSort;
+  from: string;
+  to: string;
+  rows: TopCustomerRow[];
+}
+
 export type {
+  TopCustomerRow,
+  TopCustomersResult,
   AdminCustomerStats,
   AdminCustomerListItem,
   AdminCustomerSubscriptionPlan,

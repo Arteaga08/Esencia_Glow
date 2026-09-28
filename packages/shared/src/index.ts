@@ -29,6 +29,8 @@ export { SubscriptionStatus } from "./enums/subscription-status.js";
 export { EditionStatus } from "./enums/edition-status.js";
 export { SubscriptionShipmentStatus } from "./enums/subscription-shipment-status.js";
 export { SubscriptionAction } from "./enums/subscription-action.js";
+export { TopCustomersPeriod } from "./enums/top-customers-period.js";
+export { TopCustomersSort } from "./enums/top-customers-sort.js";
 export { CATALOG_CURRENCY } from "./constants/currency.js";
 export type { Currency } from "./constants/currency.js";
 export { DEFAULT_INVENTORY_SETTINGS, MAX_LINE_QUANTITY } from "./constants/inventory.js";
@@ -148,6 +150,8 @@ export type {
   AdminCustomerSubscriptionPlan,
   AdminCustomerSubscription,
   AdminCustomerDetail,
+  TopCustomerRow,
+  TopCustomersResult,
 } from "./types/customer.js";
 export {
   MAX_EDITION_ITEMS,
