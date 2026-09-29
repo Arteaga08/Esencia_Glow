@@ -107,7 +107,7 @@ export default function SubscriptionAccountsPage() {
               setStatus((value as SubscriptionStatus) || null);
               if (value) setAttention(false);
             }}
-            options={STATUS_OPTIONS}
+            options={[{ value: "", label: "Todos" }, ...STATUS_OPTIONS]}
             placeholder="Todos"
             disabled={attention}
           />
@@ -117,7 +117,10 @@ export default function SubscriptionAccountsPage() {
             label="Plan"
             value={planId}
             onChange={(value) => setPlanId(value || null)}
-            options={planOptions.map((plan) => ({ value: plan.id, label: plan.name }))}
+            options={[
+              { value: "", label: "Todos" },
+              ...planOptions.map((plan) => ({ value: plan.id, label: plan.name })),
+            ]}
             placeholder="Todos"
           />
         </div>
