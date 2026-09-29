@@ -87,5 +87,24 @@ function assertWindowClearOfAnchor(
   }
 }
 
-export { isEnrollmentOpen, assertWindowClearOfAnchor, nextAnchorOnOrAfter };
+/**
+ * Mes de `billing_cycle_anchor_config.month` para el ALTA ANUAL (Milestone
+ * 2.7b): siempre el mes del alta. Si el día-ancla de ESTE mes ya pasó, la
+ * próxima ocurrencia cae el año siguiente — seguro. Si todavía no llega
+ * (incluido el propio día-ancla), Stripe la pondría a días de distancia:
+ * mismo riesgo de doble cobro que `assertWindowClearOfAnchor` documenta para
+ * lo mensual, así que se rechaza (409) en vez de dejarlo pasar.
+ */
+function resolveAnnualAnchor(now: Date, anchorDay: number, timeZone: string = DEFAULT_TIME_ZONE): number {
+  const { month, day } = extractCalendarDate(now, timeZone);
+  if (day <= anchorDay) {
+    throw new AppError(
+      `No puedes suscribirte al plan anual antes del día ${anchorDay} del mes: el próximo cobro caería en unos días. Inténtalo de nuevo después de esa fecha.`,
+      409,
+    );
+  }
+  return month;
+}
+
+export { isEnrollmentOpen, assertWindowClearOfAnchor, nextAnchorOnOrAfter, resolveAnnualAnchor };
 export type { EnrollmentWindow };

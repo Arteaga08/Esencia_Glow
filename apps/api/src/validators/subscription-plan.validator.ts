@@ -17,6 +17,12 @@ const createSubscriptionPlanSchema = Joi.object({
   priceCents: Joi.number().integer().min(0).required().messages({
     "number.integer": "El precio debe ser un entero en centavos",
   }),
+  // Precio del ciclo anual (Milestone 2.7b), opcional: un plan puede ofrecer
+  // solo mensual. Igual que `priceCents`, INMUTABLE para siempre — no
+  // aparece en `updateSubscriptionPlanSchema`.
+  annualPriceCents: Joi.number().integer().min(0).messages({
+    "number.integer": "El precio anual debe ser un entero en centavos",
+  }),
   maxActiveSeats: Joi.number().integer().min(0).required(),
   sortOrder: Joi.number().integer(),
 });

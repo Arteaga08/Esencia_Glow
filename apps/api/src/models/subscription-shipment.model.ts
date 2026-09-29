@@ -55,6 +55,12 @@ interface SubscriptionShipmentAttrs {
   editionIncident: boolean;
   adminAlertedAt?: Date;
   invoiceId?: string;
+  /** Factura ANUAL que ya cubrió este ciclo (Milestone 2.7b) — solo
+   * informativa, NUNCA sirve de dedupe: una sola factura cubre 12 cajas, así
+   * que no es única (a diferencia de `invoiceId`, que sí dedupea una
+   * reentrega mensual del webhook). La idempotencia de las cajas prepagadas
+   * la da el índice único `{accountId, cycleYear, cycleMonth}` de abajo. */
+  prepaidInvoiceId?: string;
   reservedItems: ReservedShipmentItemAttrs[];
   inventoryIncident: boolean;
   carrier?: ShippingCarrier;
@@ -87,6 +93,7 @@ const subscriptionShipmentSchema = new Schema<SubscriptionShipmentAttrs, Subscri
     editionIncident: { type: Boolean, required: true, default: false },
     adminAlertedAt: { type: Date },
     invoiceId: { type: String, trim: true },
+    prepaidInvoiceId: { type: String, trim: true },
     reservedItems: { type: [reservedShipmentItemSchema], default: [] },
     inventoryIncident: { type: Boolean, required: true, default: false },
     carrier: { type: String, enum: Object.values(ShippingCarrier) },

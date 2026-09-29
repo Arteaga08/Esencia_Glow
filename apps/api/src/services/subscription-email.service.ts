@@ -58,6 +58,9 @@ interface SendPaymentConfirmedInput {
   amountPaidCents: number;
   currency: string;
   periodEnd: Date;
+  /** Milestone 2.7b: cambia el copy del segundo párrafo — anual aclara que
+   * el cobro cubre 12 cajas, no una sola. Ausente = mensual (default). */
+  billingInterval?: "month" | "year";
 }
 
 /** Dispara en `subscription-webhook-handlers.ts::handleInvoicePaid` en CADA
@@ -66,6 +69,11 @@ interface SendPaymentConfirmedInput {
  * envío si dos entregas de Stripe con `eventId` distinto llegan para la
  * misma factura (el dedupe de `PaymentEvent` solo cubre el `eventId`). */
 async function sendSubscriptionPaymentConfirmedEmail(input: SendPaymentConfirmedInput): Promise<void> {
+  const periodParagraph =
+    input.billingInterval === "year"
+      ? `Este cobro cubre tu ciclo anual completo: recibirás una caja cada mes hasta el ${escapeHtml(DATE_FORMATTER.format(input.periodEnd))}, cuando se renueve tu suscripción.`
+      : `Tu caja de este ciclo queda vigente hasta el ${escapeHtml(DATE_FORMATTER.format(input.periodEnd))}.`;
+
   await sendSubscriberEmail(input.userId, (target) => ({
     subject: "Confirmamos tu cobro — Esencia Glow",
     idempotencyKey: `subscription-${input.accountId}-invoice-${input.invoiceRef}`,
@@ -74,9 +82,39 @@ async function sendSubscriptionPaymentConfirmedEmail(input: SendPaymentConfirmed
       title: "¡Gracias por tu suscripción!",
       paragraphs: [
         `Hola ${target.name}, confirmamos el cobro de <strong>${escapeHtml(formatCents(input.amountPaidCents))}</strong> de tu suscripción.`,
-        `Tu caja de este ciclo queda vigente hasta el ${escapeHtml(DATE_FORMATTER.format(input.periodEnd))}.`,
+        periodParagraph,
       ],
       disclaimer: "Si tú no reconoces este cobro, contáctanos de inmediato.",
+    }),
+  }));
+}
+
+interface SendAnnualRenewalReminderInput {
+  accountId: string;
+  userId: Types.ObjectId | string;
+  /** Fin del ciclo anual en curso = fecha de la próxima renovación. */
+  periodEnd: Date;
+}
+
+/** Aviso 30 días antes de que se renueve un ciclo ANUAL (Milestone 2.7b,
+ * decisión de Manuel: un cobro recurrente sin aviso es la causa #1 de
+ * contracargo — mismo motivo que ya justificó el correo de confirmación de
+ * cada cobro en 1.7.2a). Dispara desde
+ * `jobs/send-annual-renewal-reminders.ts`. `Idempotency-Key` por
+ * `periodEnd` (no por fecha de envío): si el job corre varias veces antes de
+ * que el período cambie, sigue siendo el mismo aviso. */
+async function sendAnnualRenewalReminderEmail(input: SendAnnualRenewalReminderInput): Promise<void> {
+  await sendSubscriberEmail(input.userId, (target) => ({
+    subject: "Tu suscripción anual está por renovarse — Esencia Glow",
+    idempotencyKey: `subscription-${input.accountId}-renewal-reminder-${input.periodEnd.getTime()}`,
+    html: renderTransactionalEmail({
+      preheader: `Tu suscripción se renueva el ${DATE_FORMATTER.format(input.periodEnd)}.`,
+      title: "Tu suscripción anual está por renovarse",
+      paragraphs: [
+        `Hola ${target.name}, tu ciclo anual termina el <strong>${escapeHtml(DATE_FORMATTER.format(input.periodEnd))}</strong>.`,
+        "Si quieres continuar con nosotros, no necesitas hacer nada: se renovará automáticamente. Si prefieres pausar o cancelar, puedes hacerlo desde tu cuenta antes de esa fecha.",
+      ],
+      disclaimer: "Si tienes dudas sobre tu suscripción, contáctanos.",
     }),
   }));
 }
@@ -233,6 +271,7 @@ async function sendUpcomingEditionMissingEmail(input: SendUpcomingEditionMissing
 
 export {
   sendSubscriptionPaymentConfirmedEmail,
+  sendAnnualRenewalReminderEmail,
   sendSubscriptionDunningEmail,
   sendSubscriptionAdminIncidentEmail,
   sendUpcomingEditionMissingEmail,

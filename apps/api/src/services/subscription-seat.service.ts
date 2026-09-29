@@ -38,6 +38,9 @@ interface TransitionExtra {
 interface StartSubscriptionInput {
   userId: string;
   planId: string;
+  /** Intervalo de cobro elegido (Milestone 2.7b). Ausente = mensual, sin
+   * escribir el campo (mismo precedente que `Product.channel`). */
+  billingInterval?: "month" | "year";
 }
 
 /** Reclama un lugar en el plan, atómico. Lanza 409 si el plan está inactivo,
@@ -126,6 +129,7 @@ async function startSubscription(
             seatHeldAt: now,
             cancelAtPeriodEnd: false,
             statusHistory: [historyEntry],
+            ...(input.billingInterval ? { billingInterval: input.billingInterval } : {}),
           },
         ],
         { session: s },
@@ -153,6 +157,10 @@ async function startSubscription(
           planId: input.planId,
           seatHeldAt: now,
           cancelAtPeriodEnd: false,
+          // `billingInterval` de la re-alta, nunca el de la suscripción
+          // vieja cancelada (Milestone 2.7b) — se escribe o se limpia
+          // explícito, no se hereda.
+          ...(input.billingInterval ? { billingInterval: input.billingInterval } : {}),
         },
         // `providerSubscriptionId` se limpia (hallazgo de code review de la
         // Fase 4): dejar el ref de la suscripción VIEJA de Stripe en un
@@ -170,6 +178,7 @@ async function startSubscription(
           // la pausa ni un cambio de plan a medias de la anterior.
           pausedAt: 1,
           pendingPlanChange: 1,
+          ...(input.billingInterval ? {} : { billingInterval: 1 }),
         },
         $push: { statusHistory: { $each: [historyEntry], $slice: -MAX_SUBSCRIPTION_STATUS_HISTORY } },
       },

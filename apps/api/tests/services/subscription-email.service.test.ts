@@ -5,6 +5,7 @@ import {
   sendSubscriptionPaymentConfirmedEmail,
   sendSubscriptionDunningEmail,
   sendSubscriptionAdminIncidentEmail,
+  sendAnnualRenewalReminderEmail,
   __setAdminAlertEmailForTests,
 } from "../../src/services/subscription-email.service.js";
 import { __setMailProviderForTests } from "../../src/services/mail-provider.js";
@@ -56,6 +57,42 @@ describe("services/subscription-email", () => {
     expect(call.html).toMatch(/\$\s?599\.00/);
     expect(call.html).not.toContain("<style");
     expect(call.idempotencyKey).toBe(`subscription-${accountId}-invoice-in_123`);
+  });
+
+  it("sendSubscriptionPaymentConfirmedEmail con billingInterval: 'year' usa el copy anual", async () => {
+    const userId = await seedUser();
+    const fake = buildFakeMailProvider();
+    __setMailProviderForTests(fake);
+    const accountId = new Types.ObjectId().toString();
+
+    await sendSubscriptionPaymentConfirmedEmail({
+      accountId,
+      userId,
+      invoiceRef: "in_annual_1",
+      amountPaidCents: 599000,
+      currency: "mxn",
+      periodEnd: new Date("2027-09-15T12:00:00Z"),
+      billingInterval: "year",
+    });
+
+    const call = fake.calls[0]!;
+    expect(call.html).toMatch(/12 cajas|todo el año|ciclo anual/i);
+  });
+
+  it("sendAnnualRenewalReminderEmail: asunto de aviso e Idempotency-Key por cuenta+período", async () => {
+    const userId = await seedUser();
+    const fake = buildFakeMailProvider();
+    __setMailProviderForTests(fake);
+    const accountId = new Types.ObjectId().toString();
+    const periodEnd = new Date("2027-09-15T12:00:00Z");
+
+    await sendAnnualRenewalReminderEmail({ accountId, userId, periodEnd });
+
+    expect(fake.calls).toHaveLength(1);
+    const call = fake.calls[0]!;
+    expect(call.subject.toLowerCase()).toMatch(/renov/);
+    expect(call.html).not.toContain("<style");
+    expect(call.idempotencyKey).toBe(`subscription-${accountId}-renewal-reminder-${periodEnd.getTime()}`);
   });
 
   it("sendSubscriptionDunningEmail: copy de dunning e Idempotency-Key por factura+intento", async () => {

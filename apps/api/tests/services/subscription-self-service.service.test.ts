@@ -110,6 +110,14 @@ describe("subscription-self-service — pausar", () => {
     expect(provider.pauseCollection).not.toHaveBeenCalled();
   });
 
+  it("una cuenta ANUAL nunca se puede pausar -> 409 sin llamar a Stripe (Milestone 2.7b)", async () => {
+    const { userId, accountId } = await seedManaged();
+    await SubscriptionAccount.updateOne({ _id: accountId }, { $set: { billingInterval: "year" } });
+
+    await expect(pauseSubscription(userId)).rejects.toMatchObject({ statusCode: 409 });
+    expect(provider.pauseCollection).not.toHaveBeenCalled();
+  });
+
   it("si un webhook mueve la cuenta a PAST_DUE ENTRE la llamada a Stripe y la escritura local: compensa (reanuda en Stripe) y relanza el 409 original", async () => {
     const { userId, accountId } = await seedManaged();
     useProvider({

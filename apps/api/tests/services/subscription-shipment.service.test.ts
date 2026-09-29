@@ -7,7 +7,7 @@ import { Product } from "../../src/models/product.model.js";
 import { SubscriptionEdition } from "../../src/models/subscription-edition.model.js";
 import { SubscriptionShipment } from "../../src/models/subscription-shipment.model.js";
 import { StockReservation } from "../../src/models/stock-reservation.model.js";
-import { createCycleShipment } from "../../src/services/subscription-shipment.service.js";
+import { createCycleShipment, createPrepaidCycleShipment } from "../../src/services/subscription-shipment.service.js";
 import { __setMailProviderForTests } from "../../src/services/mail-provider.js";
 import { __setAdminAlertEmailForTests } from "../../src/services/subscription-email.service.js";
 import { buildFakeMailProvider } from "../helpers/fake-mail-provider.js";
@@ -428,5 +428,128 @@ describe("services/subscription-shipment — createCycleShipment", () => {
     const stillSealedAt = (await SubscriptionEdition.findById(edition._id))!.firstBilledAt!.getTime();
 
     expect(stillSealedAt).toBe(sealedAt);
+  });
+});
+
+/**
+ * `createPrepaidCycleShipment` (Milestone 2.7b) — las cajas mensuales 2-12
+ * de una cuenta ANUAL: el webhook de Stripe solo dispara `invoice.paid` una
+ * vez al año, así que un job (`jobs/create-prepaid-cycle-shipments.ts`) crea
+ * cada caja intermedia. Reusa reserva/incidencias/sello de edición de
+ * `createCycleShipment`, pero SIN `invoiceId` (el índice único de
+ * `{accountId,cycleYear,cycleMonth}` es la única idempotencia que necesita
+ * — no hay reentrega de webhook que distinguir).
+ */
+describe("services/subscription-shipment — createPrepaidCycleShipment (Milestone 2.7b)", () => {
+  afterEach(() => {
+    __setAdminAlertEmailForTests(undefined);
+  });
+
+  it("crea la caja con prepaidInvoiceId, SIN invoiceId, reservando el inventario de la edición", async () => {
+    const plan = await seedPlanWithStripeRefs({ annualPriceCents: 599000 });
+    const { product, variantId } = await seedSubscriptionVariantWithStock({ onHand: 10 });
+    const edition = await seedPublishedEdition({
+      planId: plan._id.toString(),
+      cycleYear: 2026,
+      cycleMonth: 10,
+      items: [{ productId: product._id.toString(), variantId: variantId.toString(), quantity: 2 }],
+    });
+    const account = await seedSubscribedAccount({ planId: plan._id.toString(), status: SubscriptionStatus.ACTIVE });
+
+    const result = await createPrepaidCycleShipment({
+      accountId: account._id,
+      userId: account.userId,
+      planId: account.planId,
+      coveringInvoiceRef: "in_anual_covering",
+      cycleYear: 2026,
+      cycleMonth: 10,
+    });
+
+    expect(result.outcome).toBe("created");
+    expect(result.shipment.prepaidInvoiceId).toBe("in_anual_covering");
+    expect(result.shipment.invoiceId).toBeUndefined();
+    expect(result.shipment.editionId?.toString()).toBe(edition._id.toString());
+    expect(result.shipment.reservedItems).toHaveLength(1);
+
+    const inventory = await Inventory.findOne({ variantId });
+    expect(inventory?.reserved).toBe(2);
+    expect(await StockReservation.countDocuments({})).toBe(0);
+  });
+
+  it("un segundo intento del MISMO ciclo (reintento del job) es 'replayed', sin re-reservar", async () => {
+    const plan = await seedPlanWithStripeRefs({ annualPriceCents: 599000 });
+    const { variantId } = await seedSubscriptionVariantWithStock({ onHand: 10 });
+    const account = await seedSubscribedAccount({ planId: plan._id.toString(), status: SubscriptionStatus.ACTIVE });
+
+    const first = await createPrepaidCycleShipment({
+      accountId: account._id,
+      userId: account.userId,
+      planId: account.planId,
+      coveringInvoiceRef: "in_anual_covering",
+      cycleYear: 2026,
+      cycleMonth: 10,
+    });
+
+    const second = await createPrepaidCycleShipment({
+      accountId: account._id,
+      userId: account.userId,
+      planId: account.planId,
+      coveringInvoiceRef: "in_anual_covering",
+      cycleYear: 2026,
+      cycleMonth: 10,
+    });
+
+    expect(second.outcome).toBe("replayed");
+    expect(second.shipment._id.toString()).toBe(first.shipment._id.toString());
+    const inventory = await Inventory.findOne({ variantId });
+    expect(inventory?.reserved).toBe(0); // sin edición publicada, nada que reservar en ninguno de los dos intentos
+  });
+
+  it("dos cajas prepagadas de la MISMA factura anual, en ciclos distintos, conviven", async () => {
+    const plan = await seedPlanWithStripeRefs({ annualPriceCents: 599000 });
+    const account = await seedSubscribedAccount({ planId: plan._id.toString(), status: SubscriptionStatus.ACTIVE });
+
+    await createPrepaidCycleShipment({
+      accountId: account._id,
+      userId: account.userId,
+      planId: account.planId,
+      coveringInvoiceRef: "in_anual_covering",
+      cycleYear: 2026,
+      cycleMonth: 10,
+    });
+    const second = await createPrepaidCycleShipment({
+      accountId: account._id,
+      userId: account.userId,
+      planId: account.planId,
+      coveringInvoiceRef: "in_anual_covering",
+      cycleYear: 2026,
+      cycleMonth: 11,
+    });
+
+    expect(second.outcome).toBe("created");
+    expect(await SubscriptionShipment.countDocuments({ accountId: account._id })).toBe(2);
+  });
+
+  it("sin edición publicada para el ciclo: crea la caja con editionIncident y alerta al admin", async () => {
+    const fakeMail = buildFakeMailProvider();
+    __setMailProviderForTests(fakeMail);
+    __setAdminAlertEmailForTests("admin@esenciaglow.test");
+
+    const plan = await seedPlanWithStripeRefs({ annualPriceCents: 599000 });
+    const account = await seedSubscribedAccount({ planId: plan._id.toString(), status: SubscriptionStatus.ACTIVE });
+
+    const result = await createPrepaidCycleShipment({
+      accountId: account._id,
+      userId: account.userId,
+      planId: account.planId,
+      coveringInvoiceRef: "in_anual_covering",
+      cycleYear: 2026,
+      cycleMonth: 10,
+    });
+
+    expect(result.shipment.editionIncident).toBe(true);
+    expect(result.shipment.adminAlertedAt).toBeInstanceOf(Date);
+    const audit = await AuditLog.findOne({ action: "subscription_shipment_edition_missing", targetId: result.shipment._id });
+    expect(audit).not.toBeNull();
   });
 });

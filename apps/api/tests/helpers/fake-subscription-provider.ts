@@ -47,9 +47,14 @@ function buildFakeSubscriptionProvider(overrides: Partial<SubscriptionProvider> 
   }
 
   return {
-    createPlanProduct: vi.fn().mockImplementation(async () => {
+    createPlanProduct: vi.fn().mockImplementation(async (input: { annualPriceCents?: number }) => {
       counter += 1;
-      return { productRef: `prod_fake_${counter}`, priceRef: `price_fake_${counter}` };
+      const refs: { productRef: string; priceRef: string; annualPriceRef?: string } = {
+        productRef: `prod_fake_${counter}`,
+        priceRef: `price_fake_${counter}`,
+      };
+      if (input.annualPriceCents !== undefined) refs.annualPriceRef = `price_fake_year_${counter}`;
+      return refs;
     }),
     ensureCustomer: vi.fn().mockImplementation(async () => {
       counter += 1;

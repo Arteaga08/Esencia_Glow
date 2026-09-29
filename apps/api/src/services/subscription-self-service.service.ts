@@ -46,6 +46,12 @@ type CancelOutcome = "scheduled" | "canceled";
 /** ACTIVE + sin cancelación programada + sin cambio de plan en curso + a más
  * de 48 h del siguiente cobro. */
 function assertCanPause(account: SubscriptionAccountDocument, now: Date): void {
+  // Milestone 2.7b: el año ya se cobró completo de golpe, así que no hay
+  // ningún cobro futuro que "detener" pausando — a diferencia de la mensual,
+  // donde pausar SÍ evita el siguiente cargo.
+  if (account.billingInterval === "year") {
+    throw new AppError("Las suscripciones anuales no se pueden pausar: ya están cobradas por todo el año.", 409);
+  }
   if (account.status === SubscriptionStatus.PAST_DUE) {
     throw new AppError("Regulariza tu pago antes de pausar tu suscripción.", 409);
   }

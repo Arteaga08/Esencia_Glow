@@ -131,6 +131,15 @@ describe("subscription-plan-change — changePlan", () => {
     expect(await seats(newPlan._id.toString())).toBe(0);
   });
 
+  it("una cuenta ANUAL nunca puede cambiar de plan -> 409, sin reclamar cupo (Milestone 2.7b)", async () => {
+    const seed = await seedManaged();
+    await SubscriptionAccount.updateOne({ _id: seed.accountId }, { $set: { billingInterval: "year" } });
+    const newPlan = await seedPlanWithStripeRefs();
+
+    await expect(changePlan(seed.userId, newPlan._id.toString())).rejects.toMatchObject({ statusCode: 409 });
+    expect(await seats(newPlan._id.toString())).toBe(0);
+  });
+
   it("con OTRO cambio de plan en curso -> 409 y el cupo del segundo intento no se reclama", async () => {
     const seed = await seedManaged();
     const planB = await seedPlanWithStripeRefs();

@@ -88,6 +88,60 @@ describe("services/stripe-subscription-provider — createPlanProduct", () => {
       }),
     ).rejects.toMatchObject({ statusCode: 409 });
   });
+
+  it("con annualPriceCents crea un tercer Price anual con su propia key de idempotencia", async () => {
+    const productsCreate = vi.fn().mockResolvedValue({ id: "prod_1" });
+    const pricesCreate = vi
+      .fn()
+      .mockResolvedValueOnce({ id: "price_1" })
+      .mockResolvedValueOnce({ id: "price_year_1" });
+    const client = buildFakeClient({
+      products: { create: productsCreate },
+      prices: { create: pricesCreate },
+    });
+    const provider = createStripeSubscriptionProvider(client);
+
+    const result = await provider.createPlanProduct({
+      planSlug: "caja-esencia",
+      name: "Caja Esencia",
+      description: "Caja mensual curada",
+      priceCents: 59900,
+      annualPriceCents: 599000,
+      currency: "mxn",
+      idempotencyKey: "plan:caja-esencia",
+    });
+
+    expect(result).toEqual({ productRef: "prod_1", priceRef: "price_1", annualPriceRef: "price_year_1" });
+    expect(pricesCreate).toHaveBeenCalledTimes(2);
+
+    const [annualParams, annualOptions] = pricesCreate.mock.calls[1];
+    expect(annualParams.product).toBe("prod_1");
+    expect(annualParams.unit_amount).toBe(599000);
+    expect(annualParams.recurring).toEqual({ interval: "year" });
+    expect(annualOptions.idempotencyKey).toBe("plan:caja-esencia:price-year");
+  });
+
+  it("sin annualPriceCents no crea un segundo Price", async () => {
+    const productsCreate = vi.fn().mockResolvedValue({ id: "prod_1" });
+    const pricesCreate = vi.fn().mockResolvedValue({ id: "price_1" });
+    const client = buildFakeClient({
+      products: { create: productsCreate },
+      prices: { create: pricesCreate },
+    });
+    const provider = createStripeSubscriptionProvider(client);
+
+    const result = await provider.createPlanProduct({
+      planSlug: "caja-esencia",
+      name: "Caja Esencia",
+      description: "Caja mensual curada",
+      priceCents: 59900,
+      currency: "mxn",
+      idempotencyKey: "plan:caja-esencia",
+    });
+
+    expect(result.annualPriceRef).toBeUndefined();
+    expect(pricesCreate).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("services/stripe-subscription-provider — ensureCustomer", () => {
@@ -204,6 +258,41 @@ describe("services/stripe-subscription-provider — startSubscription", () => {
         idempotencyKey: "k",
       }),
     ).rejects.toMatchObject({ statusCode: 502 });
+  });
+
+  it("con billingAnchorMonth agrega month al billing_cycle_anchor_config (alta anual)", async () => {
+    const subscriptionsCreate = vi.fn().mockResolvedValue(buildFakeStripeSubscription());
+    const client = buildFakeClient({ subscriptions: { create: subscriptionsCreate, retrieve: vi.fn() } });
+    const provider = createStripeSubscriptionProvider(client);
+
+    await provider.startSubscription({
+      customerRef: "cus_1",
+      priceRef: "price_year_1",
+      billingAnchorDay: 15,
+      billingAnchorMonth: 9,
+      metadata: { accountId: "acc_1", userId: "user_1", planId: "plan_1" },
+      idempotencyKey: "account:acc_1:sub:1000",
+    });
+
+    const [params] = subscriptionsCreate.mock.calls[0];
+    expect(params.billing_cycle_anchor_config).toEqual({ day_of_month: 15, hour: 15, month: 9 });
+  });
+
+  it("sin billingAnchorMonth el anchor config no lleva month (alta mensual)", async () => {
+    const subscriptionsCreate = vi.fn().mockResolvedValue(buildFakeStripeSubscription());
+    const client = buildFakeClient({ subscriptions: { create: subscriptionsCreate, retrieve: vi.fn() } });
+    const provider = createStripeSubscriptionProvider(client);
+
+    await provider.startSubscription({
+      customerRef: "cus_1",
+      priceRef: "price_1",
+      billingAnchorDay: 15,
+      metadata: { accountId: "acc_1", userId: "user_1", planId: "plan_1" },
+      idempotencyKey: "account:acc_1:sub:1000",
+    });
+
+    const [params] = subscriptionsCreate.mock.calls[0];
+    expect(params.billing_cycle_anchor_config).toEqual({ day_of_month: 15, hour: 15 });
   });
 });
 

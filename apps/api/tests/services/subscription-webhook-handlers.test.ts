@@ -629,6 +629,20 @@ describe("subscription-webhook-handlers — correos", () => {
     expect(fake.calls[0]!.idempotencyKey).toBe(`subscription-${account._id.toString()}-invoice-${event.invoiceRef}`);
   });
 
+  it("invoice.paid sobre una cuenta ANUAL -> el correo usa el copy anual (Milestone 2.7b)", async () => {
+    const { account } = await seedActiveAccountWithEdition();
+    await seedUserFor(account);
+    await SubscriptionAccount.updateOne({ _id: account._id }, { $set: { billingInterval: "year" } });
+    const fake = buildFakeMailProvider();
+    __setMailProviderForTests(fake);
+
+    const event = invoicePaidEvent({ subscriptionRef: account.providerSubscriptionId!, amountPaidCents: 599000 });
+    await processPaymentWebhook(event, provider);
+
+    expect(fake.calls).toHaveLength(1);
+    expect(fake.calls[0]!.html).toMatch(/12 cajas|todo el año|ciclo anual/i);
+  });
+
   it("invoice.paid fuera de orden (factura VIEJA procesada DESPUÉS de una más nueva) -> el correo muestra el período vigente real, no el de la factura vieja", async () => {
     const { account } = await seedActiveAccountWithEdition();
     await seedUserFor(account);

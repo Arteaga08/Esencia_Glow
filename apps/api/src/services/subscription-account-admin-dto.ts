@@ -21,6 +21,7 @@ interface LeanAdminAccount {
   userId: Types.ObjectId;
   planId: Types.ObjectId;
   status: SubscriptionStatus;
+  billingInterval?: "month" | "year";
   cancelAtPeriodEnd: boolean;
   startedAt?: Date;
   currentPeriodEnd?: Date;
@@ -48,6 +49,9 @@ interface AdminSubscriptionAccountListItem {
   user: AdminSubscriptionAccountUser;
   plan: AdminSubscriptionAccountPlan | null;
   status: SubscriptionStatus;
+  /** Intervalo de cobro (Milestone 2.7b). Siempre presente en el DTO,
+   * normalizado a `"month"` cuando la cuenta no tiene el campo. */
+  billingInterval: "month" | "year";
   cancelAtPeriodEnd: boolean;
   startedAt?: string;
   currentPeriodEnd?: string;
@@ -82,6 +86,7 @@ function buildAdminSubscriptionAccountListItem(
     user: user ?? { id: account.userId.toString(), firstName: "", lastName: "", email: "" },
     plan,
     status: account.status,
+    billingInterval: account.billingInterval === "year" ? "year" : "month",
     cancelAtPeriodEnd: account.cancelAtPeriodEnd,
     ...(account.startedAt ? { startedAt: account.startedAt.toISOString() } : {}),
     ...(account.currentPeriodEnd ? { currentPeriodEnd: account.currentPeriodEnd.toISOString() } : {}),

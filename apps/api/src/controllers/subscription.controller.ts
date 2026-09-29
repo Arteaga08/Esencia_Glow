@@ -18,6 +18,7 @@ const start = asyncHandler(async (req: Request, res: Response) => {
   const result = await startSubscriptionForUser({
     userId: req.user!.id,
     planId: req.body.planId,
+    billingInterval: req.body.billingInterval,
   });
 
   sendResponse(res, 201, "Suscripción iniciada.", result satisfies StartSubscriptionResult);

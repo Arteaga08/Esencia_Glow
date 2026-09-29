@@ -6,6 +6,8 @@ import { reconcilePendingPayments } from "./reconcile-pending-payments.js";
 import { expireIncompleteSubscriptions } from "./expire-incomplete-subscriptions.js";
 import { alertMissingEdition } from "./alert-missing-edition.js";
 import { reconcilePendingPlanChanges } from "./reconcile-pending-plan-changes.js";
+import { createPrepaidCycleShipments } from "./create-prepaid-cycle-shipments.js";
+import { sendAnnualRenewalReminders } from "./send-annual-renewal-reminders.js";
 import { processShippingLabels } from "./process-shipping-labels.js";
 import { getSettings } from "../services/settings.service.js";
 import { env } from "../config/env.js";
@@ -46,7 +48,11 @@ import { logger } from "../config/logger.js";
  * `alertMissingEdition` (1.7.2b), que además se corta sola fuera de la
  * ventana de aviso sin tocar la base. `reconcilePendingPlanChanges` (1.7.3)
  * también: resuelve cambios de plan que quedaron a medias, sin depender de las
- * cadenas de reserva/orden.
+ * cadenas de reserva/orden. `createPrepaidCycleShipments` (2.7b) es igual de
+ * independiente: crea las cajas mensuales intermedias de las cuentas ANUALES,
+ * cuyo webhook de Stripe solo dispara `invoice.paid` una vez al año.
+ * `sendAnnualRenewalReminders` (2.7b) también viaja en paralelo: solo lee y
+ * escribe cuentas, sin tocar inventario ni pedidos.
  *
  * `processShippingLabels` (Milestone 1.9) NO va en este tick sino en su
  * propio cron (al final de `startCronJobs`): sus llamadas a un tercero pueden
@@ -97,6 +103,8 @@ function startCronJobs(): void {
         undefined,
         settings.inventory.sweepBatchSize,
       );
+      const prepaidShipmentsSummaryPromise = createPrepaidCycleShipments(new Date(), settings.inventory.sweepBatchSize);
+      const renewalReminderSummaryPromise = sendAnnualRenewalReminders(new Date(), settings.inventory.sweepBatchSize);
       const reservationSummary = await releaseExpiredReservations(new Date(), settings.inventory.sweepBatchSize);
       const orderSummary = await cancelExpiredOrders(new Date(), settings.inventory.sweepBatchSize);
       const bundleSummary = await bundleSummaryPromise;
@@ -104,6 +112,8 @@ function startCronJobs(): void {
       const expireSubscriptionsSummary = await expireSubscriptionsSummaryPromise;
       const missingEditionSummary = await missingEditionSummaryPromise;
       const planChangeSummary = await planChangeSummaryPromise;
+      const prepaidShipmentsSummary = await prepaidShipmentsSummaryPromise;
+      const renewalReminderSummary = await renewalReminderSummaryPromise;
       if (reservationSummary.released > 0 || reservationSummary.failed > 0) {
         logger.info(reservationSummary, "Barrido de reservas vencidas");
       }
@@ -124,6 +134,12 @@ function startCronJobs(): void {
       }
       if (planChangeSummary.finalized > 0 || planChangeSummary.aborted > 0 || planChangeSummary.failed > 0) {
         logger.info(planChangeSummary, "Reconciliación de cambios de plan a medias");
+      }
+      if (prepaidShipmentsSummary.created > 0 || prepaidShipmentsSummary.failed > 0) {
+        logger.info(prepaidShipmentsSummary, "Cajas prepagadas de ciclos intermedios anuales");
+      }
+      if (renewalReminderSummary.sent > 0 || renewalReminderSummary.failed > 0) {
+        logger.info(renewalReminderSummary, "Avisos de renovación anual");
       }
     },
     { noOverlap: true, name: "release-expired-reservations" },

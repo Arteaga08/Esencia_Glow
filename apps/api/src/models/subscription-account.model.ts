@@ -63,6 +63,17 @@ interface SubscriptionAccountAttrs {
    * dentro de la misma factura. Se limpia al cobrar. */
   dunningInvoiceId?: string;
   pausedAt?: Date;
+  /** Intervalo de cobro elegido al suscribirse (Milestone 2.7b). Sin
+   * `default` ni `required` a propósito, mismo precedente que
+   * `Product.channel`: las cuentas creadas antes de 2.7b no tienen este
+   * campo y deben leerse como mensuales (`{$ne: "year"}`, nunca
+   * `{$eq: "month"}`), sin backfill. Lo escribe `startSubscription` al
+   * alta y en la reactivación `CANCELED -> INCOMPLETE`. */
+  billingInterval?: "month" | "year";
+  /** `currentPeriodEnd` ya avisado con el correo de recordatorio de
+   * renovación anual (Milestone 2.7b) — evita mandarlo dos veces si el job
+   * corre de nuevo antes de que el período cambie. */
+  renewalReminderSentFor?: Date;
   /** Cambio de plan en vuelo (1.7.3). Presente ⟺ la cuenta reclamó un cupo en
    * el plan NUEVO pero todavía no lo confirmó contra el proveedor: durante
    * esa ventana ocupa DOS cupos (el viejo y el nuevo). `requestedAt` fija la
@@ -130,6 +141,8 @@ const subscriptionAccountSchema = new Schema<SubscriptionAccountAttrs, Subscript
     dunningAttempts: { type: Number, required: true, default: 0, min: 0, validate: integerValidator },
     dunningInvoiceId: { type: String, trim: true },
     pausedAt: { type: Date },
+    billingInterval: { type: String, enum: ["month", "year"] },
+    renewalReminderSentFor: { type: Date },
     pendingPlanChange: { type: pendingPlanChangeSchema },
   },
   { timestamps: true },
@@ -141,6 +154,10 @@ subscriptionAccountSchema.index({ planId: 1, status: 1 });
 // ordenado por próximo cobro (`?sort=currentPeriodEnd`, default del
 // listado). Sin este índice ese sort obligaría a un scan completo.
 subscriptionAccountSchema.index({ status: 1, currentPeriodEnd: 1 });
+// Milestone 2.7b: el job de cajas prepagadas y el de recordatorio de
+// renovación anual filtran por cuentas `year` + `status`, sin tocar
+// `planId` — un índice propio evita el scan completo de ambos jobs.
+subscriptionAccountSchema.index({ billingInterval: 1, status: 1 });
 subscriptionAccountSchema.index(
   { providerSubscriptionId: 1 },
   { unique: true, partialFilterExpression: { providerSubscriptionId: { $type: "string" } } },

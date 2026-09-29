@@ -44,6 +44,32 @@ type CreateCycleShipmentOutcome =
   | { outcome: "replayed"; shipment: SubscriptionShipmentDocument }
   | { outcome: "duplicate_cycle"; shipment: SubscriptionShipmentDocument };
 
+/**
+ * Cajas mensuales 2-12 de una cuenta ANUAL (Milestone 2.7b): el webhook de
+ * Stripe solo dispara `invoice.paid` una vez al año, así que
+ * `jobs/create-prepaid-cycle-shipments.ts` llama esto en cada tick para el
+ * ciclo en curso. `cycleYear`/`cycleMonth` viajan sueltos (no hay
+ * `servicePeriodStart` que resolver: el job ya sabe el ciclo). SIN
+ * `invoiceRef`: la única idempotencia que hace falta es el índice único de
+ * `{accountId, cycleYear, cycleMonth}` — no hay reentrega de webhook que
+ * distinguir de una anomalía de negocio, así que no existe el desenlace
+ * `duplicate_cycle` aquí.
+ */
+interface CreatePrepaidCycleShipmentInput {
+  accountId: Types.ObjectId | string;
+  userId: Types.ObjectId | string;
+  planId: Types.ObjectId | string;
+  /** Factura ANUAL que ya cubrió este ciclo — informativa, ver el docstring
+   * de `SubscriptionShipmentAttrs.prepaidInvoiceId`. */
+  coveringInvoiceRef: string;
+  cycleYear: number;
+  cycleMonth: number;
+}
+
+type CreatePrepaidCycleShipmentOutcome =
+  | { outcome: "created"; shipment: SubscriptionShipmentDocument }
+  | { outcome: "replayed"; shipment: SubscriptionShipmentDocument };
+
 /** Fusiona por `variantId` (dos líneas de la misma variante en una edición
  * son válidas) y ordena por el hex canónico — calco de `normalizeLines` en
  * stock-reservation.service.ts: first-writer-wins consistente si dos cajas
@@ -87,100 +113,131 @@ async function reserveWhatIsAvailable(
   return { reservedItems, inventoryIncident };
 }
 
+/** Documento base común a `createCycleShipment` (mensual, `invoiceId`) y
+ * `createPrepaidCycleShipment` (anual, `prepaidInvoiceId`) — misma
+ * transacción: edición del ciclo, reserva lo que alcance, sella
+ * `firstBilledAt` una sola vez. El identificador de factura viaja en el
+ * campo que corresponda, nunca los dos a la vez. */
+interface ShipmentSeedFields {
+  accountId: Types.ObjectId | string;
+  userId: Types.ObjectId | string;
+  planId: Types.ObjectId | string;
+  cycleYear: number;
+  cycleMonth: number;
+  invoiceId?: string;
+  prepaidInvoiceId?: string;
+}
+
+async function runShipmentTransaction(seed: ShipmentSeedFields): Promise<SubscriptionShipmentDocument> {
+  return withTransaction(async (session) => {
+    const edition = await SubscriptionEdition.findOne({
+      planId: seed.planId,
+      cycleYear: seed.cycleYear,
+      cycleMonth: seed.cycleMonth,
+      status: EditionStatus.PUBLISHED,
+    }).session(session);
+
+    const editionIncident = !edition;
+
+    const [createdDoc] = await SubscriptionShipment.create(
+      [
+        {
+          accountId: seed.accountId,
+          userId: seed.userId,
+          planId: seed.planId,
+          editionId: edition?._id,
+          cycleYear: seed.cycleYear,
+          cycleMonth: seed.cycleMonth,
+          ...(seed.invoiceId ? { invoiceId: seed.invoiceId } : {}),
+          ...(seed.prepaidInvoiceId ? { prepaidInvoiceId: seed.prepaidInvoiceId } : {}),
+          editionIncident,
+          ...(editionIncident ? { adminAlertedAt: new Date() } : {}),
+        },
+      ],
+      { session },
+    );
+    const created = createdDoc as SubscriptionShipmentDocument;
+
+    if (!edition) {
+      return created;
+    }
+
+    const orderedLines = normalizeEditionItems(edition.items);
+    const { reservedItems, inventoryIncident } = await reserveWhatIsAvailable(orderedLines, session);
+
+    // Sello condicional: jamás queda sellada una edición por un envío que
+    // no commiteó, y jamás se re-sella si ya lo estaba (otra cuenta del
+    // mismo plan cobró primero este mismo ciclo).
+    await SubscriptionEdition.findOneAndUpdate(
+      { _id: edition._id, firstBilledAt: { $exists: false } },
+      { $set: { firstBilledAt: new Date() } },
+      { session },
+    );
+
+    const updated = await SubscriptionShipment.findByIdAndUpdate(
+      created._id,
+      {
+        $set: {
+          reservedItems,
+          inventoryIncident,
+          ...(inventoryIncident ? { adminAlertedAt: new Date() } : {}),
+        },
+      },
+      { new: true, session },
+    );
+    return updated as SubscriptionShipmentDocument;
+  });
+}
+
+/** Auditoría + correo de incidencia — idéntico para las dos fuentes
+ * (mensual y prepagada): la clienta ya pagó en ambos casos, así que el
+ * criterio de alerta no depende de cómo llegó el cobro. */
+async function emitShipmentCreationSideEffects(
+  shipment: SubscriptionShipmentDocument,
+  planId: Types.ObjectId | string,
+  accountId: Types.ObjectId | string,
+  cycleYear: number,
+  cycleMonth: number,
+): Promise<void> {
+  await recordAudit({
+    action: SubscriptionAction.SHIPMENT_CREATED,
+    targetId: shipment._id,
+    metadata: { accountId: accountId.toString(), cycleYear, cycleMonth },
+  });
+  if (shipment.editionIncident) {
+    await recordAudit({
+      action: SubscriptionAction.SHIPMENT_EDITION_MISSING,
+      targetId: shipment._id,
+      metadata: { planId: planId.toString(), cycleYear, cycleMonth },
+    });
+    void sendSubscriptionAdminIncidentEmail({
+      shipmentId: shipment._id.toString(),
+      reason: "edition_missing",
+      cycleYear,
+      cycleMonth,
+    });
+  }
+  if (shipment.inventoryIncident) {
+    await recordAudit({
+      action: SubscriptionAction.SHIPMENT_INVENTORY_SHORTAGE,
+      targetId: shipment._id,
+      metadata: { cycleYear, cycleMonth },
+    });
+    void sendSubscriptionAdminIncidentEmail({
+      shipmentId: shipment._id.toString(),
+      reason: "inventory_shortage",
+      cycleYear,
+      cycleMonth,
+    });
+  }
+}
+
 async function createCycleShipment(input: CreateCycleShipmentInput): Promise<CreateCycleShipmentOutcome> {
   const { cycleYear, cycleMonth } = resolveCycleFromDate(input.servicePeriodStart);
 
   try {
-    const shipment = await withTransaction(async (session) => {
-      const edition = await SubscriptionEdition.findOne({
-        planId: input.planId,
-        cycleYear,
-        cycleMonth,
-        status: EditionStatus.PUBLISHED,
-      }).session(session);
-
-      const editionIncident = !edition;
-
-      const [createdDoc] = await SubscriptionShipment.create(
-        [
-          {
-            accountId: input.accountId,
-            userId: input.userId,
-            planId: input.planId,
-            editionId: edition?._id,
-            cycleYear,
-            cycleMonth,
-            invoiceId: input.invoiceRef,
-            editionIncident,
-            ...(editionIncident ? { adminAlertedAt: new Date() } : {}),
-          },
-        ],
-        { session },
-      );
-      const created = createdDoc as SubscriptionShipmentDocument;
-
-      if (!edition) {
-        return created;
-      }
-
-      const orderedLines = normalizeEditionItems(edition.items);
-      const { reservedItems, inventoryIncident } = await reserveWhatIsAvailable(orderedLines, session);
-
-      // Sello condicional: jamás queda sellada una edición por un envío que
-      // no commiteó, y jamás se re-sella si ya lo estaba (otra cuenta del
-      // mismo plan cobró primero este mismo ciclo).
-      await SubscriptionEdition.findOneAndUpdate(
-        { _id: edition._id, firstBilledAt: { $exists: false } },
-        { $set: { firstBilledAt: new Date() } },
-        { session },
-      );
-
-      const updated = await SubscriptionShipment.findByIdAndUpdate(
-        created._id,
-        {
-          $set: {
-            reservedItems,
-            inventoryIncident,
-            ...(inventoryIncident ? { adminAlertedAt: new Date() } : {}),
-          },
-        },
-        { new: true, session },
-      );
-      return updated as SubscriptionShipmentDocument;
-    });
-
-    await recordAudit({
-      action: SubscriptionAction.SHIPMENT_CREATED,
-      targetId: shipment._id,
-      metadata: { accountId: input.accountId.toString(), cycleYear, cycleMonth },
-    });
-    if (shipment.editionIncident) {
-      await recordAudit({
-        action: SubscriptionAction.SHIPMENT_EDITION_MISSING,
-        targetId: shipment._id,
-        metadata: { planId: input.planId.toString(), cycleYear, cycleMonth },
-      });
-      void sendSubscriptionAdminIncidentEmail({
-        shipmentId: shipment._id.toString(),
-        reason: "edition_missing",
-        cycleYear,
-        cycleMonth,
-      });
-    }
-    if (shipment.inventoryIncident) {
-      await recordAudit({
-        action: SubscriptionAction.SHIPMENT_INVENTORY_SHORTAGE,
-        targetId: shipment._id,
-        metadata: { cycleYear, cycleMonth },
-      });
-      void sendSubscriptionAdminIncidentEmail({
-        shipmentId: shipment._id.toString(),
-        reason: "inventory_shortage",
-        cycleYear,
-        cycleMonth,
-      });
-    }
-
+    const shipment = await runShipmentTransaction({ ...input, cycleYear, cycleMonth, invoiceId: input.invoiceRef });
+    await emitShipmentCreationSideEffects(shipment, input.planId, input.accountId, cycleYear, cycleMonth);
     return { outcome: "created", shipment };
   } catch (error) {
     if (!isDuplicateKeyError(error)) throw error;
@@ -230,5 +287,44 @@ async function createCycleShipment(input: CreateCycleShipmentInput): Promise<Cre
   }
 }
 
-export { createCycleShipment };
-export type { CreateCycleShipmentInput, CreateCycleShipmentOutcome };
+/**
+ * Cajas prepagadas de una cuenta ANUAL (Milestone 2.7b) — llamado por
+ * `jobs/create-prepaid-cycle-shipments.ts` en cada tick para el ciclo en
+ * curso. Sin `invoiceId`: la única idempotencia que hace falta es el índice
+ * único de `{accountId, cycleYear, cycleMonth}`, así que un E11000 aquí
+ * SIEMPRE es un reintento del mismo job sobre el mismo ciclo — nunca una
+ * anomalía de negocio que alertar (a diferencia de `createCycleShipment`,
+ * donde un E11000 puede significar una factura duplicada real).
+ */
+async function createPrepaidCycleShipment(
+  input: CreatePrepaidCycleShipmentInput,
+): Promise<CreatePrepaidCycleShipmentOutcome> {
+  try {
+    const shipment = await runShipmentTransaction({
+      ...input,
+      prepaidInvoiceId: input.coveringInvoiceRef,
+    });
+    await emitShipmentCreationSideEffects(shipment, input.planId, input.accountId, input.cycleYear, input.cycleMonth);
+    return { outcome: "created", shipment };
+  } catch (error) {
+    if (!isDuplicateKeyError(error)) throw error;
+
+    const byCycle = await SubscriptionShipment.findOne({
+      accountId: input.accountId,
+      cycleYear: input.cycleYear,
+      cycleMonth: input.cycleMonth,
+    });
+    if (byCycle) return { outcome: "replayed", shipment: byCycle };
+
+    // Mismo caso transitorio que documenta `createCycleShipment`.
+    throw error;
+  }
+}
+
+export { createCycleShipment, createPrepaidCycleShipment };
+export type {
+  CreateCycleShipmentInput,
+  CreateCycleShipmentOutcome,
+  CreatePrepaidCycleShipmentInput,
+  CreatePrepaidCycleShipmentOutcome,
+};
