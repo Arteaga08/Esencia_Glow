@@ -2,12 +2,14 @@ import { describe, expect, it } from "vitest";
 import { SubscriptionStatus } from "@esencia-glow/shared";
 import { AuditLog } from "../../src/models/audit-log.model.js";
 import { SubscriptionAccount } from "../../src/models/subscription-account.model.js";
+import { SubscriptionInvoice } from "../../src/models/subscription-invoice.model.js";
 import { SubscriptionPlan } from "../../src/models/subscription-plan.model.js";
 import { applyStatusTransition } from "../../src/services/subscription-seat.service.js";
 import {
   applySystemStatus,
   recordPaidInvoice,
   recordPaymentFailure,
+  recordSubscriptionInvoice,
 } from "../../src/services/subscription-billing.service.js";
 import { seedPlanWithStripeRefs, seedSubscribedAccount } from "../helpers/subscription-fixtures.js";
 
@@ -216,5 +218,49 @@ describe("services/subscription-billing — recordPaymentFailure fuera de orden"
 
     const reloaded = await SubscriptionAccount.findById(account._id);
     expect(reloaded?.dunningAttempts).toBe(3);
+  });
+});
+
+describe("services/subscription-billing — recordSubscriptionInvoice", () => {
+  it("registra el cobro con el monto, la moneda y la cuenta del evento", async () => {
+    const plan = await seedPlanWithStripeRefs();
+    const account = await seedSubscribedAccount({ planId: plan._id.toString(), status: SubscriptionStatus.ACTIVE });
+
+    await recordSubscriptionInvoice({
+      invoiceRef: "in_reg1",
+      accountId: account._id,
+      userId: account.userId,
+      planId: account.planId,
+      billingInterval: account.billingInterval,
+      amountPaidCents: 59900,
+      currency: "mxn",
+      paidAt: new Date("2026-09-15T18:00:00.000Z"),
+    });
+
+    const invoice = await SubscriptionInvoice.findOne({ invoiceRef: "in_reg1" });
+    expect(invoice).not.toBeNull();
+    expect(invoice?.amountPaidCents).toBe(59900);
+    expect(invoice?.currency).toBe("mxn");
+    expect(invoice?.accountId.toString()).toBe(account._id.toString());
+  });
+
+  it("una reentrega del mismo invoiceRef no duplica el registro (idempotencia)", async () => {
+    const plan = await seedPlanWithStripeRefs();
+    const account = await seedSubscribedAccount({ planId: plan._id.toString(), status: SubscriptionStatus.ACTIVE });
+    const input = {
+      invoiceRef: "in_dup1",
+      accountId: account._id,
+      userId: account.userId,
+      planId: account.planId,
+      amountPaidCents: 59900,
+      currency: "mxn",
+      paidAt: new Date("2026-09-15T18:00:00.000Z"),
+    };
+
+    await recordSubscriptionInvoice(input);
+    await recordSubscriptionInvoice(input);
+
+    const count = await SubscriptionInvoice.countDocuments({ invoiceRef: "in_dup1" });
+    expect(count).toBe(1);
   });
 });

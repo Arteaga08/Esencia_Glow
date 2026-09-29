@@ -168,6 +168,7 @@ function invoicePaidEvent(overrides: Partial<InvoicePaidEvent> = {}): InvoicePai
     servicePeriodStart: now,
     servicePeriodEnd: now,
     billingReason: "subscription_cycle",
+    paidAt: now,
     ...overrides,
   };
 }

@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { OrderQueueSection } from "@/components/orders/order-queue-section";
 import type { OrderGroupFilters } from "@/components/orders/use-order-group";
+import { useInitialQueryParam } from "@/lib/hooks/use-initial-query-param";
 
 const SEARCH_DEBOUNCE_MS = 300;
 
@@ -30,6 +31,15 @@ export default function OrdersPage() {
   const [priority, setPriority] = useState<string | null>(null);
   const [orderNumber, setOrderNumber] = useState("");
   const [debouncedOrderNumber, setDebouncedOrderNumber] = useState("");
+  const initialGroup = useInitialQueryParam("group");
+
+  // Llegada desde la tarjeta de Pedidos del Resumen (Milestone 2.9): las 4
+  // colas ya están abiertas por default, así que enfocar es desplazar hasta
+  // la cola pedida, nunca filtrar (Propuesta B siempre muestra las 4).
+  useEffect(() => {
+    if (!initialGroup) return;
+    document.getElementById(`order-queue-${initialGroup}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [initialGroup]);
 
   useEffect(() => {
     const timeout = setTimeout(() => setDebouncedSearch(search), SEARCH_DEBOUNCE_MS);

@@ -43,6 +43,7 @@ function StoreQueueSection({ queue, search, isFiltered, refreshSignal, onRowRetr
 
   return (
     <ShipmentQueueDisclosure
+      id={`shipment-queue-store-${queue}`}
       label={QUEUE_LABELS[queue]}
       meta={meta}
       loadError={loadError}

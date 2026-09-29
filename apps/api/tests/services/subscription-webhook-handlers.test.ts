@@ -5,6 +5,7 @@ import { AuditLog } from "../../src/models/audit-log.model.js";
 import { Inventory } from "../../src/models/inventory.model.js";
 import { PaymentEvent } from "../../src/models/payment-event.model.js";
 import { SubscriptionAccount } from "../../src/models/subscription-account.model.js";
+import { SubscriptionInvoice } from "../../src/models/subscription-invoice.model.js";
 import { SubscriptionPlan } from "../../src/models/subscription-plan.model.js";
 import { SubscriptionShipment } from "../../src/models/subscription-shipment.model.js";
 import { User } from "../../src/models/user.model.js";
@@ -302,6 +303,48 @@ describe("subscription-webhook-handlers — invoice.paid", () => {
     expect(await SubscriptionShipment.countDocuments({ accountId: account._id, invoiceId: "in_shared_retry" })).toBe(1);
     const inventory = await Inventory.findOne({ variantId });
     expect(inventory?.reserved).toBe(1); // una sola reserva, la segunda entrega no duplicó
+  });
+
+  it("processed -> registra SubscriptionInvoice con el monto y la fecha del evento (Milestone 2.9)", async () => {
+    const { account, subscriptionRef } = await seedActiveAccountWithEdition();
+    const paidAt = new Date("2026-09-15T18:00:00.000Z");
+
+    const event = invoicePaidEvent({
+      subscriptionRef,
+      invoiceRef: "in_overview_1",
+      amountPaidCents: 59900,
+      currency: "mxn",
+      servicePeriodStart: SEPTEMBER_UTC,
+      servicePeriodEnd: SEPTEMBER_UTC,
+      paidAt,
+    });
+    await processPaymentWebhook(event, provider);
+
+    const invoice = await SubscriptionInvoice.findOne({ invoiceRef: "in_overview_1" });
+    expect(invoice).not.toBeNull();
+    expect(invoice?.accountId.toString()).toBe(account._id.toString());
+    expect(invoice?.amountPaidCents).toBe(59900);
+    expect(invoice?.currency).toBe("mxn");
+    expect(invoice?.paidAt).toEqual(paidAt);
+  });
+
+  it("rejected (cuenta CANCELED, cobro tardío) -> NO registra SubscriptionInvoice", async () => {
+    const { account, subscriptionRef } = await seedActiveAccountWithEdition();
+    await SubscriptionAccount.updateOne({ _id: account._id }, { $set: { status: SubscriptionStatus.CANCELED } });
+
+    const event = invoicePaidEvent({ subscriptionRef, invoiceRef: "in_rejected_1" });
+    await processPaymentWebhook(event, provider);
+
+    expect(await SubscriptionInvoice.findOne({ invoiceRef: "in_rejected_1" })).toBeNull();
+  });
+
+  it("ignored (billingReason 'other') -> NO registra SubscriptionInvoice", async () => {
+    const { subscriptionRef } = await seedActiveAccountWithEdition();
+
+    const event = invoicePaidEvent({ subscriptionRef, invoiceRef: "in_ignored_1", billingReason: "other" });
+    await processPaymentWebhook(event, provider);
+
+    expect(await SubscriptionInvoice.findOne({ invoiceRef: "in_ignored_1" })).toBeNull();
   });
 });
 

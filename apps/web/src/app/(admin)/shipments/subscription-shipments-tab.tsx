@@ -41,6 +41,7 @@ function SubscriptionQueueSection({ queue, refreshSignal, onRowChanged }: Subscr
 
   return (
     <ShipmentQueueDisclosure
+      id={`shipment-queue-subscription-${queue}`}
       label={QUEUE_LABELS[queue]}
       meta={meta}
       loadError={loadError}

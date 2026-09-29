@@ -6,6 +6,7 @@ import {
   applySystemStatus,
   recordPaidInvoice,
   recordPaymentFailure,
+  recordSubscriptionInvoice,
   updatePeriodIfNewer,
 } from "./subscription-billing.service.js";
 import { createCycleShipment } from "./subscription-shipment.service.js";
@@ -154,6 +155,20 @@ async function handleInvoicePaid(event: InvoicePaidEvent): Promise<HandlerOutcom
     invoiceRef: event.invoiceRef,
     periodStart: event.servicePeriodStart,
     periodEnd: event.servicePeriodEnd,
+  });
+
+  // Registro de ingresos para el Resumen del panel (Milestone 2.9) — solo en
+  // el camino `processed`, nunca en `rejected`/`ignored` de arriba, que no
+  // representan dinero cobrado de verdad.
+  await recordSubscriptionInvoice({
+    invoiceRef: event.invoiceRef,
+    accountId: account._id,
+    userId: account.userId,
+    planId: account.planId,
+    billingInterval: account.billingInterval,
+    amountPaidCents: event.amountPaidCents,
+    currency: event.currency,
+    paidAt: event.paidAt,
   });
 
   const shipment = await createCycleShipment({

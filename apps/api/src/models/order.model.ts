@@ -349,6 +349,10 @@ orderSchema.index({ status: 1, expiresAt: 1 });
 orderSchema.index({ status: 1, createdAt: -1 });
 // Barridos del job de guías (1.9): por estado de guía y vencimiento.
 orderSchema.index({ "label.status": 1, "label.nextAttemptAt": 1 });
+/** Serie de ventas del Resumen (Milestone 2.9, `overview.service.ts`): la
+ * ventana filtra por `payment.capturedAt`, no `createdAt` — un pedido
+ * puede quedar `pending` días antes de pagarse (OXXO). */
+orderSchema.index({ status: 1, "payment.capturedAt": 1 });
 
 /**
  * `userId` va en la clave, no un índice global sobre `idempotencyKey`: un

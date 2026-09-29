@@ -8,6 +8,7 @@ import { Pagination } from "@/components/ui/pagination";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface ShipmentQueueDisclosureProps {
+  id?: string;
   label: string;
   meta: PaginationMeta | null;
   loadError: string | null;
@@ -26,6 +27,7 @@ interface ShipmentQueueDisclosureProps {
  * qué fila renderiza, este componente solo es el contenedor.
  */
 function ShipmentQueueDisclosure({
+  id,
   label,
   meta,
   loadError,
@@ -39,7 +41,7 @@ function ShipmentQueueDisclosure({
   const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <div className="overflow-hidden rounded-lg border border-border">
+    <div id={id} className="overflow-hidden rounded-lg border border-border">
       <button
         type="button"
         onClick={() => setCollapsed((value) => !value)}
