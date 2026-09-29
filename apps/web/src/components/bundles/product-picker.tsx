@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { MagnifyingGlass } from "@phosphor-icons/react";
 import type { PaginationMeta } from "@esencia-glow/shared";
 import { apiRequest } from "@/lib/api";
-import type { AdminProduct } from "@/lib/types/admin-catalog";
+import type { AdminProduct, AdminProductChannel } from "@/lib/types/admin-catalog";
 
 const RESULT_LIMIT = 6;
 const SEARCH_DEBOUNCE_MS = 300;
@@ -13,6 +13,9 @@ interface ProductPickerProps {
   value: string | null;
   selectedProduct: AdminProduct | null;
   onChange: (product: AdminProduct) => void;
+  /** Canal del catálogo que se ofrece: `"store"` para componentes de un
+   * paquete, `"subscription"` para los ítems de una edición (2.7b-2). */
+  channel: AdminProductChannel;
 }
 
 /**
@@ -23,11 +26,13 @@ interface ProductPickerProps {
  * 6 resultados a la vez (`limit: 6`, no un slice en cliente); con más de 6
  * coincidencias reales pide seguir acotando en vez de listarlas todas.
  *
- * `channel: "store"` de entrada: un producto de la caja de suscripción nunca
+ * `channel` lo fija quien lo usa: un producto de la caja de suscripción nunca
  * puede ser componente de un paquete (bundle.service.ts, `assertItemsValid`)
- * — mejor no ofrecerlo que dejar que el backend lo rechace con un 400.
+ * y una edición solo acepta productos exclusivos de suscripción
+ * (subscription-edition-publish.service.ts) — mejor no ofrecer el canal
+ * equivocado que dejar que el backend lo rechace con un 400.
  */
-function ProductPicker({ value, selectedProduct, onChange }: ProductPickerProps) {
+function ProductPicker({ value, selectedProduct, onChange, channel }: ProductPickerProps) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [results, setResults] = useState<AdminProduct[] | null>(null);
@@ -46,7 +51,7 @@ function ProductPicker({ value, selectedProduct, onChange }: ProductPickerProps)
       setLoading(true);
       apiRequest<AdminProduct[], PaginationMeta>("/api/v1/admin/products", {
         authenticated: true,
-        query: { search: query || undefined, channel: "store", limit: RESULT_LIMIT },
+        query: { search: query || undefined, channel, limit: RESULT_LIMIT },
       })
         .then((response) => {
           if (cancelled) return;
@@ -66,7 +71,7 @@ function ProductPicker({ value, selectedProduct, onChange }: ProductPickerProps)
       cancelled = true;
       clearTimeout(timeout);
     };
-  }, [query, open]);
+  }, [query, open, channel]);
 
   useEffect(() => {
     if (!open) return;

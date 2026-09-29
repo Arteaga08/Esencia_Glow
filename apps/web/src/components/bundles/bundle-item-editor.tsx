@@ -8,14 +8,32 @@ import { Select } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { formatMoneyMXN } from "@/lib/format-money";
-import type { AdminBundleItem, AdminProduct } from "@/lib/types/admin-catalog";
+import type { AdminBundleItem, AdminProduct, AdminProductChannel } from "@/lib/types/admin-catalog";
 import { ProductPicker } from "./product-picker";
 
 interface EnrichedItem extends AdminBundleItem {
+  /** `false` si el producto no se pudo cargar (borrado, error de red). */
+  resolved: boolean;
   productName: string;
   variantName: string;
   unitPrice: number;
 }
+
+/** Textos visibles del editor — los de paquete por default; la edición de
+ * suscripción (2.7b-2) pasa los suyos. */
+interface ItemEditorCopy {
+  title: string;
+  empty: string;
+  addTitle: string;
+  duplicate: string;
+}
+
+const BUNDLE_COPY: ItemEditorCopy = {
+  title: "Componentes del paquete",
+  empty: "Sin componentes todavía — agrega al menos uno abajo.",
+  addTitle: "Agregar componente",
+  duplicate: "Esa variante ya está en el paquete — no puedes repetirla.",
+};
 
 interface BundleItemEditorProps {
   items: AdminBundleItem[];
@@ -25,12 +43,24 @@ interface BundleItemEditorProps {
    * (ver bundle-base-fields.tsx), nunca para calcular nada que se guarde. */
   onSumChange?: (sum: number) => void;
   error?: string;
+  /** Canal que ofrece el `ProductPicker`; `"store"` para paquetes. */
+  channel?: AdminProductChannel;
+  copy?: ItemEditorCopy;
+  /** Solo lectura: lista los ítems sin agregar ni quitar (una edición ya
+   * publicada congela sus productos, subscription-edition.service.ts). */
+  readOnly?: boolean;
+  /** Nota que reemplaza al bloque de "agregar" cuando `readOnly`. */
+  readOnlyNote?: string;
+  /** Nombre legible de cada id ya resuelto (producto → nombre, variante →
+   * "producto (variante)"), para traducir errores del backend que citan ids. */
+  onNamesResolved?: (names: Map<string, string>) => void;
 }
 
 function enrich(item: AdminBundleItem, product?: AdminProduct): EnrichedItem {
   const variant = product?.variants.find((v) => v.id === item.variantId);
   return {
     ...item,
+    resolved: product !== undefined,
     productName: product?.name ?? "Producto no disponible",
     variantName: variant?.name ?? "—",
     unitPrice: variant?.price ?? 0,
@@ -44,13 +74,33 @@ function enrich(item: AdminBundleItem, product?: AdminProduct): EnrichedItem {
  * (bundle-dto.ts) — este componente resuelve nombre/precio del lado del
  * cliente, una vez por producto único, contra `GET /admin/products/:id`.
  */
-function BundleItemEditor({ items, onChange, onSumChange, error }: BundleItemEditorProps) {
+function BundleItemEditor({
+  items,
+  onChange,
+  onSumChange,
+  error,
+  channel = "store",
+  copy = BUNDLE_COPY,
+  readOnly = false,
+  readOnlyNote,
+  onNamesResolved,
+}: BundleItemEditorProps) {
   const [enriched, setEnriched] = useState<EnrichedItem[]>([]);
   const [resolving, setResolving] = useState(items.length > 0);
 
   useEffect(() => {
     onSumChange?.(enriched.reduce((total, item) => total + item.unitPrice * item.quantity, 0));
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- `onSumChange` es un callback del padre, no un dato que deba reprogramar el efecto
+    onNamesResolved?.(
+      new Map(
+        enriched
+          .filter((item) => item.resolved)
+          .flatMap((item): [string, string][] => [
+          [item.productId, item.productName],
+          [item.variantId, `${item.productName} (${item.variantName})`],
+        ]),
+      ),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `onSumChange`/`onNamesResolved` son callbacks del padre, no datos que deban reprogramar el efecto
   }, [enriched]);
 
   // Resuelve nombre/precio de los items que YA vienen del servidor (edición
@@ -112,14 +162,12 @@ function BundleItemEditor({ items, onChange, onSumChange, error }: BundleItemEdi
 
   return (
     <Card>
-      <p className="mb-4 text-section-title text-foreground">Componentes del paquete</p>
+      <p className="mb-4 text-section-title text-foreground">{copy.title}</p>
 
       {resolving ? (
         <p className="text-body-sm text-muted-foreground">Cargando componentes…</p>
       ) : enriched.length === 0 ? (
-        <p className="text-body-sm text-muted-foreground">
-          Sin componentes todavía — agrega al menos uno abajo.
-        </p>
+        <p className="text-body-sm text-muted-foreground">{copy.empty}</p>
       ) : (
         <div className="mb-4 flex flex-col gap-2">
           {enriched.map((item) => (
@@ -135,14 +183,16 @@ function BundleItemEditor({ items, onChange, onSumChange, error }: BundleItemEdi
                 <span className="font-mono text-data tabular-nums text-muted-foreground-strong">
                   {item.quantity}× {formatMoneyMXN(item.unitPrice)}
                 </span>
-                <button
-                  type="button"
-                  onClick={() => removeComponent(item.variantId)}
-                  aria-label={`Quitar ${item.productName}`}
-                  className="rounded-sm p-1.5 text-destructive-action hover:bg-destructive/30"
-                >
-                  <Trash size={16} aria-hidden="true" />
-                </button>
+                {!readOnly ? (
+                  <button
+                    type="button"
+                    onClick={() => removeComponent(item.variantId)}
+                    aria-label={`Quitar ${item.productName}`}
+                    className="rounded-sm p-1.5 text-destructive-action hover:bg-destructive/30"
+                  >
+                    <Trash size={16} aria-hidden="true" />
+                  </button>
+                ) : null}
               </div>
             </div>
           ))}
@@ -151,60 +201,66 @@ function BundleItemEditor({ items, onChange, onSumChange, error }: BundleItemEdi
 
       {error ? <p className="mb-3 text-body-sm text-destructive-action">{error}</p> : null}
 
-      <div className="rounded-md border border-dashed border-border-strong p-3">
-        <p className="mb-3 font-mono text-label uppercase tracking-[0.06em] text-muted-foreground-strong">
-          Agregar componente
-        </p>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_auto_auto]">
-          <ProductPicker
-            value={pickedProduct?.id ?? null}
-            selectedProduct={pickedProduct}
-            onChange={(product) => {
-              setPickedProduct(product);
-              setPickedVariantId(product.variants.length === 1 ? (product.variants[0]?.id ?? null) : null);
-            }}
-          />
-          <Select
-            label="Variante"
-            value={pickedVariantId}
-            onChange={setPickedVariantId}
-            placeholder={pickedProduct ? "Elige una variante" : "Elige un producto primero"}
-            disabled={!pickedProduct}
-            options={(pickedProduct?.variants ?? []).map((variant) => ({
-              value: variant.id,
-              label: `${variant.name} · ${formatMoneyMXN(variant.price)}`,
-            }))}
-          />
-          <Input
-            label="Cantidad"
-            type="number"
-            min={1}
-            inputMode="numeric"
-            placeholder="1"
-            value={quantity}
-            onChange={(e) => setQuantity(e.target.value)}
-            className="w-24"
-          />
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={addComponent}
-            disabled={!pickedProduct || !pickedVariantId || duplicateVariant}
-            className="mt-2 self-start"
-          >
-            <Plus size={16} weight="bold" aria-hidden="true" />
-            Agregar
-          </Button>
-        </div>
-        {duplicateVariant ? (
-          <p className="mt-2 flex items-center gap-1.5 text-body-sm text-destructive-action">
-            <WarningCircle size={16} aria-hidden="true" />
-            Esa variante ya está en el paquete — no puedes repetirla.
+      {readOnly ? (
+        readOnlyNote ? <p className="text-body-sm text-muted-foreground-strong">{readOnlyNote}</p> : null
+      ) : (
+        <div className="rounded-md border border-dashed border-border-strong p-3">
+          <p className="mb-3 font-mono text-label uppercase tracking-[0.06em] text-muted-foreground-strong">
+            {copy.addTitle}
           </p>
-        ) : null}
-      </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_auto_auto]">
+            <ProductPicker
+              channel={channel}
+              value={pickedProduct?.id ?? null}
+              selectedProduct={pickedProduct}
+              onChange={(product) => {
+                setPickedProduct(product);
+                setPickedVariantId(product.variants.length === 1 ? (product.variants[0]?.id ?? null) : null);
+              }}
+            />
+            <Select
+              label="Variante"
+              value={pickedVariantId}
+              onChange={setPickedVariantId}
+              placeholder={pickedProduct ? "Elige una variante" : "Elige un producto primero"}
+              disabled={!pickedProduct}
+              options={(pickedProduct?.variants ?? []).map((variant) => ({
+                value: variant.id,
+                label: `${variant.name} · ${formatMoneyMXN(variant.price)}`,
+              }))}
+            />
+            <Input
+              label="Cantidad"
+              type="number"
+              min={1}
+              inputMode="numeric"
+              placeholder="1"
+              value={quantity}
+              onChange={(e) => setQuantity(e.target.value)}
+              className="w-24"
+            />
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={addComponent}
+              disabled={!pickedProduct || !pickedVariantId || duplicateVariant}
+              className="mt-2 self-start"
+            >
+              <Plus size={16} weight="bold" aria-hidden="true" />
+              Agregar
+            </Button>
+          </div>
+          {duplicateVariant ? (
+            <p className="mt-2 flex items-center gap-1.5 text-body-sm text-destructive-action">
+              <WarningCircle size={16} aria-hidden="true" />
+              {copy.duplicate}
+            </p>
+          ) : null}
+        </div>
+      )}
     </Card>
   );
 }
 
 export { BundleItemEditor };
+export type { ItemEditorCopy };

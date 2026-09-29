@@ -1,4 +1,9 @@
-import type { ShippingCarrier, SubscriptionShipmentStatus, SubscriptionStatus } from "@esencia-glow/shared";
+import type {
+  EditionStatus,
+  ShippingCarrier,
+  SubscriptionShipmentStatus,
+  SubscriptionStatus,
+} from "@esencia-glow/shared";
 
 /**
  * Espejo manual de `AdminSubscriptionShipment`/`AdminShipmentCustomer`, que
@@ -83,7 +88,50 @@ interface AdminSubscriptionAccountActivityEntry {
   at: string;
 }
 
+/**
+ * Espejo manual de `AdminSubscriptionPlan`/`AdminSubscriptionEdition`
+ * (apps/api/src/services/subscription-dto.ts, Milestone 1.7.1 + 2.7b-1).
+ * `priceCents`/`annualPriceCents` son inmutables tras crear el plan: el
+ * PATCH no los acepta (subscription-plan.validator.ts).
+ */
+interface AdminSubscriptionPlan {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  shortDescription?: string;
+  priceCents: number;
+  annualPriceCents?: number;
+  currency: string;
+  billingInterval: string;
+  maxActiveSeats: number;
+  seatsTaken: number;
+  isActive: boolean;
+  sortOrder: number;
+}
+
+interface AdminEditionItem {
+  productId: string;
+  variantId: string;
+  quantity: number;
+}
+
+interface AdminSubscriptionEdition {
+  id: string;
+  planId: string;
+  cycleYear: number;
+  cycleMonth: number;
+  title: string;
+  description?: string;
+  items: AdminEditionItem[];
+  status: EditionStatus;
+  publishedAt?: string;
+}
+
 export type {
+  AdminSubscriptionPlan,
+  AdminEditionItem,
+  AdminSubscriptionEdition,
   AdminShipmentCustomer,
   AdminSubscriptionShipment,
   AdminSubscriptionAccountUser,
