@@ -52,4 +52,38 @@ describe("models/SubscriptionPlan", () => {
     const plan = await SubscriptionPlan.create(buildPlanAttrs({ slug: "plan-g", maxActiveSeats: 0 }));
     expect(plan.maxActiveSeats).toBe(0);
   });
+
+  it("annualPriceCents es opcional: un plan sin precio anual es válido", async () => {
+    const plan = await SubscriptionPlan.create(buildPlanAttrs({ slug: "plan-h" }));
+    expect(plan.annualPriceCents).toBeUndefined();
+  });
+
+  it("acepta un annualPriceCents entero válido", async () => {
+    const plan = await SubscriptionPlan.create(buildPlanAttrs({ slug: "plan-i", annualPriceCents: 499000 }));
+    expect(plan.annualPriceCents).toBe(499000);
+  });
+
+  it("rechaza annualPriceCents no entero", async () => {
+    await expect(
+      SubscriptionPlan.create(buildPlanAttrs({ slug: "plan-j", annualPriceCents: 1.5 })),
+    ).rejects.toThrow();
+  });
+
+  it("rechaza annualPriceCents negativo", async () => {
+    await expect(
+      SubscriptionPlan.create(buildPlanAttrs({ slug: "plan-k", annualPriceCents: -1 })),
+    ).rejects.toThrow();
+  });
+
+  it("rechaza un providerAnnualPriceId duplicado entre dos planes", async () => {
+    await SubscriptionPlan.create(buildPlanAttrs({ slug: "plan-l", providerAnnualPriceId: "price_year_123" }));
+    await expect(
+      SubscriptionPlan.create(buildPlanAttrs({ slug: "plan-m", providerAnnualPriceId: "price_year_123" })),
+    ).rejects.toMatchObject({ code: 11000 });
+  });
+
+  it("dos planes sin providerAnnualPriceId conviven (el índice parcial no los indexa)", async () => {
+    await SubscriptionPlan.create(buildPlanAttrs({ slug: "plan-n" }));
+    await expect(SubscriptionPlan.create(buildPlanAttrs({ slug: "plan-o" }))).resolves.toBeDefined();
+  });
 });

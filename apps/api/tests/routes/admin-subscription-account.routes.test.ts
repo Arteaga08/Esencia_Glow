@@ -1,10 +1,12 @@
 import { SubscriptionStatus } from "@esencia-glow/shared";
+import { Types } from "mongoose";
 import request from "supertest";
 import { beforeEach, describe, expect, it } from "vitest";
 import { buildApp } from "../../src/app.js";
 import { SubscriptionAccount } from "../../src/models/subscription-account.model.js";
 import { SubscriptionShipment } from "../../src/models/subscription-shipment.model.js";
 import { User } from "../../src/models/user.model.js";
+import { startSubscription } from "../../src/services/subscription-seat.service.js";
 import { createAdminSession, createCustomerSession } from "../helpers/admin-session.js";
 import { resetCheckoutFixtureCounter } from "../helpers/checkout-fixtures.js";
 import { seedPlanWithStripeRefs, seedSubscribedAccount } from "../helpers/subscription-fixtures.js";
@@ -71,7 +73,19 @@ describe("routes/admin-subscription (Cuentas) — listado y detalle", () => {
     const row = res.body.data.find((r: { id: string }) => r.id === account._id.toString());
     expect(row).toBeTruthy();
     expect(Object.keys(row).sort()).toEqual(
-      ["id", "user", "plan", "status", "cancelAtPeriodEnd", "startedAt", "currentPeriodEnd", "pastDueSince", "dunningAttempts", "createdAt"].sort(),
+      [
+        "id",
+        "user",
+        "plan",
+        "status",
+        "billingInterval",
+        "cancelAtPeriodEnd",
+        "startedAt",
+        "currentPeriodEnd",
+        "pastDueSince",
+        "dunningAttempts",
+        "createdAt",
+      ].sort(),
     );
     expect(Object.keys(row.user).sort()).toEqual(["id", "firstName", "lastName", "email"].sort());
     expect(Object.keys(row.plan).sort()).toEqual(["id", "name"].sort());
@@ -81,6 +95,7 @@ describe("routes/admin-subscription (Cuentas) — listado y detalle", () => {
 
     expect(row).not.toHaveProperty("providerSubscriptionId");
     expect(row).not.toHaveProperty("providerCustomerId");
+    expect(row.billingInterval).toBe("month");
     expect(row).not.toHaveProperty("cancelReason");
     expect(row).not.toHaveProperty("statusHistory");
     expect(row).not.toHaveProperty("seatHeldAt");
@@ -250,6 +265,7 @@ describe("routes/admin-subscription (Cuentas) — listado y detalle", () => {
         "user",
         "plan",
         "status",
+        "billingInterval",
         "cancelAtPeriodEnd",
         "startedAt",
         "currentPeriodEnd",
@@ -289,6 +305,23 @@ describe("routes/admin-subscription (Cuentas) — listado y detalle", () => {
       expect(entry).not.toHaveProperty("ipHash");
       expect(Object.keys(entry).every((key) => ["action", "actorId", "at"].includes(key))).toBe(true);
     }
+  });
+
+  it("billingInterval: 'year' en el listado y el detalle de una cuenta anual (Milestone 2.7b)", async () => {
+    const plan = await seedPlanWithStripeRefs({ annualPriceCents: 599000 });
+    const account = await startSubscription({
+      userId: new Types.ObjectId().toString(),
+      planId: plan._id.toString(),
+      billingInterval: "year",
+    });
+
+    const { agent } = await createAdminSession(app);
+    const list = await agent.get("/api/v1/admin/subscriptions");
+    const row = list.body.data.find((r: { id: string }) => r.id === account._id.toString());
+    expect(row.billingInterval).toBe("year");
+
+    const detail = await agent.get(`/api/v1/admin/subscriptions/${account._id}`);
+    expect(detail.body.data.billingInterval).toBe("year");
   });
 });
 

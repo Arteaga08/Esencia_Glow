@@ -116,4 +116,42 @@ describe("routes/admin-subscription-plan — CRUD de planes", () => {
     expect(response.status).toBe(200);
     expect(response.body.meta).toMatchObject({ page: 1, limit: 1, total: 2 });
   });
+
+  it("crea un plan con annualPriceCents (Milestone 2.7b): el plan queda con ambos precios", async () => {
+    const { agent } = await createAdminSession(app);
+    const create = await agent
+      .post("/api/v1/admin/subscription-plans")
+      .send(samplePlan({ name: "Caja Premium", annualPriceCents: 499000 }));
+    expect(create.status).toBe(201);
+    expect(create.body.data.priceCents).toBe(49900);
+    expect(create.body.data.annualPriceCents).toBe(499000);
+  });
+
+  it("crea un plan sin annualPriceCents: el campo no aparece en el DTO", async () => {
+    const { agent } = await createAdminSession(app);
+    const create = await agent.post("/api/v1/admin/subscription-plans").send(samplePlan());
+    expect(create.status).toBe(201);
+    expect(create.body.data.annualPriceCents).toBeUndefined();
+  });
+
+  it("rechaza annualPriceCents no entero", async () => {
+    const { agent } = await createAdminSession(app);
+    const response = await agent
+      .post("/api/v1/admin/subscription-plans")
+      .send(samplePlan({ annualPriceCents: 100.5 }));
+    expect(response.status).toBe(400);
+  });
+
+  it("PATCH con annualPriceCents responde 400 (también es inmutable para siempre)", async () => {
+    const { agent } = await createAdminSession(app);
+    const create = await agent
+      .post("/api/v1/admin/subscription-plans")
+      .send(samplePlan({ annualPriceCents: 499000 }));
+    const id = create.body.data.id as string;
+
+    const update = await agent
+      .patch(`/api/v1/admin/subscription-plans/${id}`)
+      .send({ annualPriceCents: 599000 });
+    expect(update.status).toBe(400);
+  });
 });

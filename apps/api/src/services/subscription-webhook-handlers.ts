@@ -176,7 +176,7 @@ async function handleInvoicePaid(event: InvoicePaidEvent): Promise<HandlerOutcom
   // procesada después de una más nueva no debe anunciarle a la clienta una
   // fecha de vigencia que ya quedó atrás (la guarda monotónica de
   // `recordPaidInvoice` ya rechazó escribirla).
-  const currentAccount = await SubscriptionAccount.findById(account._id).select("currentPeriodEnd");
+  const currentAccount = await SubscriptionAccount.findById(account._id).select("currentPeriodEnd billingInterval");
   void sendSubscriptionPaymentConfirmedEmail({
     accountId,
     userId: account.userId,
@@ -184,6 +184,7 @@ async function handleInvoicePaid(event: InvoicePaidEvent): Promise<HandlerOutcom
     amountPaidCents: event.amountPaidCents,
     currency: event.currency,
     periodEnd: currentAccount?.currentPeriodEnd ?? event.servicePeriodEnd,
+    billingInterval: currentAccount?.billingInterval,
   });
 
   return { status: "processed", accountId };

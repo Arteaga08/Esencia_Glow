@@ -39,6 +39,56 @@ describe("services/subscription-seat — reactivación CANCELED -> INCOMPLETE", 
   });
 });
 
+/** `billingInterval` (Milestone 2.7b): lo escribe `startSubscription` tanto
+ * al crear como al reactivar — nunca queda con el valor viejo de una
+ * suscripción cancelada. */
+describe("services/subscription-seat — billingInterval (Milestone 2.7b)", () => {
+  it("sin billingInterval en el input, la cuenta nueva queda sin el campo (mensual implícito)", async () => {
+    const plan = await seedPlanWithStripeRefs({ maxActiveSeats: 5 });
+    const account = await startSubscription({ userId: "aaaaaaaaaaaaaaaaaaaaaaaa", planId: plan._id.toString() });
+    expect(account.billingInterval).toBeUndefined();
+  });
+
+  it("con billingInterval: 'year', la cuenta nueva queda con ese intervalo", async () => {
+    const plan = await seedPlanWithStripeRefs({ maxActiveSeats: 5, annualPriceCents: 599000 });
+    const account = await startSubscription({
+      userId: "bbbbbbbbbbbbbbbbbbbbbbbb",
+      planId: plan._id.toString(),
+      billingInterval: "year",
+    });
+    expect(account.billingInterval).toBe("year");
+  });
+
+  it("re-suscribirse anual sobre una cuenta mensual cancelada actualiza billingInterval a year", async () => {
+    const plan = await seedPlanWithStripeRefs({ maxActiveSeats: 5, annualPriceCents: 599000 });
+    const account = await startSubscription({ userId: "cccccccccccccccccccccccc", planId: plan._id.toString() });
+    await applyStatusTransition(account, SubscriptionStatus.CANCELED, "system");
+
+    const reactivated = await startSubscription({
+      userId: "cccccccccccccccccccccccc",
+      planId: plan._id.toString(),
+      billingInterval: "year",
+    });
+    expect(reactivated.billingInterval).toBe("year");
+  });
+
+  it("re-suscribirse mensual sobre una cuenta anual cancelada limpia billingInterval", async () => {
+    const plan = await seedPlanWithStripeRefs({ maxActiveSeats: 5, annualPriceCents: 599000 });
+    const account = await startSubscription({
+      userId: "dddddddddddddddddddddddd",
+      planId: plan._id.toString(),
+      billingInterval: "year",
+    });
+    await applyStatusTransition(account, SubscriptionStatus.CANCELED, "system");
+
+    const reactivated = await startSubscription({
+      userId: "dddddddddddddddddddddddd",
+      planId: plan._id.toString(),
+    });
+    expect(reactivated.billingInterval).toBeUndefined();
+  });
+});
+
 /**
  * `extra` de `applyStatusTransition` (1.7.3): `set`/`unset` viajan en el MISMO
  * update atómico que la transición (así `pausedAt`/`canceledAt` nunca quedan

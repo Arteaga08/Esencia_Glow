@@ -196,8 +196,11 @@ const SUBSCRIPTION_EXPAND = ["latest_invoice.confirmation_secret"];
  * crea pero la llamada del Price falla, un reintento con la MISMA
  * `idempotencyKey` original reintentaría crear otro Product en vez de
  * reusar el que ya existe — separarlas deja cada paso reintentable de forma
- * independiente. `recurring: { interval: "month" }` es el único intervalo
- * que soporta `SubscriptionPlan.billingInterval` (ver el modelo).
+ * independiente. `recurring: { interval: "month" }` es el precio base; si el
+ * plan trae `annualPriceCents` (Milestone 2.7b) se encadena un TERCER Price
+ * con `interval: "year"` sobre el MISMO Product y su propia key
+ * `:price-year` — un solo plan, dos precios, nunca dos planes separados (las
+ * ediciones y el cupo se comparten).
  */
 function createStripeSubscriptionProvider(client: StripeBillingClientLike): SubscriptionProvider {
   /** Relee la factura tras un fallo de `pay`. Si la relectura misma falla no
@@ -234,7 +237,22 @@ function createStripeSubscriptionProvider(client: StripeBillingClientLike): Subs
           { idempotencyKey: `${input.idempotencyKey}:price` },
         );
 
-        return { productRef: product.id, priceRef: price.id };
+        let annualPriceRef: string | undefined;
+        if (input.annualPriceCents !== undefined) {
+          const annualPrice = await client.prices.create(
+            {
+              product: product.id,
+              currency: input.currency,
+              unit_amount: input.annualPriceCents,
+              recurring: { interval: "year" },
+              metadata: { planSlug: input.planSlug },
+            },
+            { idempotencyKey: `${input.idempotencyKey}:price-year` },
+          );
+          annualPriceRef = annualPrice.id;
+        }
+
+        return { productRef: product.id, priceRef: price.id, ...(annualPriceRef ? { annualPriceRef } : {}) };
       } catch (error) {
         translateStripeError(error);
       }
@@ -271,7 +289,11 @@ function createStripeSubscriptionProvider(client: StripeBillingClientLike): Subs
               payment_method_types: ["card"],
               save_default_payment_method: "on_subscription",
             },
-            billing_cycle_anchor_config: { day_of_month: input.billingAnchorDay, hour: BILLING_ANCHOR_HOUR_UTC },
+            billing_cycle_anchor_config: {
+              day_of_month: input.billingAnchorDay,
+              hour: BILLING_ANCHOR_HOUR_UTC,
+              ...(input.billingAnchorMonth !== undefined ? { month: input.billingAnchorMonth } : {}),
+            },
             proration_behavior: "none",
             add_invoice_items: [{ price: input.priceRef }],
             metadata: input.metadata,
@@ -347,8 +369,10 @@ function createStripeSubscriptionProvider(client: StripeBillingClientLike): Subs
     /** El `id` del ítem solo se conoce leyendo la suscripción, de ahí el
      * `retrieve` previo. `proration_behavior: "none"` + ancla `unchanged`: el
      * ciclo ya cobrado no cambia, el siguiente cobro anclado usa el precio
-     * nuevo. Un intervalo distinto reiniciaría el ancla, pero solo existe
-     * `month`. */
+     * nuevo. Un intervalo distinto reiniciaría el ancla — por eso
+     * `subscription-plan-change.service.ts` bloquea el cambio de plan en
+     * cuentas `year` (Milestone 2.7b): este método solo recibe Prices
+     * mensuales en la práctica. */
     async changePrice(input: ChangePriceInput): Promise<ProviderSubscription> {
       try {
         const current = await client.subscriptions.retrieve(input.subscriptionRef);

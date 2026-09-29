@@ -76,6 +76,7 @@ async function getMySubscription(userId: string): Promise<MySubscription | null>
   return {
     id: account._id.toString(),
     status: account.status,
+    billingInterval: account.billingInterval === "year" ? "year" : "month",
     plan: {
       id: account.planId.toString(),
       name: plan.name,

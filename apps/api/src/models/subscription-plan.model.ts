@@ -26,6 +26,13 @@ interface SubscriptionPlanAttrs {
   sortOrder: number;
   providerProductId?: string;
   providerPriceId?: string;
+  /** Precio del ciclo anual (Milestone 2.7b): opcional, un plan puede
+   * ofrecer solo mensual. Igual que `priceCents`, INMUTABLE para siempre —
+   * no aparece en el validator de update. Ambos precios viven sobre el
+   * mismo `providerProductId`, dos Prices de Stripe del mismo Product (no
+   * dos planes separados: así las ediciones y el cupo se comparten). */
+  annualPriceCents?: number;
+  providerAnnualPriceId?: string;
   /** Último ciclo (`"YYYY-MM"`) por el que el job preventivo ya avisó que
    * falta la edición (Milestone 1.7.2b). Un solo campo en vez de una
    * colección de avisos: solo importa el ciclo en curso, y reescribirlo al
@@ -60,6 +67,8 @@ const subscriptionPlanSchema = new Schema<SubscriptionPlanAttrs, SubscriptionPla
     sortOrder: { type: Number, default: 0 },
     providerProductId: { type: String, trim: true },
     providerPriceId: { type: String, trim: true },
+    annualPriceCents: { type: Number, min: 0, validate: integerValidator },
+    providerAnnualPriceId: { type: String, trim: true },
     missingEditionAlertedFor: { type: String, trim: true },
   },
   { timestamps: true },
@@ -79,6 +88,13 @@ subscriptionPlanSchema.index({ isActive: 1, sortOrder: 1 });
 subscriptionPlanSchema.index(
   { providerPriceId: 1 },
   { unique: true, partialFilterExpression: { providerPriceId: { $type: "string" } } },
+);
+
+/** Mismo criterio que el índice de `providerPriceId` de arriba, para el
+ * Price anual. */
+subscriptionPlanSchema.index(
+  { providerAnnualPriceId: 1 },
+  { unique: true, partialFilterExpression: { providerAnnualPriceId: { $type: "string" } } },
 );
 
 const SubscriptionPlan = model<SubscriptionPlanAttrs, SubscriptionPlanModel>(

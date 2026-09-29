@@ -59,4 +59,28 @@ describe("models/SubscriptionAccount", () => {
     const account = await SubscriptionAccount.create(buildAccountAttrs({ statusHistory: Array(50).fill(entry) }));
     expect(account.statusHistory).toHaveLength(50);
   });
+
+  it("billingInterval queda sin definir por default (no es mensual implícito en el campo)", async () => {
+    const account = await SubscriptionAccount.create(buildAccountAttrs());
+    expect(account.billingInterval).toBeUndefined();
+  });
+
+  it("acepta billingInterval: year", async () => {
+    const account = await SubscriptionAccount.create(buildAccountAttrs({ billingInterval: "year" }));
+    expect(account.billingInterval).toBe("year");
+  });
+
+  it("acepta billingInterval: month", async () => {
+    const account = await SubscriptionAccount.create(buildAccountAttrs({ billingInterval: "month" }));
+    expect(account.billingInterval).toBe("month");
+  });
+
+  it("rechaza un billingInterval fuera del enum", async () => {
+    await expect(SubscriptionAccount.create(buildAccountAttrs({ billingInterval: "week" }))).rejects.toThrow();
+  });
+
+  it("renewalReminderSentFor queda sin definir por default", async () => {
+    const account = await SubscriptionAccount.create(buildAccountAttrs());
+    expect(account.renewalReminderSentFor).toBeUndefined();
+  });
 });

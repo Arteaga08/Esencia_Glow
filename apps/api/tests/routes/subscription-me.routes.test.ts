@@ -80,6 +80,26 @@ describe("routes/subscription — GET /me", () => {
     });
   });
 
+  it("billingInterval: 'month' cuando la cuenta no tiene el campo (default implícito)", async () => {
+    const { agent, userId } = await createCustomerSession(app);
+    const plan = await seedPlanWithStripeRefs();
+    await startSubscription({ userId, planId: plan._id.toString() });
+
+    const response = await agent.get("/api/v1/subscriptions/me");
+
+    expect(response.body.data.subscription.billingInterval).toBe("month");
+  });
+
+  it("billingInterval: 'year' cuando la cuenta se suscribió anual (Milestone 2.7b)", async () => {
+    const { agent, userId } = await createCustomerSession(app);
+    const plan = await seedPlanWithStripeRefs({ annualPriceCents: 599000 });
+    await startSubscription({ userId, planId: plan._id.toString(), billingInterval: "year" });
+
+    const response = await agent.get("/api/v1/subscriptions/me");
+
+    expect(response.body.data.subscription.billingInterval).toBe("year");
+  });
+
   it("nunca expone las referencias de Stripe ni el historial de estados", async () => {
     const { agent, userId } = await createCustomerSession(app);
     const plan = await seedPlanWithStripeRefs();

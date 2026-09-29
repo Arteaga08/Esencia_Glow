@@ -382,3 +382,104 @@ describe("services/subscription-start — Stripe activa la suscripción de inmed
     expect(refreshedPlan?.seatsTaken).toBe(1);
   });
 });
+
+/**
+ * Alta anual (Milestone 2.7b): usa el Price anual del plan y fija
+ * `billing_cycle_anchor_config.month` al mes del alta
+ * (`resolveAnnualAnchor`). `now` se fija con fake timers para no depender
+ * del día real en que corre la suite: `resolveAnnualAnchor` rechaza un alta
+ * ANTES del día-ancla del mes en curso.
+ */
+describe("services/subscription-start — alta anual (Milestone 2.7b)", () => {
+  const ANCHOR_DAY = 15;
+  const SAFE_NOW = new Date("2026-09-20T12:00:00.000Z"); // día 20, después del ancla 15
+  const DANGER_NOW = new Date("2026-09-05T12:00:00.000Z"); // día 5, antes del ancla 15
+
+  it("usa el Price anual del plan y guarda billingInterval: year", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(SAFE_NOW);
+    try {
+      await updateSubscriptionSettings({ billingAnchorDay: ANCHOR_DAY });
+      await openEnrollment({});
+      const plan = await seedPlanWithStripeRefs({ maxActiveSeats: 5, annualPriceCents: 599000 });
+      const userId = await seedUser();
+
+      const fake = buildFakeSubscriptionProvider();
+      __setSubscriptionProviderForTests(fake);
+
+      await startSubscriptionForUser({ userId, planId: plan._id.toString(), billingInterval: "year" });
+
+      const [params] = fake.startSubscription.mock.calls[0];
+      expect(params.priceRef).toBe(plan.providerAnnualPriceId);
+      expect(params.billingAnchorMonth).toBe(9);
+
+      const account = await SubscriptionAccount.findOne({ userId });
+      expect(account?.billingInterval).toBe("year");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("plan sin providerAnnualPriceId + billingInterval year -> 409, sin tocar cupo", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(SAFE_NOW);
+    try {
+      await updateSubscriptionSettings({ billingAnchorDay: ANCHOR_DAY });
+      await openEnrollment({});
+      const plan = await seedPlanWithStripeRefs({ maxActiveSeats: 5 }); // sin annualPriceCents
+      const userId = await seedUser();
+
+      await expect(
+        startSubscriptionForUser({ userId, planId: plan._id.toString(), billingInterval: "year" }),
+      ).rejects.toMatchObject({ statusCode: 409 });
+
+      const refreshedPlan = await SubscriptionPlan.findById(plan._id);
+      expect(refreshedPlan?.seatsTaken).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("alta anual ANTES del día-ancla del mes -> 409, sin tocar cupo", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(DANGER_NOW);
+    try {
+      await updateSubscriptionSettings({ billingAnchorDay: ANCHOR_DAY });
+      // Ventana de 1 día: sin margen para que `assertWindowClearOfAnchor`
+      // rechace la apertura misma (día 5, ancla día 15) — lo que este test
+      // ejercita es el guard ANUAL de `resolveAnnualAnchor`, no el de la
+      // ventana de inscripciones.
+      await openEnrollment({ durationDays: 1 });
+      const plan = await seedPlanWithStripeRefs({ maxActiveSeats: 5, annualPriceCents: 599000 });
+      const userId = await seedUser();
+
+      await expect(
+        startSubscriptionForUser({ userId, planId: plan._id.toString(), billingInterval: "year" }),
+      ).rejects.toMatchObject({ statusCode: 409 });
+
+      const refreshedPlan = await SubscriptionPlan.findById(plan._id);
+      expect(refreshedPlan?.seatsTaken).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("replay con un billingInterval DISTINTO al del primer intento -> 409, nunca el clientSecret del intervalo viejo", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(SAFE_NOW);
+    try {
+      await updateSubscriptionSettings({ billingAnchorDay: ANCHOR_DAY });
+      await openEnrollment({});
+      const plan = await seedPlanWithStripeRefs({ maxActiveSeats: 5, annualPriceCents: 599000 });
+      const userId = await seedUser();
+
+      await startSubscriptionForUser({ userId, planId: plan._id.toString() }); // mensual
+
+      await expect(
+        startSubscriptionForUser({ userId, planId: plan._id.toString(), billingInterval: "year" }),
+      ).rejects.toMatchObject({ statusCode: 409 });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

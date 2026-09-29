@@ -43,6 +43,15 @@ import { SEAT_HOLDING_STATUSES } from "./subscription-state.js";
 type PlanChangeOutcome = "finalized" | "aborted" | "noop";
 
 function assertCanChangePlan(account: Awaited<ReturnType<typeof loadOwnAccount>>): void {
+  // Milestone 2.7b: cambiar de plan reinicia el ancla de Stripe
+  // (`billing_cycle_anchor: "unchanged"` deja de aplicar entre intervalos
+  // distintos), y el año ya se cobró completo — no hay forma de aplicar un
+  // cambio de plan sin resolver primero un prorrateo/reembolso que este
+  // milestone no cubre. Queda fuera de alcance, no solo el cambio de
+  // intervalo.
+  if (account.billingInterval === "year") {
+    throw new AppError("Las suscripciones anuales no pueden cambiar de plan por ahora.", 409);
+  }
   if (account.status === SubscriptionStatus.PAST_DUE) {
     throw new AppError("Regulariza tu pago antes de cambiar de plan.", 409);
   }

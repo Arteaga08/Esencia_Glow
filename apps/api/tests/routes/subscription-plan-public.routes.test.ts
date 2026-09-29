@@ -61,6 +61,31 @@ describe("routes/subscription-plans — GET /", () => {
     expect(serialized).not.toMatch(/seatsTaken|maxActiveSeats|provider|price_fake|prod_fake|isActive|missingEditionAlertedFor/);
   });
 
+  it("expone annualPriceCents cuando el plan lo tiene (Milestone 2.7b)", async () => {
+    await seedPlanWithStripeRefs({ name: "Caja Anual", priceCents: 59900, annualPriceCents: 599000 });
+
+    const response = await request(app).get(BASE);
+
+    expect(response.body.data.plans[0].annualPriceCents).toBe(599000);
+  });
+
+  it("no incluye annualPriceCents cuando el plan no lo tiene", async () => {
+    await seedPlanWithStripeRefs({ name: "Solo Mensual" });
+
+    const response = await request(app).get(BASE);
+
+    expect(response.body.data.plans[0].annualPriceCents).toBeUndefined();
+  });
+
+  it("NUNCA expone providerAnnualPriceId", async () => {
+    await seedPlanWithStripeRefs({ annualPriceCents: 599000 });
+
+    const response = await request(app).get(BASE);
+    const serialized = JSON.stringify(response.body);
+
+    expect(serialized).not.toMatch(/providerAnnualPriceId|price_fake_year/);
+  });
+
   it("excluye planes inactivos y planes sin precio en Stripe (no se podrían contratar)", async () => {
     const visible = await seedPlanWithStripeRefs({ name: "Visible" });
     const inactive = await seedPlanWithStripeRefs({ name: "Inactivo" });

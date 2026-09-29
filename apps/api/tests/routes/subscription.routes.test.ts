@@ -89,6 +89,44 @@ describe("routes/subscription — POST /subscriptions", () => {
     expect(refreshedPlan?.seatsTaken).toBe(1);
   });
 
+  it("billingInterval: 'year' contrata el ciclo anual (Milestone 2.7b)", async () => {
+    await openEnrollmentSafely();
+    const plan = await seedPlanWithStripeRefs({ annualPriceCents: 599000 });
+    const { agent, userId } = await createCustomerSession(app);
+
+    const res = await agent
+      .post("/api/v1/subscriptions")
+      .send({ planId: plan._id.toString(), billingInterval: "year", termsAccepted: true });
+
+    expect(res.status).toBe(201);
+    const account = await SubscriptionAccount.findOne({ userId });
+    expect(account?.billingInterval).toBe("year");
+  });
+
+  it("billingInterval: 'year' sobre un plan sin precio anual responde 409", async () => {
+    await openEnrollmentSafely();
+    const plan = await seedPlanWithStripeRefs();
+    const { agent } = await createCustomerSession(app);
+
+    const res = await agent
+      .post("/api/v1/subscriptions")
+      .send({ planId: plan._id.toString(), billingInterval: "year", termsAccepted: true });
+
+    expect(res.status).toBe(409);
+  });
+
+  it("rechaza un billingInterval fuera del enum", async () => {
+    await openEnrollmentSafely();
+    const plan = await seedPlanWithStripeRefs();
+    const { agent } = await createCustomerSession(app);
+
+    const res = await agent
+      .post("/api/v1/subscriptions")
+      .send({ planId: plan._id.toString(), billingInterval: "week", termsAccepted: true });
+
+    expect(res.status).toBe(400);
+  });
+
   it("409 con la ventana de inscripciones cerrada, sin tocar cupo", async () => {
     const plan = await seedPlanWithStripeRefs();
     const { agent } = await createCustomerSession(app);

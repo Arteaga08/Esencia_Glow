@@ -36,7 +36,8 @@ const ATTENTION_STATUSES: readonly SubscriptionStatus[] = [SubscriptionStatus.PA
  * `latestInvoiceId`, `dunningInvoiceId`, `cancelReason` ni `seatHeldAt`
  * cruzan a este módulo. `statusHistory` solo se trae en el detalle (ver
  * `getAdminSubscriptionAccountById`), no en el listado. */
-const LIST_PROJECTION = "userId planId status cancelAtPeriodEnd startedAt currentPeriodEnd pastDueSince dunningAttempts pendingPlanChange createdAt";
+const LIST_PROJECTION =
+  "userId planId status billingInterval cancelAtPeriodEnd startedAt currentPeriodEnd pastDueSince dunningAttempts pendingPlanChange createdAt";
 const DETAIL_PROJECTION = `${LIST_PROJECTION} statusHistory`;
 
 interface ListAdminSubscriptionAccountsInput extends ListQuery {

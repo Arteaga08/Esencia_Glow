@@ -11,6 +11,9 @@ interface PublicSubscriptionPlan {
   description: string;
   shortDescription?: string;
   priceCents: number;
+  /** Precio del ciclo anual (Milestone 2.7b), opcional: un plan puede
+   * ofrecer solo mensual. Nunca viaja ningún id del Price de Stripe. */
+  annualPriceCents?: number;
   currency: string;
   billingInterval: string;
   /** El plan llegó a su tope de cupo: no se puede contratar por ahora. */

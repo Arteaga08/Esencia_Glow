@@ -104,4 +104,19 @@ describe("models/SubscriptionShipment — guía y sellos de envío (Milestone 1.
     expect(shipment.status).toBe(SubscriptionShipmentStatus.CANCELED);
     expect(shipment.canceledAt).toBeInstanceOf(Date);
   });
+
+  it("acepta prepaidInvoiceId SIN invoiceId (Milestone 2.7b: cajas prepagadas de cuentas anuales)", async () => {
+    const shipment = await SubscriptionShipment.create(buildShipmentAttrs({ prepaidInvoiceId: "in_anual_123" }));
+    expect(shipment.prepaidInvoiceId).toBe("in_anual_123");
+    expect(shipment.invoiceId).toBeUndefined();
+  });
+
+  it("prepaidInvoiceId NO es único: varias cajas prepagadas comparten la misma factura anual", async () => {
+    await SubscriptionShipment.create(buildShipmentAttrs({ prepaidInvoiceId: "in_anual_456", cycleMonth: 9 }));
+    await expect(
+      SubscriptionShipment.create(
+        buildShipmentAttrs({ accountId: new mongoose.Types.ObjectId(), prepaidInvoiceId: "in_anual_456", cycleMonth: 10 }),
+      ),
+    ).resolves.toBeDefined();
+  });
 });
