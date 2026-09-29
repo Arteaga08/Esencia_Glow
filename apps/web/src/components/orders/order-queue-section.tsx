@@ -40,7 +40,7 @@ function OrderQueueSection({ group, filters, isFiltered }: OrderQueueSectionProp
   const { orders, meta, setPage, loadError, retry } = useOrderGroup(group, filters);
 
   return (
-    <div className="overflow-hidden rounded-lg border border-border">
+    <div id={`order-queue-${group}`} className="overflow-hidden rounded-lg border border-border">
       <button
         type="button"
         onClick={() => setCollapsed((value) => !value)}

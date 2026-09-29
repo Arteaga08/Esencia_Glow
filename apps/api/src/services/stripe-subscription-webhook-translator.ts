@@ -73,6 +73,7 @@ function translateInvoicePaidEvent(
   if (!subscriptionRef || !period) return undefined;
 
   const accountIdHint = extractInvoiceAccountIdHint(invoice);
+  const paidAtSeconds = invoice.status_transitions?.paid_at;
   return {
     kind: "subscription.invoice_paid",
     eventId,
@@ -85,6 +86,10 @@ function translateInvoicePaidEvent(
     servicePeriodStart: period.start,
     servicePeriodEnd: period.end,
     billingReason: mapBillingReason(invoice.billing_reason),
+    // Fallback a la hora de proceso: Stripe no garantiza que venga poblado
+    // en todas las versiones de la API, y no vale la pena rechazar el
+    // evento por un campo que solo alimenta una gráfica.
+    paidAt: paidAtSeconds ? new Date(paidAtSeconds * 1000) : new Date(),
   };
 }
 

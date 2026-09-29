@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Tabs, type TabItem } from "@/components/ui/tabs";
+import { useInitialQueryParam } from "@/lib/hooks/use-initial-query-param";
 import { StoreShipmentsTab } from "./store-shipments-tab";
 import { SubscriptionShipmentsTab } from "./subscription-shipments-tab";
 
@@ -9,6 +10,8 @@ const CHANNEL_TABS: TabItem[] = [
   { id: "store", label: "Tienda" },
   { id: "subscription", label: "Suscripción" },
 ];
+
+const VALID_CHANNELS = new Set(["store", "subscription"]);
 
 /**
  * Milestone 2.4 — Envíos. Tienda (`Order`) y suscripción
@@ -20,7 +23,30 @@ const CHANNEL_TABS: TabItem[] = [
  * `/orders/[id]`.
  */
 export default function ShipmentsPage() {
-  const [channel, setChannel] = useState("store");
+  const initialChannel = useInitialQueryParam("channel");
+  const initialQueue = useInitialQueryParam("queue");
+  const [channel, setChannel] = useState(() =>
+    initialChannel && VALID_CHANNELS.has(initialChannel) ? initialChannel : "store",
+  );
+
+  // Llegada desde la tarjeta de Envíos del Resumen (Milestone 2.9): las
+  // colas ya están abiertas por default (mismo criterio que Pedidos), así
+  // que enfocar es desplazar hasta la cola pedida en el canal ya elegido.
+  // SOLO al montar: `channelRef` deja leer el canal actual sin que el
+  // efecto reviva cada vez que la clienta cambia de pestaña a mano — sin
+  // esto, `delivered` (la única cola que existe en ambos canales) volvía a
+  // hacer scroll cada vez que se cambiaba de Tienda a Suscripción o
+  // viceversa (hallazgo de code review).
+  const channelRef = useRef(channel);
+  useEffect(() => {
+    channelRef.current = channel;
+  }, [channel]);
+  useEffect(() => {
+    if (!initialQueue) return;
+    document
+      .getElementById(`shipment-queue-${channelRef.current}-${initialQueue}`)
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [initialQueue]);
 
   return (
     <div>

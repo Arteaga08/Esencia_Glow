@@ -28,6 +28,10 @@ interface BuildStripeInvoiceEventOptions {
    * se genera una única línea `subscription_item_details` con
    * `periodStart`/`periodEnd`. */
   lines?: Array<{ start: number; end: number; parentType: "subscription_item_details" | "invoice_item_details" }>;
+  /** `status_transitions.paid_at` — instante real del cobro según Stripe
+   * (Milestone 2.9, `SubscriptionInvoice.paidAt`). `null` para probar el
+   * fallback a la hora de proceso. */
+  paidAt?: number | null;
 }
 
 function buildStripeInvoiceEvent(
@@ -52,6 +56,9 @@ function buildStripeInvoiceEvent(
         billing_reason: options.billingReason ?? "subscription_cycle",
         attempt_count: options.attemptCount ?? 1,
         next_payment_attempt: options.nextPaymentAttempt === undefined ? null : options.nextPaymentAttempt,
+        status_transitions: {
+          paid_at: options.paidAt === undefined ? now : options.paidAt,
+        },
         ...(options.confirmationSecret
           ? { confirmation_secret: { client_secret: options.confirmationSecret, type: "payment_intent" } }
           : {}),

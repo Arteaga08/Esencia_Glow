@@ -31,6 +31,7 @@ export { SubscriptionShipmentStatus } from "./enums/subscription-shipment-status
 export { SubscriptionAction } from "./enums/subscription-action.js";
 export { TopCustomersPeriod } from "./enums/top-customers-period.js";
 export { TopCustomersSort } from "./enums/top-customers-sort.js";
+export { OverviewRange } from "./enums/overview-range.js";
 export { CATALOG_CURRENCY } from "./constants/currency.js";
 export type { Currency } from "./constants/currency.js";
 export { DEFAULT_INVENTORY_SETTINGS, MAX_LINE_QUANTITY } from "./constants/inventory.js";

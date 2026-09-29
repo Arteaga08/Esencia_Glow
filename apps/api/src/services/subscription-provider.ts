@@ -193,6 +193,11 @@ type SubscriptionWebhookEvent =
       servicePeriodStart: Date;
       servicePeriodEnd: Date;
       billingReason: "subscription_create" | "subscription_cycle" | "other";
+      /** Instante real del cobro (`status_transitions.paid_at`), para el
+       * registro de ingresos del Resumen (Milestone 2.9,
+       * `SubscriptionInvoice.paidAt`). Cae a la hora de proceso si Stripe no
+       * lo trae — ver `translateInvoicePaidEvent`. */
+      paidAt: Date;
     }
   | {
       kind: "subscription.payment_failed";

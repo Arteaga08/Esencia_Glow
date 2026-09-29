@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { StockStatus } from "@esencia-glow/shared";
+import { StockStatus } from "@esencia-glow/shared";
 import { ErrorState } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CategoryInventorySection } from "@/components/inventory/category-inventory-section";
@@ -9,6 +9,16 @@ import { InventoryFilters } from "@/components/inventory/inventory-filters";
 import { useCategoryTree } from "@/components/inventory/use-category-tree";
 import { useDebouncedValue } from "@/components/inventory/use-debounced-value";
 import type { InventorySort } from "@/components/inventory/use-inventory-list";
+import { useInitialQueryParam } from "@/lib/hooks/use-initial-query-param";
+
+const VALID_STOCK_STATUSES: string[] = Object.values(StockStatus);
+
+/** `?status=out|low` desde la tarjeta de Inventario del Resumen (Milestone
+ * 2.9) — solo un valor válido del enum entra, cualquier otra cosa (o nada)
+ * cae al filtro por default. */
+function resolveInitialStatus(raw: string | null): StockStatus | null {
+  return raw && VALID_STOCK_STATUSES.includes(raw) ? (raw as StockStatus) : null;
+}
 
 /**
  * Existencias: un bloque por categoría raíz, cada uno con su propia petición
@@ -19,7 +29,8 @@ function StockTab() {
   const { groups, loadError, retry } = useCategoryTree();
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebouncedValue(search);
-  const [status, setStatus] = useState<StockStatus | null>(null);
+  const initialStatus = useInitialQueryParam("status");
+  const [status, setStatus] = useState<StockStatus | null>(() => resolveInitialStatus(initialStatus));
   const [sort, setSort] = useState<InventorySort>("totalAvailable");
   const [refreshSignal, setRefreshSignal] = useState(0);
 

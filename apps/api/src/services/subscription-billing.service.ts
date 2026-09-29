@@ -1,6 +1,7 @@
 import type { Types } from "mongoose";
 import { SubscriptionAction, SubscriptionStatus } from "@esencia-glow/shared";
 import { SubscriptionAccount, type SubscriptionAccountDocument } from "../models/subscription-account.model.js";
+import { SubscriptionInvoice } from "../models/subscription-invoice.model.js";
 import { AppError } from "../utils/app-error.js";
 import { withTransaction } from "../utils/with-transaction.js";
 import { applyStatusTransition } from "./subscription-seat.service.js";
@@ -201,5 +202,32 @@ async function updatePeriodIfNewer(accountId: Types.ObjectId | string, start: Da
   );
 }
 
-export { applySystemStatus, recordPaidInvoice, recordPaymentFailure, updatePeriodIfNewer };
-export type { ApplySystemStatusFields, ApplySystemStatusResult, RecordPaidInvoiceInput };
+interface RecordSubscriptionInvoiceInput {
+  invoiceRef: string;
+  accountId: Types.ObjectId;
+  userId: Types.ObjectId;
+  planId: Types.ObjectId;
+  billingInterval?: "month" | "year";
+  amountPaidCents: number;
+  currency: string;
+  paidAt: Date;
+}
+
+/**
+ * Registra el cobro para el Resumen del panel (Milestone 2.9) —
+ * `upsert` sobre `invoiceRef`, nunca un `findOne` previo: una reentrega del
+ * mismo `invoice.paid` (ya idempotente en `SubscriptionShipment.invoiceId`
+ * para la caja) no debe duplicar el ingreso. `$setOnInsert` porque el
+ * cobro, una vez registrado, no cambia — una reentrega no debe pisar
+ * `paidAt`/`amountPaidCents` con un valor distinto por error del proveedor.
+ */
+async function recordSubscriptionInvoice(input: RecordSubscriptionInvoiceInput): Promise<void> {
+  await SubscriptionInvoice.updateOne(
+    { invoiceRef: input.invoiceRef },
+    { $setOnInsert: { ...input } },
+    { upsert: true },
+  );
+}
+
+export { applySystemStatus, recordPaidInvoice, recordPaymentFailure, recordSubscriptionInvoice, updatePeriodIfNewer };
+export type { ApplySystemStatusFields, ApplySystemStatusResult, RecordPaidInvoiceInput, RecordSubscriptionInvoiceInput };

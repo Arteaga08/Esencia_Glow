@@ -19,6 +19,7 @@ import { SubscriptionStatusBadge } from "@/components/customers/subscription-sta
 import { EnrollmentWindowPanel } from "@/components/subscription-accounts/enrollment-window-panel";
 import { useSubscriptionAccountList } from "@/components/subscription-accounts/use-subscription-account-list";
 import { usePlanFilterOptions } from "@/components/subscription-accounts/use-plan-filter-options";
+import { useInitialQueryParam } from "@/lib/hooks/use-initial-query-param";
 import { formatShortDate } from "@/lib/format-date";
 import type { AdminSubscriptionAccountListItem } from "@/lib/types/admin-subscription";
 
@@ -28,6 +29,14 @@ const STATUS_OPTIONS = Object.values(SubscriptionStatus).map((status) => ({
   value: status,
   label: SUBSCRIPTION_STATUS_LABELS[status],
 }));
+
+const VALID_SUBSCRIPTION_STATUSES: string[] = Object.values(SubscriptionStatus);
+
+/** `?status=past_due` o `?attention=true` desde la tarjeta de Suscripciones
+ * del Resumen (Milestone 2.9) — excluyentes, mismo `.oxor` del backend. */
+function resolveInitialStatus(raw: string | null): SubscriptionStatus | null {
+  return raw && VALID_SUBSCRIPTION_STATUSES.includes(raw) ? (raw as SubscriptionStatus) : null;
+}
 
 /**
  * Milestone 2.7a — Cuentas de suscripción: tabla densa (mismo patrón que
@@ -41,9 +50,11 @@ const STATUS_OPTIONS = Object.values(SubscriptionStatus).map((status) => ({
 export default function SubscriptionAccountsPage() {
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebouncedValue(search);
-  const [status, setStatus] = useState<SubscriptionStatus | null>(null);
+  const initialStatus = useInitialQueryParam("status");
+  const initialAttention = useInitialQueryParam("attention");
+  const [status, setStatus] = useState<SubscriptionStatus | null>(() => resolveInitialStatus(initialStatus));
   const [planId, setPlanId] = useState<string | null>(null);
-  const [attention, setAttention] = useState(false);
+  const [attention, setAttention] = useState(() => initialAttention === "true");
   const planOptions = usePlanFilterOptions();
 
   const { items, meta, setPage, loadError, retry } = useSubscriptionAccountList({
