@@ -4,11 +4,48 @@ import { describe, expect, it, vi } from "vitest";
 import { AuditLog } from "../../src/models/audit-log.model.js";
 import { SubscriptionAccount } from "../../src/models/subscription-account.model.js";
 import { SubscriptionPlan } from "../../src/models/subscription-plan.model.js";
+import { User } from "../../src/models/user.model.js";
 import { expireIncompleteSubscriptions } from "../../src/jobs/expire-incomplete-subscriptions.js";
 import * as subscriptionSeatService from "../../src/services/subscription-seat.service.js";
 import { startSubscription } from "../../src/services/subscription-seat.service.js";
+import { startSubscriptionForUser } from "../../src/services/subscription-start.service.js";
+import { openEnrollment } from "../../src/services/subscription-enrollment.service.js";
+import { updateSubscriptionSettings } from "../../src/services/settings.service.js";
+import { __setSubscriptionProviderForTests } from "../../src/services/subscription-provider.js";
+import { buildFakeSubscriptionProvider } from "../helpers/fake-subscription-provider.js";
 import { AppError } from "../../src/utils/app-error.js";
 import { seedPlanWithStripeRefs, seedSubscribedAccount } from "../helpers/subscription-fixtures.js";
+
+/** Un día-ancla que garantiza que la PRÓXIMA ocurrencia caiga el mes que
+ * viene — mismo calco que `subscription-start.service.test.ts`, para que
+ * `openEnrollmentSafely` nunca choque con la ventana por el día del mes en
+ * que corra esta suite. */
+function pickSafeAnchorDay(): number {
+  const todayDay = Number(
+    new Intl.DateTimeFormat("en-US", { timeZone: "America/Mexico_City", day: "numeric" })
+      .formatToParts(new Date())
+      .find((part) => part.type === "day")?.value,
+  );
+  return todayDay > 1 ? todayDay - 1 : 28;
+}
+
+async function openEnrollmentSafely() {
+  await updateSubscriptionSettings({ billingAnchorDay: pickSafeAnchorDay() });
+  await openEnrollment({});
+}
+
+async function seedUser() {
+  const suffix = new Types.ObjectId().toString();
+  const user = await User.create({
+    email: `cliente-${suffix}@example.com`,
+    password: "Contrasena1",
+    firstName: "Cliente",
+    lastName: "Glow",
+    role: "customer",
+    emailVerified: true,
+  });
+  return user._id.toString();
+}
 
 const THRESHOLD_MINUTES = 30;
 
@@ -146,5 +183,90 @@ describe("jobs/expireIncompleteSubscriptions", () => {
     expect(
       await AuditLog.countDocuments({ action: "subscription_incomplete_expired", targetId: account._id }),
     ).toBe(1);
+  });
+});
+
+/**
+ * Segunda pasada del barrendero (mecanismo de factura manual de alta, ver
+ * jobs/expire-incomplete-subscriptions.ts): cuentas `INCOMPLETE` que YA
+ * tienen `providerSubscriptionId`/`latestInvoiceId` — la Subscription en
+ * Stripe queda `active` desde el día 1 con este mecanismo, así que el
+ * auto-expiro histórico de Stripe (~23h de `incomplete`) nunca ocurre y esta
+ * pasada es la única red de seguridad para una clienta que abandona el
+ * checkout sin confirmar la tarjeta.
+ */
+describe("jobs/expire-incomplete-subscriptions — altas abandonadas (factura manual sin pagar)", () => {
+  it("cancela en Stripe y transiciona a CANCELED una cuenta INCOMPLETE con providerSubscriptionId+latestInvoiceId vencida", async () => {
+    const fake = buildFakeSubscriptionProvider();
+    __setSubscriptionProviderForTests(fake);
+
+    await openEnrollmentSafely();
+    const plan = await seedPlanWithStripeRefs({ maxActiveSeats: 5 });
+    const userId = await seedUser();
+    await startSubscriptionForUser({ userId, planId: plan._id.toString() });
+
+    const account = await SubscriptionAccount.findOne({ userId });
+    await SubscriptionAccount.updateOne(
+      { _id: account!._id },
+      { $set: { seatHeldAt: new Date(Date.now() - 60 * 60_000) } },
+    );
+
+    const summary = await expireIncompleteSubscriptions(new Date(), 30);
+
+    expect(summary.expired).toBeGreaterThanOrEqual(1);
+    expect(fake.abandonSubscriptionStart).toHaveBeenCalledWith({
+      subscriptionRef: account!.providerSubscriptionId,
+      invoiceRef: account!.latestInvoiceId,
+    });
+    const reloaded = await SubscriptionAccount.findById(account!._id);
+    expect(reloaded?.status).toBe(SubscriptionStatus.CANCELED);
+    const refreshedPlan = await SubscriptionPlan.findById(plan._id);
+    expect(refreshedPlan?.seatsTaken).toBe(0);
+  });
+
+  it("no toca una cuenta INCOMPLETE con providerSubscriptionId reciente (dentro del threshold)", async () => {
+    const fake = buildFakeSubscriptionProvider();
+    __setSubscriptionProviderForTests(fake);
+
+    await openEnrollmentSafely();
+    const plan = await seedPlanWithStripeRefs({ maxActiveSeats: 5 });
+    const userId = await seedUser();
+    await startSubscriptionForUser({ userId, planId: plan._id.toString() });
+
+    const summary = await expireIncompleteSubscriptions(new Date(), 30);
+
+    expect(fake.abandonSubscriptionStart).not.toHaveBeenCalled();
+    const account = await SubscriptionAccount.findOne({ userId });
+    expect(account?.status).toBe(SubscriptionStatus.INCOMPLETE);
+  });
+
+  it("sin proveedor de Stripe configurado, no falla el barrendero (solo se salta esta pasada)", async () => {
+    // `seedPlanWithStripeRefs` pasa por `createPlan`, que SÍ requiere un
+    // proveedor configurado — se siembra con el fake y recién después se
+    // apaga, igual que el resto de esta suite deja el provider `undefined`
+    // solo para la llamada al job bajo prueba.
+    __setSubscriptionProviderForTests(buildFakeSubscriptionProvider());
+
+    await openEnrollmentSafely();
+    const plan = await seedPlanWithStripeRefs({ maxActiveSeats: 5 });
+    const userId = await seedUser();
+
+    __setSubscriptionProviderForTests(undefined);
+    // Cuenta sembrada a mano (sin pasar por Stripe) para simular el caso.
+    const account = await SubscriptionAccount.create({
+      userId,
+      planId: plan._id,
+      status: SubscriptionStatus.INCOMPLETE,
+      cancelAtPeriodEnd: false,
+      statusHistory: [],
+      dunningAttempts: 0,
+      seatHeldAt: new Date(Date.now() - 60 * 60_000),
+      providerSubscriptionId: "sub_manual_seed",
+      latestInvoiceId: "in_manual_seed",
+    });
+
+    await expect(expireIncompleteSubscriptions(new Date(), 30)).resolves.toBeDefined();
+    const reloaded = await SubscriptionAccount.findById(account._id);
+    expect(reloaded?.status).toBe(SubscriptionStatus.INCOMPLETE); // no se tocó
   });
 });

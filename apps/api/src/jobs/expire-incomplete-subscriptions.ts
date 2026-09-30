@@ -2,6 +2,7 @@ import { SubscriptionAction, SubscriptionStatus } from "@esencia-glow/shared";
 import { SubscriptionAccount } from "../models/subscription-account.model.js";
 import { applyStatusTransition } from "../services/subscription-seat.service.js";
 import { recordAudit } from "../services/audit.service.js";
+import { resolveSubscriptionProvider } from "../services/subscription-provider.js";
 import { AppError } from "../utils/app-error.js";
 import { logger } from "../config/logger.js";
 
@@ -27,12 +28,7 @@ interface ExpireIncompleteSubscriptionsSummary {
  * antes de devolver el `clientSecret`), así que este barrendero jamás la
  * toca — solo libera cuentas donde Stripe nunca llegó a confirmar nada.
  */
-async function expireIncompleteSubscriptions(
-  now: Date = new Date(),
-  thresholdMinutes: number,
-  batchSize: number = DEFAULT_BATCH_SIZE,
-): Promise<ExpireIncompleteSubscriptionsSummary> {
-  const threshold = new Date(now.getTime() - thresholdMinutes * 60_000);
+async function expireOrphanedAccounts(threshold: Date, batchSize: number): Promise<ExpireIncompleteSubscriptionsSummary> {
   const stale = await SubscriptionAccount.find({
     status: SubscriptionStatus.INCOMPLETE,
     providerSubscriptionId: { $exists: false },
@@ -92,6 +88,95 @@ async function expireIncompleteSubscriptions(
   }
 
   return { scanned: stale.length, expired, failed };
+}
+
+/**
+ * Segunda pasada (mecanismo de factura manual de alta): cuentas `INCOMPLETE`
+ * que YA tienen `providerSubscriptionId`/`latestInvoiceId` — la clienta
+ * reclamó el cupo y Stripe generó su factura de alta, pero nunca confirmó la
+ * tarjeta. Antes de este mecanismo, Stripe expiraba sola la Subscription
+ * `incomplete` en ~23h y el webhook `customer.subscription.deleted` cerraba
+ * la cuenta local; con la factura manual, la Subscription queda `active`
+ * desde el día 1 y ESE auto-expiro de Stripe nunca ocurre — sin esta pasada,
+ * una clienta que abandona el checkout dejaría una Subscription viva en
+ * Stripe para siempre, sin cobrar nada.
+ *
+ * Sin proveedor configurado (dev sin credenciales de Stripe), esta pasada se
+ * salta entera — no hay nada que cancelar en un Stripe que no existe, y
+ * lanzar aquí tumbaría el resto del tick de cron.
+ */
+async function expireAbandonedInvoices(threshold: Date, batchSize: number): Promise<ExpireIncompleteSubscriptionsSummary> {
+  const provider = resolveSubscriptionProvider();
+  if (!provider) return { scanned: 0, expired: 0, failed: 0 };
+
+  const stale = await SubscriptionAccount.find({
+    status: SubscriptionStatus.INCOMPLETE,
+    providerSubscriptionId: { $exists: true },
+    latestInvoiceId: { $exists: true },
+    seatHeldAt: { $lt: threshold },
+  })
+    .select("_id")
+    .limit(batchSize)
+    .lean();
+
+  let expired = 0;
+  let failed = 0;
+
+  for (const { _id } of stale) {
+    try {
+      const account = await SubscriptionAccount.findById(_id);
+      if (!account) continue;
+      if (
+        account.status !== SubscriptionStatus.INCOMPLETE ||
+        !account.providerSubscriptionId ||
+        !account.latestInvoiceId
+      ) {
+        continue;
+      }
+
+      await provider.abandonSubscriptionStart({
+        subscriptionRef: account.providerSubscriptionId,
+        invoiceRef: account.latestInvoiceId,
+      });
+      await applyStatusTransition(account, SubscriptionStatus.CANCELED, "system");
+      await recordAudit({ action: SubscriptionAction.SUBSCRIPTION_INCOMPLETE_EXPIRED, targetId: _id });
+      expired += 1;
+    } catch (error) {
+      if (error instanceof AppError && error.statusCode === 409) {
+        try {
+          const reloaded = await SubscriptionAccount.findById(_id);
+          const stillMatches = reloaded?.status === SubscriptionStatus.INCOMPLETE && Boolean(reloaded.providerSubscriptionId);
+          if (!stillMatches) continue;
+        } catch (reloadError) {
+          failed += 1;
+          logger.error(
+            { err: reloadError, accountId: _id.toString() },
+            "Fallo al releer una cuenta tras un 409 al expirar una factura de alta abandonada",
+          );
+          continue;
+        }
+      }
+      failed += 1;
+      logger.error({ err: error, accountId: _id.toString() }, "Fallo al expirar una factura de alta abandonada");
+    }
+  }
+
+  return { scanned: stale.length, expired, failed };
+}
+
+async function expireIncompleteSubscriptions(
+  now: Date = new Date(),
+  thresholdMinutes: number,
+  batchSize: number = DEFAULT_BATCH_SIZE,
+): Promise<ExpireIncompleteSubscriptionsSummary> {
+  const threshold = new Date(now.getTime() - thresholdMinutes * 60_000);
+  const orphaned = await expireOrphanedAccounts(threshold, batchSize);
+  const abandoned = await expireAbandonedInvoices(threshold, batchSize);
+  return {
+    scanned: orphaned.scanned + abandoned.scanned,
+    expired: orphaned.expired + abandoned.expired,
+    failed: orphaned.failed + abandoned.failed,
+  };
 }
 
 export { expireIncompleteSubscriptions };
