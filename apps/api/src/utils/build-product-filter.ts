@@ -18,6 +18,9 @@ interface ProductFilterInput {
   publicOnly?: boolean;
   /** Solo para el listado admin — el catálogo público nunca lo acepta. */
   channel?: ProductChannel;
+  /** Solo admin: dónde se puede usar el producto. `store` incluye `both`;
+   * `subscription` incluye `both` (a diferencia de `channel`, que es exacto). */
+  availableIn?: "store" | "subscription";
   minPrice?: number;
   maxPrice?: number;
 }
@@ -50,6 +53,12 @@ function buildProductFilter(input: ProductFilterInput): FilterQuery<ProductAttrs
   } else {
     if (input.status) filter.status = input.status;
     if (input.channel) filter.channel = input.channel;
+    // `$ne` y no `$in: [STORE, BOTH]` en tienda: un producto legado sin el
+    // campo `channel` cuenta como tienda (ver buildPublicProductMatch).
+    if (input.availableIn === "store") filter.channel = { $ne: ProductChannel.SUBSCRIPTION };
+    if (input.availableIn === "subscription") {
+      filter.channel = { $in: [ProductChannel.SUBSCRIPTION, ProductChannel.BOTH] };
+    }
   }
 
   if (input.categoryIds && input.categoryIds.length > 0) {

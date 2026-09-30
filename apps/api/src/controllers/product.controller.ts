@@ -8,10 +8,11 @@ import * as variantService from "../services/product-variant.service.js";
 
 const list = asyncHandler(async (req: Request, res: Response) => {
   const query = parseListQuery(req.query);
-  const { categoryId, status, channel, minPrice, maxPrice } = req.query as {
+  const { categoryId, status, channel, availableIn, minPrice, maxPrice } = req.query as {
     categoryId?: string;
     status?: ProductStatus;
     channel?: ProductChannel;
+    availableIn?: "store" | "subscription";
     minPrice?: number;
     maxPrice?: number;
   };
@@ -20,6 +21,7 @@ const list = asyncHandler(async (req: Request, res: Response) => {
     categoryId,
     status,
     channel,
+    availableIn,
     minPrice,
     maxPrice,
   });

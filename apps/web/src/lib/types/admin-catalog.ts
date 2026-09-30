@@ -10,7 +10,10 @@ import type { ProductAttributes, PublicDimensionsCm, ProductContent } from "@ese
  */
 
 type AdminProductStatus = "draft" | "active" | "archived";
-type AdminProductChannel = "store" | "subscription";
+type AdminProductChannel = "store" | "subscription" | "both";
+/** Dónde se puede usar un producto al armar paquetes (`store`) o cajas
+ * (`subscription`); ambos incluyen los de canal `both`. */
+type AdminProductAvailability = "store" | "subscription";
 
 interface AdminVariant {
   id: string;
@@ -107,6 +110,7 @@ interface AdminBundle {
 export type {
   AdminProductStatus,
   AdminProductChannel,
+  AdminProductAvailability,
   AdminVariant,
   AdminProductImage,
   AdminProduct,

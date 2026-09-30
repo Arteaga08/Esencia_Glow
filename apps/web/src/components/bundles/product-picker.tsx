@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { MagnifyingGlass } from "@phosphor-icons/react";
 import type { PaginationMeta } from "@esencia-glow/shared";
 import { apiRequest } from "@/lib/api";
-import type { AdminProduct, AdminProductChannel } from "@/lib/types/admin-catalog";
+import type { AdminProduct, AdminProductAvailability } from "@/lib/types/admin-catalog";
 
 const RESULT_LIMIT = 6;
 const SEARCH_DEBOUNCE_MS = 300;
@@ -15,7 +15,7 @@ interface ProductPickerProps {
   onChange: (product: AdminProduct) => void;
   /** Canal del catálogo que se ofrece: `"store"` para componentes de un
    * paquete, `"subscription"` para los ítems de una edición (2.7b-2). */
-  channel: AdminProductChannel;
+  channel: AdminProductAvailability;
 }
 
 /**
@@ -26,10 +26,11 @@ interface ProductPickerProps {
  * 6 resultados a la vez (`limit: 6`, no un slice en cliente); con más de 6
  * coincidencias reales pide seguir acotando en vez de listarlas todas.
  *
- * `channel` lo fija quien lo usa: un producto de la caja de suscripción nunca
+ * `channel` lo fija quien lo usa: un producto solo de suscripción nunca
  * puede ser componente de un paquete (bundle.service.ts, `assertItemsValid`)
- * y una edición solo acepta productos exclusivos de suscripción
- * (subscription-edition-publish.service.ts) — mejor no ofrecer el canal
+ * y una edición solo acepta productos de suscripción o de ambos canales
+ * (subscription-edition-publish.service.ts); se pide con `availableIn`, que
+ * incluye los de canal `both` en las dos listas — mejor no ofrecer el canal
  * equivocado que dejar que el backend lo rechace con un 400.
  */
 function ProductPicker({ value, selectedProduct, onChange, channel }: ProductPickerProps) {
@@ -51,7 +52,7 @@ function ProductPicker({ value, selectedProduct, onChange, channel }: ProductPic
       setLoading(true);
       apiRequest<AdminProduct[], PaginationMeta>("/api/v1/admin/products", {
         authenticated: true,
-        query: { search: query || undefined, channel, limit: RESULT_LIMIT },
+        query: { search: query || undefined, availableIn: channel, limit: RESULT_LIMIT },
       })
         .then((response) => {
           if (cancelled) return;

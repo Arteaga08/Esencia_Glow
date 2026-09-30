@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { useCatalogFilters } from "@/lib/hooks/use-catalog-filters";
+import type { AdminProductChannel } from "@/lib/types/admin-catalog";
 
 interface ProductBaseFieldsValue {
   name: string;
@@ -11,7 +12,7 @@ interface ProductBaseFieldsValue {
   shortDescription: string;
   categoryId: string | null;
   badgeId: string | null;
-  channel: "store" | "subscription";
+  channel: AdminProductChannel;
 }
 
 interface ProductBaseFieldsProps {
@@ -21,9 +22,16 @@ interface ProductBaseFieldsProps {
 }
 
 const CHANNEL_OPTIONS = [
-  { value: "store", label: "Tienda" },
-  { value: "subscription", label: "Suscripción (caja curada)" },
+  { value: "store", label: "Solo tienda" },
+  { value: "both", label: "Tienda y suscripción" },
+  { value: "subscription", label: "Solo suscripción (caja curada)" },
 ];
+
+const CHANNEL_HELPERS: Record<AdminProductChannel, string> = {
+  store: "Se vende suelto y puede ir en paquetes. No puede ir en una caja de suscripción.",
+  both: "Se vende suelto y también puede ir en la caja. Comparte inventario: si la tienda agota el stock, la caja lo reportará como incidencia.",
+  subscription: "Solo para la caja: no se vende suelto ni entra en paquetes.",
+};
 
 /** Datos base del producto — el cascarón. Variantes, fotos y contenido
  * editorial viven en sus propios bloques del editor, no aquí. */
@@ -72,8 +80,9 @@ function ProductBaseFields({ value, onChange, errors }: ProductBaseFieldsProps) 
         <Select
           label="Canal"
           value={value.channel}
-          onChange={(v) => onChange({ channel: v as "store" | "subscription" })}
+          onChange={(v) => onChange({ channel: v as AdminProductChannel })}
           options={CHANNEL_OPTIONS}
+          helper={CHANNEL_HELPERS[value.channel]}
           error={errors?.channel}
         />
       </div>
