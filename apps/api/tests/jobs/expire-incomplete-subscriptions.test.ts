@@ -235,6 +235,7 @@ describe("jobs/expire-incomplete-subscriptions — altas abandonadas (factura ma
 
     const summary = await expireIncompleteSubscriptions(new Date(), 30);
 
+    expect(summary.expired).toBe(0);
     expect(fake.abandonSubscriptionStart).not.toHaveBeenCalled();
     const account = await SubscriptionAccount.findOne({ userId });
     expect(account?.status).toBe(SubscriptionStatus.INCOMPLETE);
