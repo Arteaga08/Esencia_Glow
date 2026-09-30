@@ -26,7 +26,7 @@ function pickSafeAnchorDay(): number {
       .formatToParts(new Date())
       .find((part) => part.type === "day")?.value,
   );
-  return todayDay > 1 ? todayDay - 1 : 28;
+  return todayDay > 1 ? Math.min(todayDay - 1, 28) : 28;
 }
 
 async function openEnrollmentSafely() {

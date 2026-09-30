@@ -13,14 +13,15 @@ const app = buildApp();
  * del mes corran de verdad. "El día justo antes de hoy" empuja
  * `nextAnchorOnOrAfter` a saltar al mes siguiente; si hoy es el día 1, no
  * hay "día antes" dentro del mismo mes, así que se usa el 28 (fin de mes,
- * también lejos). */
+ * también lejos). El tope en 28 cubre los días 30 y 31: Settings solo acepta
+ * `billingAnchorDay` entre 1 y 28, y el 28 sigue quedando antes de hoy. */
 function pickSafeAnchorDay(): number {
   const todayDay = Number(
     new Intl.DateTimeFormat("en-US", { timeZone: "America/Mexico_City", day: "numeric" })
       .formatToParts(new Date())
       .find((part) => part.type === "day")?.value,
   );
-  return todayDay > 1 ? todayDay - 1 : 28;
+  return todayDay > 1 ? Math.min(todayDay - 1, 28) : 28;
 }
 
 describe("routes/admin-subscription-enrollment", () => {
