@@ -44,7 +44,8 @@ interface PublicProductVariant {
    */
   listPrice?: number | null;
   weightGrams: number;
-  dimensionsCm: PublicDimensionsCm;
+  /** `null` = cabe en la medida estándar de artículo (`STANDARD_ITEM_CM`). */
+  dimensionsCm: PublicDimensionsCm | null;
 }
 
 interface PublicProductCategoryRef {

@@ -105,6 +105,30 @@ describe("routes/admin-product — CRUD, variantes y filtros", () => {
     expect(newVariant).not.toHaveProperty("initialStock");
   });
 
+  it("las medidas son opcionales: sin ellas la variante queda con dimensionsCm null, y se pueden borrar después", async () => {
+    const { agent } = await createAdminSession(app);
+    const categoryId = await createCategory(agent);
+    const { dimensionsCm: _omitted, ...withoutDimensions } = sampleVariant({ sku: "DIM-A" });
+
+    const create = await agent.post("/api/v1/admin/products").send({
+      name: "Producto Sin Medidas",
+      description: "desc",
+      categoryId,
+      variants: [withoutDimensions, sampleVariant({ sku: "DIM-B" })],
+    });
+    expect(create.status).toBe(201);
+    const [standard, large] = create.body.data.variants;
+    expect(standard.dimensionsCm).toBeNull();
+    expect(large.dimensionsCm).toEqual({ length: 5, width: 5, height: 10 });
+
+    const clear = await agent
+      .patch(`/api/v1/admin/products/${create.body.data.id}/variants/${large.id}`)
+      .send({ dimensionsCm: null });
+    expect(clear.status).toBe(200);
+    const cleared = clear.body.data.variants.find((v: { sku: string }) => v.sku === "DIM-B");
+    expect(cleared.dimensionsCm).toBeNull();
+  });
+
   it("un slug duplicado (mismo nombre) responde 409", async () => {
     const { agent } = await createAdminSession(app);
     const categoryId = await createCategory(agent);

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { STANDARD_ITEM_CM } from "@esencia-glow/shared";
 import { buildParcel } from "../../src/services/parcel.js";
 
 describe("services/parcel", () => {
@@ -63,6 +64,23 @@ describe("services/parcel", () => {
     const expected = Math.ceil((parcel.lengthCm * parcel.widthCm * parcel.heightCm) / 5000) * 1000;
     expect(parcel.volumetricWeightGrams).toBe(expected);
     expect(parcel.volumetricWeightGrams).toBeGreaterThan(0);
+  });
+
+  it("una variante sin medidas cotiza con la medida estándar de artículo", () => {
+    const withoutDimensions = buildParcel([{ weightGrams: 200, dimensionsCm: null, quantity: 3 }]);
+    const withStandard = buildParcel([{ weightGrams: 200, dimensionsCm: STANDARD_ITEM_CM, quantity: 3 }]);
+    expect(withoutDimensions).toEqual(withStandard);
+  });
+
+  it("mezcla variantes con y sin medidas: la grande sigue cabiendo", () => {
+    const parcel = buildParcel([
+      { weightGrams: 100, dimensionsCm: null, quantity: 2 },
+      { weightGrams: 800, dimensionsCm: { length: 30, width: 20, height: 10 }, quantity: 1 },
+    ]);
+    expect(parcel.lengthCm).toBeGreaterThanOrEqual(30);
+    expect(parcel.widthCm).toBeGreaterThanOrEqual(20);
+    expect(parcel.heightCm).toBeGreaterThanOrEqual(STANDARD_ITEM_CM.height);
+    expect(parcel.weightGrams).toBe(100 * 2 + 800 + 150);
   });
 
   it("un carrito vacío no puede armar un paquete", () => {

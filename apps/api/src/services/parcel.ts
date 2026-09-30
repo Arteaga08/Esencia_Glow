@@ -3,6 +3,7 @@ import {
   MIN_BOX_CM,
   PACKAGING_TARE_GRAMS,
   PACKING_EFFICIENCY,
+  STANDARD_ITEM_CM,
 } from "@esencia-glow/shared";
 import { AppError } from "../utils/app-error.js";
 
@@ -20,6 +21,9 @@ import { AppError } from "../utils/app-error.js";
  * `max` contra cada dimensión garantiza que el artículo más grande SIEMPRE
  * quepa, que es la falla que más caro sale. Un solo paquete en 1.5; el
  * split multi-paquete es 1.9 (`MAX_PARCEL_WEIGHT_GRAMS` ya lo anticipa).
+ *
+ * Una variante sin medidas (`null`) cabe en `STANDARD_ITEM_CM`: el admin solo
+ * captura medidas cuando el producto excede esa medida estándar.
  */
 
 interface ParcelDimensionsCmInput {
@@ -30,7 +34,7 @@ interface ParcelDimensionsCmInput {
 
 interface ParcelItemInput {
   weightGrams: number;
-  dimensionsCm: ParcelDimensionsCmInput;
+  dimensionsCm: ParcelDimensionsCmInput | null;
   quantity: number;
 }
 
@@ -54,12 +58,12 @@ function buildParcel(items: readonly ParcelItemInput[]): Parcel {
   let maxItemHeight = 0;
 
   for (const item of items) {
+    const dimensions = item.dimensionsCm ?? STANDARD_ITEM_CM;
     weightGrams += item.weightGrams * item.quantity;
-    volumeCm3 +=
-      item.dimensionsCm.length * item.dimensionsCm.width * item.dimensionsCm.height * item.quantity;
-    maxItemLength = Math.max(maxItemLength, item.dimensionsCm.length);
-    maxItemWidth = Math.max(maxItemWidth, item.dimensionsCm.width);
-    maxItemHeight = Math.max(maxItemHeight, item.dimensionsCm.height);
+    volumeCm3 += dimensions.length * dimensions.width * dimensions.height * item.quantity;
+    maxItemLength = Math.max(maxItemLength, dimensions.length);
+    maxItemWidth = Math.max(maxItemWidth, dimensions.width);
+    maxItemHeight = Math.max(maxItemHeight, dimensions.height);
   }
 
   const side = Math.cbrt(volumeCm3 * PACKING_EFFICIENCY);

@@ -25,7 +25,7 @@ interface ProductVariantInput {
   price: number;
   listPrice?: number | null;
   weightGrams: number;
-  dimensionsCm: DimensionsCmAttrs;
+  dimensionsCm?: DimensionsCmAttrs | null;
   isActive?: boolean;
 }
 

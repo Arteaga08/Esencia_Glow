@@ -146,7 +146,9 @@ interface LeanVariant extends Omit<ProductVariantAttrs, "attributes" | "dimensio
   // Mongoose omite un subdocumento embebido vacío al guardar (`minimize`),
   // así que una variante sin atributos llega desde `.lean()` sin esta clave.
   attributes?: VariantAttributesAttrs;
-  dimensionsCm: DimensionsCmAttrs;
+  // Variantes creadas antes de que las medidas fueran opcionales traen el
+  // objeto; las nuevas sin medidas, `null` (o sin la clave en `.lean()`).
+  dimensionsCm?: DimensionsCmAttrs | null;
 }
 
 interface LeanProduct {
@@ -219,7 +221,7 @@ function buildAdminVariant(variant: LeanVariant): AdminVariant {
     price: variant.price,
     listPrice: variant.listPrice ?? null,
     weightGrams: variant.weightGrams,
-    dimensionsCm: variant.dimensionsCm,
+    dimensionsCm: variant.dimensionsCm ?? null,
     isActive: variant.isActive,
   };
 }
@@ -233,7 +235,7 @@ function buildPublicVariant(variant: LeanVariant): PublicProductVariant {
     price: variant.price,
     ...(variant.listPrice != null ? { listPrice: variant.listPrice } : {}),
     weightGrams: variant.weightGrams,
-    dimensionsCm: variant.dimensionsCm,
+    dimensionsCm: variant.dimensionsCm ?? null,
   };
 }
 

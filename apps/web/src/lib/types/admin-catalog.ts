@@ -25,7 +25,7 @@ interface AdminVariant {
   /** Centavos, solo presentación — nunca lo que cobra el checkout. */
   listPrice?: number | null;
   weightGrams: number;
-  dimensionsCm: PublicDimensionsCm;
+  dimensionsCm: PublicDimensionsCm | null;
   isActive: boolean;
 }
 

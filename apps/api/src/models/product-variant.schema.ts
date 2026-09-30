@@ -41,7 +41,9 @@ interface ProductVariantAttrs {
   listPrice: number | null;
   /** Gramos, entero. Cotización de envío (Milestone 1.5). */
   weightGrams: number;
-  dimensionsCm: DimensionsCmAttrs;
+  /** `null` = cabe en la medida estándar (`STANDARD_ITEM_CM`); solo se captura
+   * cuando el producto la excede. */
+  dimensionsCm: DimensionsCmAttrs | null;
   isActive: boolean;
 }
 
@@ -100,7 +102,7 @@ const productVariantSchema = new Schema<ProductVariantAttrs>(
       min: 1,
       validate: integerValidator,
     },
-    dimensionsCm: { type: dimensionsCmSchema, required: true },
+    dimensionsCm: { type: dimensionsCmSchema, default: null },
     isActive: { type: Boolean, default: true },
   },
   { _id: true },

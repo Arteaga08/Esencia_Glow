@@ -12,7 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/ui/error-state";
 import { ProductBaseFields, type ProductBaseFieldsValue } from "@/components/products/product-base-fields";
 import { VariantRow } from "@/components/products/variant-row";
-import { emptyVariantDraft, type VariantDraft } from "@/components/products/variant-fields";
+import { draftToDimensionsCm, emptyVariantDraft, type VariantDraft } from "@/components/products/variant-fields";
 import { ContentBlockEditor, type ContentItem } from "@/components/products/content-block-editor";
 import { ImageManager } from "@/components/products/image-manager";
 import { InventoryPanel } from "@/components/products/inventory-panel";
@@ -40,9 +40,10 @@ function variantToDraft(variant: AdminVariant): VariantDraft {
     price: centsToPesosInput(variant.price),
     listPrice: variant.listPrice ? centsToPesosInput(variant.listPrice) : "",
     weightGrams: String(variant.weightGrams),
-    length: String(variant.dimensionsCm.length),
-    width: String(variant.dimensionsCm.width),
-    height: String(variant.dimensionsCm.height),
+    hasCustomDimensions: variant.dimensionsCm !== null,
+    length: variant.dimensionsCm ? String(variant.dimensionsCm.length) : "",
+    width: variant.dimensionsCm ? String(variant.dimensionsCm.width) : "",
+    height: variant.dimensionsCm ? String(variant.dimensionsCm.height) : "",
     size: variant.attributes.size ?? "",
     shade: variant.attributes.shade ?? "",
     volume: variant.attributes.volume ?? "",
@@ -63,11 +64,7 @@ function draftToVariantPayload(draft: VariantDraft) {
     price: pesosInputToCents(draft.price) ?? 0,
     listPrice: pesosInputToCents(draft.listPrice),
     weightGrams: Number(draft.weightGrams) || 0,
-    dimensionsCm: {
-      length: Number(draft.length) || 0,
-      width: Number(draft.width) || 0,
-      height: Number(draft.height) || 0,
-    },
+    dimensionsCm: draftToDimensionsCm(draft),
     isActive: draft.isActive,
   };
 }

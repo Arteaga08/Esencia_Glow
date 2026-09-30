@@ -37,6 +37,12 @@ const PACKING_EFFICIENCY = 1.25;
 /** Caja mínima que Skydropx (y cualquier paquetería real) factura, en cm. */
 const MIN_BOX_CM = { length: 15, width: 15, height: 5 };
 
+/** Medida que se asume para una variante sin medidas capturadas: el admin
+ * solo las registra cuando el producto la excede. Calibrada con el artículo
+ * más grande del catálogo típico (frasco de 6 × 6 × 16 cm) para no
+ * subcotizar el envío. */
+const STANDARD_ITEM_CM = { length: 6, width: 6, height: 16 };
+
 /** Un solo paquete en 1.5. El split multi-paquete por este techo es 1.9. */
 const MAX_PARCEL_WEIGHT_GRAMS = 20_000;
 
@@ -60,6 +66,7 @@ export {
   PACKAGING_TARE_GRAMS,
   PACKING_EFFICIENCY,
   MIN_BOX_CM,
+  STANDARD_ITEM_CM,
   MAX_PARCEL_WEIGHT_GRAMS,
   STUB_SHIPPING_RATES_COUNT,
   SHIPPING_QUOTE_TIMEOUT_MS,
