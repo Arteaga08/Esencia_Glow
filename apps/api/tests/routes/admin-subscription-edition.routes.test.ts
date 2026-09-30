@@ -83,6 +83,36 @@ describe("routes/admin-subscription-edition — CRUD y curaduría", () => {
     expect(publish.body.data.status).toBe("published");
   });
 
+  it("crear con items en el POST y publicar: un solo guardado", async () => {
+    const { agent } = await createAdminSession(app);
+    const { planId, productId, variantId } = await seedPlanAndProduct(agent);
+
+    const create = await agent
+      .post("/api/v1/admin/subscription-editions")
+      .send({ planId, cycleYear: 2026, cycleMonth: 10, title: "Octubre", items: [{ productId, variantId, quantity: 1 }] });
+    expect(create.status).toBe(201);
+    expect(create.body.data.items).toHaveLength(1);
+
+    const publish = await agent.post(`/api/v1/admin/subscription-editions/${create.body.data.id}/publish`);
+    expect(publish.status).toBe(200);
+  });
+
+  it("POST con items repetidos responde 400", async () => {
+    const { agent } = await createAdminSession(app);
+    const { planId, productId, variantId } = await seedPlanAndProduct(agent);
+    const response = await agent.post("/api/v1/admin/subscription-editions").send({
+      planId,
+      cycleYear: 2026,
+      cycleMonth: 10,
+      title: "Octubre",
+      items: [
+        { productId, variantId, quantity: 1 },
+        { productId, variantId, quantity: 2 },
+      ],
+    });
+    expect(response.status).toBe(400);
+  });
+
   it("publicar con un producto de canal tienda responde 400", async () => {
     const { agent } = await createAdminSession(app);
     const { planId } = await seedPlanAndProduct(agent);

@@ -66,6 +66,36 @@ describe("services/subscription-edition — CRUD y publicación", () => {
     ).rejects.toMatchObject({ statusCode: 409 });
   });
 
+  it("crea una edición con items válidos en un solo paso (DRAFT)", async () => {
+    const plan = await seedPlan();
+    const { product, variantId } = await seedProduct();
+    const edition = await createEdition({
+      planId: plan._id.toString(),
+      cycleYear: 2026,
+      cycleMonth: 9,
+      title: "Sept",
+      items: [{ productId: product._id.toString(), variantId: variantId.toString(), quantity: 2 }],
+    });
+    expect(edition.status).toBe(EditionStatus.DRAFT);
+    expect(edition.items).toHaveLength(1);
+    expect(edition.items[0]!.quantity).toBe(2);
+  });
+
+  it("crear con una variante que no pertenece al producto responde 400 y no crea la edición", async () => {
+    const plan = await seedPlan();
+    const { product } = await seedProduct();
+    await expect(
+      createEdition({
+        planId: plan._id.toString(),
+        cycleYear: 2026,
+        cycleMonth: 9,
+        title: "Sept",
+        items: [{ productId: product._id.toString(), variantId: new mongoose.Types.ObjectId().toString(), quantity: 1 }],
+      }),
+    ).rejects.toMatchObject({ statusCode: 400 });
+    expect(await SubscriptionEdition.countDocuments({ planId: plan._id })).toBe(0);
+  });
+
   it("PATCH de items con una variante que no pertenece al producto responde 400", async () => {
     const plan = await seedPlan();
     const { product } = await seedProduct();

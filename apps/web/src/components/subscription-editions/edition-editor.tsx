@@ -19,6 +19,7 @@ import type {
   AdminSubscriptionEdition,
   AdminSubscriptionPlan,
 } from "@/lib/types/admin-subscription";
+import { humanize } from "./edition-error-text";
 import { EditionStatusBadge } from "./edition-status-badge";
 
 const EDITION_ITEM_COPY: ItemEditorCopy = {
@@ -61,15 +62,6 @@ function sameItems(a: AdminEditionItem[], b: AdminEditionItem[]): boolean {
         item.quantity === b[index]?.quantity,
     )
   );
-}
-
-const OBJECT_ID = /\b[a-f0-9]{24}\b/g;
-
-/** El backend cita ids crudos al rechazar una publicación ("El producto
- * 64ab… no está activo"); aquí se cambian por el nombre que el editor ya
- * resolvió, para que el error se lea en lenguaje humano. */
-function humanize(message: string, names: Map<string, string>): string {
-  return message.replace(OBJECT_ID, (id) => names.get(id) ?? "(no disponible)");
 }
 
 /**

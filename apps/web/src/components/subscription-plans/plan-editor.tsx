@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
 import { FieldError } from "@/components/ui/field-error";
@@ -32,6 +32,8 @@ interface PlanEditorProps {
   onSaved: (plan: AdminSubscriptionPlan) => void;
   onDeactivated?: (id: string) => void;
   onCancel?: () => void;
+  /** Bloque extra del alta (fotos por subir), entre los campos y el botón. */
+  extraSection?: ReactNode;
 }
 
 function messageOf(error: unknown, fallback: string): string {
@@ -45,7 +47,7 @@ function messageOf(error: unknown, fallback: string): string {
  * endpoint para reactivar): siempre pasa por confirmación nombrada, y el 409
  * de "tiene suscriptoras activas" aparece en línea, no solo en un toast.
  */
-function PlanEditor({ plan, actions, onSaved, onDeactivated, onCancel }: PlanEditorProps) {
+function PlanEditor({ plan, actions, onSaved, onDeactivated, onCancel, extraSection }: PlanEditorProps) {
   const [value, setValue] = useState<PlanFormValue>(plan ? planToFormValue(plan) : EMPTY_PLAN_FORM);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
@@ -130,6 +132,8 @@ function PlanEditor({ plan, actions, onSaved, onDeactivated, onCancel }: PlanEdi
       ) : null}
 
       <PlanFormFields value={value} onChange={handleChange} errors={fieldErrors} plan={plan} />
+
+      {extraSection}
 
       {formError ? <FieldError message={formError} /> : null}
 

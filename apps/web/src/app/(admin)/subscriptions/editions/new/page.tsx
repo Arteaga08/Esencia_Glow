@@ -6,14 +6,14 @@ import { ErrorState } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
 import { CreateEditionForm } from "@/components/subscription-editions/create-edition-form";
-import { copyEditionItems, createEdition } from "@/components/subscription-editions/edition-api-actions";
+import { createEdition } from "@/components/subscription-editions/edition-api-actions";
 import { useSubscriptionEditions } from "@/components/subscription-editions/use-subscription-editions";
 import { useInitialQueryParam } from "@/lib/hooks/use-initial-query-param";
 import { useSubscriptionPlans } from "@/components/subscription-plans/use-subscription-plans";
 
-/** Alta de caja mensual (2.7b-2): plan + ciclo + título. Al crearla lleva
- * directo a su pantalla para agregar los productos (el `POST` no acepta
- * `items`). Solo se ofrecen planes activos. */
+/** Alta de caja mensual (2.7b-2, en un solo guardado desde 2.7d): plan +
+ * ciclo + título + productos. Al crearla lleva a su pantalla, donde se
+ * publica. Solo se ofrecen planes activos. */
 export default function NewSubscriptionEditionPage() {
   const router = useRouter();
   const { toast } = useToast();
@@ -30,7 +30,7 @@ export default function NewSubscriptionEditionPage() {
     <div className="flex max-w-6xl flex-col gap-6">
       <p className="text-body text-muted-foreground-strong">Nueva edición</p>
       <Card>
-        <p className="mb-6 text-section-title text-foreground">Plan y ciclo</p>
+        <p className="mb-6 text-section-title text-foreground">Plan, ciclo y productos</p>
         {plans === null || editions === null ? (
           <Skeleton className="h-40 w-full" />
         ) : (
@@ -43,12 +43,11 @@ export default function NewSubscriptionEditionPage() {
             }}
             create={createEdition}
             existingEditions={editions}
-            copyItems={copyEditionItems}
             onCreated={(edition) => {
               toast({
                 variant: "success",
                 title: "Edición creada",
-                description: "Ahora agrega los productos de la caja.",
+                description: "Revísala y publícala cuando esté lista.",
               });
               router.push(`/subscriptions/editions/${edition.id}`);
             }}

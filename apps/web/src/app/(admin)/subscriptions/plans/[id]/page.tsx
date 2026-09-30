@@ -5,12 +5,14 @@ import { useParams, useRouter } from "next/navigation";
 import { apiRequest, ApiRequestError } from "@/lib/api";
 import { useToast } from "@/components/ui/toast";
 import { ErrorState } from "@/components/ui/error-state";
+import { FieldError } from "@/components/ui/field-error";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ImageManager } from "@/components/products/image-manager";
 import { PLAN_API_ACTIONS } from "@/components/subscription-plans/plan-api-actions";
 import { PlanEditor } from "@/components/subscription-plans/plan-editor";
 import { PlanMonthlyBoxes } from "@/components/subscription-plans/plan-monthly-boxes";
+import { useInitialQueryParam } from "@/lib/hooks/use-initial-query-param";
 import type { AdminProductImage } from "@/lib/types/admin-catalog";
 import type { AdminSubscriptionPlan } from "@/lib/types/admin-subscription";
 
@@ -26,6 +28,9 @@ export default function EditSubscriptionPlanPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [images, setImages] = useState<AdminProductImage[]>([]);
   const [retryKey, setRetryKey] = useState(0);
+  // Llega del alta cuando el plan se creó pero la subida de fotos falló (2.7d).
+  const arrivedWithFailedPhotos = useInitialQueryParam("photos") === "failed";
+  const [photosFailureDismissed, setPhotosFailureDismissed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -85,10 +90,18 @@ export default function EditSubscriptionPlanPage() {
       <PlanMonthlyBoxes plan={plan} />
 
       <Card>
+        {arrivedWithFailedPhotos && !photosFailureDismissed ? (
+          <div className="mb-4">
+            <FieldError message="El plan se creó, pero las fotos no se pudieron subir. Vuelve a elegirlas aquí." />
+          </div>
+        ) : null}
         <ImageManager
           basePath={`/api/v1/admin/subscription-plans/${plan.id}`}
           images={images}
-          onChange={setImages}
+          onChange={(next) => {
+            setPhotosFailureDismissed(true);
+            setImages(next);
+          }}
         />
       </Card>
     </div>

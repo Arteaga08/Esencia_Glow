@@ -15,25 +15,30 @@ const editionItemSchema = Joi.object({
   quantity: Joi.number().integer().min(1).required(),
 });
 
+/** Mismo esquema de `items` para el alta y el PATCH: el alta con productos
+ * (Milestone 2.7d) valida exactamente igual que editar después. */
+const editionItemsSchema = Joi.array()
+  .items(editionItemSchema)
+  .max(MAX_EDITION_ITEMS)
+  .unique((a, b) => a.productId === b.productId && a.variantId === b.variantId)
+  .messages({
+    "array.unique": "Hay productos repetidos entre los ítems enviados",
+    "array.max": `La edición no puede tener más de ${MAX_EDITION_ITEMS} productos`,
+  });
+
 const createSubscriptionEditionSchema = Joi.object({
   planId: objectId.required(),
   cycleYear: Joi.number().integer().min(2024).max(2100).required(),
   cycleMonth: Joi.number().integer().min(1).max(12).required(),
   title: Joi.string().trim().min(1).max(160).required(),
   description: Joi.string().trim().max(3000).allow(""),
+  items: editionItemsSchema,
 });
 
 const updateSubscriptionEditionSchema = Joi.object({
   title: Joi.string().trim().min(1).max(160),
   description: Joi.string().trim().max(3000).allow(""),
-  items: Joi.array()
-    .items(editionItemSchema)
-    .max(MAX_EDITION_ITEMS)
-    .unique((a, b) => a.productId === b.productId && a.variantId === b.variantId)
-    .messages({
-      "array.unique": "Hay productos repetidos entre los ítems enviados",
-      "array.max": `La edición no puede tener más de ${MAX_EDITION_ITEMS} productos`,
-    }),
+  items: editionItemsSchema,
 }).min(1);
 
 export { createSubscriptionEditionSchema, updateSubscriptionEditionSchema };

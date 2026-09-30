@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ListChecks, Plus } from "@phosphor-icons/react";
+import { ListChecks, PencilSimple, Plus } from "@phosphor-icons/react";
 import { getButtonClassName } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -49,6 +49,21 @@ export default function SubscriptionPlansPage() {
     { header: "Cupo", align: "right", render: (plan) => <SeatCount plan={plan} /> },
     { header: "Orden", align: "right", render: (plan) => plan.sortOrder },
     { header: "Estado", render: (plan) => <PlanStatusBadge isActive={plan.isActive} /> },
+    {
+      header: "Acciones",
+      align: "right",
+      render: (plan) => (
+        <div className="flex justify-end gap-1">
+          <Link
+            href={`/subscriptions/plans/${plan.id}`}
+            aria-label={`Editar ${plan.name}`}
+            className="cursor-pointer rounded-sm p-1.5 text-muted-foreground-strong hover:bg-muted hover:text-foreground"
+          >
+            <PencilSimple size={16} aria-hidden="true" />
+          </Link>
+        </div>
+      ),
+    },
   ];
 
   return (

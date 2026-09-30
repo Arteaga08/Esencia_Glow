@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { CalendarBlank, Plus } from "@phosphor-icons/react";
+import { CalendarBlank, PencilSimple, Plus } from "@phosphor-icons/react";
 import { EditionStatus } from "@esencia-glow/shared";
 import { getButtonClassName } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -80,6 +80,21 @@ export default function SubscriptionEditionsPage() {
       header: "Publicada",
       align: "right",
       render: (edition) => (edition.publishedAt ? formatShortDate(edition.publishedAt) : "—"),
+    },
+    {
+      header: "Acciones",
+      align: "right",
+      render: (edition) => (
+        <div className="flex justify-end gap-1">
+          <Link
+            href={`/subscriptions/editions/${edition.id}`}
+            aria-label={`Editar ${edition.title}`}
+            className="cursor-pointer rounded-sm p-1.5 text-muted-foreground-strong hover:bg-muted hover:text-foreground"
+          >
+            <PencilSimple size={16} aria-hidden="true" />
+          </Link>
+        </div>
+      ),
     },
   ];
 
