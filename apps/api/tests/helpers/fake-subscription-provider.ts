@@ -74,6 +74,7 @@ function buildFakeSubscriptionProvider(overrides: Partial<SubscriptionProvider> 
         nextChargeAt: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000),
         currentPeriodStart: new Date(),
         currentPeriodEnd: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000),
+        latestChargeRef: `in_fake_${counter}`,
       };
       subscriptions.set(subscriptionRef, subscription);
       return subscription;
@@ -91,6 +92,26 @@ function buildFakeSubscriptionProvider(overrides: Partial<SubscriptionProvider> 
         currency: "mxn",
         nextChargeAt: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000),
       } satisfies ProviderSubscription;
+    }),
+    // Igual que `getSubscription`: relee lo que `startSubscription`/una
+    // mutación dejaron en el mapa. Un test que quiera simular "ya se pagó"
+    // o "se anuló" llama `mutate`/pasa su propio override en `overrides`.
+    getSubscriptionStart: vi.fn().mockImplementation(async ({ subscriptionRef }: { subscriptionRef: string }) => {
+      const found = subscriptions.get(subscriptionRef);
+      if (found) return found;
+      return {
+        subscriptionRef,
+        collectionPaused: false,
+        cancelAtPeriodEnd: false,
+        status: "incomplete",
+        clientSecret: `pi_fake_unknown_secret`,
+        firstChargeCents: 59900,
+        currency: "mxn",
+        nextChargeAt: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000),
+      } satisfies ProviderSubscription;
+    }),
+    abandonSubscriptionStart: vi.fn().mockImplementation(async ({ subscriptionRef }: { subscriptionRef: string }) => {
+      mutate(subscriptionRef, { status: "canceled" });
     }),
     pauseCollection: vi.fn().mockImplementation(async ({ subscriptionRef }: { subscriptionRef: string }) =>
       mutate(subscriptionRef, { collectionPaused: true }),
