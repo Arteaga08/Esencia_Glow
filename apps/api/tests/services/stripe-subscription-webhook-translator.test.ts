@@ -81,12 +81,37 @@ describe("services/stripe-webhook-translator — eventos de suscripción", () =>
     expect((result as { servicePeriodEnd: Date }).servicePeriodEnd).toEqual(new Date(1_702_592_000 * 1000));
   });
 
-  it("invoice.paid con billing_reason distinto de create/cycle -> billingReason 'other'", () => {
-    const payload = buildStripeInvoiceEvent("invoice.paid", "in_2", { billingReason: "manual" });
+  it("invoice.paid con billing_reason distinto de create/cycle/manual -> billingReason 'other'", () => {
+    const payload = buildStripeInvoiceEvent("invoice.paid", "in_2", { billingReason: "quote_accept" });
     const event = JSON.parse(payload);
 
     const result = translateStripeEvent(event);
     expect(result).toMatchObject({ kind: "subscription.invoice_paid", billingReason: "other" });
+  });
+
+  it("invoice.paid con billing_reason 'manual' (factura manual de alta) se traduce como subscription_create", () => {
+    const payload = buildStripeInvoiceEvent("invoice.paid", "in_manual_1", {
+      billingReason: "manual",
+      lines: [{ start: 1_700_000_000, end: 1_702_592_000, parentType: "invoice_item_details" }],
+    });
+    const event = JSON.parse(payload);
+
+    const result = translateStripeEvent(event);
+    expect(result).toMatchObject({ kind: "subscription.invoice_paid", billingReason: "subscription_create" });
+  });
+
+  it("invoice.paid con SOLO una línea invoice_item_details (factura manual, sin línea de suscripción) igual resuelve el período", () => {
+    const payload = buildStripeInvoiceEvent("invoice.paid", "in_manual_2", {
+      billingReason: "manual",
+      lines: [{ start: 1_700_000_000, end: 1_702_592_000, parentType: "invoice_item_details" }],
+    });
+    const event = JSON.parse(payload);
+
+    const result = translateStripeEvent(event);
+    expect(result).toMatchObject({
+      servicePeriodStart: new Date(1_700_000_000 * 1000),
+      servicePeriodEnd: new Date(1_702_592_000 * 1000),
+    });
   });
 
   it("invoice.paid con billing_reason subscription_create se distingue de subscription_cycle", () => {

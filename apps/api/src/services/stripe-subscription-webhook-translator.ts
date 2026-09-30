@@ -47,12 +47,20 @@ function extractSubscriptionAccountIdHint(subscription: Stripe.Subscription): st
  * `invoice_item_details` (el `add_invoice_items` que arma `startSubscription`
  * en stripe-subscription-provider.ts), y el índice que Stripe le asigna a
  * cada tipo no está documentado ni verificado contra el sandbox — ver
- * README, sección de deuda de verificación manual. Sin línea de suscripción,
- * no hay período que resolver. */
+ * README, sección de deuda de verificación manual.
+ *
+ * La línea de SUSCRIPCIÓN (`subscription_item_details`) es la fuente
+ * preferida. Si no hay ninguna (factura MANUAL de alta, mecanismo de
+ * factura manual: su única línea es `invoice_item_details`, con el período
+ * que `startSubscription` fijó a mano), se usa esa como fallback. En el
+ * diseño actual nunca coexisten ambos tipos en la misma factura, así que no
+ * hay ambigüedad real que resolver entre "cuál invoice_item_details" — a lo
+ * sumo hay una. */
 function extractServicePeriod(invoice: Stripe.Invoice): { start: Date; end: Date } | undefined {
   const lines = invoice.lines?.data ?? [];
   const subscriptionLine = lines.find((line) => line.parent?.type === "subscription_item_details");
-  const period = subscriptionLine?.period;
+  const fallbackLine = lines.find((line) => line.parent?.type === "invoice_item_details");
+  const period = subscriptionLine?.period ?? fallbackLine?.period;
   if (!period) return undefined;
   return { start: new Date(period.start * 1000), end: new Date(period.end * 1000) };
 }
@@ -60,6 +68,11 @@ function extractServicePeriod(invoice: Stripe.Invoice): { start: Date; end: Date
 function mapBillingReason(reason: string | null): "subscription_create" | "subscription_cycle" | "other" {
   if (reason === "subscription_create") return "subscription_create";
   if (reason === "subscription_cycle") return "subscription_cycle";
+  // "manual": la factura de alta (mecanismo de factura manual, ver
+  // stripe-subscription-provider.ts) — semánticamente ES el cobro de alta,
+  // aunque Stripe la etiqueta distinto de subscription_create porque no la
+  // generó su propio motor de facturación de Subscriptions.
+  if (reason === "manual") return "subscription_create";
   return "other";
 }
 
