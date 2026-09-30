@@ -1,5 +1,5 @@
 import { Warning } from "@phosphor-icons/react";
-import { DisputeStatus, PaymentMethod, ShippingLabelStatus, type AdminOrder } from "@esencia-glow/shared";
+import { DisputeStatus, OrderStatus, PaymentMethod, ShippingLabelStatus, type AdminOrder } from "@esencia-glow/shared";
 import { formatDateTime } from "@/lib/format-date";
 
 interface Alert {
@@ -31,7 +31,8 @@ function buildAlerts(order: AdminOrder): Alert[] {
   if (order.label?.status === ShippingLabelStatus.FAILED) {
     alerts.push({ id: "label-failed", tone: "warning", message: "El proveedor rechazó la última compra de guía" + (order.label.lastError ? `: ${order.label.lastError}` : ".") });
   }
-  if (order.expiresAt) {
+  // `expiresAt` queda guardado tras el pago/cancelación: solo avisa mientras el pago sigue pendiente.
+  if (order.status === OrderStatus.PENDING && order.expiresAt) {
     alerts.push({ id: "expires", tone: "warning", message: "El pedido expira el " + formatDateTime(order.expiresAt) + " si el pago no se confirma." });
   }
   if (order.payment.lastError) {
