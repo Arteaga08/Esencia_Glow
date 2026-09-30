@@ -54,6 +54,13 @@ interface SubscriptionAccountAttrs {
   providerSubscriptionId?: string;
   currentPeriodStart?: Date;
   currentPeriodEnd?: Date;
+  /** Ref de la factura de alta (mecanismo de factura manual, Milestone
+   * "fix cobro real del alta") — la usa la rama replay del endpoint de alta
+   * (`getSubscriptionStart`) y el barrendero de altas abandonadas
+   * (`jobs/expire-incomplete-subscriptions.ts`) para saber si la clienta ya
+   * pagó, sin depender de `sub.status` (que Stripe deja `active` desde el
+   * día 1 en este mecanismo). Se llena SIEMPRE junto con
+   * `providerSubscriptionId`, nunca por separado. */
   latestInvoiceId?: string;
   pastDueSince?: Date;
   dunningAttempts: number;

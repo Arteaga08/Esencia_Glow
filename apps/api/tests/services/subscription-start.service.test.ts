@@ -139,7 +139,7 @@ describe("services/subscription-start — rama replay", () => {
 
     expect(second.clientSecret).toBe(first.clientSecret);
     expect(fake.startSubscription).toHaveBeenCalledTimes(1);
-    expect(fake.getSubscription).toHaveBeenCalledTimes(1);
+    expect(fake.getSubscriptionStart).toHaveBeenCalledTimes(1);
 
     const refreshedPlan = await SubscriptionPlan.findById(plan._id);
     expect(refreshedPlan?.seatsTaken).toBe(1);
@@ -315,7 +315,7 @@ describe("services/subscription-start — replay con OTRO plan", () => {
     });
     // El clientSecret del plan A jamás se devolvió bajo la petición del plan B.
     expect(first.clientSecret).toBeDefined();
-    expect(fake.getSubscription).not.toHaveBeenCalled();
+    expect(fake.getSubscriptionStart).not.toHaveBeenCalled();
   });
 });
 
@@ -334,7 +334,7 @@ describe("services/subscription-start — clientSecret muerto", () => {
     const account = await SubscriptionAccount.findOne({ userId });
     __setSubscriptionProviderForTests(
       buildFakeSubscriptionProvider({
-        getSubscription: vi.fn().mockResolvedValue({
+        getSubscriptionStart: vi.fn().mockResolvedValue({
           subscriptionRef: account!.providerSubscriptionId!,
           status: "canceled",
           clientSecret: "pi_muerto_secret",

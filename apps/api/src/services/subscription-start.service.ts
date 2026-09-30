@@ -89,6 +89,7 @@ async function persistProviderRefs(
       $set: {
         providerCustomerId: customerRef,
         providerSubscriptionId: subscription.subscriptionRef,
+        ...(subscription.latestChargeRef ? { latestInvoiceId: subscription.latestChargeRef } : {}),
         ...(subscription.currentPeriodStart ? { currentPeriodStart: subscription.currentPeriodStart } : {}),
         ...(subscription.currentPeriodEnd ? { currentPeriodEnd: subscription.currentPeriodEnd } : {}),
       },
@@ -213,7 +214,20 @@ async function startSubscriptionForUser(input: StartSubscriptionInput): Promise<
         409,
       );
     }
-    const subscription = await provider.getSubscription(existingAccount.providerSubscriptionId);
+    // `getSubscriptionStart` (no `getSubscription`): con el mecanismo de
+    // factura manual, `sub.status` en Stripe queda `active` desde el día 1
+    // sin importar el pago — la única fuente de verdad de "¿sigue esperando
+    // confirmación?" es la factura de alta.
+    if (!existingAccount.latestInvoiceId) {
+      // Defensivo: `persistProviderRefs` siempre escribe ambos refs juntos —
+      // no debería existir una cuenta con `providerSubscriptionId` sin
+      // `latestInvoiceId`. Un 502 aquí es más honesto que asumir un estado.
+      throw new AppError("No se pudo confirmar la suscripción, contacta a soporte.", 502);
+    }
+    const subscription = await provider.getSubscriptionStart({
+      subscriptionRef: existingAccount.providerSubscriptionId,
+      invoiceRef: existingAccount.latestInvoiceId,
+    });
     assertConfirmable(subscription);
     return buildResult(subscription);
   }
