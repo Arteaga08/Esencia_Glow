@@ -344,6 +344,13 @@ function createStripeSubscriptionProvider(client: StripeBillingClientLike): Subs
           // mal creado a mano en Stripe, no un dato que podamos inventar.
           throw new AppError("No pudimos iniciar tu suscripción.", 502);
         }
+        const recurringProductRef = toId(recurringPrice.product);
+        if (!recurringProductRef) {
+          // Mismo criterio que el guard de `unit_amount` (hallazgo de code
+          // review): un Price sin Product resoluble es un Price mal creado a
+          // mano en Stripe, nunca algo que debamos mandar como `undefined`.
+          throw new AppError("No pudimos iniciar tu suscripción.", 502);
+        }
 
         const sub = await client.subscriptions.create(
           {
@@ -371,10 +378,17 @@ function createStripeSubscriptionProvider(client: StripeBillingClientLike): Subs
             subscription: sub.id,
             price_data: {
               currency: recurringPrice.currency,
-              product: toId(recurringPrice.product)!,
+              product: recurringProductRef,
               unit_amount: recurringPrice.unit_amount,
             },
-            period: { start: Math.floor(Date.now() / 1000), end: sub.billing_cycle_anchor },
+            // `sub.created` (no `Date.now()`, hallazgo de code review):
+            // determinista para la MISMA Subscription — un reintento de este
+            // paso bajo la misma `idempotencyKey` manda siempre el mismo
+            // `period.start`, cumpliendo la garantía de reintento segura que
+            // documenta el JSDoc de este método (con `Date.now()`, el
+            // segundo intento nunca calzaría con el payload que Stripe
+            // recordó para esa key, y Stripe lo rechazaría para siempre).
+            period: { start: sub.created, end: sub.billing_cycle_anchor },
           },
           { idempotencyKey: `${input.idempotencyKey}:invoice-item` },
         );
@@ -466,8 +480,18 @@ function createStripeSubscriptionProvider(client: StripeBillingClientLike): Subs
       try {
         await client.subscriptions.cancel(input.subscriptionRef);
       } catch (error) {
+        // Solo se tolera si la Subscription YA está cancelada (una corrida
+        // previa del barrendero, o Stripe mismo) — hallazgo de code review:
+        // antes esto tragaba CUALQUIER `StripeInvalidRequestError`, incluido
+        // un parámetro roto por NOSOTROS, dejando la cuenta local CANCELED
+        // con la Subscription todavía viva y cobrando en Stripe. Se releé
+        // para confirmar antes de tragar, mismo criterio que
+        // `isNoLongerOpen` en `retryInvoicePayment`.
         const shape = readErrorShape(error);
-        if (shape.type === "StripeInvalidRequestError") return;
+        if (shape.type === "StripeInvalidRequestError") {
+          const current = await client.subscriptions.retrieve(input.subscriptionRef).catch(() => undefined);
+          if (current?.status === "canceled") return;
+        }
         translateStripeError(error);
       }
     },

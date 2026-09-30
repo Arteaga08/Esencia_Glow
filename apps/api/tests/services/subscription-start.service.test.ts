@@ -189,6 +189,38 @@ describe("services/subscription-start — compensación", () => {
     const refreshedPlan = await SubscriptionPlan.findById(plan._id);
     expect(refreshedPlan?.seatsTaken).toBe(0);
   });
+
+  it("la respuesta de Stripe llega incompleta tras crear la Subscription+factura -> además de compensar localmente, cancela lo huérfano en Stripe (hallazgo de code review)", async () => {
+    await openEnrollmentSafely();
+    const plan = await seedPlanWithStripeRefs({ maxActiveSeats: 5 });
+    const userId = await seedUser();
+
+    const fake = buildFakeSubscriptionProvider({
+      startSubscription: vi.fn().mockResolvedValue({
+        subscriptionRef: "sub_orphan_1",
+        latestChargeRef: "in_orphan_1",
+        status: "incomplete",
+        collectionPaused: false,
+        cancelAtPeriodEnd: false,
+        // Sin clientSecret/firstChargeCents/currency/nextChargeAt:
+        // `buildResult` lo detecta y lanza 502 — el golden path nunca debería
+        // llegar aquí, pero si Stripe SÍ alcanzó a crear la Subscription/
+        // factura, quedan huérfanas si nadie las cancela.
+      }),
+    });
+    __setSubscriptionProviderForTests(fake);
+
+    await expect(startSubscriptionForUser({ userId, planId: plan._id.toString() })).rejects.toMatchObject({
+      statusCode: 502,
+    });
+
+    expect(fake.abandonSubscriptionStart).toHaveBeenCalledWith({
+      subscriptionRef: "sub_orphan_1",
+      invoiceRef: "in_orphan_1",
+    });
+    const account = await SubscriptionAccount.findOne({ userId });
+    expect(account?.status).toBe(SubscriptionStatus.CANCELED);
+  });
 });
 
 describe("services/subscription-start — guardas de negocio, cupo intacto", () => {

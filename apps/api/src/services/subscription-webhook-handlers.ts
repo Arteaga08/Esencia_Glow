@@ -286,6 +286,15 @@ async function auditProviderDivergence(
  * `system` (p. ej. Stripe reporta `paused`, arista exclusiva de
  * `customer`/`admin`) cae en `ignored`, no en un 500 con reintentos
  * infinitos de Stripe.
+ *
+ * `INCOMPLETE -> ACTIVE` NUNCA se aplica aquí (hallazgo de code review,
+ * mecanismo de factura manual de alta, ver stripe-subscription-provider.ts):
+ * con ese mecanismo `sub.status` en Stripe es `"active"` desde el día 1, sin
+ * importar si la clienta ya pagó — cualquier `.updated` que Stripe mande de
+ * paso (un cambio de metadata, una reconciliación interna, lo que sea)
+ * traería `status:"active"` y activaría la cuenta sin que se haya cobrado
+ * nada. La única fuente de verdad de "¿ya pagó?" es `invoice.paid`
+ * (`handleInvoicePaid`) — este handler ignora esa transición en particular.
  */
 async function handleSubscriptionUpdated(event: SubscriptionUpdatedEvent): Promise<HandlerOutcome> {
   const account = await locateAccountForEvent(event.subscriptionRef, event.accountIdHint);
@@ -295,6 +304,10 @@ async function handleSubscriptionUpdated(event: SubscriptionUpdatedEvent): Promi
 
   if (to === SubscriptionStatus.CANCELED) {
     return handleCancellation(account, event.canceledAt ?? new Date(), event.reason);
+  }
+
+  if (account.status === SubscriptionStatus.INCOMPLETE && to === SubscriptionStatus.ACTIVE) {
+    return { status: "ignored" };
   }
 
   await auditProviderDivergence(account, event);

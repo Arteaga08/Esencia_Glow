@@ -125,13 +125,39 @@ async function resolveCustomerRef(
   });
 }
 
-/** Compensación si Stripe falla DESPUÉS de reclamar el cupo (§E del plan):
+/**
+ * Compensación si Stripe falla DESPUÉS de reclamar el cupo (§E del plan):
  * nunca deja el error de compensación enmascarar el original — se loguea y
- * se relanza SIEMPRE el error que disparó el catch. No cancela nada en
- * Stripe: con `default_incomplete` la suscripción (si llegó a crearse)
- * muere sola en ~23h, y el `customer.subscription.deleted` resultante ya lo
- * procesa el webhook. */
-async function compensateFailedStart(account: SubscriptionAccountDocument): Promise<void> {
+ * se relanza SIEMPRE el error que disparó el catch.
+ *
+ * Si `provider.startSubscription` ya alcanzó a crear la Subscription + la
+ * factura manual de alta en Stripe (`subscription` llegó a existir) pero algo
+ * DESPUÉS falló (`persistProviderRefs`, `recordAudit`, un `buildResult`
+ * defensivo), esos objetos quedan HUÉRFANOS en Stripe si no se limpian aquí
+ * (hallazgo de code review): con el mecanismo de factura manual, la
+ * Subscription queda `active` desde el día 1 y Stripe NUNCA la expira sola
+ * — ya no es cierto (como sí lo fue antes de ese mecanismo) que "muere sola
+ * en ~23h". `abandonSubscriptionStart` es best-effort: un fallo aquí se
+ * loguea pero nunca reemplaza ni bloquea la compensación local de abajo.
+ */
+async function compensateFailedStart(
+  account: SubscriptionAccountDocument,
+  provider: SubscriptionProvider,
+  subscription: ProviderSubscription | undefined,
+): Promise<void> {
+  if (subscription?.subscriptionRef && subscription.latestChargeRef) {
+    try {
+      await provider.abandonSubscriptionStart({
+        subscriptionRef: subscription.subscriptionRef,
+        invoiceRef: subscription.latestChargeRef,
+      });
+    } catch (abandonError) {
+      logger.error(
+        { err: abandonError, accountId: account._id.toString() },
+        "Fallo al cancelar en Stripe una Subscription huérfana tras un alta interrumpida",
+      );
+    }
+  }
   try {
     await applyStatusTransition(account, SubscriptionStatus.CANCELED, "system");
   } catch (compensationError) {
@@ -236,6 +262,12 @@ async function startSubscriptionForUser(input: StartSubscriptionInput): Promise<
   // un plan lleno nunca produzca un Customer/Subscription huérfano.
   const account = await startSubscription({ userId: input.userId, planId: input.planId, billingInterval });
 
+  // Fuera del `try` (mutable, arranca `undefined`): si `provider.startSubscription`
+  // alcanza a crear la Subscription+factura en Stripe pero algo DESPUÉS
+  // falla, el `catch` necesita esta referencia para limpiar Stripe también,
+  // no solo la cuenta local (hallazgo de code review — ver `compensateFailedStart`).
+  let subscription: ProviderSubscription | undefined;
+
   try {
     const customerRef = await resolveCustomerRef(provider, account, input.userId);
 
@@ -243,7 +275,7 @@ async function startSubscriptionForUser(input: StartSubscriptionInput): Promise<
     // reusa el MISMO `_id` de cuenta, así que una key fija replicaría la
     // suscripción VIEJA si la clienta cancela y se re-suscribe dentro de la
     // ventana de 24h de idempotencia de Stripe.
-    const subscription = await provider.startSubscription({
+    subscription = await provider.startSubscription({
       customerRef,
       priceRef: billingInterval === "year" ? plan.providerAnnualPriceId! : plan.providerPriceId,
       billingAnchorDay,
@@ -262,7 +294,7 @@ async function startSubscriptionForUser(input: StartSubscriptionInput): Promise<
 
     return result;
   } catch (error) {
-    await compensateFailedStart(account);
+    await compensateFailedStart(account, provider, subscription);
     throw error;
   }
 }

@@ -397,6 +397,24 @@ describe("subscription-webhook-handlers — invoice.payment_failed", () => {
 });
 
 describe("subscription-webhook-handlers — customer.subscription.updated", () => {
+  it("status: 'active' sobre una cuenta INCOMPLETE -> ignored, NUNCA activa la cuenta (mecanismo de factura manual: sub.status es 'active' desde el día 1 sin importar el pago; solo invoice.paid puede activar)", async () => {
+    const plan = await seedPlanWithStripeRefs();
+    const subscriptionRef = `sub_${new Types.ObjectId().toString()}`;
+    const account = await seedSubscribedAccount({
+      planId: plan._id.toString(),
+      status: SubscriptionStatus.INCOMPLETE,
+      providerSubscriptionId: subscriptionRef,
+    });
+
+    const event = subscriptionUpdatedEvent({ subscriptionRef, status: "active" });
+    await processPaymentWebhook(event, provider);
+
+    const storedEvent = await PaymentEvent.findOne({ eventId: event.eventId });
+    expect(storedEvent?.status).toBe("ignored");
+    const reloaded = await SubscriptionAccount.findById(account._id);
+    expect(reloaded?.status).toBe(SubscriptionStatus.INCOMPLETE);
+  });
+
   it("status: 'paused' -> ignored, sin 500, la cuenta sigue ACTIVE", async () => {
     const { account, subscriptionRef } = await seedActiveAccountWithEdition();
 

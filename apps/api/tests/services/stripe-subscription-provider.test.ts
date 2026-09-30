@@ -190,6 +190,10 @@ function buildFakeStripeSubscription(overrides: Record<string, unknown> = {}) {
     id: "sub_1",
     object: "subscription",
     status: "active",
+    // `created` (hallazgo de code review): `startSubscription` lo usa como
+    // `period.start` del InvoiceItem, determinista bajo la misma
+    // `idempotencyKey` — nunca `Date.now()`.
+    created: now,
     billing_cycle_anchor: anchor,
     latest_invoice: null,
     items: {
@@ -285,8 +289,10 @@ describe("services/stripe-subscription-provider — startSubscription (factura m
     expect(itemParams.customer).toBe("cus_1");
     expect(itemParams.subscription).toBe("sub_1");
     expect(itemParams.price_data).toEqual({ currency: "mxn", product: "prod_1", unit_amount: 59900 });
+    // `start` == `sub.created` (determinista, hallazgo de code review) — NO
+    // `Date.now()` en el momento de la llamada.
     expect(itemParams.period).toEqual({
-      start: expect.any(Number),
+      start: buildFakeStripeSubscription().created,
       end: buildFakeStripeSubscription().billing_cycle_anchor,
     });
     expect(itemOptions.idempotencyKey).toBe("account:acc_1:sub:1000:invoice-item");
@@ -352,6 +358,25 @@ describe("services/stripe-subscription-provider — startSubscription (factura m
   it("si el Price recurrente no tiene unit_amount (por tramos), rechaza con 502 y no crea nada en Stripe", async () => {
     const { client, subscriptionsCreate, invoiceItemsCreate } = buildHappyPathClient({
       prices: { create: vi.fn(), retrieve: vi.fn().mockResolvedValue(buildFakePrice({ unit_amount: null })) },
+    });
+    const provider = createStripeSubscriptionProvider(client);
+
+    await expect(
+      provider.startSubscription({
+        customerRef: "cus_1",
+        priceRef: "price_1",
+        billingAnchorDay: 15,
+        metadata: { accountId: "acc_1", userId: "user_1", planId: "plan_1" },
+        idempotencyKey: "account:acc_1:sub:1000",
+      }),
+    ).rejects.toMatchObject({ statusCode: 502 });
+    expect(subscriptionsCreate).not.toHaveBeenCalled();
+    expect(invoiceItemsCreate).not.toHaveBeenCalled();
+  });
+
+  it("si el Price recurrente no resuelve a un product (null), rechaza con 502 y no crea nada en Stripe (hallazgo de code review: antes mandaba product:undefined a Stripe)", async () => {
+    const { client, subscriptionsCreate, invoiceItemsCreate } = buildHappyPathClient({
+      prices: { create: vi.fn(), retrieve: vi.fn().mockResolvedValue(buildFakePrice({ product: null })) },
     });
     const provider = createStripeSubscriptionProvider(client);
 
@@ -502,7 +527,7 @@ describe("services/stripe-subscription-provider — abandonSubscriptionStart (ba
     expect(subscriptionsCancel).toHaveBeenCalledWith("sub_1");
   });
 
-  it("tolera 'ya cancelada' de Stripe al cancelar la Subscription (no relanza)", async () => {
+  it("tolera 'ya cancelada' de Stripe al cancelar la Subscription (no relanza) SOLO si al releerla confirma status:'canceled'", async () => {
     const client = buildFakeClient({
       invoices: {
         create: vi.fn(),
@@ -513,7 +538,7 @@ describe("services/stripe-subscription-provider — abandonSubscriptionStart (ba
       },
       subscriptions: {
         create: vi.fn(),
-        retrieve: vi.fn(),
+        retrieve: vi.fn().mockResolvedValue(buildFakeStripeSubscription({ status: "canceled" })),
         update: vi.fn(),
         cancel: vi.fn().mockRejectedValue({ type: "StripeInvalidRequestError", code: "resource_missing" }),
       },
@@ -523,6 +548,32 @@ describe("services/stripe-subscription-provider — abandonSubscriptionStart (ba
     await expect(
       provider.abandonSubscriptionStart({ subscriptionRef: "sub_1", invoiceRef: "in_manual_1" }),
     ).resolves.toBeUndefined();
+  });
+
+  it("un StripeInvalidRequestError genuino al cancelar (la Subscription releída NO está canceled) sí relanza a 502", async () => {
+    const client = buildFakeClient({
+      invoices: {
+        create: vi.fn(),
+        finalizeInvoice: vi.fn(),
+        voidInvoice: vi.fn().mockResolvedValue({}),
+        retrieve: vi.fn().mockResolvedValue(buildFakeFinalizedInvoice()),
+        pay: vi.fn(),
+      },
+      subscriptions: {
+        create: vi.fn(),
+        // Regresión del hallazgo de code review: antes CUALQUIER
+        // StripeInvalidRequestError se tragaba como "ya cancelada", incluso
+        // si la Subscription seguía viva y cobrando en Stripe.
+        retrieve: vi.fn().mockResolvedValue(buildFakeStripeSubscription({ status: "active" })),
+        update: vi.fn(),
+        cancel: vi.fn().mockRejectedValue({ type: "StripeInvalidRequestError", code: "parameter_invalid_empty" }),
+      },
+    });
+    const provider = createStripeSubscriptionProvider(client);
+
+    await expect(
+      provider.abandonSubscriptionStart({ subscriptionRef: "sub_1", invoiceRef: "in_manual_1" }),
+    ).rejects.toMatchObject({ statusCode: 502 });
   });
 });
 
