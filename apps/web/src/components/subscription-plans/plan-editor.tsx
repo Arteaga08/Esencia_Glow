@@ -77,7 +77,7 @@ function PlanEditor({ plan, actions, onSaved, onDeactivated, onCancel }: PlanEdi
       setFieldErrors(fields);
       // Un error sin campo que lo pinte (p. ej. la clave `valor` de un
       // cuerpo rechazado entero) nunca se descarta en silencio.
-      const orphan = Object.entries(fields).find(([key]) => !PLAN_FIELD_KEYS.has(key));
+      const orphan = Object.entries(fields).find(([key]) => !PLAN_FIELD_KEYS.has(key.split(".")[0] ?? key));
       if (orphan) setFormError(orphan[1]);
       else if (Object.keys(fields).length === 0)
         setFormError(messageOf(error, "No se pudo guardar el plan."));

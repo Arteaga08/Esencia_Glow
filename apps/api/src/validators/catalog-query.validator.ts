@@ -20,6 +20,7 @@ const listProductsQuerySchema = listQueryBaseSchema.keys({
   // Solo el listado admin: el catálogo público (publicProductQuerySchema) no
   // acepta esta llave, `stripUnknown` la borraría de todas formas.
   channel: Joi.string().valid(...Object.values(ProductChannel)),
+  availableIn: Joi.string().valid("store", "subscription"),
   minPrice: Joi.number().integer().min(0),
   maxPrice: Joi.number().integer().min(0),
 });

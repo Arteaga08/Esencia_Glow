@@ -8,6 +8,7 @@ import { Settings } from "../models/settings.model.js";
 import { SubscriptionPlan } from "../models/subscription-plan.model.js";
 import { AppError } from "../utils/app-error.js";
 import { isEnrollmentOpen } from "./subscription-enrollment.js";
+import { buildImageDto, type LeanMediaImage } from "./catalog-dto.js";
 
 /**
  * Catálogo público de planes (Milestone 1.7.3) — lecturas `lean` con
@@ -24,7 +25,7 @@ const PUBLIC_PLAN_FILTER = { isActive: true, providerPriceId: { $type: "string" 
  * `maxActiveSeats`, `providerProductId` y `providerPriceId`. `seatsTaken` y
  * `maxActiveSeats` SÍ se leen, pero únicamente para derivar `soldOut`. */
 const PUBLIC_PLAN_PROJECTION =
-  "name slug description shortDescription priceCents annualPriceCents currency billingInterval seatsTaken maxActiveSeats";
+  "name slug description shortDescription priceCents annualPriceCents currency billingInterval seatsTaken maxActiveSeats images highlights";
 
 interface LeanPublicPlan {
   _id: { toString(): string };
@@ -38,6 +39,9 @@ interface LeanPublicPlan {
   billingInterval: string;
   seatsTaken: number;
   maxActiveSeats: number;
+  /** Ausentes en planes anteriores a 2.7c. */
+  images?: LeanMediaImage[];
+  highlights?: string[];
 }
 
 function buildPublicPlan(plan: LeanPublicPlan): PublicSubscriptionPlan {
@@ -52,6 +56,8 @@ function buildPublicPlan(plan: LeanPublicPlan): PublicSubscriptionPlan {
     currency: plan.currency,
     billingInterval: plan.billingInterval,
     soldOut: plan.seatsTaken >= plan.maxActiveSeats,
+    images: (plan.images ?? []).map((image) => buildImageDto(image)!),
+    highlights: plan.highlights ?? [],
   };
 }
 

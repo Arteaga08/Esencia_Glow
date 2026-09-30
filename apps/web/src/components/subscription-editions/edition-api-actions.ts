@@ -1,5 +1,5 @@
 import { apiRequest } from "@/lib/api";
-import type { AdminSubscriptionEdition } from "@/lib/types/admin-subscription";
+import type { AdminEditionItem, AdminSubscriptionEdition } from "@/lib/types/admin-subscription";
 import type { CreateEditionBody } from "./create-edition-form";
 import type { EditionEditorActions } from "./edition-editor";
 
@@ -49,4 +49,22 @@ async function createEdition(body: CreateEditionBody): Promise<AdminSubscription
   ).data;
 }
 
-export { editionApiActions, createEdition };
+/** Copia los productos de otra caja a una edición recién creada. Solo viajan
+ * producto, variante y cantidad; lo demás (nombres, precios) el backend lo
+ * resuelve al leer. */
+async function copyEditionItems(
+  editionId: string,
+  items: AdminEditionItem[],
+): Promise<AdminSubscriptionEdition> {
+  return (
+    await apiRequest<AdminSubscriptionEdition>(`${EDITIONS_PATH}/${editionId}`, {
+      method: "PATCH",
+      authenticated: true,
+      body: {
+        items: items.map(({ productId, variantId, quantity }) => ({ productId, variantId, quantity })),
+      },
+    })
+  ).data;
+}
+
+export { editionApiActions, createEdition, copyEditionItems };

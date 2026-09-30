@@ -18,6 +18,7 @@ interface CreateSubscriptionPlanInput {
   annualPriceCents?: number;
   maxActiveSeats: number;
   sortOrder?: number;
+  highlights?: string[];
 }
 
 /**
@@ -35,6 +36,7 @@ interface UpdateSubscriptionPlanInput {
   shortDescription?: string;
   maxActiveSeats?: number;
   sortOrder?: number;
+  highlights?: string[];
 }
 
 interface ListSubscriptionPlansInput extends ListQuery {
@@ -76,6 +78,7 @@ async function createPlan(input: CreateSubscriptionPlanInput): Promise<Subscript
     annualPriceCents: input.annualPriceCents,
     maxActiveSeats: input.maxActiveSeats,
     sortOrder: input.sortOrder,
+    ...(input.highlights ? { highlights: input.highlights } : {}),
     providerProductId: productRef,
     providerPriceId: priceRef,
     providerAnnualPriceId: annualPriceRef,
@@ -123,6 +126,7 @@ async function updatePlan(id: string, input: UpdateSubscriptionPlanInput): Promi
   if (input.description !== undefined) plan.description = input.description;
   if (input.shortDescription !== undefined) plan.shortDescription = input.shortDescription;
   if (input.sortOrder !== undefined) plan.sortOrder = input.sortOrder;
+  if (input.highlights !== undefined) plan.highlights = input.highlights;
 
   await plan.save();
   return plan;

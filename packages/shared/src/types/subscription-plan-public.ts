@@ -1,3 +1,5 @@
+import type { PublicProductImage } from "./catalog.js";
+
 /**
  * Catálogo público de planes de suscripción (Milestone 1.7.3) — lo que el
  * storefront pinta ANTES de que la visitante tenga cuenta. Mismo criterio que
@@ -18,6 +20,10 @@ interface PublicSubscriptionPlan {
   billingInterval: string;
   /** El plan llegó a su tope de cupo: no se puede contratar por ahora. */
   soldOut: boolean;
+  /** Fotos del plan (Milestone 2.7c); nunca viaja el `publicId` de Cloudinary. */
+  images: PublicProductImage[];
+  /** Viñetas de "qué incluye"; el contenido del mes NO se expone. */
+  highlights: string[];
 }
 
 /** Estado de la ventana de inscripciones: controla solo ALTAS nuevas (las

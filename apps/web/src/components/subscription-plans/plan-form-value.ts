@@ -14,6 +14,8 @@ interface PlanFormValue {
   annualPrice: string;
   maxActiveSeats: string;
   sortOrder: string;
+  /** Viñetas tal cual se teclean (pueden quedar filas vacías). */
+  highlights: string[];
 }
 
 const EMPTY_PLAN_FORM: PlanFormValue = {
@@ -25,6 +27,7 @@ const EMPTY_PLAN_FORM: PlanFormValue = {
   annualPrice: "",
   maxActiveSeats: "",
   sortOrder: "0",
+  highlights: [],
 };
 
 function planToFormValue(plan: AdminSubscriptionPlan): PlanFormValue {
@@ -37,7 +40,13 @@ function planToFormValue(plan: AdminSubscriptionPlan): PlanFormValue {
     annualPrice: centsToPesosInput(plan.annualPriceCents),
     maxActiveSeats: String(plan.maxActiveSeats),
     sortOrder: String(plan.sortOrder),
+    highlights: plan.highlights,
   };
+}
+
+/** Viñetas listas para enviar: recortadas y sin filas vacías. */
+function cleanHighlights(highlights: string[]): string[] {
+  return highlights.map((text) => text.trim()).filter((text) => text !== "");
 }
 
 function toInteger(value: string): number | undefined {
@@ -61,6 +70,9 @@ function formValueToCreateBody(value: PlanFormValue): Record<string, unknown> {
       : {}),
     maxActiveSeats: toInteger(value.maxActiveSeats),
     sortOrder: toInteger(value.sortOrder),
+    ...(cleanHighlights(value.highlights).length > 0
+      ? { highlights: cleanHighlights(value.highlights) }
+      : {}),
   };
 }
 
@@ -82,6 +94,8 @@ function formValueToPatchBody(
   if (seats !== plan.maxActiveSeats) body.maxActiveSeats = seats;
   const sortOrder = toInteger(value.sortOrder) ?? null;
   if (sortOrder !== plan.sortOrder) body.sortOrder = sortOrder;
+  const highlights = cleanHighlights(value.highlights);
+  if (JSON.stringify(highlights) !== JSON.stringify(plan.highlights)) body.highlights = highlights;
   return body;
 }
 
@@ -94,6 +108,7 @@ const PLAN_FIELD_KEYS = new Set([
   "annualPriceCents",
   "maxActiveSeats",
   "sortOrder",
+  "highlights",
 ]);
 
 export {

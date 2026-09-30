@@ -4,6 +4,7 @@ import type {
   SubscriptionShipmentStatus,
   SubscriptionStatus,
 } from "@esencia-glow/shared";
+import type { AdminProductImage } from "./admin-catalog";
 
 /**
  * Espejo manual de `AdminSubscriptionShipment`/`AdminShipmentCustomer`, que
@@ -108,6 +109,8 @@ interface AdminSubscriptionPlan {
   seatsTaken: number;
   isActive: boolean;
   sortOrder: number;
+  images: AdminProductImage[];
+  highlights: string[];
 }
 
 interface AdminEditionItem {

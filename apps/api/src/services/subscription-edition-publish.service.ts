@@ -30,8 +30,8 @@ async function assertPublishable(edition: SubscriptionEditionDocument): Promise<
     if (!product) {
       throw new AppError(`El producto ${item.productId.toString()} ya no existe`, 400);
     }
-    if (product.channel !== ProductChannel.SUBSCRIPTION) {
-      throw new AppError(`El producto ${item.productId.toString()} no es exclusivo de suscripción`, 400);
+    if (product.channel !== ProductChannel.SUBSCRIPTION && product.channel !== ProductChannel.BOTH) {
+      throw new AppError(`El producto ${item.productId.toString()} no está habilitado para suscripción`, 400);
     }
     if (product.status !== ProductStatus.ACTIVE) {
       throw new AppError(`El producto ${item.productId.toString()} no está activo`, 400);

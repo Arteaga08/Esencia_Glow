@@ -8,7 +8,7 @@ import { Select } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { formatMoneyMXN } from "@/lib/format-money";
-import type { AdminBundleItem, AdminProduct, AdminProductChannel } from "@/lib/types/admin-catalog";
+import type { AdminBundleItem, AdminProduct, AdminProductAvailability } from "@/lib/types/admin-catalog";
 import { ProductPicker } from "./product-picker";
 
 interface EnrichedItem extends AdminBundleItem {
@@ -44,7 +44,7 @@ interface BundleItemEditorProps {
   onSumChange?: (sum: number) => void;
   error?: string;
   /** Canal que ofrece el `ProductPicker`; `"store"` para paquetes. */
-  channel?: AdminProductChannel;
+  channel?: AdminProductAvailability;
   copy?: ItemEditorCopy;
   /** Solo lectura: lista los ítems sin agregar ni quitar (una edición ya
    * publicada congela sus productos, subscription-edition.service.ts). */

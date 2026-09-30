@@ -74,6 +74,7 @@ interface ListProductsInput extends ListQuery {
   categoryId?: string;
   status?: ProductStatus;
   channel?: ProductChannel;
+  availableIn?: "store" | "subscription";
   minPrice?: number;
   maxPrice?: number;
 }
@@ -164,7 +165,8 @@ async function getProductDocument(id: string): Promise<ProductDocument> {
  * explícitamente (hallazgo de code review de 1.7.1).
  */
 async function assertChannelChangeAllowed(product: ProductDocument, nextChannel: ProductChannel): Promise<void> {
-  if (product.channel === ProductChannel.STORE && nextChannel === ProductChannel.SUBSCRIPTION) {
+  // Pierde la tienda: solo al quedar en SUBSCRIPTION a secas (BOTH la conserva).
+  if (product.channel !== ProductChannel.SUBSCRIPTION && nextChannel === ProductChannel.SUBSCRIPTION) {
     const referencedByLiveBundle = await Bundle.exists({
       "items.productId": product._id,
       status: { $ne: BundleStatus.ARCHIVED },
@@ -173,7 +175,8 @@ async function assertChannelChangeAllowed(product: ProductDocument, nextChannel:
       throw new AppError("No puedes mover este producto a suscripción: está dentro de un paquete activo.", 409);
     }
   }
-  if (product.channel === ProductChannel.SUBSCRIPTION && nextChannel === ProductChannel.STORE) {
+  // Pierde la caja: solo al quedar en STORE a secas (BOTH la conserva).
+  if (product.channel !== ProductChannel.STORE && nextChannel === ProductChannel.STORE) {
     const referencedByPublishedEdition = await SubscriptionEdition.exists({
       "items.productId": product._id,
       status: EditionStatus.PUBLISHED,
@@ -233,6 +236,7 @@ async function listProducts(
     categoryIds,
     status: input.status,
     channel: input.channel,
+    availableIn: input.availableIn,
     minPrice: input.minPrice,
     maxPrice: input.maxPrice,
   });

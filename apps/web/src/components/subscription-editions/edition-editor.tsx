@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { EditionStatus } from "@esencia-glow/shared";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -150,7 +151,15 @@ function EditionEditor({ edition, plan, actions, onChanged, onRemoved }: Edition
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3">
           <p className="text-body text-muted-foreground-strong">
-            {plan?.name ?? "Plan desconocido"}, {cycleLabel}
+            Caja de{" "}
+            {plan ? (
+              <Link href={`/subscriptions/plans/${plan.id}`} className="text-foreground underline">
+                {plan.name}
+              </Link>
+            ) : (
+              "plan desconocido"
+            )}{" "}
+            · {cycleLabel}
           </p>
           <EditionStatusBadge status={edition.status} />
           {edition.publishedAt ? (

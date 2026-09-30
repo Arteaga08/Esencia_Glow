@@ -25,8 +25,9 @@ const STATUS_OPTIONS = [
 ];
 
 const CHANNEL_OPTIONS = [
-  { value: "store", label: "Tienda" },
-  { value: "subscription", label: "Suscripción" },
+  { value: "store", label: "Solo tienda" },
+  { value: "both", label: "Tienda y suscripción" },
+  { value: "subscription", label: "Solo suscripción" },
 ];
 
 const PAGE_LIMIT = 24;
