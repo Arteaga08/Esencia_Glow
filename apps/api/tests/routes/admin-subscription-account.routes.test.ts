@@ -208,6 +208,29 @@ describe("routes/admin-subscription (Cuentas) — listado y detalle", () => {
     expect(ids).toContain(accountActive._id.toString());
   });
 
+  it("?attention=true excluye las cuentas sanas (active sin cambio pendiente)", async () => {
+    const plan = await seedPlanWithStripeRefs();
+    const customerPastDue = await createCustomer({ email: "pastdue2@example.com" });
+    const customerHealthy = await createCustomer({ email: "sana@example.com" });
+    const accountPastDue = await seedSubscribedAccount({
+      planId: plan._id.toString(),
+      userId: customerPastDue._id.toString(),
+      status: SubscriptionStatus.PAST_DUE,
+    });
+    const accountHealthy = await seedSubscribedAccount({
+      planId: plan._id.toString(),
+      userId: customerHealthy._id.toString(),
+      status: SubscriptionStatus.ACTIVE,
+    });
+
+    const { agent } = await createAdminSession(app);
+    const res = await agent.get("/api/v1/admin/subscriptions?attention=true");
+    expect(res.status).toBe(200);
+    const ids = res.body.data.map((r: { id: string }) => r.id);
+    expect(ids).toContain(accountPastDue._id.toString());
+    expect(ids).not.toContain(accountHealthy._id.toString());
+  });
+
   it("pagina con meta.total correcto y respeta ?limit", async () => {
     const plan = await seedPlanWithStripeRefs();
     for (let i = 0; i < 3; i += 1) {

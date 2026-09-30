@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import type { ObjectSchema } from "joi";
 import { AppError } from "../utils/app-error.js";
+import { replaceRequestQuery } from "../utils/replace-request-query.js";
 
 type ValidationSource = "body" | "params" | "query";
 
@@ -9,8 +10,9 @@ type ValidationSource = "body" | "params" | "query";
  * campo no declarado en el schema (BACKEND_SECURITY_GUIDELINES.md checklist)
  * — así un payload nunca cuela `role` o `emailVerified` por accidente.
  *
- * `req.query` es de solo lectura en Express 5 (igual que en mongoSanitize):
- * el resultado validado se copia en sitio, nunca se reasigna el objeto.
+ * `req.query` es un getter en Express 5 (se re-parsea en cada acceso), así que
+ * el resultado validado se fija con `replaceRequestQuery`; mutar el objeto
+ * que devuelve el getter se perdería antes de llegar al controller.
  */
 function validate(schema: ObjectSchema, source: ValidationSource = "body") {
   return (req: Request, _res: Response, next: NextFunction): void => {
@@ -30,8 +32,7 @@ function validate(schema: ObjectSchema, source: ValidationSource = "body") {
     }
 
     if (source === "query") {
-      for (const key of Object.keys(req.query)) delete req.query[key];
-      Object.assign(req.query, value);
+      replaceRequestQuery(req, value);
     } else {
       req[source] = value;
     }

@@ -7,13 +7,12 @@ import { listQueryBaseSchema } from "./list-query.validator.js";
  * page/limit/sort/search — el listado siempre es `{role: customer}`, eso no
  * es un filtro que el cliente HTTP pueda elegir.
  */
-const listAdminCustomersQuerySchema = listQueryBaseSchema.keys({});
+const listAdminCustomersQuerySchema = listQueryBaseSchema;
 
 /**
  * `GET /admin/customers/top` (Milestone 2.6.1). Ambos parámetros son
  * opcionales; los defaults (mes en curso, por monto) los aplica el
- * controlador, no Joi: en Express 5 `req.query` se vuelve a parsear en cada
- * acceso, así que un `.default()` aquí nunca llegaría al handler.
+ * controlador, no Joi.
  */
 const topCustomersQuerySchema = Joi.object({
   period: Joi.string()

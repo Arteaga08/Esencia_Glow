@@ -10,9 +10,8 @@ import type { HeroImageSlot } from "../services/home-image.service.js";
 type HeroImageParams = { slideId: string; slot: HeroImageSlot };
 
 /**
- * `req.query` es de solo lectura en Express 5 y `validate` copia el valor
- * convertido en sitio: no se asume que `version` llegue ya como número. Joi ya
- * garantizó que es un entero >= 0, así que aquí solo se normaliza el tipo.
+ * Joi ya garantizó que `version` es un entero >= 0; aquí solo se normaliza el
+ * tipo por si el valor llegara sin convertir.
  */
 function queryVersion(req: Request): number {
   return Number(req.query.version);

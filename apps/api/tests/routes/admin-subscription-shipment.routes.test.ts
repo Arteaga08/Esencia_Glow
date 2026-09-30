@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { ShippingCarrier, SubscriptionShipmentStatus, SubscriptionStatus } from "@esencia-glow/shared";
 import { buildApp } from "../../src/app.js";
 import { Inventory } from "../../src/models/inventory.model.js";
+import { SubscriptionShipment } from "../../src/models/subscription-shipment.model.js";
 import { createCycleShipment } from "../../src/services/subscription-shipment.service.js";
 import { createAdminSession, createCustomerSession } from "../helpers/admin-session.js";
 import {
@@ -76,6 +77,21 @@ describe("routes/admin-subscription-shipment — listado y detalle", () => {
 
     expect(response.status).toBe(200);
     expect(response.body.data).toHaveLength(0);
+  });
+
+  it("?incident=true|false filtra de verdad con la query real (strings, no booleanos ya tipados)", async () => {
+    const { shipment: clean } = await seedShipment();
+    const { shipment: flagged } = await seedShipment();
+    await SubscriptionShipment.updateOne({ _id: flagged._id }, { $set: { editionIncident: true } });
+    const { agent } = await createAdminSession(app);
+
+    const withIncident = await agent.get("/api/v1/admin/subscription-shipments?incident=true");
+    expect(withIncident.status).toBe(200);
+    expect(withIncident.body.data.map((row: { id: string }) => row.id)).toEqual([flagged._id.toString()]);
+
+    const withoutIncident = await agent.get("/api/v1/admin/subscription-shipments?incident=false");
+    expect(withoutIncident.status).toBe(200);
+    expect(withoutIncident.body.data.map((row: { id: string }) => row.id)).toEqual([clean._id.toString()]);
   });
 
   it("rechaza un estado que no existe en el vocabulario", async () => {
