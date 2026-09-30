@@ -19,10 +19,20 @@ function nextCycle(
     : { cycleYear, cycleMonth: cycleMonth + 1 };
 }
 
+/** Mes anterior a un ciclo dado, respetando el cambio de año. */
+function previousCycle(
+  cycleYear: number,
+  cycleMonth: number,
+): { cycleYear: number; cycleMonth: number } {
+  return cycleMonth === 1
+    ? { cycleYear: cycleYear - 1, cycleMonth: 12 }
+    : { cycleYear, cycleMonth: cycleMonth - 1 };
+}
+
 /** Ciclo en curso según el reloj del navegador — solo para ordenar/resaltar
  * en el panel, nunca para decidir nada que el backend valide. */
 function currentCycle(now: Date = new Date()): { cycleYear: number; cycleMonth: number } {
   return { cycleYear: now.getFullYear(), cycleMonth: now.getMonth() + 1 };
 }
 
-export { formatCycle, nextCycle, currentCycle };
+export { formatCycle, nextCycle, previousCycle, currentCycle };

@@ -5,13 +5,18 @@ import { useParams, useRouter } from "next/navigation";
 import { apiRequest, ApiRequestError } from "@/lib/api";
 import { useToast } from "@/components/ui/toast";
 import { ErrorState } from "@/components/ui/error-state";
+import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ImageManager } from "@/components/products/image-manager";
 import { PLAN_API_ACTIONS } from "@/components/subscription-plans/plan-api-actions";
 import { PlanEditor } from "@/components/subscription-plans/plan-editor";
+import { PlanMonthlyBoxes } from "@/components/subscription-plans/plan-monthly-boxes";
+import type { AdminProductImage } from "@/lib/types/admin-catalog";
 import type { AdminSubscriptionPlan } from "@/lib/types/admin-subscription";
 
 /** Edición de plan (2.7b-2): datos, cupo y orden. Los precios se muestran
- * pero no se editan (inmutables tras crear el plan). */
+ * pero no se editan (inmutables tras crear el plan). Las fotos (2.7c) van
+ * aparte del formulario, con subrutas propias igual que en Paquetes. */
 export default function EditSubscriptionPlanPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -19,6 +24,7 @@ export default function EditSubscriptionPlanPage() {
 
   const [plan, setPlan] = useState<AdminSubscriptionPlan | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [images, setImages] = useState<AdminProductImage[]>([]);
   const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
@@ -29,6 +35,7 @@ export default function EditSubscriptionPlanPage() {
       .then((response) => {
         if (cancelled) return;
         setPlan(response.data);
+        setImages(response.data.images);
         setLoadError(null);
       })
       .catch((error) => {
@@ -57,21 +64,33 @@ export default function EditSubscriptionPlanPage() {
   }
 
   return (
-    <PlanEditor
-      // `key` por estado: al desactivar, el editor se remonta con el plan
-      // ya inactivo en vez de arrastrar el formulario viejo.
-      key={`${plan.id}:${plan.isActive}`}
-      plan={plan}
-      actions={PLAN_API_ACTIONS}
-      onSaved={(saved) => {
-        setPlan(saved);
-        toast({ variant: "success", title: "Cambios guardados", description: saved.name });
-      }}
-      onDeactivated={() => {
-        setPlan((current) => current && { ...current, isActive: false });
-        toast({ variant: "success", title: "Plan desactivado", description: plan.name });
-      }}
-      onCancel={() => router.push("/subscriptions/plans")}
-    />
+    <div className="flex max-w-6xl flex-col gap-6">
+      <PlanEditor
+        // `key` por estado: al desactivar, el editor se remonta con el plan
+        // ya inactivo en vez de arrastrar el formulario viejo.
+        key={`${plan.id}:${plan.isActive}`}
+        plan={plan}
+        actions={PLAN_API_ACTIONS}
+        onSaved={(saved) => {
+          setPlan(saved);
+          toast({ variant: "success", title: "Cambios guardados", description: saved.name });
+        }}
+        onDeactivated={() => {
+          setPlan((current) => current && { ...current, isActive: false });
+          toast({ variant: "success", title: "Plan desactivado", description: plan.name });
+        }}
+        onCancel={() => router.push("/subscriptions/plans")}
+      />
+
+      <PlanMonthlyBoxes plan={plan} />
+
+      <Card>
+        <ImageManager
+          basePath={`/api/v1/admin/subscription-plans/${plan.id}`}
+          images={images}
+          onChange={setImages}
+        />
+      </Card>
+    </div>
   );
 }
