@@ -11,11 +11,12 @@ import type { StripeBillingClientLike } from "../../src/services/stripe-subscrip
 function buildFakeClient(overrides: Partial<StripeBillingClientLike> = {}): StripeBillingClientLike {
   return {
     products: { create: vi.fn() },
-    prices: { create: vi.fn() },
+    prices: { create: vi.fn(), retrieve: vi.fn() },
     customers: { create: vi.fn(), update: vi.fn() },
     subscriptions: { create: vi.fn(), retrieve: vi.fn(), update: vi.fn(), cancel: vi.fn() },
     setupIntents: { create: vi.fn(), retrieve: vi.fn() },
-    invoices: { retrieve: vi.fn(), pay: vi.fn() },
+    invoiceItems: { create: vi.fn() },
+    invoices: { create: vi.fn(), finalizeInvoice: vi.fn(), voidInvoice: vi.fn(), retrieve: vi.fn(), pay: vi.fn() },
     ...overrides,
   } as StripeBillingClientLike;
 }
@@ -175,12 +176,12 @@ describe("services/stripe-subscription-provider — ensureCustomer", () => {
 });
 
 /**
- * Fabrica una `Stripe.Subscription` con la forma ANIDADA real de
- * `stripe@22.6.2` (hallazgos 1 y 3 del plan): el período vive en
- * `items.data[0].current_period_start/end`, nunca de primer nivel, y el
- * `clientSecret` sale de `latest_invoice.confirmation_secret.client_secret`
- * (el `latest_invoice` viene expandido a objeto completo por el
- * `expand: ["latest_invoice.confirmation_secret"]` que el adapter debe pedir).
+ * Fabrica una `Stripe.Subscription` recién creada con el mecanismo de
+ * factura manual: `latest_invoice` SIEMPRE `null` (confirmado contra Stripe
+ * real — con ancla futura + proration:none, Stripe no genera ningún invoice
+ * al crear la Subscription), `status: "active"` desde el día 1 (sin
+ * tarjeta). El período del ítem SÍ está poblado (lo necesita `startSubscription`
+ * para `currentPeriodStart/End`/`nextChargeAt`).
  */
 function buildFakeStripeSubscription(overrides: Record<string, unknown> = {}) {
   const now = Math.floor(Date.now() / 1000);
@@ -188,27 +189,72 @@ function buildFakeStripeSubscription(overrides: Record<string, unknown> = {}) {
   return {
     id: "sub_1",
     object: "subscription",
-    status: "incomplete",
+    status: "active",
     billing_cycle_anchor: anchor,
+    latest_invoice: null,
     items: {
       object: "list",
       data: [{ current_period_start: now, current_period_end: anchor }],
-    },
-    latest_invoice: {
-      id: "in_1",
-      object: "invoice",
-      amount_due: 59900,
-      currency: "mxn",
-      confirmation_secret: { client_secret: "pi_1_secret_abc", type: "payment_intent" },
     },
     ...overrides,
   };
 }
 
-describe("services/stripe-subscription-provider — startSubscription", () => {
-  it("crea la suscripción con default_incomplete/anchor/add_invoice_items y traduce la respuesta anidada", async () => {
+/** Precio recurrente que `startSubscription` relee vía `prices.retrieve`
+ * para armar el `price_data` de la factura manual. */
+function buildFakePrice(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "price_1",
+    object: "price",
+    currency: "mxn",
+    unit_amount: 59900,
+    product: "prod_1",
+    recurring: { interval: "month" },
+    ...overrides,
+  };
+}
+
+/** Factura manual finalizada — `confirmation_secret` expandido (PaymentIntent
+ * real, confirmado contra Stripe test), `status: "open"` hasta que se pague. */
+function buildFakeFinalizedInvoice(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "in_manual_1",
+    object: "invoice",
+    status: "open",
+    amount_due: 59900,
+    currency: "mxn",
+    billing_reason: "manual",
+    confirmation_secret: { client_secret: "pi_manual_1_secret", type: "payment_intent" },
+    ...overrides,
+  };
+}
+
+describe("services/stripe-subscription-provider — startSubscription (factura manual de alta)", () => {
+  function buildHappyPathClient(overrides: Partial<StripeBillingClientLike> = {}) {
     const subscriptionsCreate = vi.fn().mockResolvedValue(buildFakeStripeSubscription());
-    const client = buildFakeClient({ subscriptions: { create: subscriptionsCreate, retrieve: vi.fn() } });
+    const pricesRetrieve = vi.fn().mockResolvedValue(buildFakePrice());
+    const invoiceItemsCreate = vi.fn().mockResolvedValue({ id: "ii_1" });
+    const invoicesCreate = vi.fn().mockResolvedValue({ id: "in_manual_1" });
+    const invoicesFinalize = vi.fn().mockResolvedValue(buildFakeFinalizedInvoice());
+    const client = buildFakeClient({
+      subscriptions: { create: subscriptionsCreate, retrieve: vi.fn(), update: vi.fn(), cancel: vi.fn() },
+      prices: { create: vi.fn(), retrieve: pricesRetrieve },
+      invoiceItems: { create: invoiceItemsCreate },
+      invoices: {
+        create: invoicesCreate,
+        finalizeInvoice: invoicesFinalize,
+        voidInvoice: vi.fn(),
+        retrieve: vi.fn(),
+        pay: vi.fn(),
+      },
+      ...overrides,
+    });
+    return { client, subscriptionsCreate, pricesRetrieve, invoiceItemsCreate, invoicesCreate, invoicesFinalize };
+  }
+
+  it("crea la Subscription (ancla futura, proration:none, SIN add_invoice_items) y la factura manual por el precio completo", async () => {
+    const { client, subscriptionsCreate, pricesRetrieve, invoiceItemsCreate, invoicesCreate, invoicesFinalize } =
+      buildHappyPathClient();
     const provider = createStripeSubscriptionProvider(client);
 
     const result = await provider.startSubscription({
@@ -219,34 +265,113 @@ describe("services/stripe-subscription-provider — startSubscription", () => {
       idempotencyKey: "account:acc_1:sub:1000",
     });
 
-    expect(result.subscriptionRef).toBe("sub_1");
+    // La Subscription: SIN add_invoice_items, ancla futura, proration none.
+    const [subParams, subOptions] = subscriptionsCreate.mock.calls[0];
+    expect(subParams.customer).toBe("cus_1");
+    expect(subParams.items).toEqual([{ price: "price_1" }]);
+    expect(subParams.payment_behavior).toBe("default_incomplete");
+    expect(subParams.billing_cycle_anchor_config).toEqual({ day_of_month: 15, hour: 15 });
+    expect(subParams.proration_behavior).toBe("none");
+    expect(subParams).not.toHaveProperty("add_invoice_items");
+    expect(subParams.metadata).toEqual({ accountId: "acc_1", userId: "user_1", planId: "plan_1" });
+    expect(subOptions.idempotencyKey).toBe("account:acc_1:sub:1000:sub");
+
+    // El Price recurrente se relee para conocer el monto exacto.
+    expect(pricesRetrieve).toHaveBeenCalledWith("price_1");
+
+    // El InvoiceItem: price_data one-time por el monto exacto del Price
+    // recurrente, ligado a la Subscription, con el período del ciclo parcial.
+    const [itemParams, itemOptions] = invoiceItemsCreate.mock.calls[0];
+    expect(itemParams.customer).toBe("cus_1");
+    expect(itemParams.subscription).toBe("sub_1");
+    expect(itemParams.price_data).toEqual({ currency: "mxn", product: "prod_1", unit_amount: 59900 });
+    expect(itemParams.period).toEqual({
+      start: expect.any(Number),
+      end: buildFakeStripeSubscription().billing_cycle_anchor,
+    });
+    expect(itemOptions.idempotencyKey).toBe("account:acc_1:sub:1000:invoice-item");
+
+    // La Invoice: ligada a la misma Subscription, cobro automático.
+    const [invoiceParams, invoiceOptions] = invoicesCreate.mock.calls[0];
+    expect(invoiceParams.customer).toBe("cus_1");
+    expect(invoiceParams.subscription).toBe("sub_1");
+    expect(invoiceParams.collection_method).toBe("charge_automatically");
+    expect(invoiceOptions.idempotencyKey).toBe("account:acc_1:sub:1000:invoice");
+
+    expect(invoicesFinalize).toHaveBeenCalledWith("in_manual_1", { expand: ["confirmation_secret"] });
+
+    // El DTO: status SIEMPRE "incomplete" (no se deriva de sub.status, que
+    // Stripe deja "active" sin cobrar), clientSecret/monto/moneda de la
+    // FACTURA, no de la Subscription.
     expect(result.status).toBe("incomplete");
-    expect(result.clientSecret).toBe("pi_1_secret_abc");
+    expect(result.subscriptionRef).toBe("sub_1");
+    expect(result.clientSecret).toBe("pi_manual_1_secret");
     expect(result.firstChargeCents).toBe(59900);
     expect(result.currency).toBe("mxn");
-    expect(result.nextChargeAt).toBeInstanceOf(Date);
+    expect(result.nextChargeAt).toEqual(new Date(buildFakeStripeSubscription().billing_cycle_anchor * 1000));
     expect(result.currentPeriodStart).toBeInstanceOf(Date);
     expect(result.currentPeriodEnd).toBeInstanceOf(Date);
-
-    const [params, options] = subscriptionsCreate.mock.calls[0];
-    expect(params.customer).toBe("cus_1");
-    expect(params.items).toEqual([{ price: "price_1" }]);
-    expect(params.payment_behavior).toBe("default_incomplete");
-    expect(params.payment_settings).toEqual({
-      payment_method_types: ["card"],
-      save_default_payment_method: "on_subscription",
-    });
-    expect(params.billing_cycle_anchor_config).toEqual({ day_of_month: 15, hour: 15 });
-    expect(params.proration_behavior).toBe("none");
-    expect(params.add_invoice_items).toEqual([{ price: "price_1" }]);
-    expect(params.metadata).toEqual({ accountId: "acc_1", userId: "user_1", planId: "plan_1" });
-    expect(params.expand).toEqual(["latest_invoice.confirmation_secret"]);
-    expect(options.idempotencyKey).toBe("account:acc_1:sub:1000");
+    expect(result.latestChargeRef).toBe("in_manual_1");
   });
 
-  it("traduce un fallo de Stripe a 502", async () => {
-    const subscriptionsCreate = vi.fn().mockRejectedValue({ type: "StripeAPIError" });
-    const client = buildFakeClient({ subscriptions: { create: subscriptionsCreate, retrieve: vi.fn() } });
+  it("con billingAnchorMonth agrega month al billing_cycle_anchor_config (alta anual)", async () => {
+    const { client, subscriptionsCreate } = buildHappyPathClient();
+    const provider = createStripeSubscriptionProvider(client);
+
+    await provider.startSubscription({
+      customerRef: "cus_1",
+      priceRef: "price_year_1",
+      billingAnchorDay: 15,
+      billingAnchorMonth: 9,
+      metadata: { accountId: "acc_1", userId: "user_1", planId: "plan_1" },
+      idempotencyKey: "account:acc_1:sub:1000",
+    });
+
+    const [subParams] = subscriptionsCreate.mock.calls[0];
+    expect(subParams.billing_cycle_anchor_config).toEqual({ day_of_month: 15, hour: 15, month: 9 });
+  });
+
+  it("si el Price recurrente viene con product expandido a objeto, usa su id en price_data", async () => {
+    const { client, invoiceItemsCreate } = buildHappyPathClient({
+      prices: { create: vi.fn(), retrieve: vi.fn().mockResolvedValue(buildFakePrice({ product: { id: "prod_expandido" } })) },
+    });
+    const provider = createStripeSubscriptionProvider(client);
+
+    await provider.startSubscription({
+      customerRef: "cus_1",
+      priceRef: "price_1",
+      billingAnchorDay: 15,
+      metadata: { accountId: "acc_1", userId: "user_1", planId: "plan_1" },
+      idempotencyKey: "account:acc_1:sub:1000",
+    });
+
+    const [itemParams] = invoiceItemsCreate.mock.calls[0];
+    expect(itemParams.price_data.product).toBe("prod_expandido");
+  });
+
+  it("si el Price recurrente no tiene unit_amount (por tramos), rechaza con 502 y no crea nada en Stripe", async () => {
+    const { client, subscriptionsCreate, invoiceItemsCreate } = buildHappyPathClient({
+      prices: { create: vi.fn(), retrieve: vi.fn().mockResolvedValue(buildFakePrice({ unit_amount: null })) },
+    });
+    const provider = createStripeSubscriptionProvider(client);
+
+    await expect(
+      provider.startSubscription({
+        customerRef: "cus_1",
+        priceRef: "price_1",
+        billingAnchorDay: 15,
+        metadata: { accountId: "acc_1", userId: "user_1", planId: "plan_1" },
+        idempotencyKey: "account:acc_1:sub:1000",
+      }),
+    ).rejects.toMatchObject({ statusCode: 502 });
+    expect(subscriptionsCreate).not.toHaveBeenCalled();
+    expect(invoiceItemsCreate).not.toHaveBeenCalled();
+  });
+
+  it("traduce un fallo de Stripe en subscriptions.create a 502", async () => {
+    const { client } = buildHappyPathClient({
+      subscriptions: { create: vi.fn().mockRejectedValue({ type: "StripeAPIError" }), retrieve: vi.fn(), update: vi.fn(), cancel: vi.fn() },
+    });
     const provider = createStripeSubscriptionProvider(client);
 
     await expect(
@@ -260,45 +385,165 @@ describe("services/stripe-subscription-provider — startSubscription", () => {
     ).rejects.toMatchObject({ statusCode: 502 });
   });
 
-  it("con billingAnchorMonth agrega month al billing_cycle_anchor_config (alta anual)", async () => {
-    const subscriptionsCreate = vi.fn().mockResolvedValue(buildFakeStripeSubscription());
-    const client = buildFakeClient({ subscriptions: { create: subscriptionsCreate, retrieve: vi.fn() } });
+  it("traduce un fallo de Stripe en invoices.create a 502", async () => {
+    const { client } = buildHappyPathClient({
+      invoices: {
+        create: vi.fn().mockRejectedValue({ type: "StripeAPIError" }),
+        finalizeInvoice: vi.fn(),
+        voidInvoice: vi.fn(),
+        retrieve: vi.fn(),
+        pay: vi.fn(),
+      },
+    });
     const provider = createStripeSubscriptionProvider(client);
 
-    await provider.startSubscription({
-      customerRef: "cus_1",
-      priceRef: "price_year_1",
-      billingAnchorDay: 15,
-      billingAnchorMonth: 9,
-      metadata: { accountId: "acc_1", userId: "user_1", planId: "plan_1" },
-      idempotencyKey: "account:acc_1:sub:1000",
-    });
+    await expect(
+      provider.startSubscription({
+        customerRef: "cus_1",
+        priceRef: "price_1",
+        billingAnchorDay: 1,
+        metadata: { accountId: "a", userId: "u", planId: "p" },
+        idempotencyKey: "k",
+      }),
+    ).rejects.toMatchObject({ statusCode: 502 });
+  });
+});
 
-    const [params] = subscriptionsCreate.mock.calls[0];
-    expect(params.billing_cycle_anchor_config).toEqual({ day_of_month: 15, hour: 15, month: 9 });
+describe("services/stripe-subscription-provider — getSubscriptionStart (rama replay del alta)", () => {
+  it("factura open -> status incomplete, con clientSecret vigente", async () => {
+    const invoicesRetrieve = vi.fn().mockResolvedValue(buildFakeFinalizedInvoice());
+    const subscriptionsRetrieve = vi.fn().mockResolvedValue(buildFakeStripeSubscription());
+    const client = buildFakeClient({
+      invoices: { create: vi.fn(), finalizeInvoice: vi.fn(), voidInvoice: vi.fn(), retrieve: invoicesRetrieve, pay: vi.fn() },
+      subscriptions: { create: vi.fn(), retrieve: subscriptionsRetrieve, update: vi.fn(), cancel: vi.fn() },
+    });
+    const provider = createStripeSubscriptionProvider(client);
+
+    const result = await provider.getSubscriptionStart({ subscriptionRef: "sub_1", invoiceRef: "in_manual_1" });
+
+    expect(invoicesRetrieve).toHaveBeenCalledWith("in_manual_1", { expand: ["confirmation_secret"] });
+    expect(result.status).toBe("incomplete");
+    expect(result.clientSecret).toBe("pi_manual_1_secret");
+    expect(result.firstChargeCents).toBe(59900);
+    expect(result.currency).toBe("mxn");
+    expect(result.nextChargeAt).toBeInstanceOf(Date);
   });
 
-  it("sin billingAnchorMonth el anchor config no lleva month (alta mensual)", async () => {
-    const subscriptionsCreate = vi.fn().mockResolvedValue(buildFakeStripeSubscription());
-    const client = buildFakeClient({ subscriptions: { create: subscriptionsCreate, retrieve: vi.fn() } });
+  it("factura paid -> status active, sin clientSecret", async () => {
+    const invoicesRetrieve = vi.fn().mockResolvedValue(buildFakeFinalizedInvoice({ status: "paid" }));
+    const client = buildFakeClient({
+      invoices: { create: vi.fn(), finalizeInvoice: vi.fn(), voidInvoice: vi.fn(), retrieve: invoicesRetrieve, pay: vi.fn() },
+      subscriptions: { create: vi.fn(), retrieve: vi.fn().mockResolvedValue(buildFakeStripeSubscription()), update: vi.fn(), cancel: vi.fn() },
+    });
     const provider = createStripeSubscriptionProvider(client);
 
-    await provider.startSubscription({
-      customerRef: "cus_1",
-      priceRef: "price_1",
-      billingAnchorDay: 15,
-      metadata: { accountId: "acc_1", userId: "user_1", planId: "plan_1" },
-      idempotencyKey: "account:acc_1:sub:1000",
-    });
+    const result = await provider.getSubscriptionStart({ subscriptionRef: "sub_1", invoiceRef: "in_manual_1" });
 
-    const [params] = subscriptionsCreate.mock.calls[0];
-    expect(params.billing_cycle_anchor_config).toEqual({ day_of_month: 15, hour: 15 });
+    expect(result.status).toBe("active");
+    expect(result.clientSecret).toBeUndefined();
+  });
+
+  it.each(["void", "uncollectible"])("factura %s -> status canceled, sin clientSecret", async (status) => {
+    const invoicesRetrieve = vi.fn().mockResolvedValue(buildFakeFinalizedInvoice({ status }));
+    const client = buildFakeClient({
+      invoices: { create: vi.fn(), finalizeInvoice: vi.fn(), voidInvoice: vi.fn(), retrieve: invoicesRetrieve, pay: vi.fn() },
+      subscriptions: { create: vi.fn(), retrieve: vi.fn().mockResolvedValue(buildFakeStripeSubscription()), update: vi.fn(), cancel: vi.fn() },
+    });
+    const provider = createStripeSubscriptionProvider(client);
+
+    const result = await provider.getSubscriptionStart({ subscriptionRef: "sub_1", invoiceRef: "in_manual_1" });
+
+    expect(result.status).toBe("canceled");
+    expect(result.clientSecret).toBeUndefined();
+  });
+
+  it("traduce un fallo de Stripe a 502", async () => {
+    const client = buildFakeClient({
+      invoices: { create: vi.fn(), finalizeInvoice: vi.fn(), voidInvoice: vi.fn(), retrieve: vi.fn().mockRejectedValue({ type: "StripeAPIError" }), pay: vi.fn() },
+    });
+    const provider = createStripeSubscriptionProvider(client);
+
+    await expect(
+      provider.getSubscriptionStart({ subscriptionRef: "sub_1", invoiceRef: "in_manual_1" }),
+    ).rejects.toMatchObject({ statusCode: 502 });
+  });
+});
+
+describe("services/stripe-subscription-provider — abandonSubscriptionStart (barrendero)", () => {
+  it("anula la factura open y cancela la Subscription", async () => {
+    const invoicesRetrieve = vi.fn().mockResolvedValue(buildFakeFinalizedInvoice());
+    const voidInvoice = vi.fn().mockResolvedValue({});
+    const subscriptionsCancel = vi.fn().mockResolvedValue({});
+    const client = buildFakeClient({
+      invoices: { create: vi.fn(), finalizeInvoice: vi.fn(), voidInvoice, retrieve: invoicesRetrieve, pay: vi.fn() },
+      subscriptions: { create: vi.fn(), retrieve: vi.fn(), update: vi.fn(), cancel: subscriptionsCancel },
+    });
+    const provider = createStripeSubscriptionProvider(client);
+
+    await provider.abandonSubscriptionStart({ subscriptionRef: "sub_1", invoiceRef: "in_manual_1" });
+
+    expect(voidInvoice).toHaveBeenCalledWith("in_manual_1");
+    expect(subscriptionsCancel).toHaveBeenCalledWith("sub_1");
+  });
+
+  it("si la factura ya no está open (pagada mientras el barrendero corría), no intenta anularla igual cancela la Subscription", async () => {
+    const invoicesRetrieve = vi.fn().mockResolvedValue(buildFakeFinalizedInvoice({ status: "paid" }));
+    const voidInvoice = vi.fn();
+    const subscriptionsCancel = vi.fn().mockResolvedValue({});
+    const client = buildFakeClient({
+      invoices: { create: vi.fn(), finalizeInvoice: vi.fn(), voidInvoice, retrieve: invoicesRetrieve, pay: vi.fn() },
+      subscriptions: { create: vi.fn(), retrieve: vi.fn(), update: vi.fn(), cancel: subscriptionsCancel },
+    });
+    const provider = createStripeSubscriptionProvider(client);
+
+    await provider.abandonSubscriptionStart({ subscriptionRef: "sub_1", invoiceRef: "in_manual_1" });
+
+    expect(voidInvoice).not.toHaveBeenCalled();
+    expect(subscriptionsCancel).toHaveBeenCalledWith("sub_1");
+  });
+
+  it("tolera 'ya cancelada' de Stripe al cancelar la Subscription (no relanza)", async () => {
+    const client = buildFakeClient({
+      invoices: {
+        create: vi.fn(),
+        finalizeInvoice: vi.fn(),
+        voidInvoice: vi.fn().mockResolvedValue({}),
+        retrieve: vi.fn().mockResolvedValue(buildFakeFinalizedInvoice()),
+        pay: vi.fn(),
+      },
+      subscriptions: {
+        create: vi.fn(),
+        retrieve: vi.fn(),
+        update: vi.fn(),
+        cancel: vi.fn().mockRejectedValue({ type: "StripeInvalidRequestError", code: "resource_missing" }),
+      },
+    });
+    const provider = createStripeSubscriptionProvider(client);
+
+    await expect(
+      provider.abandonSubscriptionStart({ subscriptionRef: "sub_1", invoiceRef: "in_manual_1" }),
+    ).resolves.toBeUndefined();
   });
 });
 
 describe("services/stripe-subscription-provider — getSubscription", () => {
   it("consulta y traduce con la misma forma anidada que startSubscription", async () => {
-    const subscriptionsRetrieve = vi.fn().mockResolvedValue(buildFakeStripeSubscription({ status: "active" }));
+    // `buildFakeStripeSubscription` ahora modela el alta con factura manual
+    // (`latest_invoice` siempre null) — este test cubre la lectura general de
+    // una Subscription YA activa con `latest_invoice` expandido a objeto, así
+    // que arma esa forma explícitamente en vez de depender del default.
+    const subscriptionsRetrieve = vi.fn().mockResolvedValue(
+      buildFakeStripeSubscription({
+        status: "active",
+        latest_invoice: {
+          id: "in_1",
+          object: "invoice",
+          amount_due: 59900,
+          currency: "mxn",
+          confirmation_secret: { client_secret: "pi_1_secret_abc", type: "payment_intent" },
+        },
+      }),
+    );
     const client = buildFakeClient({ subscriptions: { create: vi.fn(), retrieve: subscriptionsRetrieve } });
     const provider = createStripeSubscriptionProvider(client);
 

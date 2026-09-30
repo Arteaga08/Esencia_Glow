@@ -3,10 +3,12 @@ import { logger } from "../config/logger.js";
 import { AppError } from "../utils/app-error.js";
 import { translateStripeError } from "./stripe-payment-provider.js";
 import type {
+  AbandonSubscriptionStartInput,
   CancelNowInput,
   ChangePriceInput,
   CreatePlanProductInput,
   EnsureCustomerInput,
+  GetSubscriptionStartInput,
   InvoiceRetryResult,
   PauseCollectionInput,
   PaymentMethodSetup,
@@ -36,6 +38,7 @@ interface StripeBillingClientLike {
   };
   prices: {
     create: Stripe["prices"]["create"];
+    retrieve: Stripe["prices"]["retrieve"];
   };
   customers: {
     create: Stripe["customers"]["create"];
@@ -51,7 +54,13 @@ interface StripeBillingClientLike {
     create: Stripe["setupIntents"]["create"];
     retrieve: Stripe["setupIntents"]["retrieve"];
   };
+  invoiceItems: {
+    create: Stripe["invoiceItems"]["create"];
+  };
   invoices: {
+    create: Stripe["invoices"]["create"];
+    finalizeInvoice: Stripe["invoices"]["finalizeInvoice"];
+    voidInvoice: Stripe["invoices"]["voidInvoice"];
     retrieve: Stripe["invoices"]["retrieve"];
     pay: Stripe["invoices"]["pay"];
   };
@@ -87,6 +96,31 @@ function readFirstCharge(sub: Stripe.Subscription): { amountCents?: number; curr
   const invoice = sub.latest_invoice;
   if (!invoice || typeof invoice === "string") return {};
   return { amountCents: invoice.amount_due, currency: invoice.currency };
+}
+
+/** `confirmation_secret` de una FACTURA (no de una Subscription) — misma
+ * forma anidada, pero de `Stripe.Invoice` en vez de `sub.latest_invoice`. */
+function readInvoiceClientSecret(invoice: Stripe.Invoice): string | undefined {
+  return invoice.confirmation_secret?.client_secret ?? undefined;
+}
+
+/** Traduce el `status` de la factura MANUAL de alta a nuestro vocabulario —
+ * solo válido para `getSubscriptionStart`, nunca para el estado general de
+ * una suscripción (eso lo sigue traduciendo `mapProviderSubscriptionStatus`
+ * sobre `sub.status`). */
+function mapInvoiceStartStatus(status: Stripe.Invoice.Status | null): ProviderSubscriptionStatus {
+  switch (status) {
+    case "open":
+      return "incomplete";
+    case "paid":
+      return "active";
+    case "void":
+    case "uncollectible":
+      return "canceled";
+    default:
+      logger.warn({ status }, "Estado de factura de alta no reconocido, se trata como incomplete");
+      return "incomplete";
+  }
 }
 
 /**
@@ -271,15 +305,46 @@ function createStripeSubscriptionProvider(client: StripeBillingClientLike): Subs
     },
 
     /**
-     * Parámetros calcados del §A del plan: `default_incomplete` (el 3DS del
-     * alta lo resuelve el Payment Element en sesión, ver traductor de
-     * webhooks para la renovación off-session), solo tarjeta (nunca OXXO —
-     * no es un método guardable), `proration_behavior: "none"` +
-     * `add_invoice_items` para que la primera factura cobre el precio
-     * COMPLETO del ciclo en vez de un prorrateo (decisión 4 del plan).
+     * Mecanismo de FACTURA MANUAL de alta (verificado contra Stripe test,
+     * ver docs/superpowers/plans/2026-09-29-subscription-first-invoice-fix.md):
+     * `add_invoice_items` no sirve aquí — con `billing_cycle_anchor_config`
+     * futuro, Stripe no genera NINGÚN invoice al crear la Subscription, sin
+     * importar `proration_behavior`. En cambio:
+     *
+     * 1. La Subscription se crea con ancla futura + `proration_behavior:"none"`
+     *    y SIN `add_invoice_items` — su línea recurrente cobra $0 en el
+     *    período parcial, por diseño (no hay nada que prorratear).
+     * 2. Se relee el Price recurrente (`prices.retrieve`) para conocer su
+     *    `currency`/`unit_amount`/`product` — el monto del primer cobro
+     *    NUNCA se inventa, siempre sale de ahí.
+     * 3. Se crea un InvoiceItem `price_data` (one-time, ad-hoc) por ese
+     *    mismo monto, ligado a la Subscription, con el período real del
+     *    ciclo parcial (`period: {start: ahora, end: sub.billing_cycle_anchor}`)
+     *    — lo lee el traductor de webhooks (`extractServicePeriod`).
+     * 4. Se crea y finaliza una Invoice aparte (`collection_method:
+     *    "charge_automatically"`) — SU `confirmation_secret` (no el de
+     *    `sub.latest_invoice`, que queda `null`) es el PaymentIntent real que
+     *    el front confirma.
+     *
+     * La Subscription en Stripe queda `status:"active"` desde el día 1, sin
+     * tarjeta (confirmado) — por eso el DTO devuelve `status:"incomplete"`
+     * FIJO aquí, nunca derivado de `sub.status`: la única fuente de verdad de
+     * "¿ya se pagó?" es la factura manual (ver `getSubscriptionStart`).
+     *
+     * Tres `idempotencyKey` derivadas de la base (sufijos `:sub`/
+     * `:invoice-item`/`:invoice`), mismo patrón que `createPlanProduct`: cada
+     * paso es reintentable de forma independiente si uno de los tres falla.
      */
     async startSubscription(input: StartProviderSubscriptionInput): Promise<ProviderSubscription> {
       try {
+        const recurringPrice = await client.prices.retrieve(input.priceRef);
+        if (recurringPrice.unit_amount === null) {
+          // Defensivo: nuestros Prices siempre son `unit_amount` fijo (nunca
+          // por tramos ni `custom_unit_amount`) — si esto ocurre, es un Price
+          // mal creado a mano en Stripe, no un dato que podamos inventar.
+          throw new AppError("No pudimos iniciar tu suscripción.", 502);
+        }
+
         const sub = await client.subscriptions.create(
           {
             customer: input.customerRef,
@@ -295,14 +360,114 @@ function createStripeSubscriptionProvider(client: StripeBillingClientLike): Subs
               ...(input.billingAnchorMonth !== undefined ? { month: input.billingAnchorMonth } : {}),
             },
             proration_behavior: "none",
-            add_invoice_items: [{ price: input.priceRef }],
             metadata: input.metadata,
-            expand: SUBSCRIPTION_EXPAND,
           },
-          { idempotencyKey: input.idempotencyKey },
+          { idempotencyKey: `${input.idempotencyKey}:sub` },
         );
-        return toProviderSubscription(sub);
+
+        await client.invoiceItems.create(
+          {
+            customer: input.customerRef,
+            subscription: sub.id,
+            price_data: {
+              currency: recurringPrice.currency,
+              product: toId(recurringPrice.product)!,
+              unit_amount: recurringPrice.unit_amount,
+            },
+            period: { start: Math.floor(Date.now() / 1000), end: sub.billing_cycle_anchor },
+          },
+          { idempotencyKey: `${input.idempotencyKey}:invoice-item` },
+        );
+
+        const draftInvoice = await client.invoices.create(
+          {
+            customer: input.customerRef,
+            subscription: sub.id,
+            collection_method: "charge_automatically",
+            auto_advance: false,
+          },
+          { idempotencyKey: `${input.idempotencyKey}:invoice` },
+        );
+        const invoice = await client.invoices.finalizeInvoice(draftInvoice.id!, {
+          expand: ["confirmation_secret"],
+        });
+
+        const period = readCurrentPeriod(sub);
+        return {
+          subscriptionRef: sub.id,
+          status: "incomplete",
+          clientSecret: readInvoiceClientSecret(invoice),
+          firstChargeCents: invoice.amount_due,
+          currency: invoice.currency,
+          nextChargeAt: new Date(sub.billing_cycle_anchor * 1000),
+          currentPeriodStart: period.start,
+          currentPeriodEnd: period.end,
+          collectionPaused: Boolean(sub.pause_collection),
+          cancelAtPeriodEnd: sub.cancel_at_period_end,
+          priceRef: sub.items.data[0]?.price?.id,
+          latestChargeRef: invoice.id,
+        };
       } catch (error) {
+        if (error instanceof AppError) throw error;
+        translateStripeError(error);
+      }
+    },
+
+    /**
+     * Rama replay del alta: relee la FACTURA (no la Subscription, que ya
+     * quedó `active` desde el día 1 sin importar el pago) y traduce SU
+     * estado — `open` -> sigue esperando confirmación, `paid` -> ya se
+     * cobró (el webhook debió activar la cuenta), `void`/`uncollectible` ->
+     * la clienta o el barrendero la dieron de baja. `draft` no debería
+     * ocurrir (`startSubscription` siempre finaliza) pero cae en
+     * `incomplete` con un warning, mismo criterio defensivo que
+     * `mapProviderSubscriptionStatus`.
+     */
+    async getSubscriptionStart(input: GetSubscriptionStartInput): Promise<ProviderSubscription> {
+      try {
+        const invoice = await client.invoices.retrieve(input.invoiceRef, { expand: ["confirmation_secret"] });
+        const sub = await client.subscriptions.retrieve(input.subscriptionRef);
+        const status = mapInvoiceStartStatus(invoice.status);
+        const period = readCurrentPeriod(sub);
+        return {
+          subscriptionRef: input.subscriptionRef,
+          status,
+          ...(status === "incomplete"
+            ? { clientSecret: readInvoiceClientSecret(invoice), firstChargeCents: invoice.amount_due, currency: invoice.currency }
+            : {}),
+          nextChargeAt: new Date(sub.billing_cycle_anchor * 1000),
+          currentPeriodStart: period.start,
+          currentPeriodEnd: period.end,
+          collectionPaused: Boolean(sub.pause_collection),
+          cancelAtPeriodEnd: sub.cancel_at_period_end,
+          priceRef: sub.items.data[0]?.price?.id,
+        };
+      } catch (error) {
+        translateStripeError(error);
+      }
+    },
+
+    /**
+     * Barrendero de altas abandonadas (jobs/expire-incomplete-subscriptions.ts):
+     * anula la factura de alta (si sigue `open`; si ya no lo está, alguien más
+     * la resolvió — no es un error) y cancela la Subscription. Tolera que la
+     * Subscription ya esté cancelada (carrera con otra corrida del barrendero
+     * o con Stripe mismo): no relanza en ese caso, cualquier otro fallo sí.
+     */
+    async abandonSubscriptionStart(input: AbandonSubscriptionStartInput): Promise<void> {
+      try {
+        const invoice = await client.invoices.retrieve(input.invoiceRef);
+        if (invoice.status === "open") {
+          await client.invoices.voidInvoice(input.invoiceRef);
+        }
+      } catch (error) {
+        translateStripeError(error);
+      }
+      try {
+        await client.subscriptions.cancel(input.subscriptionRef);
+      } catch (error) {
+        const shape = readErrorShape(error);
+        if (shape.type === "StripeInvalidRequestError") return;
         translateStripeError(error);
       }
     },
