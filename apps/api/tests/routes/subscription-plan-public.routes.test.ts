@@ -49,6 +49,8 @@ describe("routes/subscription-plans — GET /", () => {
       currency: "MXN",
       billingInterval: "month",
       soldOut: false,
+      images: [],
+      highlights: [],
     });
   });
 

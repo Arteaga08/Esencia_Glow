@@ -1,5 +1,6 @@
 import type { Types } from "mongoose";
-import type { EditionStatus, ShippingCarrier, SubscriptionShipmentStatus } from "@esencia-glow/shared";
+import type { EditionStatus, PublicProductImage, ShippingCarrier, SubscriptionShipmentStatus } from "@esencia-glow/shared";
+import { buildImageDto, type LeanMediaImage } from "./catalog-dto.js";
 
 /**
  * DTO admin del módulo de suscripciones (Milestone 1.7.1). Vive en la API,
@@ -24,6 +25,9 @@ interface LeanSubscriptionPlan {
   seatsTaken: number;
   isActive: boolean;
   sortOrder: number;
+  /** Ausentes en planes anteriores a 2.7c. */
+  images?: LeanMediaImage[];
+  highlights?: string[];
 }
 
 interface AdminSubscriptionPlan {
@@ -40,6 +44,8 @@ interface AdminSubscriptionPlan {
   seatsTaken: number;
   isActive: boolean;
   sortOrder: number;
+  images: PublicProductImage[];
+  highlights: string[];
 }
 
 function buildAdminSubscriptionPlan(plan: LeanSubscriptionPlan): AdminSubscriptionPlan {
@@ -57,6 +63,8 @@ function buildAdminSubscriptionPlan(plan: LeanSubscriptionPlan): AdminSubscripti
     seatsTaken: plan.seatsTaken,
     isActive: plan.isActive,
     sortOrder: plan.sortOrder,
+    images: (plan.images ?? []).map((image) => buildImageDto(image)!),
+    highlights: plan.highlights ?? [],
   };
 }
 

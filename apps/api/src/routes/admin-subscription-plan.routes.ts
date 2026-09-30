@@ -1,10 +1,19 @@
 import { Router } from "express";
 import { UserRole } from "@esencia-glow/shared";
 import * as subscriptionPlanController from "../controllers/subscription-plan.controller.js";
+import * as planImageController from "../controllers/subscription-plan-image.controller.js";
 import { validate } from "../middlewares/validate.js";
 import { protect } from "../middlewares/protect.js";
 import { restrictTo } from "../middlewares/restrict-to.js";
-import { objectIdParamSchema } from "../validators/media.validator.js";
+import { uploadRateLimiter } from "../middlewares/rate-limit.js";
+import { uploadImageArray } from "../middlewares/upload-image.js";
+import { sanitizeMultipart } from "../middlewares/sanitize-multipart.js";
+import {
+  objectIdParamSchema,
+  imageParamsSchema,
+  uploadImagesBodySchema,
+  reorderImagesSchema,
+} from "../validators/media.validator.js";
 import {
   createSubscriptionPlanSchema,
   updateSubscriptionPlanSchema,
@@ -29,5 +38,26 @@ router.patch(
   subscriptionPlanController.update,
 );
 router.delete("/:id", validate(objectIdParamSchema, "params"), subscriptionPlanController.deactivate);
+
+router.post(
+  "/:id/images",
+  uploadRateLimiter,
+  validate(objectIdParamSchema, "params"),
+  uploadImageArray("images", 8),
+  sanitizeMultipart,
+  validate(uploadImagesBodySchema),
+  planImageController.addPlanImages,
+);
+router.patch(
+  "/:id/images/order",
+  validate(objectIdParamSchema, "params"),
+  validate(reorderImagesSchema),
+  planImageController.reorderPlanImages,
+);
+router.delete(
+  "/:id/images/:imageId",
+  validate(imageParamsSchema, "params"),
+  planImageController.removePlanImage,
+);
 
 export { router as adminSubscriptionPlanRoutes };

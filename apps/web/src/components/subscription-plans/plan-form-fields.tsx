@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import type { AdminSubscriptionPlan } from "@/lib/types/admin-subscription";
+import { PlanHighlightsEditor } from "./plan-highlights-editor";
 import { PlanPriceFields } from "./plan-price-fields";
 import type { PlanFormValue } from "./plan-form-value";
 
@@ -25,7 +26,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 }
 
 /**
- * Campos del plan en tres bloques, mismo ritmo que la creación de producto
+ * Campos del plan en bloques, mismo ritmo que la creación de producto
  * (feedback de Manuel en 2.7b-2): datos, cobro y cupo. Un plan es UNA
  * suscripción con su precio mensual y, opcionalmente, el anual dentro de
  * ella (decisión de 2.7b-1: nunca dos planes separados). Sin botones: el
@@ -65,6 +66,18 @@ function PlanFormFields({ value, onChange, errors, plan }: PlanFormFieldsProps) 
             maxLength={2000}
           />
         </div>
+      </Section>
+
+      <Section title="Qué incluye">
+        <p className="mb-4 text-body-sm text-muted-foreground-strong">
+          Viñetas cortas que la clienta ve en el catálogo de planes. Describen el plan en general;
+          lo que trae la caja de cada mes se arma aparte, en &ldquo;Cajas por mes&rdquo;.
+        </p>
+        <PlanHighlightsEditor
+          value={value.highlights}
+          onChange={(highlights) => onChange({ highlights })}
+          errors={errors}
+        />
       </Section>
 
       <Section title="Cobro">

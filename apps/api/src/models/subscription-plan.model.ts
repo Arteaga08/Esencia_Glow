@@ -1,5 +1,6 @@
-import { Schema, model, type HydratedDocument, type Model } from "mongoose";
-import { CATALOG_CURRENCY } from "@esencia-glow/shared";
+import { Schema, model, type HydratedDocument, type Model, type Types } from "mongoose";
+import { CATALOG_CURRENCY, MAX_PLAN_HIGHLIGHT_LENGTH, MAX_PLAN_HIGHLIGHTS } from "@esencia-glow/shared";
+import { mediaImageSchema, type MediaImageAttrs } from "./media-image.schema.js";
 
 /**
  * Plan de la caja recurrente curada (Milestone 1.7.1). Precio fijo por
@@ -38,6 +39,11 @@ interface SubscriptionPlanAttrs {
    * colección de avisos: solo importa el ciclo en curso, y reescribirlo al
    * pasar al siguiente mes es exactamente el comportamiento deseado. */
   missingEditionAlertedFor?: string;
+  /** Fotos y viñetas de "qué incluye" del catálogo público (Milestone 2.7c).
+   * No tocan Stripe ni el precio. Un plan anterior a 2.7c no trae ninguno de
+   * los dos campos: los lectores leen `?? []`. */
+  images: Types.DocumentArray<MediaImageAttrs>;
+  highlights: string[];
 }
 
 type SubscriptionPlanDocument = HydratedDocument<SubscriptionPlanAttrs>;
@@ -70,6 +76,15 @@ const subscriptionPlanSchema = new Schema<SubscriptionPlanAttrs, SubscriptionPla
     annualPriceCents: { type: Number, min: 0, validate: integerValidator },
     providerAnnualPriceId: { type: String, trim: true },
     missingEditionAlertedFor: { type: String, trim: true },
+    images: { type: [mediaImageSchema], default: [] },
+    highlights: {
+      type: [{ type: String, trim: true, maxlength: MAX_PLAN_HIGHLIGHT_LENGTH }],
+      default: [],
+      validate: {
+        validator: (items: string[]) => items.length <= MAX_PLAN_HIGHLIGHTS,
+        message: `{PATH} no puede tener más de ${MAX_PLAN_HIGHLIGHTS} entradas`,
+      },
+    },
   },
   { timestamps: true },
 );

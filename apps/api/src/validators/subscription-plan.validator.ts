@@ -1,4 +1,15 @@
 import Joi from "joi";
+import { MAX_PLAN_HIGHLIGHT_LENGTH, MAX_PLAN_HIGHLIGHTS } from "@esencia-glow/shared";
+
+/** Viñetas de "qué incluye" (Milestone 2.7c): se reemplazan completas en cada PATCH. */
+const highlightsSchema = Joi.array()
+  .items(Joi.string().trim().min(1).max(MAX_PLAN_HIGHLIGHT_LENGTH))
+  .max(MAX_PLAN_HIGHLIGHTS)
+  .messages({
+    "array.max": `Máximo ${MAX_PLAN_HIGHLIGHTS} viñetas`,
+    "string.max": `Cada viñeta admite hasta ${MAX_PLAN_HIGHLIGHT_LENGTH} caracteres`,
+    "string.empty": "Las viñetas no pueden ir vacías",
+  });
 
 /**
  * `slug`, `currency`, `billingInterval`, `seatsTaken` e `isActive` nunca
@@ -25,6 +36,7 @@ const createSubscriptionPlanSchema = Joi.object({
   }),
   maxActiveSeats: Joi.number().integer().min(0).required(),
   sortOrder: Joi.number().integer(),
+  highlights: highlightsSchema,
 });
 
 const updateSubscriptionPlanSchema = Joi.object({
@@ -33,6 +45,7 @@ const updateSubscriptionPlanSchema = Joi.object({
   shortDescription: Joi.string().trim().max(300).allow(""),
   maxActiveSeats: Joi.number().integer().min(0),
   sortOrder: Joi.number().integer(),
+  highlights: highlightsSchema,
 }).min(1);
 
 export { createSubscriptionPlanSchema, updateSubscriptionPlanSchema };
