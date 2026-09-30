@@ -20,6 +20,9 @@ interface VariantDraft {
   price: string;
   listPrice: string;
   weightGrams: string;
+  /** `false` = cabe en la medida estándar (`STANDARD_ITEM_CM`) y se manda
+   * `dimensionsCm: null`; largo/ancho/alto solo se capturan si es `true`. */
+  hasCustomDimensions: boolean;
   length: string;
   width: string;
   height: string;
@@ -39,6 +42,7 @@ function emptyVariantDraft(tempId: string): VariantDraft {
     price: "",
     listPrice: "",
     weightGrams: "",
+    hasCustomDimensions: false,
     length: "",
     width: "",
     height: "",
@@ -50,5 +54,14 @@ function emptyVariantDraft(tempId: string): VariantDraft {
   };
 }
 
+function draftToDimensionsCm(draft: VariantDraft) {
+  if (!draft.hasCustomDimensions) return null;
+  return {
+    length: Number(draft.length) || 0,
+    width: Number(draft.width) || 0,
+    height: Number(draft.height) || 0,
+  };
+}
+
 export type { VariantDraft };
-export { emptyVariantDraft };
+export { emptyVariantDraft, draftToDimensionsCm };

@@ -4,7 +4,10 @@ import { FloppyDisk, Trash } from "@phosphor-icons/react";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
+import { STANDARD_ITEM_CM } from "@esencia-glow/shared";
 import type { VariantDraft } from "./variant-fields";
+
+const STANDARD_SIZE_LABEL = `${STANDARD_ITEM_CM.length} × ${STANDARD_ITEM_CM.width} × ${STANDARD_ITEM_CM.height} cm`;
 
 interface VariantRowProps {
   /** 1-based — solo para el rótulo "Variante N", nunca viaja a la API. */
@@ -88,33 +91,6 @@ function VariantRow({
           error={errors?.weightGrams}
         />
         <Input
-          label="Largo (cm)"
-          type="number"
-          step="0.1"
-          placeholder="4.5"
-          value={draft.length}
-          onChange={(e) => onChange({ length: e.target.value })}
-          error={errors?.["dimensionsCm.length"]}
-        />
-        <Input
-          label="Ancho (cm)"
-          type="number"
-          step="0.1"
-          placeholder="4.5"
-          value={draft.width}
-          onChange={(e) => onChange({ width: e.target.value })}
-          error={errors?.["dimensionsCm.width"]}
-        />
-        <Input
-          label="Alto (cm)"
-          type="number"
-          step="0.1"
-          placeholder="12"
-          value={draft.height}
-          onChange={(e) => onChange({ height: e.target.value })}
-          error={errors?.["dimensionsCm.height"]}
-        />
-        <Input
           label="Tamaño (opcional)"
           placeholder="30 ml"
           value={draft.size}
@@ -143,6 +119,50 @@ function VariantRow({
           />
         ) : null}
       </div>
+      <div className="mt-3 flex items-start gap-3">
+        <Switch
+          checked={draft.hasCustomDimensions}
+          onChange={(checked) => onChange({ hasCustomDimensions: checked })}
+          label={`Variante ${draft.name || draft.sku} mide más de ${STANDARD_SIZE_LABEL}`}
+        />
+        <div className="text-body-sm">
+          <p className="text-foreground">Mide más de {STANDARD_SIZE_LABEL}</p>
+          <p className="text-muted-foreground">
+            Si cabe en esa medida, no hace falta capturar largo, ancho ni alto.
+          </p>
+        </div>
+      </div>
+      {draft.hasCustomDimensions ? (
+        <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <Input
+            label="Largo (cm)"
+            type="number"
+            step="0.1"
+            placeholder="25"
+            value={draft.length}
+            onChange={(e) => onChange({ length: e.target.value })}
+            error={errors?.["dimensionsCm.length"]}
+          />
+          <Input
+            label="Ancho (cm)"
+            type="number"
+            step="0.1"
+            placeholder="18"
+            value={draft.width}
+            onChange={(e) => onChange({ width: e.target.value })}
+            error={errors?.["dimensionsCm.width"]}
+          />
+          <Input
+            label="Alto (cm)"
+            type="number"
+            step="0.1"
+            placeholder="8"
+            value={draft.height}
+            onChange={(e) => onChange({ height: e.target.value })}
+            error={errors?.["dimensionsCm.height"]}
+          />
+        </div>
+      ) : null}
       <div className="mt-3 flex items-center justify-between border-t border-border pt-3">
         <Switch
           checked={draft.isActive}

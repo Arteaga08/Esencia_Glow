@@ -78,7 +78,7 @@ const variantSchema = Joi.object({
     "number.min": "El peso debe ser de al menos 1 gramo",
     "any.required": "El peso es obligatorio",
   }),
-  dimensionsCm: dimensionsSchema.required(),
+  dimensionsCm: dimensionsSchema.allow(null).default(null),
   isActive: Joi.boolean().messages({
     "boolean.base": "El estado activo debe ser verdadero o falso",
   }),
@@ -193,7 +193,7 @@ const updateVariantSchema = Joi.object({
     "number.integer": "El peso debe ser un entero en gramos",
     "number.min": "El peso debe ser de al menos 1 gramo",
   }),
-  dimensionsCm: dimensionsSchema,
+  dimensionsCm: dimensionsSchema.allow(null),
   isActive: Joi.boolean().messages({
     "boolean.base": "El estado activo debe ser verdadero o falso",
   }),

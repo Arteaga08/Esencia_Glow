@@ -40,7 +40,7 @@ interface ResolvedComponent {
 
 interface ResolvedParcelItem {
   weightGrams: number;
-  dimensionsCm: { length: number; width: number; height: number };
+  dimensionsCm: { length: number; width: number; height: number } | null;
   quantity: number;
 }
 

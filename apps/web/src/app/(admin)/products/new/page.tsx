@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ProductBaseFields, type ProductBaseFieldsValue } from "@/components/products/product-base-fields";
 import { VariantRow } from "@/components/products/variant-row";
-import { emptyVariantDraft, type VariantDraft } from "@/components/products/variant-fields";
+import { draftToDimensionsCm, emptyVariantDraft, type VariantDraft } from "@/components/products/variant-fields";
 import { ContentBlockEditor, type ContentItem } from "@/components/products/content-block-editor";
 import { PendingImagePicker } from "@/components/products/pending-image-picker";
 import { pesosInputToCents } from "@/lib/format-money";
@@ -132,11 +132,7 @@ export default function NewProductPage() {
               ? { listPrice: pesosInputToCents(draft.listPrice) }
               : {}),
             weightGrams: Number(draft.weightGrams) || 0,
-            dimensionsCm: {
-              length: Number(draft.length) || 0,
-              width: Number(draft.width) || 0,
-              height: Number(draft.height) || 0,
-            },
+            dimensionsCm: draftToDimensionsCm(draft),
             isActive: draft.isActive,
             ...(draft.initialStock.trim() !== "" ? { initialStock: Number(draft.initialStock) } : {}),
           })),
