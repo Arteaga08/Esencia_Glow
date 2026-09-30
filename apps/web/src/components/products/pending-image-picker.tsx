@@ -11,6 +11,8 @@ interface PendingImagePickerProps {
   files: File[];
   onChange: (files: File[]) => void;
   onRejected: (message: string) => void;
+  /** Cuándo se suben; el default habla de productos. */
+  uploadNote?: string;
 }
 
 /**
@@ -22,7 +24,12 @@ interface PendingImagePickerProps {
  * JPG/PNG/WEBP) para no dejar que el operador junte algo que el backend va
  * a rechazar de todas formas.
  */
-function PendingImagePicker({ files, onChange, onRejected }: PendingImagePickerProps) {
+function PendingImagePicker({
+  files,
+  onChange,
+  onRejected,
+  uploadNote = "se suben en cuanto creas el producto.",
+}: PendingImagePickerProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   // `useMemo`, no `useEffect` + `setState` (react-hooks/set-state-in-effect
@@ -104,7 +111,7 @@ function PendingImagePicker({ files, onChange, onRejected }: PendingImagePickerP
         <ImageIcon size={32} weight="regular" className="text-muted-foreground-strong" aria-hidden="true" />
         <p className="text-body text-foreground">Arrastra imágenes o haz clic para agregar</p>
         <p className="text-body-sm text-muted-foreground">
-          Hasta {MAX_FILES} fotos, JPG/PNG/WEBP, 5 MB cada una — se suben en cuanto creas el producto.
+          Hasta {MAX_FILES} fotos, JPG/PNG/WEBP, 5 MB cada una — {uploadNote}
         </p>
       </button>
       <input

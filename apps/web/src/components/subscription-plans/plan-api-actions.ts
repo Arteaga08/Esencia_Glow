@@ -28,4 +28,16 @@ const PLAN_API_ACTIONS: PlanEditorActions = {
   },
 };
 
-export { PLAN_API_ACTIONS };
+/** Sube las fotos elegidas en el alta, ya con el `id` del plan recién creado
+ * (la subruta de imágenes no existe antes). Campo `images`, igual que Productos. */
+async function uploadPlanImages(planId: string, files: File[]): Promise<void> {
+  const formData = new FormData();
+  for (const file of files) formData.append("images", file);
+  await apiRequest(`${PLANS_PATH}/${planId}/images`, {
+    method: "POST",
+    authenticated: true,
+    body: formData,
+  });
+}
+
+export { PLAN_API_ACTIONS, uploadPlanImages };

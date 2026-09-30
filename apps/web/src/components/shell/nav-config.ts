@@ -54,9 +54,9 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "Suscripciones",
     items: [
-      { label: "Cuentas", href: "/subscriptions/accounts", icon: UsersThree },
-      { label: "Ediciones", href: "/subscriptions/editions", icon: CalendarBlank },
       { label: "Planes", href: "/subscriptions/plans", icon: ListChecks },
+      { label: "Ediciones", href: "/subscriptions/editions", icon: CalendarBlank },
+      { label: "Cuentas", href: "/subscriptions/accounts", icon: UsersThree },
     ],
   },
   {

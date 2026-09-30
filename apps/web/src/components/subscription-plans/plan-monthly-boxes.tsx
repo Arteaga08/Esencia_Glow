@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { PencilSimple } from "@phosphor-icons/react";
 import { EditionStatus } from "@esencia-glow/shared";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -22,6 +23,19 @@ interface CycleSlot {
   cycleYear: number;
   cycleMonth: number;
   edition: AdminSubscriptionEdition | null;
+}
+
+/** Lápiz de fila: misma acción que el botón, pero visible sin adivinar. */
+function EditBoxLink({ edition }: { edition: AdminSubscriptionEdition }) {
+  return (
+    <Link
+      href={`/subscriptions/editions/${edition.id}`}
+      aria-label={`Editar ${edition.title}`}
+      className="cursor-pointer rounded-sm p-1.5 text-muted-foreground-strong hover:bg-muted hover:text-foreground"
+    >
+      <PencilSimple size={16} aria-hidden="true" />
+    </Link>
+  );
 }
 
 function productsLabel(count: number): string {
@@ -97,6 +111,7 @@ function PlanMonthlyBoxes({ plan }: PlanMonthlyBoxesProps) {
               </div>
               <div className="flex items-center gap-3">
                 {slot.edition ? <EditionStatusBadge status={slot.edition.status} /> : null}
+                {slot.edition ? <EditBoxLink edition={slot.edition} /> : null}
                 {slot.edition ? (
                   <Link href={`/subscriptions/editions/${slot.edition.id}`}>
                     <Button type="button" variant="secondary" size="sm">
@@ -132,6 +147,7 @@ function PlanMonthlyBoxes({ plan }: PlanMonthlyBoxesProps) {
               </div>
               <div className="flex items-center gap-3">
                 <EditionStatusBadge status={edition.status} />
+                <EditBoxLink edition={edition} />
                 <Link href={`/subscriptions/editions/${edition.id}`}>
                   <Button type="button" variant="ghost" size="sm">
                     Abrir

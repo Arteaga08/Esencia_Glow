@@ -28,6 +28,8 @@ interface CreateSubscriptionEditionInput {
   cycleMonth: number;
   title: string;
   description?: string;
+  /** Productos de la caja; nace en DRAFT, así que no hay carrera con publicar. */
+  items?: EditionItemInput[];
 }
 
 /** `planId`/`cycleYear`/`cycleMonth` nunca aparecen aquí: son inmutables
@@ -73,12 +75,20 @@ async function assertItemsReferential(items: EditionItemInput[]): Promise<void> 
 }
 
 async function createEdition(input: CreateSubscriptionEditionInput): Promise<SubscriptionEditionDocument> {
+  // Antes de guardar: un item inválido no deja una edición a medias.
+  if (input.items && input.items.length > 0) await assertItemsReferential(input.items);
+
   const edition = new SubscriptionEdition({
     planId: input.planId,
     cycleYear: input.cycleYear,
     cycleMonth: input.cycleMonth,
     title: input.title,
     description: input.description,
+    items: (input.items ?? []).map((item) => ({
+      productId: new Types.ObjectId(item.productId),
+      variantId: new Types.ObjectId(item.variantId),
+      quantity: item.quantity,
+    })),
   });
   try {
     await edition.save();

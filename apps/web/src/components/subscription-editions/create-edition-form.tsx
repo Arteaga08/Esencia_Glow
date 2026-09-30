@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { FieldError } from "@/components/ui/field-error";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { BundleItemEditor, type ItemEditorCopy } from "@/components/bundles/bundle-item-editor";
 import { ApiRequestError } from "@/lib/api";
 import { currentCycle, formatCycle, nextCycle, previousCycle } from "@/lib/format-cycle";
 import type {
@@ -13,17 +14,58 @@ import type {
   AdminSubscriptionEdition,
   AdminSubscriptionPlan,
 } from "@/lib/types/admin-subscription";
+import { humanize } from "./edition-error-text";
 
 const MONTH_OPTIONS = Array.from({ length: 12 }, (_, index) => {
   const label = new Date(2026, index, 1).toLocaleDateString("es-MX", { month: "long" });
   return { value: String(index + 1), label: label.charAt(0).toUpperCase() + label.slice(1) };
 });
 
+const EDITION_ITEM_COPY: ItemEditorCopy = {
+  title: "Productos de la caja",
+  empty: "La caja está vacía. Puedes crearla así y agregar productos después, pero necesita al menos uno para publicarse.",
+  addTitle: "Agregar producto",
+  duplicate: "Esa variante ya está en la caja; cambia la cantidad en vez de repetirla.",
+};
+
 interface CreateEditionBody {
   planId: string;
   cycleYear: number;
   cycleMonth: number;
   title: string;
+  items: AdminEditionItem[];
+}
+
+function sameItems(a: AdminEditionItem[], b: AdminEditionItem[]): boolean {
+  return (
+    a.length === b.length &&
+    a.every(
+      (item, index) =>
+        item.variantId === b[index]?.variantId &&
+        item.productId === b[index]?.productId &&
+        item.quantity === b[index]?.quantity,
+    )
+  );
+}
+
+/** Caja del mes anterior al ciclo dado (del plan dado), si existe y trae productos. */
+function findPreviousEdition(
+  editions: AdminSubscriptionEdition[] | undefined,
+  planId: string | null,
+  cycleYear: string,
+  cycleMonth: string,
+): AdminSubscriptionEdition | null {
+  if (!planId || !/^\d{4}$/.test(cycleYear)) return null;
+  const previous = previousCycle(Number(cycleYear), Number(cycleMonth));
+  return (
+    editions?.find(
+      (edition) =>
+        edition.planId === planId &&
+        edition.cycleYear === previous.cycleYear &&
+        edition.cycleMonth === previous.cycleMonth &&
+        edition.items.length > 0,
+    ) ?? null
+  );
 }
 
 interface CreateEditionFormProps {
@@ -34,42 +76,48 @@ interface CreateEditionFormProps {
   /** Ediciones ya existentes (de cualquier plan): de aquí sale la caja del
    * mes anterior que se ofrece copiar. Sin ellas no se ofrece la copia. */
   existingEditions?: AdminSubscriptionEdition[];
-  /** Guarda los productos en la edición recién creada (el `POST` no acepta
-   * `items`, así que copiar es un segundo paso). */
-  copyItems?: (editionId: string, items: AdminEditionItem[]) => Promise<AdminSubscriptionEdition>;
   onCreated: (edition: AdminSubscriptionEdition) => void;
   onCancel?: () => void;
 }
 
 /**
- * Alta de una edición: plan + ciclo + título. Los productos se agregan
- * después, ya en el editor (el `POST` no acepta `items`,
- * subscription-edition.validator.ts). Arranca en el ciclo SIGUIENTE: es el
- * que normalmente se está armando. El 409 de "ya existe una edición de este
- * plan para este ciclo" se muestra en línea, junto al botón.
+ * Alta de una edición en un solo guardado (2.7d): plan + ciclo + título +
+ * productos (el `POST` acepta `items`, subscription-edition.validator.ts).
+ * Publicar sigue siendo aparte, en la pantalla de la caja. Arranca en el
+ * ciclo SIGUIENTE: es el que normalmente se está armando. La casilla de
+ * copiar PRECARGA la lista con la caja del mes anterior: lo que se ve es lo
+ * que se guarda. El 409 de "ya existe una edición de este plan para este
+ * ciclo" se muestra en línea, junto al botón.
  */
 function CreateEditionForm({
   plans,
   initial,
   create,
   existingEditions,
-  copyItems,
   onCreated,
   onCancel,
 }: CreateEditionFormProps) {
   const fallback = nextCycle(currentCycle().cycleYear, currentCycle().cycleMonth);
-  const [planId, setPlanId] = useState<string | null>(
-    plans.some((plan) => plan.id === initial?.planId) ? (initial?.planId ?? null) : (plans[0]?.id ?? null),
-  );
-  const [cycleMonth, setCycleMonth] = useState(String(initial?.cycleMonth ?? fallback.cycleMonth));
-  const [cycleYear, setCycleYear] = useState(String(initial?.cycleYear ?? fallback.cycleYear));
+  const initialPlanId = plans.some((plan) => plan.id === initial?.planId)
+    ? (initial?.planId ?? null)
+    : (plans[0]?.id ?? null);
+  const initialMonth = String(initial?.cycleMonth ?? fallback.cycleMonth);
+  const initialYear = String(initial?.cycleYear ?? fallback.cycleYear);
+  const initialPrevious = findPreviousEdition(existingEditions, initialPlanId, initialYear, initialMonth);
+
+  const [planId, setPlanId] = useState<string | null>(initialPlanId);
+  const [cycleMonth, setCycleMonth] = useState(initialMonth);
+  const [cycleYear, setCycleYear] = useState(initialYear);
   const [title, setTitle] = useState("");
+  const [copyPrevious, setCopyPrevious] = useState(true);
+  const [items, setItems] = useState<AdminEditionItem[]>(initialPrevious?.items ?? []);
+  /** Lo último que se precargó solo: si la lista sigue igual, un cambio de
+   * plan/mes la vuelve a precargar; si ya se ajustó a mano, no se pisa. */
+  const [preloaded, setPreloaded] = useState<AdminEditionItem[]>(initialPrevious?.items ?? []);
+  const [names, setNames] = useState<Map<string, string>>(new Map());
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [conflict, setConflict] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [copyPrevious, setCopyPrevious] = useState(true);
-  /** Edición ya creada cuando falló el segundo paso (copiar productos). */
-  const [createdWithoutItems, setCreatedWithoutItems] = useState<AdminSubscriptionEdition | null>(null);
 
   // Mientras el año va a medio teclear ("20") se usa el de arranque, para
   // que el placeholder no diga "1920".
@@ -78,21 +126,32 @@ function CreateEditionForm({
     Number(cycleMonth),
   );
 
-  // Caja del mes anterior del plan elegido, si existe y trae productos: es
-  // lo que se ofrece copiar para no armar la caja desde cero cada mes.
+  const previousEdition = findPreviousEdition(existingEditions, planId, cycleYear, cycleMonth);
   const previous = /^\d{4}$/.test(cycleYear)
     ? previousCycle(Number(cycleYear), Number(cycleMonth))
     : null;
-  const previousEdition =
-    copyItems && previous && planId
-      ? (existingEditions?.find(
-          (edition) =>
-            edition.planId === planId &&
-            edition.cycleYear === previous.cycleYear &&
-            edition.cycleMonth === previous.cycleMonth &&
-            edition.items.length > 0,
-        ) ?? null)
-      : null;
+
+  function preload(next: AdminEditionItem[]) {
+    setItems(next);
+    setPreloaded(next);
+  }
+
+  /** Cambió plan, mes o año: con la casilla marcada y la lista sin tocar, se
+   * precarga la caja del nuevo mes anterior (o se vacía si no hay). */
+  function changeContext(next: { planId: string | null; cycleMonth: string; cycleYear: string }) {
+    setPlanId(next.planId);
+    setCycleMonth(next.cycleMonth);
+    setCycleYear(next.cycleYear);
+    if (copyPrevious && sameItems(items, preloaded)) {
+      const nextPrevious = findPreviousEdition(existingEditions, next.planId, next.cycleYear, next.cycleMonth);
+      preload(nextPrevious?.items ?? []);
+    }
+  }
+
+  function handleCopyToggle(checked: boolean) {
+    setCopyPrevious(checked);
+    preload(checked ? (previousEdition?.items ?? []) : []);
+  }
 
   if (plans.length === 0) {
     return (
@@ -118,26 +177,32 @@ function CreateEditionForm({
         cycleYear: Number(cycleYear),
         cycleMonth: Number(cycleMonth),
         title: title.trim() || `Edición ${cycleLabel}`,
+        items,
       });
-      if (previousEdition && copyPrevious && copyItems) {
-        try {
-          const withItems = await copyItems(edition.id, previousEdition.items);
-          onCreated(withItems);
-        } catch {
-          // La edición ya existe (borrador vacío): no se pierde nada, pero el
-          // aviso no puede quedar oculto por una navegación.
-          setCreatedWithoutItems(edition);
-          setConflict("La caja se creó, pero no pudimos copiar los productos del mes anterior.");
-        }
-        return;
-      }
       onCreated(edition);
     } catch (error) {
-      if (error instanceof ApiRequestError && error.fieldErrors) setFieldErrors(error.fieldErrors);
-      else
+      if (error instanceof ApiRequestError && error.fieldErrors) {
+        // `items.0.quantity` y similares no tienen campo propio: van al bloque
+        // de productos; cualquier otra clave desconocida, al mensaje general.
+        const { planId: planError, cycleYear: yearError, cycleMonth: monthError, title: titleError, ...rest } =
+          error.fieldErrors;
+        const itemsError = Object.entries(rest).find(([key]) => key.startsWith("items"));
+        const orphan = Object.entries(rest).find(([key]) => !key.startsWith("items"));
+        setFieldErrors({
+          ...(planError ? { planId: planError } : {}),
+          ...(yearError ? { cycleYear: yearError } : {}),
+          ...(monthError ? { cycleMonth: monthError } : {}),
+          ...(titleError ? { title: titleError } : {}),
+          ...(itemsError ? { items: humanize(itemsError[1], names) } : {}),
+        });
+        if (orphan) setConflict(humanize(orphan[1], names));
+      } else {
         setConflict(
-          error instanceof ApiRequestError ? error.message : "No se pudo crear la edición.",
+          error instanceof ApiRequestError
+            ? humanize(error.message, names)
+            : "No se pudo crear la edición.",
         );
+      }
     } finally {
       setSaving(false);
     }
@@ -149,7 +214,7 @@ function CreateEditionForm({
         <Select
           label="Plan"
           value={planId}
-          onChange={(value) => setPlanId(value || null)}
+          onChange={(value) => changeContext({ planId: value || null, cycleMonth, cycleYear })}
           options={plans.map((plan) => ({ value: plan.id, label: plan.name }))}
           placeholder="Elige un plan"
           error={fieldErrors.planId}
@@ -157,7 +222,7 @@ function CreateEditionForm({
         <Select
           label="Mes"
           value={cycleMonth}
-          onChange={(value) => setCycleMonth(value)}
+          onChange={(value) => changeContext({ planId, cycleMonth: value, cycleYear })}
           options={MONTH_OPTIONS}
           error={fieldErrors.cycleMonth}
         />
@@ -169,7 +234,7 @@ function CreateEditionForm({
           max={2100}
           placeholder="2026"
           value={cycleYear}
-          onChange={(e) => setCycleYear(e.target.value)}
+          onChange={(e) => changeContext({ planId, cycleMonth, cycleYear: e.target.value })}
           error={fieldErrors.cycleYear}
         />
       </div>
@@ -187,7 +252,7 @@ function CreateEditionForm({
           <input
             type="checkbox"
             checked={copyPrevious}
-            onChange={(e) => setCopyPrevious(e.target.checked)}
+            onChange={(e) => handleCopyToggle(e.target.checked)}
             className="mt-1 cursor-pointer"
           />
           <span>
@@ -195,22 +260,22 @@ function CreateEditionForm({
             {previousEdition.items.length === 1 ? "producto" : "productos"} de{" "}
             {formatCycle(previous.cycleYear, previous.cycleMonth)}
             <span className="block text-body-sm text-muted-foreground-strong">
-              Después los ajustas en la caja: cambia lo que sea distinto este mes.
+              Se cargan abajo: cambia lo que sea distinto este mes antes de crearla.
             </span>
           </span>
         </label>
       ) : null}
+      <BundleItemEditor
+        items={items}
+        onChange={setItems}
+        onNamesResolved={setNames}
+        channel="subscription"
+        copy={EDITION_ITEM_COPY}
+        error={fieldErrors.items}
+      />
       {conflict ? <FieldError message={conflict} /> : null}
-      {createdWithoutItems ? (
-        <Link
-          href={`/subscriptions/editions/${createdWithoutItems.id}`}
-          className="text-body text-foreground underline"
-        >
-          Abrir la caja y agregar los productos a mano
-        </Link>
-      ) : null}
       <div className="flex gap-3">
-        <Button type="submit" loading={saving} disabled={!planId || createdWithoutItems !== null}>
+        <Button type="submit" loading={saving} disabled={!planId}>
           Crear edición
         </Button>
         {onCancel ? (
