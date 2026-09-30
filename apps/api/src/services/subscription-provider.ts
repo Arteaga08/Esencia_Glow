@@ -74,6 +74,31 @@ interface StartProviderSubscriptionInput {
 }
 
 /**
+ * Rama replay del alta (Fase 4): con el mecanismo de factura manual (ver
+ * stripe-subscription-provider.ts), `sub.status` en Stripe queda `active`
+ * desde el día 1 sin importar si ya se pagó — ya NO sirve para decidir si el
+ * `clientSecret` sigue vigente. Este método relee la FACTURA de alta
+ * (`invoiceRef`, guardado en `SubscriptionAccount.latestInvoiceId`) y
+ * traduce SU estado como el `status` del DTO.
+ */
+interface GetSubscriptionStartInput {
+  subscriptionRef: string;
+  invoiceRef: string;
+}
+
+/**
+ * Barrendero de altas abandonadas (Fase 5, ver jobs/expire-incomplete-subscriptions.ts):
+ * cancela la Subscription y anula la factura de alta cuando la clienta nunca
+ * confirmó la tarjeta. Sin `idempotencyKey`: cancelar/anular algo ya
+ * cancelado/anulado es un no-op tolerado por el adapter, nunca un error que
+ * deba reintentarse con una key nueva.
+ */
+interface AbandonSubscriptionStartInput {
+  subscriptionRef: string;
+  invoiceRef: string;
+}
+
+/**
  * Snapshot YA traducido de una suscripción de Billing — lo que el endpoint
  * de alta necesita para el DTO de la clienta (`clientSecret`,
  * `firstChargeCents`, `currency`, `nextChargeAt`) y lo que el orquestador
@@ -96,6 +121,13 @@ interface ProviderSubscription {
   cancelAtPeriodEnd: boolean;
   /** Precio vigente del ítem — confirma que un cambio de plan ya aplicó. */
   priceRef?: string;
+  /** Ref de la factura de alta (mecanismo de factura manual, ver
+   * stripe-subscription-provider.ts) — SOLO poblado por `startSubscription`,
+   * para que `subscription-start.service.ts` lo persista en
+   * `SubscriptionAccount.latestInvoiceId` y lo reuse en la rama replay
+   * (`getSubscriptionStart`). Vocabulario agnóstico a propósito ("ref de
+   * cobro", no "invoice"), mismo criterio que `subscriptionRef`/`priceRef`. */
+  latestChargeRef?: string;
 }
 
 interface PauseCollectionInput {
@@ -243,6 +275,8 @@ interface SubscriptionProvider {
   ensureCustomer(input: EnsureCustomerInput): Promise<string>;
   startSubscription(input: StartProviderSubscriptionInput): Promise<ProviderSubscription>;
   getSubscription(subscriptionRef: string): Promise<ProviderSubscription>;
+  getSubscriptionStart(input: GetSubscriptionStartInput): Promise<ProviderSubscription>;
+  abandonSubscriptionStart(input: AbandonSubscriptionStartInput): Promise<void>;
   // --- autoservicio de la suscriptora (Milestone 1.7.3) ---
   pauseCollection(input: PauseCollectionInput): Promise<ProviderSubscription>;
   resumeCollection(input: PauseCollectionInput): Promise<ProviderSubscription>;
@@ -287,6 +321,8 @@ export type {
   SubscriptionWebhookEvent,
   EnsureCustomerInput,
   StartProviderSubscriptionInput,
+  GetSubscriptionStartInput,
+  AbandonSubscriptionStartInput,
   ProviderSubscription,
   PauseCollectionInput,
   SetCancelAtPeriodEndInput,
