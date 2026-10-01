@@ -1,21 +1,18 @@
 {
-  "name": "@esencia-glow/web",
+  "name": "@esencia-glow/store",
   "version": "0.1.0",
   "private": true,
-  "description": "Dashboard admin de Esencia Glow — Next.js + TypeScript",
+  "description": "Tienda pública de Esencia Glow — Next.js + TypeScript",
   "type": "module",
   "scripts": {
-    "dev": "next dev --port 3001",
+    "dev": "next dev --port 3000",
     "build": "next build",
-    "start": "next start --port 3001",
+    "start": "next start --port 3000",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint src",
-    "test": "echo \"@esencia-glow/web: sin tests todavía (Milestone 2.1)\" && exit 0"
+    "test": "echo \"@esencia-glow/store: sin tests todavía (Milestone 3.0)\" && exit 0"
   },
   "dependencies": {
-    "@dnd-kit/core": "^6.3.1",
-    "@dnd-kit/sortable": "^10.0.0",
-    "@dnd-kit/utilities": "^3.2.2",
     "@esencia-glow/design-tokens": "workspace:*",
     "@esencia-glow/shared": "workspace:*",
     "@phosphor-icons/react": "^2.1.10",

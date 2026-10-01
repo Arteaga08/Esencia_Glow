@@ -1,0 +1,20 @@
+@import "tailwindcss";
+@import "@esencia-glow/design-tokens/tokens.css";
+@import "@esencia-glow/design-tokens/base.css";
+
+/*
+ * Extensiones propias del storefront (registro `brand`). Vacío hasta que
+ * la imagen de referencia del navbar/hero defina los tokens que el panel
+ * no tiene (escala display, ritmo entre secciones, contenedor, movimiento).
+ */
+
+@theme {
+  /* Ancho máximo del contenido del storefront (header, secciones del home). */
+  --container-shell: 90rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}

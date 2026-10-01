@@ -43,7 +43,7 @@ ignora cualquier `.env`/`.env.*` real y re-permite explícitamente los `.example
 | `JWT_REFRESH_SECRET` | Fail-fast, siempre | ≥ 48 caracteres, **distinto** de `JWT_SECRET` |
 | `ENCRYPTION_KEY` | Fail-fast, siempre | ≥ 32 caracteres. Cifra secretos at-rest (2FA, Milestone 1.2) |
 | `MONGODB_URI` | Fail-fast, siempre | Atlas SRV (`mongodb+srv://…`). Debe incluir el **nombre de base explícito** en el path (`/esencia_glow_dev`), antes del `?` |
-| `CLIENT_URL` | Fail-fast en producción | Whitelist de CORS/CSRF. Default `localhost:3000` en dev |
+| `CLIENT_URL` | Fail-fast en producción | Whitelist de CORS/CSRF. Default `localhost:3000` (tienda) en dev; el panel se sirve bajo `/admin` del mismo origen |
 | `COOKIE_DOMAIN` | Opcional, siempre | Milestone 2.1: alcance de dominio de las cookies de sesión. Sin ella, host-only (alcanza en dev, front y API comparten `localhost`); en producción, con front en `www.<dominio>` y API en `api.<dominio>`, hace falta `.<dominio>` para que el guard de sesión server-side del dashboard reciba la cookie. No debilita `sameSite: "strict"` (mismo sitio registrable) |
 | `STRIPE_SECRET_KEY` | Fail-fast en producción | Requerida para el flujo de pagos (Milestone 1.6) |
 | `STRIPE_WEBHOOK_SECRET` | Fail-fast en producción | Verificación de firma del webhook de Stripe |
@@ -909,7 +909,7 @@ con los tokens del `DESIGN.md` traducidos a un bloque `@theme` en `src/app/globa
 
 ```bash
 cp apps/web/.env.example apps/web/.env.local   # NEXT_PUBLIC_API_URL=http://localhost:4000
-pnpm dev        # API (:4000) + dashboard (:3000) juntos, con `concurrently`
+pnpm dev        # API (:4000) + tienda (:3000) + dashboard (:3001, visible en `localhost:3000/admin`) juntos, con `concurrently`
 ```
 
 `pnpm dev:api` / `pnpm dev:web` siguen disponibles por separado (dos terminales) cuando conviene ver

@@ -13,9 +13,10 @@
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r lint",
     "test": "pnpm -r test",
-    "dev": "concurrently -n api,web -c blue,magenta \"pnpm:dev:api\" \"pnpm:dev:web\"",
+    "dev": "concurrently -n api,store,web -c blue,green,magenta \"pnpm:dev:api\" \"pnpm:dev:store\" \"pnpm:dev:web\"",
     "dev:api": "pnpm --filter @esencia-glow/api dev",
     "dev:web": "pnpm --filter @esencia-glow/web dev",
+    "dev:store": "pnpm --filter @esencia-glow/store dev",
     "verify": "pnpm typecheck && pnpm lint && pnpm build && pnpm test",
     "postinstall": "pnpm --filter @esencia-glow/shared build"
   },
