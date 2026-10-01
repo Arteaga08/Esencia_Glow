@@ -1,7 +1,7 @@
 # Esencia Glow
 
 E-commerce de skincare y lifestyle. Monorepo pnpm: `apps/api` (Express 5 + TypeScript) y
-`packages/shared` (contrato tipado). `apps/web` (Next.js) se agrega en el Milestone 2.
+`packages/shared` (contrato tipado). `apps/web` (Next.js: tienda en `/` y panel admin en `/admin`, una sola app) se agrega en el Milestone 2.
 
 ## Requisitos
 
@@ -809,8 +809,8 @@ ni la política de reinicio, así que escribirlo habría sido inventar API. Conf
 
 ### 3. Cloudflare — dominio y DNS
 
-- Dominio comprado en Cloudflare. `www.<dominio>` → Cloudflare Pages (front, Milestone 2/3 — no
-  existe todavía). `api.<dominio>` → CNAME al dominio de Railway, en modo **DNS-only (nube gris,
+- Dominio comprado en Cloudflare. `www.<dominio>` → el front (`apps/web`: tienda y panel `/admin`
+  en **un solo servicio**, no existe todavía; ver la nota de runtime abajo). `api.<dominio>` → CNAME al dominio de Railway, en modo **DNS-only (nube gris,
   no naranja)** — con el proxy de Cloudflare activado ahí se suma un salto extra delante de la API
   que `TRUST_PROXY_HOPS` no esperaría, y el rate limiting por IP se rompe.
 - **Por qué front y API van en el mismo dominio registrable:** la cookie de sesión es
@@ -902,15 +902,21 @@ Redis (rate limit distribuido + lock del cron, o un scheduler externo). Fuera de
 ## Dashboard admin (Milestone 2.1 — shell, guard de sesión, login)
 
 Primera sesión de código del Milestone 2 (el sistema de diseño de 2.0 vive en `PRODUCT.md` y
-`DESIGN.md`, en la raíz del repo). `apps/web` es Next.js 16 (App Router) + React 19 + Tailwind v4,
-con los tokens del `DESIGN.md` traducidos a un bloque `@theme` en `src/app/globals.css`.
+`DESIGN.md`, en la raíz del repo). `apps/web` es Next.js 16 (App Router) + React 19 + Tailwind v4 y
+es **una sola app**: la tienda vive en `/` (`src/app/(shop)`) y el panel en `/admin`
+(`src/app/admin`, rutas normales, sin `basePath` ni rewrite). Los tokens del `DESIGN.md` están en
+`src/styles/` (`tokens.css`, `base.css`, `storefront.css`) y los importa `src/app/globals.css`.
 
 ### Levantar el dashboard en dev
 
 ```bash
 cp apps/web/.env.example apps/web/.env.local   # NEXT_PUBLIC_API_URL=http://localhost:4000
-pnpm dev        # API (:4000) + tienda (:3000) + dashboard (:3001, visible en `localhost:3000/admin`) juntos, con `concurrently`
+pnpm dev        # API (:4000) + web (:3000: tienda en `/`, panel en `/admin`) juntos, con `concurrently`
 ```
+
+Nota de despliegue: el front es un solo servicio Next con SSR y `cookies()`, así que necesita un
+runtime de servidor (un host Node como Railway, u OpenNext sobre Workers de Cloudflare); Cloudflare
+Pages estático no alcanza. Está por decidirse al desplegar el front.
 
 `pnpm dev:api` / `pnpm dev:web` siguen disponibles por separado (dos terminales) cuando conviene ver
 los logs de cada uno sin el prefijo `[api]`/`[web]` de `concurrently`. Requiere un admin sembrado
@@ -918,7 +924,7 @@ los logs de cada uno sin el prefijo `[api]`/`[web]` de `concurrently`. Requiere 
 
 ### Guard de sesión y `COOKIE_DOMAIN`
 
-`app/(admin)/layout.tsx` valida la sesión **server-side** contra `GET /auth/me` con
+`app/admin/(panel)/layout.tsx` valida la sesión **server-side** contra `GET /auth/me` con
 `cache: "no-store"` (nunca solo la presencia de la cookie). Esto funciona en dev porque front y API
 comparten el host `localhost`, pero en producción — front en `www.<dominio>`, API en `api.<dominio>`
 — la cookie de sesión no cruza de un subdominio a otro sin `COOKIE_DOMAIN=.<dominio>` en la API
@@ -926,7 +932,7 @@ comparten el host `localhost`, pero en producción — front en `www.<dominio>`,
 mandaría a login sesiones válidas.
 
 Un usuario con sesión válida pero sin rol `admin` ve el estado "Sin permisos" (`NoAccess`) en vez de
-un redirect silencioso a `/login`, que crearía un ciclo entre las dos rutas.
+un redirect silencioso a `/admin/login`, que crearía un ciclo entre las dos rutas.
 
 ### Qué incluye esta sesión
 

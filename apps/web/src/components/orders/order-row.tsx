@@ -8,6 +8,7 @@ import { OrderStatusBadge } from "./order-status-badge";
 import { PaymentStateBadge } from "./payment-state-badge";
 import { PaymentMethodIcon } from "./payment-method-icon";
 import { summarizeOrderLines } from "./summarize-order-lines";
+import { ADMIN_ROUTES } from "@/lib/admin-routes";
 
 /** Dos renglones, estilo bandeja de entrada (DESIGN.md, densidad sin
  * ruido): folio + cliente + prioridad arriba, artículos + fecha + guía
@@ -20,7 +21,7 @@ function OrderRow({ order }: { order: AdminOrder }) {
   return (
     <li className="border-t border-border first:border-t-0">
       <Link
-        href={`/orders/${order.id}`}
+        href={ADMIN_ROUTES.order(order.id)}
         className="flex items-center justify-between gap-4 px-4 py-3 hover:bg-muted/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring"
       >
         <div className="flex min-w-0 flex-col gap-0.5">

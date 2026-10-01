@@ -6,6 +6,7 @@ import { formatMoneyMXN } from "@/lib/format-money";
 import { formatDateTime } from "@/lib/format-date";
 import { OrderStatusBadge } from "../order-status-badge";
 import { PaymentStateBadge } from "../payment-state-badge";
+import { ADMIN_ROUTES } from "@/lib/admin-routes";
 
 /** El `<h1>` de la página lo pone `TopBar` derivado de la ruta ("Pedidos") —
  * este encabezado es identidad del pedido, no el título de la sección. */
@@ -13,7 +14,7 @@ function OrderDetailHeader({ order }: { order: AdminOrder }) {
   return (
     <div className="flex flex-col gap-2">
       <Link
-        href="/orders"
+        href={ADMIN_ROUTES.orders}
         className="inline-flex w-fit items-center gap-1.5 text-body-sm text-muted-foreground-strong hover:text-foreground"
       >
         <ArrowLeft size={14} weight="regular" aria-hidden="true" />

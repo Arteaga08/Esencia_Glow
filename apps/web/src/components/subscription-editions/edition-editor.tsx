@@ -21,6 +21,7 @@ import type {
 } from "@/lib/types/admin-subscription";
 import { humanize } from "./edition-error-text";
 import { EditionStatusBadge } from "./edition-status-badge";
+import { ADMIN_ROUTES } from "@/lib/admin-routes";
 
 const EDITION_ITEM_COPY: ItemEditorCopy = {
   title: "Productos de la caja",
@@ -145,7 +146,7 @@ function EditionEditor({ edition, plan, actions, onChanged, onRemoved }: Edition
           <p className="text-body text-muted-foreground-strong">
             Caja de{" "}
             {plan ? (
-              <Link href={`/subscriptions/plans/${plan.id}`} className="text-foreground underline">
+              <Link href={ADMIN_ROUTES.plan(plan.id)} className="text-foreground underline">
                 {plan.name}
               </Link>
             ) : (

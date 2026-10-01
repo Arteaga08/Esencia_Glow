@@ -13,6 +13,7 @@ import type { AdminSubscriptionShipment } from "@/lib/types/admin-subscription";
 import { useSubscriptionAccount } from "./use-subscription-account";
 import { useAccountShipments } from "./use-account-shipments";
 import { useAccountActivity } from "./use-account-activity";
+import { ADMIN_ROUTES } from "@/lib/admin-routes";
 
 const FIELD_LABEL_CLASSNAME = "font-mono text-label uppercase tracking-[0.06em] text-muted-foreground-strong";
 
@@ -121,7 +122,7 @@ function AccountDetailPanel({ accountId }: { accountId: string }) {
       <Card className="p-0">
         <div className="flex items-center justify-between p-6 pb-0">
           <p className={FIELD_LABEL_CLASSNAME}>Cajas del ciclo</p>
-          <Link href="/shipments" className="text-body-sm text-primary-action hover:underline focus-visible:underline">
+          <Link href={ADMIN_ROUTES.shipments} className="text-body-sm text-primary-action hover:underline focus-visible:underline">
             Ver panel de envíos
           </Link>
         </div>

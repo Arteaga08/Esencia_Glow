@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { formatMoneyMXN } from "@/lib/format-money";
 import type { AdminBadge, AdminCategory, AdminProduct } from "@/lib/types/admin-catalog";
+import { ADMIN_ROUTES } from "@/lib/admin-routes";
 
 interface ProductCardProps {
   product: AdminProduct;
@@ -104,7 +105,7 @@ function ProductCard({
         </div>
         <div className="mt-3 flex items-center justify-between">
           <Link
-            href={`/products/${product.id}`}
+            href={ADMIN_ROUTES.product(product.id)}
             className="flex items-center gap-1.5 rounded-sm px-2 py-1 text-body-sm text-muted-foreground-strong hover:bg-muted hover:text-foreground"
           >
             <PencilSimple size={14} aria-hidden="true" />

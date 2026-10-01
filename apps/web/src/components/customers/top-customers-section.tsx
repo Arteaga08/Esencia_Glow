@@ -14,6 +14,7 @@ import { Tabs } from "@/components/ui/tabs";
 import { formatMoneyMXN } from "@/lib/format-money";
 import { formatShortDate } from "@/lib/format-date";
 import { useTopCustomers } from "./use-top-customers";
+import { ADMIN_ROUTES } from "@/lib/admin-routes";
 
 const PERIOD_TABS = [
   { id: TopCustomersPeriod.WEEK, label: "Semana" },
@@ -58,7 +59,7 @@ function TopCustomersSection() {
     {
       header: "Cliente",
       render: (row) => (
-        <Link href={`/customers/${row.id}`} className="hover:underline focus-visible:underline">
+        <Link href={ADMIN_ROUTES.customer(row.id)} className="hover:underline focus-visible:underline">
           <span className="block text-body text-foreground">
             {row.firstName} {row.lastName}
           </span>

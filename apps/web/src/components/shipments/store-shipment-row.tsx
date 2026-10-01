@@ -18,6 +18,7 @@ import { apiRequest } from "@/lib/api";
 import { formatShortDate } from "@/lib/format-date";
 import type { AdminShipmentRow } from "@/lib/types/admin-shipment";
 import { handleShipmentError } from "./handle-shipment-error";
+import { ADMIN_ROUTES } from "@/lib/admin-routes";
 
 const RETRYABLE_LABEL_STATUSES: ShippingLabelStatus[] = [ShippingLabelStatus.NEEDS_REVIEW, ShippingLabelStatus.FAILED];
 
@@ -81,7 +82,7 @@ function StoreShipmentRow({ shipment, onRetried }: StoreShipmentRowProps) {
   return (
     <li className="border-t border-border first:border-t-0">
       <div className="flex items-center justify-between gap-4 px-4 py-3">
-        <Link href={`/orders/${shipment.id}`} className="flex min-w-0 flex-col gap-0.5 hover:opacity-80">
+        <Link href={ADMIN_ROUTES.order(shipment.id)} className="flex min-w-0 flex-col gap-0.5 hover:opacity-80">
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-mono text-body-sm tabular-nums text-foreground">{shipment.orderNumber}</span>
             <span className="truncate text-body text-foreground">{customerName}</span>

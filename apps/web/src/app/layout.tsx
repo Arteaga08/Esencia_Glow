@@ -19,8 +19,8 @@ const ptMono = PT_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Esencia Glow — Panel",
-  description: "Panel administrativo de Esencia Glow.",
+  title: "Esencia Glow",
+  description: "Skincare y lifestyle con suscripción curada.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

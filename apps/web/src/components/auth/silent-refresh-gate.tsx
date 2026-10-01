@@ -4,10 +4,11 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { apiRequest } from "../../lib/api";
 import { Skeleton } from "../ui/skeleton";
+import { ADMIN_HOME_PATH } from "../../lib/admin-routes";
 
 /**
  * Intento de refresco silencioso (hallazgo de code review, Milestone 2.1):
- * el guard server-side ((admin)/layout.tsx vía lib/session.ts) solo revisa
+ * el guard server-side (admin/(panel)/layout.tsx vía lib/session.ts) solo revisa
  * `access_token` (dura 15 minutos, `ACCESS_TOKEN_TTL`); si expiró pero
  * `refresh_token` sigue vivo (30 días), el operador cae aquí en vez de
  * seguir en el panel. Sin este intento, tendría que volver a loguearse
@@ -55,7 +56,7 @@ function SilentRefreshGate({ children }: { children: ReactNode }) {
       apiRequest("/api/v1/auth/refresh", { method: "POST", authenticated: true })
         .then(() => {
           if (cancelledRef.current) return;
-          router.replace("/");
+          router.replace(ADMIN_HOME_PATH);
           router.refresh();
         })
         .catch(() => {

@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatMoneyMXN } from "@/lib/format-money";
 import type { AdminBadge, AdminBundle, AdminProduct } from "@/lib/types/admin-catalog";
 import { BundleStatusBadge } from "./bundle-status-badge";
+import { ADMIN_ROUTES } from "@/lib/admin-routes";
 
 interface BundleRowProps {
   bundle: AdminBundle;
@@ -97,7 +98,7 @@ function BundleRow({ bundle, badge, productsById, onTogglePublish, onArchive, to
         ) : null}
         <div className="flex items-center gap-1">
           <Link
-            href={`/bundles/${bundle.id}`}
+            href={ADMIN_ROUTES.bundle(bundle.id)}
             aria-label={`Editar ${bundle.name}`}
             className="rounded-sm p-1.5 text-muted-foreground-strong hover:bg-muted hover:text-foreground"
           >
