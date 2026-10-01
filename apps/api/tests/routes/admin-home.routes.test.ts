@@ -159,8 +159,8 @@ describe("routes/admin-home — hero (contenido de slides)", () => {
       version: 0,
       isActive: true,
       slides: [
-        { title: "Nueva colección", ctaLabel: "Ver", ctaHref: "/tienda", isActive: true },
-        { title: "Segundo", isActive: false },
+        { title: "Nueva colección", ctaHref: "/tienda", isActive: true },
+        { title: "Segundo", ctaHref: "/tienda", isActive: false },
       ],
     });
 
@@ -176,8 +176,8 @@ describe("routes/admin-home — hero (contenido de slides)", () => {
       version: 0,
       isActive: true,
       slides: [
-        { title: "A", isActive: true },
-        { title: "B", isActive: true },
+        { title: "A", ctaHref: "/tienda", isActive: true },
+        { title: "B", ctaHref: "/tienda", isActive: true },
       ],
     });
     const [a, b] = created.body.data.slides as { id: string }[];
@@ -186,8 +186,8 @@ describe("routes/admin-home — hero (contenido de slides)", () => {
       version: 1,
       isActive: true,
       slides: [
-        { id: b!.id, title: "B", isActive: true },
-        { id: a!.id, title: "A editado", isActive: true },
+        { id: b!.id, title: "B", ctaHref: "/tienda", isActive: true },
+        { id: a!.id, title: "A editado", ctaHref: "/tienda", isActive: true },
       ],
     });
     expect(reordered.status).toBe(200);
@@ -196,34 +196,45 @@ describe("routes/admin-home — hero (contenido de slides)", () => {
     const unknown = await agent.put(`${BASE}/hero`).send({
       version: 2,
       isActive: true,
-      slides: [{ id: new Types.ObjectId().toHexString(), title: "X", isActive: true }],
+      slides: [{ id: new Types.ObjectId().toHexString(), title: "X", ctaHref: "/tienda", isActive: true }],
     });
     expect(unknown.status).toBe(400);
   });
 
-  it("más de 5 slides o ids repetidos → 400", async () => {
+  it("más de 3 slides o ids repetidos → 400", async () => {
     const { agent } = await createAdminSession(app);
-    const six = Array.from({ length: 6 }, (_, i) => ({ title: `S${i}`, isActive: true }));
-    expect((await agent.put(`${BASE}/hero`).send({ version: 0, isActive: true, slides: six })).status).toBe(400);
+    const four = Array.from({ length: 4 }, (_, i) => ({ title: `S${i}`, ctaHref: "/tienda", isActive: true }));
+    expect((await agent.put(`${BASE}/hero`).send({ version: 0, isActive: true, slides: four })).status).toBe(400);
 
     const id = new Types.ObjectId().toHexString();
     const dup = await agent.put(`${BASE}/hero`).send({
       version: 0,
       isActive: true,
       slides: [
-        { id, title: "A", isActive: true },
-        { id, title: "B", isActive: true },
+        { id, title: "A", ctaHref: "/tienda", isActive: true },
+        { id, title: "B", ctaHref: "/tienda", isActive: true },
       ],
     });
     expect(dup.status).toBe(400);
   });
 
-  it("ctaLabel sin ctaHref (o al revés) → 400", async () => {
+  it("un slide sin ctaHref → 400 (todo el slide es el enlace)", async () => {
     const { agent } = await createAdminSession(app);
     const response = await agent
       .put(`${BASE}/hero`)
-      .send({ version: 0, isActive: true, slides: [{ title: "A", ctaLabel: "Ver", isActive: true }] });
+      .send({ version: 0, isActive: true, slides: [{ title: "A", isActive: true }] });
     expect(response.status).toBe(400);
+  });
+
+  it("ctaLabel ya no se guarda en el hero (se descarta)", async () => {
+    const { agent } = await createAdminSession(app);
+    const response = await agent.put(`${BASE}/hero`).send({
+      version: 0,
+      isActive: true,
+      slides: [{ title: "A", ctaLabel: "Ver", ctaHref: "/tienda", isActive: true }],
+    });
+    expect(response.status).toBe(200);
+    expect(response.body.data.slides[0].ctaLabel).toBeUndefined();
   });
 });
 

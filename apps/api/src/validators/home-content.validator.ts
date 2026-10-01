@@ -41,10 +41,10 @@ const heroSlideSchema = Joi.object({
   id: optionalItemId,
   title: Joi.string().trim().min(1).max(LIMITS.titleMax).required(),
   subtitle: Joi.string().trim().max(LIMITS.subtitleMax),
-  ctaLabel: Joi.string().trim().max(LIMITS.ctaLabelMax),
-  ctaHref: hrefField,
+  // Todo el slide es el enlace (sin botón): la URL es obligatoria y no hay texto de botón.
+  ctaHref: hrefField.required(),
   isActive: Joi.boolean().required(),
-}).and("ctaLabel", "ctaHref");
+});
 
 const updateHeroSchema = Joi.object({
   version: versionField,

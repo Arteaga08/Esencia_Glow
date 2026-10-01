@@ -40,6 +40,7 @@ const NAV_GROUPS: NavGroup[] = [
       { label: "Pedidos", href: "/orders", icon: Package },
       { label: "Envíos", href: "/shipments", icon: Truck },
       { label: "Inventario", href: "/inventory", icon: Stack },
+      { label: "Contenido del home", href: "/home-content", icon: House },
     ],
   },
   {
@@ -65,13 +66,13 @@ const NAV_GROUPS: NavGroup[] = [
   },
 ];
 
-/** Anclado al fondo del sidebar, separado por spacing.8 (DESIGN.md §5, Shell). */
+/**
+ * Anclado al fondo del sidebar, separado por spacing.8 (DESIGN.md §5, Shell).
+ * Solo configuración del sistema; el contenido editorial del home vive en Operación.
+ */
 const MANAGEMENT_GROUP: NavGroup = {
   label: "Gestión",
-  items: [
-    { label: "Contenido del home", href: "/home-content", icon: House },
-    { label: "Ajustes", href: "/settings", icon: GearSix },
-  ],
+  items: [{ label: "Ajustes", href: "/settings", icon: GearSix }],
 };
 
 export type { NavGroup, NavItem };

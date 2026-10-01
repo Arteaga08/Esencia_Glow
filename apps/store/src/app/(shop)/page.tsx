@@ -1,11 +1,10 @@
-// Marcador temporal: el hero (3.1.2) reemplaza este bloque. Sirve para ver
-// el header transparente sobre un fondo y el cambio al hacer scroll.
+import { HeroSection } from "../../components/home/hero/hero-section";
+
+// Los siguientes bloques del home (3.1.3 en adelante) se montan debajo del hero.
 export default function HomePage() {
   return (
     <main>
-      <section className="flex min-h-svh items-end bg-blush px-4 pb-16 md:px-8 lg:px-12">
-        <h1 className="text-display text-foreground">Esencia Glow</h1>
-      </section>
+      <HeroSection />
       <section className="min-h-svh px-4 py-16 md:px-8 lg:px-12" />
     </main>
   );
