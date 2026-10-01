@@ -90,17 +90,29 @@ describe("routes/subscription — POST /subscriptions", () => {
   });
 
   it("billingInterval: 'year' contrata el ciclo anual (Milestone 2.7b)", async () => {
-    await openEnrollmentSafely();
-    const plan = await seedPlanWithStripeRefs({ annualPriceCents: 599000 });
-    const { agent, userId } = await createCustomerSession(app);
+    // `resolveAnnualAnchor` rechaza (409) un alta anual en o antes del día-ancla
+    // del mes en curso. `pickSafeAnchorDay()` no puede evitarlo el día 1 (cae a
+    // 28), así que el reloj se fija en un día 20 con ancla 15, igual que
+    // `subscription-start.service.test.ts`. Solo `Date`: supertest y mongoose
+    // necesitan los timers reales.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-20T12:00:00.000Z"));
+    try {
+      await updateSubscriptionSettings({ billingAnchorDay: 15 });
+      await openEnrollment({});
+      const plan = await seedPlanWithStripeRefs({ annualPriceCents: 599000 });
+      const { agent, userId } = await createCustomerSession(app);
 
-    const res = await agent
-      .post("/api/v1/subscriptions")
-      .send({ planId: plan._id.toString(), billingInterval: "year", termsAccepted: true });
+      const res = await agent
+        .post("/api/v1/subscriptions")
+        .send({ planId: plan._id.toString(), billingInterval: "year", termsAccepted: true });
 
-    expect(res.status).toBe(201);
-    const account = await SubscriptionAccount.findOne({ userId });
-    expect(account?.billingInterval).toBe("year");
+      expect(res.status).toBe(201);
+      const account = await SubscriptionAccount.findOne({ userId });
+      expect(account?.billingInterval).toBe("year");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("billingInterval: 'year' sobre un plan sin precio anual responde 409", async () => {
