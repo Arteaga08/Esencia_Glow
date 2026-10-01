@@ -33,7 +33,7 @@ function MobileMenu({
       id={id}
       inert={!open}
       aria-hidden={!open}
-      className={`fixed inset-x-0 bottom-0 top-16 z-40 overflow-y-auto bg-surface px-4 pb-10 pt-4 transition-[opacity,visibility] duration-[var(--duration-slow)] ease-out-quart motion-reduce:transition-none xl:hidden ${open ? "visible opacity-100" : "invisible opacity-0"}`}
+      className={`fixed inset-x-0 bottom-0 top-16 z-40 overflow-y-auto bg-blush px-4 pb-10 pt-4 transition-[opacity,visibility] duration-[var(--duration-slow)] ease-out-quart motion-reduce:transition-none xl:hidden ${open ? "visible opacity-100" : "invisible opacity-0"}`}
     >
       <nav aria-label="Principal móvil">
         <ul className="flex flex-col divide-y divide-border">
