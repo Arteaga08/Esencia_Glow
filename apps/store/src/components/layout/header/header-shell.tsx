@@ -11,10 +11,11 @@ import { MobileMenu } from "./mobile-menu";
 import { useScrolled } from "./use-scrolled";
 
 /**
- * Estado y composición del header. Tres estados visuales:
- * - arriba de la página: transparente, tinta sobre el hero;
- * - con scroll: superficie sólida con borde de 1px (plano, sin sombra);
- * - con panel o menú móvil abierto: sólido siempre, sea cual sea el scroll.
+ * Estado y composición del header. Siempre es rosa esmerilado (`blush`
+ * translúcido + desenfoque de fondo), como el del hero. Tres estados:
+ * - arriba de la página: sin borde, se funde con el hero;
+ * - con scroll: borde de 1px (plano, sin sombra) sobre el contenido difuminado;
+ * - con panel o menú móvil abierto: casi opaco para que el texto se lea bien.
  */
 function HeaderShell({ categories }: { categories: PublicCategoryNode[] }) {
   const scrolled = useScrolled();
@@ -37,7 +38,7 @@ function HeaderShell({ categories }: { categories: PublicCategoryNode[] }) {
 
   const shownCategory = categories.find((category) => category.slug === shownSlug) ?? null;
   const panelOpen = activeSlug !== null;
-  const solid = scrolled || panelOpen || mobileOpen;
+  const menuOpen = panelOpen || mobileOpen;
 
   useEffect(() => {
     if (!panelOpen && !mobileOpen) return;
@@ -69,7 +70,7 @@ function HeaderShell({ categories }: { categories: PublicCategoryNode[] }) {
         onPointerLeave={(event) => {
           if (event.pointerType === "mouse") setActiveSlug(null);
         }}
-        className={`fixed inset-x-0 top-0 z-50 border-b transition-[background-color,border-color] duration-[var(--duration-base)] ease-out-quart motion-reduce:transition-none ${solid ? "border-border bg-surface" : "border-transparent bg-transparent"}`}
+        className={`fixed inset-x-0 top-0 z-50 border-b backdrop-blur-xl backdrop-saturate-150 transition-[background-color,border-color] duration-[var(--duration-base)] ease-out-quart motion-reduce:transition-none ${menuOpen ? "bg-blush/95" : "bg-blush/70"} ${scrolled || menuOpen ? "border-border" : "border-transparent"}`}
       >
         <div className="mx-auto flex h-16 max-w-shell items-center justify-between gap-6 px-4 md:px-8 xl:h-20 xl:px-12">
           <div className="flex items-center gap-6 2xl:gap-10">

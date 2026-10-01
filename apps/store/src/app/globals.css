@@ -11,6 +11,12 @@
 @theme {
   /* Ancho máximo del contenido del storefront (header, secciones del home). */
   --container-shell: 90rem;
+  /*
+   * Rosa del hero como color opaco (primary al 40 % sobre el fondo). Lo
+   * comparten el hero y el header: así la barra esmerilada se funde con el
+   * hero en lugar de verse como una franja aparte.
+   */
+  --color-blush: color-mix(in oklab, var(--color-primary) 40%, var(--color-background));
 }
 
 @media (prefers-reduced-motion: reduce) {
