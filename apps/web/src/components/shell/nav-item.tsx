@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { ADMIN_HOME_PATH } from "../../lib/admin-routes";
 import type { NavItem as NavItemConfig } from "./nav-config";
 import { useMobileNav } from "./mobile-nav-context";
 
@@ -12,7 +13,7 @@ import { useMobileNav } from "./mobile-nav-context";
 function NavItem({ label, href, icon: IconComponent, collapsed = false }: NavItemConfig & { collapsed?: boolean }) {
   const pathname = usePathname();
   const { closeNav } = useMobileNav();
-  const isActive = href === "/" ? pathname === "/" : pathname.startsWith(href);
+  const isActive = href === ADMIN_HOME_PATH ? pathname === ADMIN_HOME_PATH : pathname.startsWith(href);
 
   return (
     <Link

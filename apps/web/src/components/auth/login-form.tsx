@@ -8,6 +8,7 @@ import { Destello } from "../shell/destello";
 import { Button } from "../ui/button";
 import { FieldError } from "../ui/field-error";
 import { Input } from "../ui/input";
+import { ADMIN_HOME_PATH } from "../../lib/admin-routes";
 
 const NETWORK_ERROR = "No pudimos conectar con el servidor. Revisa tu conexión e intenta de nuevo.";
 const UNEXPECTED_ERROR = "Algo salió mal de nuestro lado. Intenta de nuevo en un momento.";
@@ -73,7 +74,7 @@ function LoginForm() {
       });
 
       if (result.data.next === "session") {
-        router.replace("/");
+        router.replace(ADMIN_HOME_PATH);
         router.refresh();
         return;
       }
@@ -112,7 +113,7 @@ function LoginForm() {
         authenticated: true,
         body: { code },
       });
-      router.replace("/");
+      router.replace(ADMIN_HOME_PATH);
       router.refresh();
     } catch (error) {
       setFormError(twoFactorErrorMessage(error));
@@ -131,7 +132,7 @@ function LoginForm() {
         authenticated: true,
         body: { code },
       });
-      router.replace("/");
+      router.replace(ADMIN_HOME_PATH);
       router.refresh();
     } catch (error) {
       setFormError(twoFactorErrorMessage(error));

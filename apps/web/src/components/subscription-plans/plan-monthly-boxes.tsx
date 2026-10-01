@@ -14,6 +14,7 @@ import {
 } from "@/components/subscription-editions/use-subscription-editions";
 import { currentCycle, formatCycle, nextCycle } from "@/lib/format-cycle";
 import type { AdminSubscriptionEdition, AdminSubscriptionPlan } from "@/lib/types/admin-subscription";
+import { ADMIN_ROUTES } from "@/lib/admin-routes";
 
 interface PlanMonthlyBoxesProps {
   plan: AdminSubscriptionPlan;
@@ -29,7 +30,7 @@ interface CycleSlot {
 function EditBoxLink({ edition }: { edition: AdminSubscriptionEdition }) {
   return (
     <Link
-      href={`/subscriptions/editions/${edition.id}`}
+      href={ADMIN_ROUTES.edition(edition.id)}
       aria-label={`Editar ${edition.title}`}
       className="cursor-pointer rounded-sm p-1.5 text-muted-foreground-strong hover:bg-muted hover:text-foreground"
     >
@@ -113,7 +114,7 @@ function PlanMonthlyBoxes({ plan }: PlanMonthlyBoxesProps) {
                 {slot.edition ? <EditionStatusBadge status={slot.edition.status} /> : null}
                 {slot.edition ? <EditBoxLink edition={slot.edition} /> : null}
                 {slot.edition ? (
-                  <Link href={`/subscriptions/editions/${slot.edition.id}`}>
+                  <Link href={ADMIN_ROUTES.edition(slot.edition.id)}>
                     <Button type="button" variant="secondary" size="sm">
                       {slot.edition.status === EditionStatus.PUBLISHED
                         ? "Ver caja"
@@ -122,7 +123,7 @@ function PlanMonthlyBoxes({ plan }: PlanMonthlyBoxesProps) {
                   </Link>
                 ) : plan.isActive ? (
                   <Link
-                    href={`/subscriptions/editions/new?planId=${plan.id}&cycleYear=${slot.cycleYear}&cycleMonth=${slot.cycleMonth}`}
+                    href={`${ADMIN_ROUTES.editionNew}?planId=${plan.id}&cycleYear=${slot.cycleYear}&cycleMonth=${slot.cycleMonth}`}
                   >
                     <Button type="button" size="sm">
                       Armar caja de {formatCycle(slot.cycleYear, slot.cycleMonth)}
@@ -148,7 +149,7 @@ function PlanMonthlyBoxes({ plan }: PlanMonthlyBoxesProps) {
               <div className="flex items-center gap-3">
                 <EditionStatusBadge status={edition.status} />
                 <EditBoxLink edition={edition} />
-                <Link href={`/subscriptions/editions/${edition.id}`}>
+                <Link href={ADMIN_ROUTES.edition(edition.id)}>
                   <Button type="button" variant="ghost" size="sm">
                     Abrir
                   </Button>

@@ -15,6 +15,7 @@ import {
   UsersThree,
   type Icon,
 } from "@phosphor-icons/react";
+import { ADMIN_ROUTES } from "@/lib/admin-routes";
 
 interface NavItem {
   label: string;
@@ -36,33 +37,33 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "Operación",
     items: [
-      { label: "Resumen", href: "/", icon: SquaresFour },
-      { label: "Pedidos", href: "/orders", icon: Package },
-      { label: "Envíos", href: "/shipments", icon: Truck },
-      { label: "Inventario", href: "/inventory", icon: Stack },
-      { label: "Contenido del home", href: "/home-content", icon: House },
+      { label: "Resumen", href: ADMIN_ROUTES.home, icon: SquaresFour },
+      { label: "Pedidos", href: ADMIN_ROUTES.orders, icon: Package },
+      { label: "Envíos", href: ADMIN_ROUTES.shipments, icon: Truck },
+      { label: "Inventario", href: ADMIN_ROUTES.inventory, icon: Stack },
+      { label: "Contenido del home", href: ADMIN_ROUTES.homeContent, icon: House },
     ],
   },
   {
     label: "Catálogo",
     items: [
-      { label: "Productos", href: "/products", icon: Tag },
-      { label: "Categorías", href: "/categories", icon: FolderSimple },
-      { label: "Paquetes", href: "/bundles", icon: Gift },
-      { label: "Badges", href: "/badges", icon: SealCheck },
+      { label: "Productos", href: ADMIN_ROUTES.products, icon: Tag },
+      { label: "Categorías", href: ADMIN_ROUTES.categories, icon: FolderSimple },
+      { label: "Paquetes", href: ADMIN_ROUTES.bundles, icon: Gift },
+      { label: "Badges", href: ADMIN_ROUTES.badges, icon: SealCheck },
     ],
   },
   {
     label: "Suscripciones",
     items: [
-      { label: "Planes", href: "/subscriptions/plans", icon: ListChecks },
-      { label: "Ediciones", href: "/subscriptions/editions", icon: CalendarBlank },
-      { label: "Cuentas", href: "/subscriptions/accounts", icon: UsersThree },
+      { label: "Planes", href: ADMIN_ROUTES.plans, icon: ListChecks },
+      { label: "Ediciones", href: ADMIN_ROUTES.editions, icon: CalendarBlank },
+      { label: "Cuentas", href: ADMIN_ROUTES.accounts, icon: UsersThree },
     ],
   },
   {
     label: "Personas",
-    items: [{ label: "Clientes", href: "/customers", icon: Users }],
+    items: [{ label: "Clientes", href: ADMIN_ROUTES.customers, icon: Users }],
   },
 ];
 
@@ -72,7 +73,7 @@ const NAV_GROUPS: NavGroup[] = [
  */
 const MANAGEMENT_GROUP: NavGroup = {
   label: "Gestión",
-  items: [{ label: "Ajustes", href: "/settings", icon: GearSix }],
+  items: [{ label: "Ajustes", href: ADMIN_ROUTES.settings, icon: GearSix }],
 };
 
 export type { NavGroup, NavItem };

@@ -4,6 +4,7 @@ import { LockSimple } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
 import { apiRequest } from "../../lib/api";
 import { Button } from "../ui/button";
+import { ADMIN_LOGIN_PATH } from "../../lib/admin-routes";
 
 /**
  * DESIGN.md §5 Page States, Sin permisos: hoy no aplica (un solo operador),
@@ -20,7 +21,7 @@ function NoAccess() {
       // El logout local (cookies) igual limpia la sesión del navegador al
       // recargar el login; no bloquear al operador si la API no responde.
     });
-    router.replace("/login");
+    router.replace(ADMIN_LOGIN_PATH);
     router.refresh();
   }
 

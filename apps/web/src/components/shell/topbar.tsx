@@ -3,6 +3,7 @@
 import type { PublicUser } from "@esencia-glow/shared";
 import { Bell, List, MagnifyingGlass } from "@phosphor-icons/react";
 import { usePathname } from "next/navigation";
+import { ADMIN_HOME_PATH } from "../../lib/admin-routes";
 import { AccountMenu } from "./account-menu";
 import { useMobileNav } from "./mobile-nav-context";
 import { MANAGEMENT_GROUP, NAV_GROUPS } from "./nav-config";
@@ -17,7 +18,7 @@ const ALL_ITEMS = [...NAV_GROUPS.flatMap((group) => group.items), ...MANAGEMENT_
 function pageTitleFor(pathname: string): string {
   const exact = ALL_ITEMS.find((item) => item.href === pathname);
   if (exact) return exact.label;
-  const closest = ALL_ITEMS.find((item) => item.href !== "/" && pathname.startsWith(item.href));
+  const closest = ALL_ITEMS.find((item) => item.href !== ADMIN_HOME_PATH && pathname.startsWith(item.href));
   return closest?.label ?? "Panel";
 }
 

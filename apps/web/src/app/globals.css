@@ -1,3 +1,4 @@
 @import "tailwindcss";
-@import "@esencia-glow/design-tokens/tokens.css";
-@import "@esencia-glow/design-tokens/base.css";
+@import "../styles/tokens.css";
+@import "../styles/base.css";
+@import "../styles/storefront.css";

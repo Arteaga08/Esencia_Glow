@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { apiRequest } from "../../lib/api";
 import { useToast } from "../ui/toast";
+import { ADMIN_LOGIN_PATH } from "../../lib/admin-routes";
 
 function AccountMenu({ user }: { user: PublicUser }) {
   const [open, setOpen] = useState(false);
@@ -34,7 +35,7 @@ function AccountMenu({ user }: { user: PublicUser }) {
     setLoggingOut(true);
     try {
       await apiRequest("/api/v1/auth/logout", { method: "POST", authenticated: true });
-      router.replace("/login");
+      router.replace(ADMIN_LOGIN_PATH);
       router.refresh();
     } catch {
       toast({

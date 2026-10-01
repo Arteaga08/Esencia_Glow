@@ -15,6 +15,7 @@ import type {
   AdminSubscriptionPlan,
 } from "@/lib/types/admin-subscription";
 import { humanize } from "./edition-error-text";
+import { ADMIN_ROUTES } from "@/lib/admin-routes";
 
 const MONTH_OPTIONS = Array.from({ length: 12 }, (_, index) => {
   const label = new Date(2026, index, 1).toLocaleDateString("es-MX", { month: "long" });
@@ -157,7 +158,7 @@ function CreateEditionForm({
     return (
       <p className="text-body-sm text-muted-foreground-strong">
         No hay planes activos. Crea uno en{" "}
-        <Link href="/subscriptions/plans" className="text-foreground underline">
+        <Link href={ADMIN_ROUTES.plans} className="text-foreground underline">
           Planes
         </Link>{" "}
         para poder armar sus ediciones.
