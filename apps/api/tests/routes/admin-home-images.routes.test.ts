@@ -24,7 +24,7 @@ async function createHeroWithSlide(agent: Agent) {
   const created = await agent.put(`${BASE}/hero`).send({
     version: 0,
     isActive: true,
-    slides: [{ title: "Colección", isActive: true }],
+    slides: [{ title: "Colección", ctaHref: "/tienda", isActive: true }],
   });
   return { slideId: created.body.data.slides[0].id as string, version: created.body.data.version as number };
 }
@@ -209,7 +209,7 @@ describe("routes/admin-home — imágenes", () => {
     const edited = await agent.put(`${BASE}/hero`).send({
       version: version + 1,
       isActive: true,
-      slides: [{ id: slideId, title: "Título nuevo", isActive: true }],
+      slides: [{ id: slideId, title: "Título nuevo", ctaHref: "/tienda", isActive: true }],
     });
 
     expect(edited.status).toBe(200);

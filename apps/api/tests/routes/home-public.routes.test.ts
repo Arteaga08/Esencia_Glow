@@ -120,9 +120,9 @@ describe("routes/home-public — GET /api/v1/home", () => {
       version: 0,
       isActive: true,
       slides: [
-        { title: "Con imagen", isActive: true },
-        { title: "Sin imagen", isActive: true },
-        { title: "Inactivo", isActive: false },
+        { title: "Con imagen", ctaHref: "/tienda", isActive: true },
+        { title: "Sin imagen", ctaHref: "/tienda", isActive: true },
+        { title: "Inactivo", ctaHref: "/tienda", isActive: false },
       ],
     });
     const [withImage, , inactive] = created.body.data.slides as { id: string }[];
@@ -160,7 +160,7 @@ describe("routes/home-public — GET /api/v1/home", () => {
     const { agent } = await createAdminSession(app);
     await agent
       .put(`${ADMIN}/hero`)
-      .send({ version: 0, isActive: true, slides: [{ title: "Sin imagen", isActive: true }] });
+      .send({ version: 0, isActive: true, slides: [{ title: "Sin imagen", ctaHref: "/tienda", isActive: true }] });
 
     expect((await request(app).get("/api/v1/home")).body.data.hero).toBeUndefined();
   });

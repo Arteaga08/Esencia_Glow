@@ -5,7 +5,7 @@
  * cuántos pinta.
  */
 const HOME_CONTENT_LIMITS = {
-  maxHeroSlides: 5,
+  maxHeroSlides: 3,
   maxFeaturedProducts: 12,
   maxFeaturedCategories: 8,
   maxTestimonials: 12,

@@ -13,6 +13,10 @@ function readAdminOrigin(): string {
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  // Las fotos del home (hero, etc.) las sube el panel a Cloudinary.
+  images: {
+    remotePatterns: [{ protocol: "https", hostname: "res.cloudinary.com" }],
+  },
   // /admin y todo lo de abajo lo atiende el panel, así la tienda y el panel
   // comparten origen (misma URL, mismas cookies) sin ser una sola app.
   async rewrites() {
