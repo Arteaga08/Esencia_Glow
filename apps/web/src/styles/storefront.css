@@ -1,7 +1,7 @@
 /*
  * Extensiones propias del storefront (registro `brand`): lo que el panel no
- * define. Hoy: contenedor del contenido, rosa `blush` del hero/header y el
- * tiempo del autoplay del hero. Se amplía con cada bloque del home.
+ * define. Hoy: contenedor del contenido y rosa `blush` del hero/header. Se
+ * amplía con cada bloque del home.
  */
 
 @theme {
@@ -9,23 +9,8 @@
   --container-shell: 90rem;
   /*
    * Rosa del hero como color opaco (primary al 40 % sobre el fondo). Lo
-   * comparten el hero y el header: así la barra esmerilada se funde con el
-   * hero en lugar de verse como una franja aparte.
+   * comparten el hero (fondo mientras carga la foto) y el header al hacer
+   * scroll.
    */
   --color-blush: color-mix(in oklab, var(--color-primary) 40%, var(--color-background));
-  /*
-   * Autoplay del hero: 6 s por slide. El llenado de la barra de paginación
-   * dura lo mismo que el slide; cuando termina (animationend) el carrusel
-   * avanza, así que este es el único lugar donde vive el tiempo.
-   */
-  --animate-hero-progress: hero-progress 6s linear forwards;
-}
-
-@keyframes hero-progress {
-  from {
-    transform: scaleX(0);
-  }
-  to {
-    transform: scaleX(1);
-  }
 }

@@ -4,6 +4,8 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { HeroProgress } from "./hero-progress";
 
 const SWIPE_THRESHOLD_PX = 50;
+/** Tiempo de cada slide en el autoplay. */
+const AUTOPLAY_MS = 6000;
 
 interface HeroCarouselSlide {
   id: string;
@@ -16,8 +18,9 @@ interface HeroCarouselSlide {
  * (`HeroSection`); aquí solo vive el estado: slide activo, pausa (hover,
  * foco, pestaña oculta), swipe y flechas del teclado. Todos los slides están
  * apilados y solo cambia la opacidad; los inactivos van `inert` para que ni
- * el teclado ni el lector de pantalla caigan en ellos. El autoplay lo manda
- * la animación de la barra (ver `HeroProgress`).
+ * el teclado ni el lector de pantalla caigan en ellos. El autoplay es un
+ * temporizador que se reinicia con cada cambio de slide (también al elegir uno
+ * a mano) y se detiene en pausa; con `prefers-reduced-motion` no hay autoplay.
  */
 function HeroCarousel({ slides }: { slides: HeroCarouselSlide[] }) {
   const [index, setIndex] = useState(0);
@@ -37,6 +40,13 @@ function HeroCarousel({ slides }: { slides: HeroCarouselSlide[] }) {
     document.addEventListener("visibilitychange", sync);
     return () => document.removeEventListener("visibilitychange", sync);
   }, []);
+
+  useEffect(() => {
+    if (count < 2 || paused) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const timeout = setTimeout(() => setIndex((current) => (current + 1) % count), AUTOPLAY_MS);
+    return () => clearTimeout(timeout);
+  }, [index, paused, count]);
 
   return (
     <section
@@ -89,10 +99,8 @@ function HeroCarousel({ slides }: { slides: HeroCarouselSlide[] }) {
         <HeroProgress
           count={count}
           index={index}
-          paused={paused}
           labels={slides.map((slide) => slide.title)}
           onSelect={go}
-          onFinish={() => go(index + 1)}
         />
       ) : null}
     </section>

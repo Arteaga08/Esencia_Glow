@@ -110,8 +110,8 @@ function ShelfCarousel({ items }: { items: ShelfItem[] }) {
         </button>
       </div>
 
-      <div aria-hidden="true" className="relative mx-auto mt-10 h-0.5 w-full max-w-xs bg-border">
-        <span ref={thumb} className="absolute inset-y-0 left-0 bg-foreground will-change-transform" />
+      <div aria-hidden="true" className="relative mt-10 h-0.5 w-full bg-primary/30">
+        <span ref={thumb} className="absolute inset-y-0 left-0 bg-primary will-change-transform" />
       </div>
     </div>
   );
