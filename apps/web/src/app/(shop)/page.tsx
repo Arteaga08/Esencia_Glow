@@ -1,11 +1,12 @@
 import { HeroSection } from "../../components/storefront/home/hero/hero-section";
+import { ShelfBlock } from "../../components/storefront/home/shelf/shelf-block";
 
-// Los siguientes bloques del home (3.1.3 en adelante) se montan debajo del hero.
+// Los siguientes bloques del home (3.1.4 en adelante) se montan debajo del estante.
 export default function HomePage() {
   return (
     <main>
       <HeroSection />
-      <section className="min-h-svh px-4 py-16 md:px-8 lg:px-12" />
+      <ShelfBlock />
     </main>
   );
 }

@@ -43,8 +43,11 @@ interface AdminProduct {
   slug: string;
   description: string;
   shortDescription?: string;
+  brand?: string;
   categoryId: string;
   badgeId: string | null;
+  isBestseller: boolean;
+  isNewArrival: boolean;
   status: AdminProductStatus;
   channel: AdminProductChannel;
   images: AdminProductImage[];

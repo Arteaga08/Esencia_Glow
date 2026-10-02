@@ -23,6 +23,9 @@ interface ProductFilterInput {
   availableIn?: "store" | "subscription";
   minPrice?: number;
   maxPrice?: number;
+  /** Marcas de merchandising: `true` filtra, ausente no restringe. */
+  isBestseller?: boolean;
+  isNewArrival?: boolean;
 }
 
 /**
@@ -64,6 +67,9 @@ function buildProductFilter(input: ProductFilterInput): FilterQuery<ProductAttrs
   if (input.categoryIds && input.categoryIds.length > 0) {
     filter.categoryId = { $in: input.categoryIds };
   }
+
+  if (input.isBestseller) filter.isBestseller = true;
+  if (input.isNewArrival) filter.isNewArrival = true;
 
   if (input.search) {
     const pattern = new RegExp(escapeRegex(input.search), "i");

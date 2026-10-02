@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { FieldError } from "@/components/ui/field-error";
 import { HeroImageSlot } from "./hero-image-slot";
+import { HeroSlideLinkField } from "./hero-slide-link-field";
 import {
   hasDesktopImage,
   type HeroImageSlot as Slot,
@@ -19,7 +20,7 @@ interface HeroSlideFieldsProps {
   onRemove: () => void;
 }
 
-/** Campos de un slide: textos, URL, estado y las dos fotos. */
+/** Campos de un slide: textos, producto al que lleva, estado y las dos fotos. */
 function HeroSlideFields({ slide, position, errors, onChange, onRemove }: HeroSlideFieldsProps) {
   function setImage(slot: Slot, draft: HeroSlideDraft["images"][Slot]) {
     onChange({ images: { ...slide.images, [slot]: draft } });
@@ -68,30 +69,23 @@ function HeroSlideFields({ slide, position, errors, onChange, onRemove }: HeroSl
             onChange={(event) => onChange({ subtitle: event.target.value })}
             error={errors.subtitle}
           />
-          <Input
-            label="Enlace del slide"
-            placeholder="/categoria/protector-solar"
-            value={slide.ctaHref}
-            onChange={(event) => onChange({ ctaHref: event.target.value })}
+          <HeroSlideLinkField
+            href={slide.ctaHref}
             error={errors.ctaHref}
-            helper={
-              errors.ctaHref
-                ? undefined
-                : "Toda la imagen lleva aquí. Ruta interna (/ofertas) o https://…"
-            }
+            onChange={(ctaHref) => onChange({ ctaHref })}
           />
         </div>
         <div className="grid grid-cols-[3fr_2fr] items-start gap-4">
           <HeroImageSlot
             label="Escritorio"
-            hint="Horizontal, 1920×1080."
+            dimensions="1920 × 1080 px · horizontal"
             aspectClassName="aspect-video"
             draft={slide.images.desktop}
             onChange={(draft) => setImage("desktop", draft)}
           />
           <HeroImageSlot
             label="Móvil"
-            hint="Vertical, 1080×1920."
+            dimensions="1080 × 1920 px · vertical"
             aspectClassName="aspect-[9/16]"
             draft={slide.images.mobile}
             onChange={(draft) => setImage("mobile", draft)}

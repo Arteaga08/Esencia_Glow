@@ -11,11 +11,12 @@ import { MobileMenu } from "./mobile-menu";
 import { useScrolled } from "./use-scrolled";
 
 /**
- * Estado y composición del header. Siempre es rosa esmerilado (`blush`
- * translúcido + desenfoque de fondo), como el del hero. Tres estados:
- * - arriba de la página: sin borde, se funde con el hero;
- * - con scroll: borde de 1px (plano, sin sombra) sobre el contenido difuminado;
- * - con panel o menú móvil abierto: casi opaco para que el texto se lea bien.
+ * Estado y composición del header (como Etude). Tres estados:
+ * - arriba de la página: transparente, sin borde ni desenfoque, sobre el hero;
+ * - con scroll: rosa `blush` sólido con borde de 1px (plano, sin sombra),
+ *   con un fundido lento (500 ms) para que el cambio no se sienta brusco;
+ * - con panel o menú móvil abierto: rosa `blush` aunque no haya scroll, para
+ *   que el texto del menú se lea sobre cualquier foto.
  */
 function HeaderShell({ categories }: { categories: PublicCategoryNode[] }) {
   const scrolled = useScrolled();
@@ -70,7 +71,7 @@ function HeaderShell({ categories }: { categories: PublicCategoryNode[] }) {
         onPointerLeave={(event) => {
           if (event.pointerType === "mouse") setActiveSlug(null);
         }}
-        className={`fixed inset-x-0 top-0 z-50 border-b backdrop-blur-xl backdrop-saturate-150 transition-[background-color,border-color] duration-[var(--duration-base)] ease-out-quart motion-reduce:transition-none ${menuOpen ? "bg-blush/95" : "bg-blush/70"} ${scrolled || menuOpen ? "border-border" : "border-transparent"}`}
+        className={`fixed inset-x-0 top-0 z-50 border-b transition-[background-color,border-color] duration-500 ease-out motion-reduce:transition-none ${scrolled || menuOpen ? "border-border bg-blush" : "border-transparent bg-transparent"}`}
       >
         <div className="mx-auto flex h-16 max-w-shell items-center justify-between gap-6 px-4 md:px-8 xl:h-20 xl:px-12">
           <div className="flex items-center gap-6 2xl:gap-10">

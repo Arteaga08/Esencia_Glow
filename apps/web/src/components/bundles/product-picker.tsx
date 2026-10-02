@@ -16,6 +16,11 @@ interface ProductPickerProps {
   /** Canal del catálogo que se ofrece: `"store"` para componentes de un
    * paquete, `"subscription"` para los ítems de una edición (2.7b-2). */
   channel: AdminProductAvailability;
+  /** Texto de la etiqueta flotante. */
+  label?: string;
+  /** Solo productos publicados: el hero no puede llevar a un borrador que
+   * la tienda no muestra. */
+  onlyActive?: boolean;
 }
 
 /**
@@ -33,7 +38,14 @@ interface ProductPickerProps {
  * incluye los de canal `both` en las dos listas — mejor no ofrecer el canal
  * equivocado que dejar que el backend lo rechace con un 400.
  */
-function ProductPicker({ value, selectedProduct, onChange, channel }: ProductPickerProps) {
+function ProductPicker({
+  value,
+  selectedProduct,
+  onChange,
+  channel,
+  label = "Producto",
+  onlyActive = false,
+}: ProductPickerProps) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [results, setResults] = useState<AdminProduct[] | null>(null);
@@ -52,7 +64,12 @@ function ProductPicker({ value, selectedProduct, onChange, channel }: ProductPic
       setLoading(true);
       apiRequest<AdminProduct[], PaginationMeta>("/api/v1/admin/products", {
         authenticated: true,
-        query: { search: query || undefined, availableIn: channel, limit: RESULT_LIMIT },
+        query: {
+          search: query || undefined,
+          availableIn: channel,
+          status: onlyActive ? "active" : undefined,
+          limit: RESULT_LIMIT,
+        },
       })
         .then((response) => {
           if (cancelled) return;
@@ -72,7 +89,7 @@ function ProductPicker({ value, selectedProduct, onChange, channel }: ProductPic
       cancelled = true;
       clearTimeout(timeout);
     };
-  }, [query, open, channel]);
+  }, [query, open, channel, onlyActive]);
 
   useEffect(() => {
     if (!open) return;
@@ -119,7 +136,7 @@ function ProductPicker({ value, selectedProduct, onChange, channel }: ProductPic
         className="absolute top-2 left-3 -translate-y-1/2 px-1 font-mono text-label uppercase tracking-[0.06em] text-muted-foreground-strong transition-colors duration-[var(--duration-fast)] ease-out-quart peer-focus:text-primary-action"
         style={{ background: "var(--surface-bg, var(--color-background))" }}
       >
-        Producto
+        {label}
       </label>
       {open ? (
         <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-md border border-border bg-surface shadow-[var(--shadow-overlay)]">

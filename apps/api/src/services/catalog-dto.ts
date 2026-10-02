@@ -157,9 +157,12 @@ interface LeanProduct {
   slug: string;
   description: string;
   shortDescription?: string;
+  brand?: string;
   categoryId: Types.ObjectId;
   badgeId: Types.ObjectId | null;
   status: string;
+  isBestseller?: boolean;
+  isNewArrival?: boolean;
   channel: ProductChannel;
   images: LeanMediaImage[];
   variants: LeanVariant[];
@@ -177,9 +180,12 @@ interface AdminProduct {
   slug: string;
   description: string;
   shortDescription?: string;
+  brand?: string;
   categoryId: string;
   badgeId: string | null;
   status: string;
+  isBestseller: boolean;
+  isNewArrival: boolean;
   channel: ProductChannel;
   images: PublicProductImage[];
   variants: AdminVariant[];
@@ -246,9 +252,12 @@ function buildAdminProduct(product: LeanProduct): AdminProduct {
     slug: product.slug,
     description: product.description,
     ...(product.shortDescription ? { shortDescription: product.shortDescription } : {}),
+    ...(product.brand ? { brand: product.brand } : {}),
     categoryId: product.categoryId.toString(),
     badgeId: product.badgeId ? product.badgeId.toString() : null,
     status: product.status,
+    isBestseller: product.isBestseller ?? false,
+    isNewArrival: product.isNewArrival ?? false,
     channel: product.channel,
     images: product.images.map((image) => buildImageDto(image)!),
     variants: product.variants.map(buildAdminVariant),
@@ -272,6 +281,7 @@ function buildPublicProduct(
     slug: product.slug,
     description: product.description,
     ...(product.shortDescription ? { shortDescription: product.shortDescription } : {}),
+    ...(product.brand ? { brand: product.brand } : {}),
     category,
     images: product.images.map((image) => buildImageDto(image)!),
     variants: product.variants.filter((variant) => variant.isActive).map(buildPublicVariant),
