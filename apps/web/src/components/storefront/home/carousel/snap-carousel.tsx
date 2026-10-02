@@ -31,7 +31,8 @@ interface SnapCarouselProps<T> {
  * rueda del trackpad salen gratis). Las flechas flotan sobre las fotos y solo
  * aparecen (opacidad + un desplazamiento mínimo) cuando el cursor se acerca a
  * ellas (a menos de `NEAR_PX`) o reciben foco de teclado; en táctil no se
- * muestran, se desliza con el dedo. La barra de progreso se mueve por
+ * muestran, se desliza con el dedo. La barra de progreso permanece oculta hasta
+ * el primer desplazamiento; luego se mueve por
  * `transform` desde un ref, sin re-render por pixel. Lo comparten el estante
  * de Más vendidos y el bloque de categorías.
  */
@@ -50,6 +51,7 @@ function SnapCarousel<T>({
   const prev = useRef<HTMLButtonElement>(null);
   const next = useRef<HTMLButtonElement>(null);
   const [edges, setEdges] = useState({ start: true, end: true });
+  const [moved, setMoved] = useState(false);
   const [near, setNear] = useState({ prev: false, next: false });
 
   const sync = useCallback(() => {
@@ -63,6 +65,7 @@ function SnapCarousel<T>({
     bar.style.width = `${ratio * 100}%`;
     bar.style.transform = `translateX(${progress * (1 - ratio) * track}px)`;
     setEdges({ start: el.scrollLeft <= 1, end: el.scrollLeft >= max - 1 });
+    if (el.scrollLeft > 1) setMoved(true);
   }, []);
 
   useEffect(() => {
@@ -131,7 +134,7 @@ function SnapCarousel<T>({
         </button>
       </div>
 
-      <div aria-hidden="true" className={`relative h-0.5 bg-primary/30 ${barClassName}`}>
+      <div aria-hidden="true" className={`relative h-0.5 bg-primary/30 transition-opacity duration-[var(--duration-slow)] ease-out-quart motion-reduce:transition-none ${moved ? "opacity-100" : "opacity-0"} ${barClassName}`}>
         <span ref={thumb} className="absolute inset-y-0 left-0 bg-primary will-change-transform" />
       </div>
     </div>

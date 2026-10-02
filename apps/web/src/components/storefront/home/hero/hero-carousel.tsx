@@ -5,7 +5,7 @@ import { HeroProgress } from "./hero-progress";
 
 const SWIPE_THRESHOLD_PX = 50;
 /** Tiempo de cada slide en el autoplay. */
-const AUTOPLAY_MS = 6000;
+const AUTOPLAY_MS = 5000;
 
 interface HeroCarouselSlide {
   id: string;
@@ -16,7 +16,8 @@ interface HeroCarouselSlide {
 /**
  * Carrusel del hero. Los slides ya vienen renderizados desde el servidor
  * (`HeroSection`); aquí solo vive el estado: slide activo, pausa (hover,
- * foco, pestaña oculta), swipe y flechas del teclado. Todos los slides están
+ * foco, pestaña oculta), swipe y flechas del teclado (globales mientras el
+ * hero está a la vista). Todos los slides están
  * apilados y solo cambia la opacidad; los inactivos van `inert` para que ni
  * el teclado ni el lector de pantalla caigan en ellos. El autoplay es un
  * temporizador que se reinicia con cada cambio de slide (también al elegir uno
@@ -27,6 +28,8 @@ function HeroCarousel({ slides }: { slides: HeroCarouselSlide[] }) {
   const [hovered, setHovered] = useState(false);
   const [focused, setFocused] = useState(false);
   const [hidden, setHidden] = useState(false);
+  const section = useRef<HTMLElement>(null);
+  const visible = useRef(false);
   const swipe = useRef<{ x: number; moved: boolean } | null>(null);
 
   const count = slides.length;
@@ -41,6 +44,29 @@ function HeroCarousel({ slides }: { slides: HeroCarouselSlide[] }) {
     return () => document.removeEventListener("visibilitychange", sync);
   }, []);
 
+  // Flechas del teclado: valen mientras el hero esté en pantalla, sin exigir
+  // foco dentro; se ignoran en campos de texto y con modificadores.
+  useEffect(() => {
+    const el = section.current;
+    if (!el || count < 2) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      visible.current = (entry?.intersectionRatio ?? 0) >= 0.5;
+    }, { threshold: [0, 0.5, 1] });
+    observer.observe(el);
+    function onKey(event: KeyboardEvent) {
+      if (!visible.current || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+      const target = event.target as HTMLElement | null;
+      if (target?.closest("input, textarea, select, [contenteditable='true']")) return;
+      setIndex((current) => (((current + (event.key === "ArrowRight" ? 1 : -1)) % count) + count) % count);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [count]);
+
   useEffect(() => {
     if (count < 2 || paused) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
@@ -50,16 +76,13 @@ function HeroCarousel({ slides }: { slides: HeroCarouselSlide[] }) {
 
   return (
     <section
+      ref={section}
       aria-roledescription="carrusel"
       aria-label="Destacados"
       onPointerEnter={(event) => event.pointerType === "mouse" && setHovered(true)}
       onPointerLeave={(event) => event.pointerType === "mouse" && setHovered(false)}
       onFocus={() => setFocused(true)}
       onBlur={() => setFocused(false)}
-      onKeyDown={(event) => {
-        if (event.key === "ArrowLeft") go(index - 1);
-        if (event.key === "ArrowRight") go(index + 1);
-      }}
       onPointerDown={(event) => {
         swipe.current = { x: event.clientX, moved: false };
       }}
