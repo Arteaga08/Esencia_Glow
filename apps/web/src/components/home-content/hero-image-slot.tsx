@@ -10,7 +10,8 @@ const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 interface HeroImageSlotProps {
   label: string;
-  hint: string;
+  /** Medida exacta que pide el hero en la tienda, p. ej. "1920 × 1080 px · horizontal". */
+  dimensions: string;
   /** Proporción de la vista previa, la misma que tendrá en la tienda. */
   aspectClassName: string;
   draft: HeroImageDraft;
@@ -22,7 +23,7 @@ interface HeroImageSlotProps {
  * archivo en el navegador y el guardado del hero lo envía. Mismos límites que
  * multer del servidor (5 MB, JPG/PNG/WEBP).
  */
-function HeroImageSlot({ label, hint, aspectClassName, draft, onChange }: HeroImageSlotProps) {
+function HeroImageSlot({ label, dimensions, aspectClassName, draft, onChange }: HeroImageSlotProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [rejected, setRejected] = useState<string | null>(null);
 
@@ -57,6 +58,9 @@ function HeroImageSlot({ label, hint, aspectClassName, draft, onChange }: HeroIm
       <p className="font-mono text-label uppercase tracking-[0.06em] text-muted-foreground-strong">
         {label}
       </p>
+      <p className="-mt-1 text-body-sm text-foreground">
+        Medida: <span className="font-medium">{dimensions}</span>
+      </p>
       <div
         className={`relative overflow-hidden rounded-md border border-border bg-muted/30 ${aspectClassName}`}
       >
@@ -71,10 +75,10 @@ function HeroImageSlot({ label, hint, aspectClassName, draft, onChange }: HeroIm
           >
             <ImageIcon size={28} className="text-muted-foreground-strong" aria-hidden="true" />
             <span className="text-body-sm text-foreground">Elegir imagen</span>
+            <span className="text-body-sm text-muted-foreground">JPG, PNG o WEBP · máx. 5 MB</span>
           </button>
         )}
       </div>
-      <p className="text-body-sm text-muted-foreground">{hint}</p>
       {shownUrl ? (
         <div className="flex gap-3">
           <button

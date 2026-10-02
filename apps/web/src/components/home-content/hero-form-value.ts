@@ -92,9 +92,9 @@ function validateSlide(slide: HeroSlideDraft): Record<string, string> {
   if (slide.subtitle.trim().length > limits.subtitleMax)
     errors.subtitle = `Máximo ${limits.subtitleMax} caracteres.`;
   const href = slide.ctaHref.trim();
-  if (!href) errors.ctaHref = "Indica a dónde lleva el slide.";
+  if (!href) errors.ctaHref = "Elige el producto al que lleva el slide.";
   else if (href.length > limits.hrefMax || !HREF_PATTERN.test(href)) {
-    errors.ctaHref = "Usa una ruta interna (/tienda) o una URL que empiece con https://.";
+    errors.ctaHref = "Ese enlace no es válido. Elige un producto para reemplazarlo.";
   }
   return errors;
 }
