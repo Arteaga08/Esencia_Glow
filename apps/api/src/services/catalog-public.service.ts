@@ -31,6 +31,8 @@ interface ListPublicProductsInput extends ListQuery {
   categorySlug?: string;
   minPrice?: number;
   maxPrice?: number;
+  bestseller?: boolean;
+  newArrival?: boolean;
 }
 
 async function resolveCategoryRef(categoryId: string): Promise<{ id: string; name: string; slug: string }> {
@@ -87,6 +89,8 @@ async function listPublicProducts(
     publicOnly: true,
     minPrice: input.minPrice,
     maxPrice: input.maxPrice,
+    isBestseller: input.bestseller,
+    isNewArrival: input.newArrival,
   });
   const sort = resolveSort(input.sort, PUBLIC_PRODUCT_SORT_FIELDS, "createdAt");
 

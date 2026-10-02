@@ -6,16 +6,20 @@ import * as catalogPublicService from "../services/catalog-public.service.js";
 
 const listProducts = asyncHandler(async (req: Request, res: Response) => {
   const query = parseListQuery(req.query);
-  const { category, minPrice, maxPrice } = req.query as {
+  const { category, minPrice, maxPrice, bestseller, newArrival } = req.query as {
     category?: string;
     minPrice?: number;
     maxPrice?: number;
+    bestseller?: boolean;
+    newArrival?: boolean;
   };
   const { products, meta } = await catalogPublicService.listPublicProducts({
     ...query,
     categorySlug: category,
     minPrice,
     maxPrice,
+    bestseller,
+    newArrival,
   });
   sendResponse(res, 200, "Productos obtenidos.", products, meta);
 });

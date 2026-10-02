@@ -45,8 +45,11 @@ export default function NewProductPage() {
     name: "",
     description: "",
     shortDescription: "",
+    brand: "",
     categoryId: null,
     badgeId: null,
+    isBestseller: false,
+    isNewArrival: false,
     channel: "store",
   });
   const [variants, setVariants] = useState<VariantDraft[]>([emptyVariantDraft(`${variantIdSeed}-0`)]);
@@ -111,8 +114,11 @@ export default function NewProductPage() {
           name: base.name,
           description: base.description,
           shortDescription: base.shortDescription || undefined,
+          brand: base.brand || undefined,
           categoryId: base.categoryId,
           badgeId: base.badgeId,
+          isBestseller: base.isBestseller,
+          isNewArrival: base.isNewArrival,
           channel: base.channel,
           content: {
             ingredients: content.ingredients,

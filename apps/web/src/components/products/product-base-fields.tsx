@@ -3,6 +3,7 @@
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { useCatalogFilters } from "@/lib/hooks/use-catalog-filters";
 import type { AdminProductChannel } from "@/lib/types/admin-catalog";
 
@@ -10,8 +11,11 @@ interface ProductBaseFieldsValue {
   name: string;
   description: string;
   shortDescription: string;
+  brand: string;
   categoryId: string | null;
   badgeId: string | null;
+  isBestseller: boolean;
+  isNewArrival: boolean;
   channel: AdminProductChannel;
 }
 
@@ -46,6 +50,13 @@ function ProductBaseFields({ value, onChange, errors }: ProductBaseFieldsProps) 
         value={value.name}
         onChange={(e) => onChange({ name: e.target.value })}
         error={errors?.name}
+      />
+      <Input
+        label="Marca (opcional)"
+        placeholder="Beauty of Joseon"
+        value={value.brand}
+        onChange={(e) => onChange({ brand: e.target.value })}
+        error={errors?.brand}
       />
       <Input
         label="Descripción corta (opcional)"
@@ -85,6 +96,43 @@ function ProductBaseFields({ value, onChange, errors }: ProductBaseFieldsProps) 
           helper={CHANNEL_HELPERS[value.channel]}
           error={errors?.channel}
         />
+      </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <MerchandisingToggle
+          label="Más vendido"
+          helper="Aparece en el carrusel de Más vendidos del inicio de la tienda."
+          checked={value.isBestseller}
+          onChange={(checked) => onChange({ isBestseller: checked })}
+        />
+        <MerchandisingToggle
+          label="Novedad"
+          helper="Se muestra en la sección de Novedades de la tienda."
+          checked={value.isNewArrival}
+          onChange={(checked) => onChange({ isNewArrival: checked })}
+        />
+      </div>
+    </div>
+  );
+}
+
+/** Interruptor con su texto a un lado: el `Switch` no lleva etiqueta visible. */
+function MerchandisingToggle({
+  label,
+  helper,
+  checked,
+  onChange,
+}: {
+  label: string;
+  helper: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <div className="flex items-start gap-3 rounded-md border border-border-strong p-3">
+      <Switch label={label} checked={checked} onChange={onChange} />
+      <div className="flex flex-col gap-0.5">
+        <span className="text-body text-foreground">{label}</span>
+        <span className="text-body-sm text-muted-foreground-strong">{helper}</span>
       </div>
     </div>
   );

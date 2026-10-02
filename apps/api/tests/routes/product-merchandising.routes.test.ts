@@ -1,0 +1,80 @@
+import request from "supertest";
+import { describe, expect, it } from "vitest";
+import { buildApp } from "../../src/app.js";
+import { Category } from "../../src/models/category.model.js";
+import { createAdminSession } from "../helpers/admin-session.js";
+
+const app = buildApp();
+
+type Agent = ReturnType<typeof request.agent>;
+
+async function createProduct(agent: Agent, categoryId: string, name: string, sku: string, extra: Record<string, unknown> = {}) {
+  const created = await agent.post("/api/v1/admin/products").send({
+    name,
+    description: "Desc",
+    categoryId,
+    variants: [{ sku, name: "30 ml", price: 34900, weightGrams: 150 }],
+    ...extra,
+  });
+  await agent.patch(`/api/v1/admin/products/${created.body.data.id}`).send({ status: "active" });
+  return created;
+}
+
+describe("routes/products — marcas Más vendido y Novedad", () => {
+  it("se crean apagadas por defecto y se editan por PATCH", async () => {
+    const { agent } = await createAdminSession(app);
+    const category = await Category.create({ name: "Sueros", slug: "sueros", isActive: true });
+    const created = await createProduct(agent, category.id, "Sérum A", "SER-A1");
+    expect(created.body.data.isBestseller).toBe(false);
+    expect(created.body.data.isNewArrival).toBe(false);
+
+    const updated = await agent
+      .patch(`/api/v1/admin/products/${created.body.data.id}`)
+      .send({ isBestseller: true, isNewArrival: true });
+
+    expect(updated.status).toBe(200);
+    expect(updated.body.data.isBestseller).toBe(true);
+    expect(updated.body.data.isNewArrival).toBe(true);
+  });
+
+  it("rechaza valores que no son booleanos", async () => {
+    const { agent } = await createAdminSession(app);
+    const category = await Category.create({ name: "Sueros", slug: "sueros", isActive: true });
+    const created = await createProduct(agent, category.id, "Sérum A", "SER-A1");
+
+    const response = await agent
+      .patch(`/api/v1/admin/products/${created.body.data.id}`)
+      .send({ isBestseller: "quizás" });
+
+    expect(response.status).toBe(400);
+  });
+
+  it("el catálogo público filtra por ?bestseller=true y ?newArrival=true", async () => {
+    const { agent } = await createAdminSession(app);
+    const category = await Category.create({ name: "Sueros", slug: "sueros", isActive: true });
+    await createProduct(agent, category.id, "Sérum A", "SER-A1", { isBestseller: true });
+    await createProduct(agent, category.id, "Sérum B", "SER-B1", { isNewArrival: true });
+    await createProduct(agent, category.id, "Sérum C", "SER-C1");
+
+    const bestsellers = await request(app).get("/api/v1/products?bestseller=true");
+    const newArrivals = await request(app).get("/api/v1/products?newArrival=true");
+    const all = await request(app).get("/api/v1/products");
+
+    expect(bestsellers.body.data.map((p: { name: string }) => p.name)).toEqual(["Sérum A"]);
+    expect(newArrivals.body.data.map((p: { name: string }) => p.name)).toEqual(["Sérum B"]);
+    expect(all.body.data).toHaveLength(3);
+  });
+
+  it("la marca se guarda, se edita y se expone en el catálogo público", async () => {
+    const { agent } = await createAdminSession(app);
+    const category = await Category.create({ name: "Sueros", slug: "sueros", isActive: true });
+    const created = await createProduct(agent, category.id, "Sérum A", "SER-A1", { brand: "Beauty of Joseon" });
+    expect(created.body.data.brand).toBe("Beauty of Joseon");
+
+    const updated = await agent.patch(`/api/v1/admin/products/${created.body.data.id}`).send({ brand: "Anua" });
+    expect(updated.body.data.brand).toBe("Anua");
+
+    const publicList = await request(app).get("/api/v1/products");
+    expect(publicList.body.data[0].brand).toBe("Anua");
+  });
+});

@@ -74,6 +74,8 @@ interface PublicProduct {
   slug: string;
   description: string;
   shortDescription?: string;
+  /** Marca comercial, texto libre. Ausente si no se capturó. */
+  brand?: string;
   category: PublicProductCategoryRef;
   images: PublicProductImage[];
   variants: PublicProductVariant[];

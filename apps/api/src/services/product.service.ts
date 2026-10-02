@@ -52,8 +52,11 @@ interface CreateProductInput {
   name: string;
   description: string;
   shortDescription?: string;
+  brand?: string;
   categoryId: string;
   badgeId?: string | null;
+  isBestseller?: boolean;
+  isNewArrival?: boolean;
   channel?: ProductChannel;
   content?: ProductContentInput;
   variants: CreateProductVariantInput[];
@@ -63,8 +66,11 @@ interface UpdateProductInput {
   name?: string;
   description?: string;
   shortDescription?: string;
+  brand?: string;
   categoryId?: string;
   badgeId?: string | null;
+  isBestseller?: boolean;
+  isNewArrival?: boolean;
   status?: ProductStatus;
   channel?: ProductChannel;
   content?: ProductContentInput;
@@ -125,8 +131,11 @@ async function createProduct(input: CreateProductInput): Promise<ProductDocument
       slug: slugify(input.name),
       description: input.description,
       shortDescription: input.shortDescription,
+      brand: input.brand || undefined,
       categoryId: input.categoryId,
       badgeId: input.badgeId ?? null,
+      isBestseller: input.isBestseller,
+      isNewArrival: input.isNewArrival,
       channel: input.channel,
       content: input.content,
       variants,
@@ -205,8 +214,11 @@ async function updateProduct(id: string, input: UpdateProductInput): Promise<Pro
     product.name = input.name;
     product.slug = slugify(input.name);
   }
+  if (input.isBestseller !== undefined) product.isBestseller = input.isBestseller;
+  if (input.isNewArrival !== undefined) product.isNewArrival = input.isNewArrival;
   if (input.description !== undefined) product.description = input.description;
   if (input.shortDescription !== undefined) product.shortDescription = input.shortDescription;
+  if (input.brand !== undefined) product.brand = input.brand;
   if (input.status !== undefined) product.status = input.status;
   if (input.channel !== undefined) {
     await assertChannelChangeAllowed(product, input.channel);

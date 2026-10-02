@@ -33,6 +33,8 @@ const publicCategoryQuerySchema = Joi.object({});
 
 const publicProductQuerySchema = listQueryBaseSchema.keys({
   category: Joi.string().trim().lowercase().max(80),
+  bestseller: Joi.boolean(),
+  newArrival: Joi.boolean(),
   minPrice: Joi.number().integer().min(0),
   maxPrice: Joi.number().integer().min(0),
 });

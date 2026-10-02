@@ -118,12 +118,21 @@ const createProductSchema = Joi.object({
   shortDescription: Joi.string().trim().max(300).allow("").messages({
     "string.max": "La descripción corta no puede tener más de 300 caracteres",
   }),
+  brand: Joi.string().trim().max(80).allow("").messages({
+    "string.max": "La marca no puede tener más de 80 caracteres",
+  }),
   categoryId: Joi.string().hex().length(24).required().messages({
     "string.hex": "La categoría no es válida",
     "string.length": "La categoría no es válida",
     "any.required": "Elige una categoría",
   }),
   badgeId: badgeIdSchema,
+  isBestseller: Joi.boolean().messages({
+    "boolean.base": "Más vendido debe ser verdadero o falso",
+  }),
+  isNewArrival: Joi.boolean().messages({
+    "boolean.base": "Novedad debe ser verdadero o falso",
+  }),
   channel: Joi.string()
     .valid(...Object.values(ProductChannel))
     .messages({
@@ -156,11 +165,20 @@ const updateProductSchema = Joi.object({
   shortDescription: Joi.string().trim().max(300).allow("").messages({
     "string.max": "La descripción corta no puede tener más de 300 caracteres",
   }),
+  brand: Joi.string().trim().max(80).allow("").messages({
+    "string.max": "La marca no puede tener más de 80 caracteres",
+  }),
   categoryId: Joi.string().hex().length(24).messages({
     "string.hex": "La categoría no es válida",
     "string.length": "La categoría no es válida",
   }),
   badgeId: badgeIdSchema,
+  isBestseller: Joi.boolean().messages({
+    "boolean.base": "Más vendido debe ser verdadero o falso",
+  }),
+  isNewArrival: Joi.boolean().messages({
+    "boolean.base": "Novedad debe ser verdadero o falso",
+  }),
   status: Joi.string().valid("draft", "active", "archived").messages({
     "any.only": "El estado no es válido",
   }),

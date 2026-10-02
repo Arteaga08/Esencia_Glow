@@ -28,12 +28,20 @@ interface ProductAttrs {
   slug: string;
   description: string;
   shortDescription?: string;
+  // Marca comercial (texto libre) que se muestra en las tarjetas del storefront.
+  brand?: string;
   categoryId: Types.ObjectId;
   // A lo más una badge por producto: asignar otra reemplaza esta referencia,
   // nunca un arreglo (decisión 1.4.2, esencia-glow-decisiones).
   badgeId: Types.ObjectId | null;
   status: ProductStatus;
   channel: ProductChannel;
+  // Marcas de merchandising del storefront (Milestone 3.1.3). Sin backfill: un
+  // producto anterior no trae el campo, así que el filtro público usa `true`
+  // explícito, nunca `$ne: false`. `isNewArrival` y no `isNew`: este último es
+  // una propiedad reservada de los documentos de Mongoose.
+  isBestseller: boolean;
+  isNewArrival: boolean;
   // `Types.DocumentArray` (no un array plano) para que `.id()` y el
   // `.deleteOne()` de cada elemento (usados en catalog-image.service.ts y
   // product-variant.service.ts) queden tipados.
@@ -62,6 +70,7 @@ const productSchema = new Schema<ProductAttrs, ProductModel>(
     },
     description: { type: String, required: true, maxlength: 5000 },
     shortDescription: { type: String, trim: true, maxlength: 300 },
+    brand: { type: String, trim: true, maxlength: 80 },
     categoryId: { type: Schema.Types.ObjectId, ref: "Category", required: true },
     badgeId: { type: Schema.Types.ObjectId, ref: "Badge", default: null },
     status: {
@@ -74,6 +83,8 @@ const productSchema = new Schema<ProductAttrs, ProductModel>(
       enum: Object.values(ProductChannel),
       default: ProductChannel.STORE,
     },
+    isBestseller: { type: Boolean, default: false },
+    isNewArrival: { type: Boolean, default: false },
     images: { type: [mediaImageSchema], default: [] },
     variants: { type: [productVariantSchema], default: [] },
     minPrice: { type: Number, default: 0, min: 0 },
@@ -90,6 +101,8 @@ const productSchema = new Schema<ProductAttrs, ProductModel>(
 productSchema.index({ "variants.sku": 1 }, { unique: true, sparse: true });
 productSchema.index({ status: 1, channel: 1, createdAt: -1 });
 productSchema.index({ status: 1, categoryId: 1, minPrice: 1 });
+productSchema.index({ status: 1, isBestseller: 1, createdAt: -1 });
+productSchema.index({ status: 1, isNewArrival: 1, createdAt: -1 });
 productSchema.index({ name: 1 });
 
 productSchema.pre("save", function recomputeMinPrice(next) {

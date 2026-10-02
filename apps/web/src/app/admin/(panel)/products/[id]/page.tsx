@@ -110,8 +110,11 @@ export default function EditProductPage() {
           name: p.name,
           description: p.description,
           shortDescription: p.shortDescription ?? "",
+          brand: p.brand ?? "",
           categoryId: p.categoryId,
           badgeId: p.badgeId,
+          isBestseller: p.isBestseller,
+          isNewArrival: p.isNewArrival,
           channel: p.channel,
         });
         setContent({
@@ -145,8 +148,11 @@ export default function EditProductPage() {
           name: base.name,
           description: base.description,
           shortDescription: base.shortDescription || "",
+          brand: base.brand,
           categoryId: base.categoryId,
           badgeId: base.badgeId,
+          isBestseller: base.isBestseller,
+          isNewArrival: base.isNewArrival,
           channel: base.channel,
           content,
         },
