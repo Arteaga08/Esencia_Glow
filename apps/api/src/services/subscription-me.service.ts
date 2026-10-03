@@ -11,6 +11,7 @@ import { SubscriptionPlan } from "../models/subscription-plan.model.js";
 import { SubscriptionShipment } from "../models/subscription-shipment.model.js";
 import { AppError } from "../utils/app-error.js";
 import { canUndoCancel } from "./subscription-state.js";
+import { normalizeBillingInterval } from "./subscription-billing-interval.js";
 
 /**
  * Lectura de la propia suscripción (`GET /subscriptions/me`, Milestone
@@ -76,7 +77,7 @@ async function getMySubscription(userId: string): Promise<MySubscription | null>
   return {
     id: account._id.toString(),
     status: account.status,
-    billingInterval: account.billingInterval === "year" ? "year" : "month",
+    billingInterval: normalizeBillingInterval(account.billingInterval),
     plan: {
       id: account.planId.toString(),
       name: plan.name,

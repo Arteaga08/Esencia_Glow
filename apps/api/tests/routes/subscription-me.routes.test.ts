@@ -100,6 +100,16 @@ describe("routes/subscription — GET /me", () => {
     expect(response.body.data.subscription.billingInterval).toBe("year");
   });
 
+  it("billingInterval: 'quarter' cuando la cuenta se suscribió trimestral (Milestone 3.1.7b)", async () => {
+    const { agent, userId } = await createCustomerSession(app);
+    const plan = await seedPlanWithStripeRefs({ quarterlyPriceCents: 146700 });
+    await startSubscription({ userId, planId: plan._id.toString(), billingInterval: "quarter" });
+
+    const response = await agent.get("/api/v1/subscriptions/me");
+
+    expect(response.body.data.subscription.billingInterval).toBe("quarter");
+  });
+
   it("nunca expone las referencias de Stripe ni el historial de estados", async () => {
     const { agent, userId } = await createCustomerSession(app);
     const plan = await seedPlanWithStripeRefs();

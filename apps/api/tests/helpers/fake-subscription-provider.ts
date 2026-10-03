@@ -47,12 +47,13 @@ function buildFakeSubscriptionProvider(overrides: Partial<SubscriptionProvider> 
   }
 
   return {
-    createPlanProduct: vi.fn().mockImplementation(async (input: { annualPriceCents?: number }) => {
+    createPlanProduct: vi.fn().mockImplementation(async (input: { annualPriceCents?: number; quarterlyPriceCents?: number }) => {
       counter += 1;
-      const refs: { productRef: string; priceRef: string; annualPriceRef?: string } = {
+      const refs: { productRef: string; priceRef: string; annualPriceRef?: string; quarterlyPriceRef?: string } = {
         productRef: `prod_fake_${counter}`,
         priceRef: `price_fake_${counter}`,
       };
+      if (input.quarterlyPriceCents !== undefined) refs.quarterlyPriceRef = `price_fake_quarter_${counter}`;
       if (input.annualPriceCents !== undefined) refs.annualPriceRef = `price_fake_year_${counter}`;
       return refs;
     }),

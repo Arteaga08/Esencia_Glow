@@ -34,6 +34,11 @@ interface SubscriptionPlanAttrs {
    * dos planes separados: así las ediciones y el cupo se comparten). */
   annualPriceCents?: number;
   providerAnnualPriceId?: string;
+  /** Precio del ciclo trimestral prepagado (Milestone 3.1.7b): opcional e
+   * INMUTABLE, igual que `annualPriceCents`. Tercer Price de Stripe
+   * (`interval_count: 3`) sobre el mismo `providerProductId`. */
+  quarterlyPriceCents?: number;
+  providerQuarterlyPriceId?: string;
   /** Último ciclo (`"YYYY-MM"`) por el que el job preventivo ya avisó que
    * falta la edición (Milestone 1.7.2b). Un solo campo en vez de una
    * colección de avisos: solo importa el ciclo en curso, y reescribirlo al
@@ -75,6 +80,8 @@ const subscriptionPlanSchema = new Schema<SubscriptionPlanAttrs, SubscriptionPla
     providerPriceId: { type: String, trim: true },
     annualPriceCents: { type: Number, min: 0, validate: integerValidator },
     providerAnnualPriceId: { type: String, trim: true },
+    quarterlyPriceCents: { type: Number, min: 0, validate: integerValidator },
+    providerQuarterlyPriceId: { type: String, trim: true },
     missingEditionAlertedFor: { type: String, trim: true },
     images: { type: [mediaImageSchema], default: [] },
     highlights: {
@@ -110,6 +117,13 @@ subscriptionPlanSchema.index(
 subscriptionPlanSchema.index(
   { providerAnnualPriceId: 1 },
   { unique: true, partialFilterExpression: { providerAnnualPriceId: { $type: "string" } } },
+);
+
+/** Mismo criterio que el índice de `providerPriceId` de arriba, para el
+ * Price trimestral. */
+subscriptionPlanSchema.index(
+  { providerQuarterlyPriceId: 1 },
+  { unique: true, partialFilterExpression: { providerQuarterlyPriceId: { $type: "string" } } },
 );
 
 const SubscriptionPlan = model<SubscriptionPlanAttrs, SubscriptionPlanModel>(

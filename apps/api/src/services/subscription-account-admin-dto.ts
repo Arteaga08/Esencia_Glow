@@ -1,6 +1,7 @@
 import type { Types } from "mongoose";
 import type { SubscriptionStatus } from "@esencia-glow/shared";
 import type { SubscriptionAccountAttrs } from "../models/subscription-account.model.js";
+import { normalizeBillingInterval, type BillingInterval } from "./subscription-billing-interval.js";
 
 /**
  * DTOs del panel admin de Cuentas de suscripción (Milestone 2.7a). Vive en
@@ -21,7 +22,7 @@ interface LeanAdminAccount {
   userId: Types.ObjectId;
   planId: Types.ObjectId;
   status: SubscriptionStatus;
-  billingInterval?: "month" | "year";
+  billingInterval?: BillingInterval;
   cancelAtPeriodEnd: boolean;
   startedAt?: Date;
   currentPeriodEnd?: Date;
@@ -51,7 +52,7 @@ interface AdminSubscriptionAccountListItem {
   status: SubscriptionStatus;
   /** Intervalo de cobro (Milestone 2.7b). Siempre presente en el DTO,
    * normalizado a `"month"` cuando la cuenta no tiene el campo. */
-  billingInterval: "month" | "year";
+  billingInterval: BillingInterval;
   cancelAtPeriodEnd: boolean;
   startedAt?: string;
   currentPeriodEnd?: string;
@@ -86,7 +87,7 @@ function buildAdminSubscriptionAccountListItem(
     user: user ?? { id: account.userId.toString(), firstName: "", lastName: "", email: "" },
     plan,
     status: account.status,
-    billingInterval: account.billingInterval === "year" ? "year" : "month",
+    billingInterval: normalizeBillingInterval(account.billingInterval),
     cancelAtPeriodEnd: account.cancelAtPeriodEnd,
     ...(account.startedAt ? { startedAt: account.startedAt.toISOString() } : {}),
     ...(account.currentPeriodEnd ? { currentPeriodEnd: account.currentPeriodEnd.toISOString() } : {}),

@@ -3,7 +3,7 @@ import { SubscriptionStatus } from "@esencia-glow/shared";
 import { describe, expect, it } from "vitest";
 import { SubscriptionAccount } from "../../src/models/subscription-account.model.js";
 import { User } from "../../src/models/user.model.js";
-import { sendAnnualRenewalReminders } from "../../src/jobs/send-annual-renewal-reminders.js";
+import { sendRenewalReminders } from "../../src/jobs/send-renewal-reminders.js";
 import { startSubscription, applyStatusTransition } from "../../src/services/subscription-seat.service.js";
 import { __setMailProviderForTests } from "../../src/services/mail-provider.js";
 import { buildFakeMailProvider } from "../helpers/fake-mail-provider.js";
@@ -13,14 +13,14 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const NOW = new Date("2026-09-01T12:00:00Z");
 
 /**
- * `sendAnnualRenewalReminders` (Milestone 2.7b) — aviso 30 días antes de que
+ * `sendRenewalReminders` (Milestone 2.7b) — aviso 30 días antes de que
  * se renueve un ciclo ANUAL (decisión de Manuel: un cobro recurrente sin
  * aviso es la causa #1 de contracargo). Claim atómico sobre
  * `renewalReminderSentFor` para no avisar dos veces del mismo período.
  */
-describe("jobs/sendAnnualRenewalReminders", () => {
+describe("jobs/sendRenewalReminders", () => {
   async function seedAccount(fields: {
-    billingInterval?: "month" | "year";
+    billingInterval?: "month" | "quarter" | "year";
     status?: SubscriptionStatus;
     currentPeriodEnd?: Date;
     cancelAtPeriodEnd?: boolean;
@@ -35,7 +35,7 @@ describe("jobs/sendAnnualRenewalReminders", () => {
       lastName: "Pérez",
       emailVerified: true,
     });
-    const plan = await seedPlanWithStripeRefs({ annualPriceCents: 599000 });
+    const plan = await seedPlanWithStripeRefs({ annualPriceCents: 599000, quarterlyPriceCents: 146700 });
     let account = await startSubscription({
       userId: userId.toString(),
       planId: plan._id.toString(),
@@ -70,7 +70,7 @@ describe("jobs/sendAnnualRenewalReminders", () => {
       currentPeriodEnd: new Date(NOW.getTime() + 10 * DAY_MS),
     });
 
-    const summary = await sendAnnualRenewalReminders(NOW);
+    const summary = await sendRenewalReminders(NOW);
 
     expect(summary.sent).toBe(1);
     expect(fake.calls).toHaveLength(1);
@@ -87,7 +87,7 @@ describe("jobs/sendAnnualRenewalReminders", () => {
       currentPeriodEnd: new Date(NOW.getTime() + 60 * DAY_MS),
     });
 
-    const summary = await sendAnnualRenewalReminders(NOW);
+    const summary = await sendRenewalReminders(NOW);
 
     expect(summary.sent).toBe(0);
     expect(fake.calls).toHaveLength(0);
@@ -103,8 +103,8 @@ describe("jobs/sendAnnualRenewalReminders", () => {
       currentPeriodEnd: periodEnd,
     });
 
-    await sendAnnualRenewalReminders(NOW);
-    const second = await sendAnnualRenewalReminders(NOW);
+    await sendRenewalReminders(NOW);
+    const second = await sendRenewalReminders(NOW);
 
     expect(second.sent).toBe(0);
     expect(fake.calls).toHaveLength(1);
@@ -126,7 +126,7 @@ describe("jobs/sendAnnualRenewalReminders", () => {
       cancelAtPeriodEnd: true,
     });
 
-    const summary = await sendAnnualRenewalReminders(NOW);
+    const summary = await sendRenewalReminders(NOW);
 
     expect(summary.sent).toBe(0);
     expect(fake.calls).toHaveLength(0);
@@ -144,8 +144,49 @@ describe("jobs/sendAnnualRenewalReminders", () => {
       renewalReminderSentFor: oldPeriodEnd,
     });
 
-    const summary = await sendAnnualRenewalReminders(NOW);
+    const summary = await sendRenewalReminders(NOW);
 
     expect(summary.sent).toBe(1);
+  });
+
+  it("trimestral: avisa a 6 días de la renovación y NO a 8 (ventana de 7 días)", async () => {
+    const fake = buildFakeMailProvider();
+    __setMailProviderForTests(fake);
+    await seedAccount({
+      billingInterval: "quarter",
+      status: SubscriptionStatus.ACTIVE,
+      currentPeriodEnd: new Date(NOW.getTime() + 6 * DAY_MS),
+    });
+    await seedAccount({
+      billingInterval: "quarter",
+      status: SubscriptionStatus.ACTIVE,
+      currentPeriodEnd: new Date(NOW.getTime() + 8 * DAY_MS),
+    });
+
+    const summary = await sendRenewalReminders(NOW);
+
+    expect(summary.sent).toBe(1);
+    expect(fake.calls).toHaveLength(1);
+    expect(fake.calls[0]!.subject.toLowerCase()).toContain("trimestral");
+  });
+
+  it("anual: avisa a 29 días y NO a 31 (ventana de 30 días)", async () => {
+    const fake = buildFakeMailProvider();
+    __setMailProviderForTests(fake);
+    await seedAccount({
+      billingInterval: "year",
+      status: SubscriptionStatus.ACTIVE,
+      currentPeriodEnd: new Date(NOW.getTime() + 29 * DAY_MS),
+    });
+    await seedAccount({
+      billingInterval: "year",
+      status: SubscriptionStatus.ACTIVE,
+      currentPeriodEnd: new Date(NOW.getTime() + 31 * DAY_MS),
+    });
+
+    const summary = await sendRenewalReminders(NOW);
+
+    expect(summary.sent).toBe(1);
+    expect(fake.calls[0]!.subject.toLowerCase()).toContain("anual");
   });
 });

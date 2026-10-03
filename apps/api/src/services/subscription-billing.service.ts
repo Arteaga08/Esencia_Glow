@@ -7,6 +7,7 @@ import { withTransaction } from "../utils/with-transaction.js";
 import { applyStatusTransition } from "./subscription-seat.service.js";
 import { canActorTransition } from "./subscription-state.js";
 import { recordAudit } from "./audit.service.js";
+import type { BillingInterval } from "./subscription-billing-interval.js";
 
 /**
  * Escrituras de estado/período/dunning que el webhook de Billing necesita
@@ -207,7 +208,7 @@ interface RecordSubscriptionInvoiceInput {
   accountId: Types.ObjectId;
   userId: Types.ObjectId;
   planId: Types.ObjectId;
-  billingInterval?: "month" | "year";
+  billingInterval?: BillingInterval;
   amountPaidCents: number;
   currency: string;
   paidAt: Date;

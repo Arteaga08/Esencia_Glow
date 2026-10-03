@@ -4,6 +4,7 @@ import {
   subscriptionStatusHistoryEntrySchema,
   type SubscriptionStatusHistoryEntryAttrs,
 } from "./subscription-status-history.schema.js";
+import type { BillingInterval } from "../services/subscription-billing-interval.js";
 
 /**
  * Cuenta de suscripción — UN documento por usuaria, para siempre (decisión
@@ -76,7 +77,7 @@ interface SubscriptionAccountAttrs {
    * campo y deben leerse como mensuales (`{$ne: "year"}`, nunca
    * `{$eq: "month"}`), sin backfill. Lo escribe `startSubscription` al
    * alta y en la reactivación `CANCELED -> INCOMPLETE`. */
-  billingInterval?: "month" | "year";
+  billingInterval?: BillingInterval;
   /** `currentPeriodEnd` ya avisado con el correo de recordatorio de
    * renovación anual (Milestone 2.7b) — evita mandarlo dos veces si el job
    * corre de nuevo antes de que el período cambie. */
@@ -148,7 +149,7 @@ const subscriptionAccountSchema = new Schema<SubscriptionAccountAttrs, Subscript
     dunningAttempts: { type: Number, required: true, default: 0, min: 0, validate: integerValidator },
     dunningInvoiceId: { type: String, trim: true },
     pausedAt: { type: Date },
-    billingInterval: { type: String, enum: ["month", "year"] },
+    billingInterval: { type: String, enum: ["month", "quarter", "year"] },
     renewalReminderSentFor: { type: Date },
     pendingPlanChange: { type: pendingPlanChangeSchema },
   },

@@ -16,6 +16,8 @@ interface CreateSubscriptionPlanInput {
   priceCents: number;
   /** Precio del ciclo anual (Milestone 2.7b), opcional. */
   annualPriceCents?: number;
+  /** Precio del ciclo trimestral (Milestone 3.1.7b), opcional. */
+  quarterlyPriceCents?: number;
   maxActiveSeats: number;
   sortOrder?: number;
   highlights?: string[];
@@ -59,12 +61,13 @@ async function createPlan(input: CreateSubscriptionPlanInput): Promise<Subscript
   if (!provider) throw new AppError("Las suscripciones no están configuradas.", 503);
 
   const slug = slugify(input.name);
-  const { productRef, priceRef, annualPriceRef } = await provider.createPlanProduct({
+  const { productRef, priceRef, annualPriceRef, quarterlyPriceRef } = await provider.createPlanProduct({
     planSlug: slug,
     name: input.name,
     description: input.description,
     priceCents: input.priceCents,
     annualPriceCents: input.annualPriceCents,
+    quarterlyPriceCents: input.quarterlyPriceCents,
     currency: CATALOG_CURRENCY,
     idempotencyKey: `plan:${slug}`,
   });
@@ -76,12 +79,14 @@ async function createPlan(input: CreateSubscriptionPlanInput): Promise<Subscript
     shortDescription: input.shortDescription,
     priceCents: input.priceCents,
     annualPriceCents: input.annualPriceCents,
+    quarterlyPriceCents: input.quarterlyPriceCents,
     maxActiveSeats: input.maxActiveSeats,
     sortOrder: input.sortOrder,
     ...(input.highlights ? { highlights: input.highlights } : {}),
     providerProductId: productRef,
     providerPriceId: priceRef,
     providerAnnualPriceId: annualPriceRef,
+    providerQuarterlyPriceId: quarterlyPriceRef,
   });
   await plan.save();
   return plan;

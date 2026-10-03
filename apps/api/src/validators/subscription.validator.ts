@@ -8,10 +8,10 @@ import Joi from "joi";
  */
 const startSubscriptionSchema = Joi.object({
   planId: Joi.string().hex().length(24).required(),
-  // Milestone 2.7b: mensual por default, ausente en la cuenta si es "month"
+  // Milestones 2.7b/3.1.7b: mensual por default, ausente en la cuenta si es "month"
   // (ver subscription-start.service.ts) — el cliente nunca manda un monto,
   // solo elige el intervalo.
-  billingInterval: Joi.string().valid("month", "year").default("month"),
+  billingInterval: Joi.string().valid("month", "quarter", "year").default("month"),
   termsAccepted: Joi.boolean().valid(true).required().messages({
     "any.only": "Debes aceptar los términos y condiciones.",
     "any.required": "Debes aceptar los términos y condiciones.",

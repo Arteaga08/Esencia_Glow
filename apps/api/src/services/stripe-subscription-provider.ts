@@ -231,10 +231,11 @@ const SUBSCRIPTION_EXPAND = ["latest_invoice.confirmation_secret"];
  * `idempotencyKey` original reintentaría crear otro Product en vez de
  * reusar el que ya existe — separarlas deja cada paso reintentable de forma
  * independiente. `recurring: { interval: "month" }` es el precio base; si el
- * plan trae `annualPriceCents` (Milestone 2.7b) se encadena un TERCER Price
- * con `interval: "year"` sobre el MISMO Product y su propia key
- * `:price-year` — un solo plan, dos precios, nunca dos planes separados (las
- * ediciones y el cupo se comparten).
+ * plan trae `quarterlyPriceCents` (Milestone 3.1.7b) se encadena otro Price
+ * `interval: "month", interval_count: 3` (key `:price-quarter`), y si trae
+ * `annualPriceCents` (Milestone 2.7b) otro con `interval: "year"` (key
+ * `:price-year`), todos sobre el MISMO Product — un solo plan, varios
+ * precios, nunca planes separados (las ediciones y el cupo se comparten).
  */
 function createStripeSubscriptionProvider(client: StripeBillingClientLike): SubscriptionProvider {
   /** Relee la factura tras un fallo de `pay`. Si la relectura misma falla no
@@ -271,6 +272,21 @@ function createStripeSubscriptionProvider(client: StripeBillingClientLike): Subs
           { idempotencyKey: `${input.idempotencyKey}:price` },
         );
 
+        let quarterlyPriceRef: string | undefined;
+        if (input.quarterlyPriceCents !== undefined) {
+          const quarterlyPrice = await client.prices.create(
+            {
+              product: product.id,
+              currency: input.currency,
+              unit_amount: input.quarterlyPriceCents,
+              recurring: { interval: "month", interval_count: 3 },
+              metadata: { planSlug: input.planSlug },
+            },
+            { idempotencyKey: `${input.idempotencyKey}:price-quarter` },
+          );
+          quarterlyPriceRef = quarterlyPrice.id;
+        }
+
         let annualPriceRef: string | undefined;
         if (input.annualPriceCents !== undefined) {
           const annualPrice = await client.prices.create(
@@ -286,7 +302,12 @@ function createStripeSubscriptionProvider(client: StripeBillingClientLike): Subs
           annualPriceRef = annualPrice.id;
         }
 
-        return { productRef: product.id, priceRef: price.id, ...(annualPriceRef ? { annualPriceRef } : {}) };
+        return {
+          productRef: product.id,
+          priceRef: price.id,
+          ...(quarterlyPriceRef ? { quarterlyPriceRef } : {}),
+          ...(annualPriceRef ? { annualPriceRef } : {}),
+        };
       } catch (error) {
         translateStripeError(error);
       }

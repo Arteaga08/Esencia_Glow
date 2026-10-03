@@ -515,3 +515,97 @@ describe("services/subscription-start — alta anual (Milestone 2.7b)", () => {
     }
   });
 });
+
+/**
+ * Alta trimestral (Milestone 3.1.7b): usa el Price trimestral del plan y fija
+ * el ancla 3 meses después del mes del alta (`resolvePrepaidAnchorMonth`).
+ */
+describe("services/subscription-start — alta trimestral (Milestone 3.1.7b)", () => {
+  const ANCHOR_DAY = 15;
+  const SAFE_NOW = new Date("2026-11-20T12:00:00.000Z"); // día 20, después del ancla 15
+  const DANGER_NOW = new Date("2026-11-05T12:00:00.000Z"); // día 5, antes del ancla 15
+
+  it("usa el Price trimestral del plan, ancla a febrero y guarda billingInterval: quarter", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(SAFE_NOW);
+    try {
+      await updateSubscriptionSettings({ billingAnchorDay: ANCHOR_DAY });
+      await openEnrollment({});
+      const plan = await seedPlanWithStripeRefs({ maxActiveSeats: 5, quarterlyPriceCents: 146700 });
+      const userId = await seedUser();
+
+      const fake = buildFakeSubscriptionProvider();
+      __setSubscriptionProviderForTests(fake);
+
+      await startSubscriptionForUser({ userId, planId: plan._id.toString(), billingInterval: "quarter" });
+
+      const [params] = fake.startSubscription.mock.calls[0];
+      expect(params.priceRef).toBe(plan.providerQuarterlyPriceId);
+      expect(params.billingAnchorMonth).toBe(2);
+
+      const account = await SubscriptionAccount.findOne({ userId });
+      expect(account?.billingInterval).toBe("quarter");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("plan sin providerQuarterlyPriceId + billingInterval quarter -> 409, sin tocar cupo", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(SAFE_NOW);
+    try {
+      await updateSubscriptionSettings({ billingAnchorDay: ANCHOR_DAY });
+      await openEnrollment({});
+      const plan = await seedPlanWithStripeRefs({ maxActiveSeats: 5 });
+      const userId = await seedUser();
+
+      await expect(
+        startSubscriptionForUser({ userId, planId: plan._id.toString(), billingInterval: "quarter" }),
+      ).rejects.toMatchObject({ statusCode: 409, message: "Este plan no admite cobro trimestral." });
+
+      const refreshedPlan = await SubscriptionPlan.findById(plan._id);
+      expect(refreshedPlan?.seatsTaken).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("alta trimestral ANTES del día-ancla del mes -> 409, sin tocar cupo", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(DANGER_NOW);
+    try {
+      await updateSubscriptionSettings({ billingAnchorDay: ANCHOR_DAY });
+      await openEnrollment({ durationDays: 1 });
+      const plan = await seedPlanWithStripeRefs({ maxActiveSeats: 5, quarterlyPriceCents: 146700 });
+      const userId = await seedUser();
+
+      await expect(
+        startSubscriptionForUser({ userId, planId: plan._id.toString(), billingInterval: "quarter" }),
+      ).rejects.toMatchObject({ statusCode: 409 });
+
+      const refreshedPlan = await SubscriptionPlan.findById(plan._id);
+      expect(refreshedPlan?.seatsTaken).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("replay con un billingInterval DISTINTO (mensual -> trimestral) -> 409", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(SAFE_NOW);
+    try {
+      await updateSubscriptionSettings({ billingAnchorDay: ANCHOR_DAY });
+      await openEnrollment({});
+      const plan = await seedPlanWithStripeRefs({ maxActiveSeats: 5, quarterlyPriceCents: 146700 });
+      const userId = await seedUser();
+
+      await startSubscriptionForUser({ userId, planId: plan._id.toString() });
+
+      await expect(
+        startSubscriptionForUser({ userId, planId: plan._id.toString(), billingInterval: "quarter" }),
+      ).rejects.toMatchObject({ statusCode: 409 });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

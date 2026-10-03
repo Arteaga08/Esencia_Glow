@@ -6,6 +6,7 @@ import { logger } from "../config/logger.js";
 import { sendEmail } from "./mail-provider.js";
 import { renderTransactionalEmail } from "./email-layout.js";
 import { escapeHtml } from "../utils/escape-html.js";
+import type { BillingInterval, PrepaidInterval } from "./subscription-billing-interval.js";
 
 /**
  * Correos del webhook de Billing (Fase 5 de 1.7.2a, §7 del plan): confirmación
@@ -58,9 +59,10 @@ interface SendPaymentConfirmedInput {
   amountPaidCents: number;
   currency: string;
   periodEnd: Date;
-  /** Milestone 2.7b: cambia el copy del segundo párrafo — anual aclara que
-   * el cobro cubre 12 cajas, no una sola. Ausente = mensual (default). */
-  billingInterval?: "month" | "year";
+  /** Milestones 2.7b/3.1.7b: cambia el copy del segundo párrafo — trimestral
+   * y anual aclaran que el cobro cubre varias cajas, no una sola. Ausente =
+   * mensual (default). */
+  billingInterval?: BillingInterval;
 }
 
 /** Dispara en `subscription-webhook-handlers.ts::handleInvoicePaid` en CADA
@@ -69,10 +71,13 @@ interface SendPaymentConfirmedInput {
  * envío si dos entregas de Stripe con `eventId` distinto llegan para la
  * misma factura (el dedupe de `PaymentEvent` solo cubre el `eventId`). */
 async function sendSubscriptionPaymentConfirmedEmail(input: SendPaymentConfirmedInput): Promise<void> {
+  const periodEnd = escapeHtml(DATE_FORMATTER.format(input.periodEnd));
   const periodParagraph =
     input.billingInterval === "year"
-      ? `Este cobro cubre tu ciclo anual completo: recibirás una caja cada mes hasta el ${escapeHtml(DATE_FORMATTER.format(input.periodEnd))}, cuando se renueve tu suscripción.`
-      : `Tu caja de este ciclo queda vigente hasta el ${escapeHtml(DATE_FORMATTER.format(input.periodEnd))}.`;
+      ? `Este cobro cubre tu ciclo anual completo: recibirás una caja cada mes hasta el ${periodEnd}, cuando se renueve tu suscripción.`
+      : input.billingInterval === "quarter"
+        ? `Este cobro cubre tu trimestre completo: recibirás una caja cada mes hasta el ${periodEnd}, cuando se renueve tu suscripción.`
+        : `Tu caja de este ciclo queda vigente hasta el ${periodEnd}.`;
 
   await sendSubscriberEmail(input.userId, (target) => ({
     subject: "Confirmamos tu cobro — Esencia Glow",
@@ -89,30 +94,45 @@ async function sendSubscriptionPaymentConfirmedEmail(input: SendPaymentConfirmed
   }));
 }
 
-interface SendAnnualRenewalReminderInput {
+interface SendRenewalReminderInput {
   accountId: string;
   userId: Types.ObjectId | string;
-  /** Fin del ciclo anual en curso = fecha de la próxima renovación. */
+  /** Fin del periodo prepagado en curso = fecha de la próxima renovación. */
   periodEnd: Date;
+  billingInterval: PrepaidInterval;
 }
 
-/** Aviso 30 días antes de que se renueve un ciclo ANUAL (Milestone 2.7b,
- * decisión de Manuel: un cobro recurrente sin aviso es la causa #1 de
- * contracargo — mismo motivo que ya justificó el correo de confirmación de
- * cada cobro en 1.7.2a). Dispara desde
- * `jobs/send-annual-renewal-reminders.ts`. `Idempotency-Key` por
- * `periodEnd` (no por fecha de envío): si el job corre varias veces antes de
- * que el período cambie, sigue siendo el mismo aviso. */
-async function sendAnnualRenewalReminderEmail(input: SendAnnualRenewalReminderInput): Promise<void> {
-  await sendSubscriberEmail(input.userId, (target) => ({
+const RENEWAL_REMINDER_COPY: Record<PrepaidInterval, { subject: string; title: string; cycle: string }> = {
+  quarter: {
+    subject: "Tu suscripción trimestral está por renovarse — Esencia Glow",
+    title: "Tu suscripción trimestral está por renovarse",
+    cycle: "tu trimestre",
+  },
+  year: {
     subject: "Tu suscripción anual está por renovarse — Esencia Glow",
+    title: "Tu suscripción anual está por renovarse",
+    cycle: "tu ciclo anual",
+  },
+};
+
+/** Aviso antes de que se renueve un ciclo PREPAGADO (Milestones 2.7b y
+ * 3.1.7b, decisión de Manuel: un cobro recurrente sin aviso es la causa #1 de
+ * contracargo — mismo motivo que ya justificó el correo de confirmación de
+ * cada cobro en 1.7.2a). Dispara desde `jobs/send-renewal-reminders.ts`, con
+ * anticipación distinta por intervalo. `Idempotency-Key` por `periodEnd` (no
+ * por fecha de envío): si el job corre varias veces antes de que el período
+ * cambie, sigue siendo el mismo aviso. */
+async function sendRenewalReminderEmail(input: SendRenewalReminderInput): Promise<void> {
+  const copy = RENEWAL_REMINDER_COPY[input.billingInterval];
+  await sendSubscriberEmail(input.userId, (target) => ({
+    subject: copy.subject,
     idempotencyKey: `subscription-${input.accountId}-renewal-reminder-${input.periodEnd.getTime()}`,
     html: renderTransactionalEmail({
       preheader: `Tu suscripción se renueva el ${DATE_FORMATTER.format(input.periodEnd)}.`,
-      title: "Tu suscripción anual está por renovarse",
+      title: copy.title,
       paragraphs: [
-        `Hola ${target.name}, tu ciclo anual termina el <strong>${escapeHtml(DATE_FORMATTER.format(input.periodEnd))}</strong>.`,
-        "Si quieres continuar con nosotros, no necesitas hacer nada: se renovará automáticamente. Si prefieres pausar o cancelar, puedes hacerlo desde tu cuenta antes de esa fecha.",
+        `Hola ${target.name}, ${copy.cycle} termina el <strong>${escapeHtml(DATE_FORMATTER.format(input.periodEnd))}</strong>.`,
+        "Si quieres continuar con nosotros, no necesitas hacer nada: se renovará automáticamente. Si prefieres cancelar, puedes hacerlo desde tu cuenta antes de esa fecha.",
       ],
       disclaimer: "Si tienes dudas sobre tu suscripción, contáctanos.",
     }),
@@ -271,7 +291,7 @@ async function sendUpcomingEditionMissingEmail(input: SendUpcomingEditionMissing
 
 export {
   sendSubscriptionPaymentConfirmedEmail,
-  sendAnnualRenewalReminderEmail,
+  sendRenewalReminderEmail,
   sendSubscriptionDunningEmail,
   sendSubscriptionAdminIncidentEmail,
   sendUpcomingEditionMissingEmail,

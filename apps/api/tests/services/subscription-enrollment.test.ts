@@ -3,6 +3,7 @@ import {
   assertWindowClearOfAnchor,
   isEnrollmentOpen,
   resolveAnnualAnchor,
+  resolvePrepaidAnchorMonth,
 } from "../../src/services/subscription-enrollment.js";
 
 /**
@@ -104,5 +105,43 @@ describe("services/subscription-enrollment — resolveAnnualAnchor", () => {
     // siendo diciembre, día 31 — muy después del ancla del 15.
     const now = new Date("2026-01-01T04:00:00.000Z");
     expect(resolveAnnualAnchor(now, ANCHOR_DAY)).toBe(12);
+  });
+});
+
+/**
+ * `resolvePrepaidAnchorMonth` (Milestone 3.1.7b): generaliza el ancla anual.
+ * Trimestral: el mes del ancla es el del alta + 3 (con vuelta de año); anual:
+ * el mismo mes del alta, como siempre. Mismo guard 409 si el día de hoy aún
+ * no pasa el día-ancla.
+ */
+describe("services/subscription-enrollment — resolvePrepaidAnchorMonth", () => {
+  const ANCHOR_DAY = 1;
+
+  it("trimestral: octubre -> enero", () => {
+    const now = new Date("2026-10-02T18:00:00.000Z");
+    expect(resolvePrepaidAnchorMonth(now, ANCHOR_DAY, "quarter")).toBe(1);
+  });
+
+  it("trimestral: noviembre -> febrero y diciembre -> marzo (vuelta de año)", () => {
+    expect(resolvePrepaidAnchorMonth(new Date("2026-11-10T18:00:00.000Z"), ANCHOR_DAY, "quarter")).toBe(2);
+    expect(resolvePrepaidAnchorMonth(new Date("2026-12-10T18:00:00.000Z"), ANCHOR_DAY, "quarter")).toBe(3);
+  });
+
+  it("trimestral: enero -> abril (sin vuelta)", () => {
+    expect(resolvePrepaidAnchorMonth(new Date("2026-01-10T18:00:00.000Z"), ANCHOR_DAY, "quarter")).toBe(4);
+  });
+
+  it("anual: conserva el mes del alta", () => {
+    expect(resolvePrepaidAnchorMonth(new Date("2026-10-02T18:00:00.000Z"), ANCHOR_DAY, "year")).toBe(10);
+  });
+
+  it("rechaza (409) antes o en el día-ancla, y el mensaje nombra el intervalo", () => {
+    const now = new Date("2026-10-01T18:00:00.000Z");
+    expect(() => resolvePrepaidAnchorMonth(now, ANCHOR_DAY, "quarter")).toThrow(
+      expect.objectContaining({ statusCode: 409, message: expect.stringContaining("trimestral") }),
+    );
+    expect(() => resolvePrepaidAnchorMonth(now, ANCHOR_DAY, "year")).toThrow(
+      expect.objectContaining({ statusCode: 409, message: expect.stringContaining("anual") }),
+    );
   });
 });

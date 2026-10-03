@@ -115,6 +115,27 @@ describe("routes/subscription — POST /subscriptions", () => {
     }
   });
 
+  it("billingInterval: 'quarter' crea la cuenta con ese intervalo (Milestone 3.1.7b)", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-20T12:00:00.000Z"));
+    try {
+      await updateSubscriptionSettings({ billingAnchorDay: 15 });
+      await openEnrollment({});
+      const plan = await seedPlanWithStripeRefs({ quarterlyPriceCents: 146700 });
+      const { agent, userId } = await createCustomerSession(app);
+
+      const res = await agent
+        .post("/api/v1/subscriptions")
+        .send({ planId: plan._id.toString(), billingInterval: "quarter", termsAccepted: true });
+
+      expect(res.status).toBe(201);
+      const account = await SubscriptionAccount.findOne({ userId });
+      expect(account?.billingInterval).toBe("quarter");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("billingInterval: 'year' sobre un plan sin precio anual responde 409", async () => {
     await openEnrollmentSafely();
     const plan = await seedPlanWithStripeRefs();

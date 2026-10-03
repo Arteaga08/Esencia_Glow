@@ -25,7 +25,7 @@ const PUBLIC_PLAN_FILTER = { isActive: true, providerPriceId: { $type: "string" 
  * `maxActiveSeats`, `providerProductId` y `providerPriceId`. `seatsTaken` y
  * `maxActiveSeats` SÍ se leen, pero únicamente para derivar `soldOut`. */
 const PUBLIC_PLAN_PROJECTION =
-  "name slug description shortDescription priceCents annualPriceCents currency billingInterval seatsTaken maxActiveSeats images highlights";
+  "name slug description shortDescription priceCents quarterlyPriceCents annualPriceCents currency billingInterval seatsTaken maxActiveSeats images highlights";
 
 interface LeanPublicPlan {
   _id: { toString(): string };
@@ -34,6 +34,7 @@ interface LeanPublicPlan {
   description: string;
   shortDescription?: string;
   priceCents: number;
+  quarterlyPriceCents?: number;
   annualPriceCents?: number;
   currency: string;
   billingInterval: string;
@@ -52,6 +53,7 @@ function buildPublicPlan(plan: LeanPublicPlan): PublicSubscriptionPlan {
     description: plan.description,
     ...(plan.shortDescription ? { shortDescription: plan.shortDescription } : {}),
     priceCents: plan.priceCents,
+    ...(plan.quarterlyPriceCents !== undefined ? { quarterlyPriceCents: plan.quarterlyPriceCents } : {}),
     ...(plan.annualPriceCents !== undefined ? { annualPriceCents: plan.annualPriceCents } : {}),
     currency: plan.currency,
     billingInterval: plan.billingInterval,

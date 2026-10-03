@@ -42,4 +42,12 @@ describe("models/SubscriptionInvoice", () => {
   it("rechaza amountPaidCents no entero", async () => {
     await expect(SubscriptionInvoice.create(buildInvoiceAttrs({ amountPaidCents: 100.5 }))).rejects.toThrow();
   });
+
+  it("acepta billingInterval: quarter y rechaza uno fuera del enum", async () => {
+    const invoice = await SubscriptionInvoice.create(buildInvoiceAttrs({ invoiceRef: "in_q", billingInterval: "quarter" }));
+    expect(invoice.billingInterval).toBe("quarter");
+    await expect(
+      SubscriptionInvoice.create(buildInvoiceAttrs({ invoiceRef: "in_w", billingInterval: "week" })),
+    ).rejects.toThrow();
+  });
 });

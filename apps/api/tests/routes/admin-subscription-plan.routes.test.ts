@@ -154,4 +154,41 @@ describe("routes/admin-subscription-plan — CRUD de planes", () => {
       .send({ annualPriceCents: 599000 });
     expect(update.status).toBe(400);
   });
+
+  it("crea un plan con precio trimestral y anual (Milestone 3.1.7b): el DTO expone los tres precios", async () => {
+    const { agent } = await createAdminSession(app);
+    const create = await agent
+      .post("/api/v1/admin/subscription-plans")
+      .send(samplePlan({ name: "Caja Trimestral", quarterlyPriceCents: 134700, annualPriceCents: 499000 }));
+    expect(create.status).toBe(201);
+    expect(create.body.data.priceCents).toBe(49900);
+    expect(create.body.data.quarterlyPriceCents).toBe(134700);
+    expect(create.body.data.annualPriceCents).toBe(499000);
+  });
+
+  it("crea un plan sin quarterlyPriceCents: el campo no aparece en el DTO", async () => {
+    const { agent } = await createAdminSession(app);
+    const create = await agent.post("/api/v1/admin/subscription-plans").send(samplePlan());
+    expect(create.status).toBe(201);
+    expect(create.body.data.quarterlyPriceCents).toBeUndefined();
+  });
+
+  it("rechaza quarterlyPriceCents no entero", async () => {
+    const { agent } = await createAdminSession(app);
+    const response = await agent
+      .post("/api/v1/admin/subscription-plans")
+      .send(samplePlan({ quarterlyPriceCents: 100.5 }));
+    expect(response.status).toBe(400);
+  });
+
+  it("PATCH con quarterlyPriceCents responde 400 (inmutable para siempre)", async () => {
+    const { agent } = await createAdminSession(app);
+    const create = await agent
+      .post("/api/v1/admin/subscription-plans")
+      .send(samplePlan({ quarterlyPriceCents: 134700 }));
+    const update = await agent
+      .patch(`/api/v1/admin/subscription-plans/${create.body.data.id as string}`)
+      .send({ quarterlyPriceCents: 99000 });
+    expect(update.status).toBe(400);
+  });
 });

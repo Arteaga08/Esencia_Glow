@@ -91,8 +91,8 @@ interface AdminSubscriptionAccountActivityEntry {
 
 /**
  * Espejo manual de `AdminSubscriptionPlan`/`AdminSubscriptionEdition`
- * (apps/api/src/services/subscription-dto.ts, Milestone 1.7.1 + 2.7b-1).
- * `priceCents`/`annualPriceCents` son inmutables tras crear el plan: el
+ * (apps/api/src/services/subscription-dto.ts, Milestone 1.7.1 + 2.7b-1 + 3.1.7b).
+ * `priceCents`/`quarterlyPriceCents`/`annualPriceCents` son inmutables tras crear el plan: el
  * PATCH no los acepta (subscription-plan.validator.ts).
  */
 interface AdminSubscriptionPlan {
@@ -102,6 +102,7 @@ interface AdminSubscriptionPlan {
   description: string;
   shortDescription?: string;
   priceCents: number;
+  quarterlyPriceCents?: number;
   annualPriceCents?: number;
   currency: string;
   billingInterval: string;

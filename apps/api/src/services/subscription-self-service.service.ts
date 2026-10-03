@@ -12,6 +12,7 @@ import {
 } from "./subscription-provider.js";
 import { applyStatusTransition } from "./subscription-seat.service.js";
 import { CANCEL_SCHEDULABLE_STATUSES, canUndoCancel } from "./subscription-state.js";
+import { isPrepaidInterval, type PrepaidInterval } from "./subscription-billing-interval.js";
 
 /**
  * Autoservicio de la suscriptora (Milestone 1.7.3): pausar, reanudar,
@@ -41,16 +42,21 @@ import { CANCEL_SCHEDULABLE_STATUSES, canUndoCancel } from "./subscription-state
  * webhook lo rechaza como `paused_account_charged`). */
 const PAUSE_CUTOFF_MS = 48 * 60 * 60 * 1000;
 
+const PREPAID_PAUSE_MESSAGE: Record<PrepaidInterval, string> = {
+  quarter: "Las suscripciones trimestrales no se pueden pausar: ya están cobradas por todo el trimestre.",
+  year: "Las suscripciones anuales no se pueden pausar: ya están cobradas por todo el año.",
+};
+
 type CancelOutcome = "scheduled" | "canceled";
 
 /** ACTIVE + sin cancelación programada + sin cambio de plan en curso + a más
  * de 48 h del siguiente cobro. */
 function assertCanPause(account: SubscriptionAccountDocument, now: Date): void {
-  // Milestone 2.7b: el año ya se cobró completo de golpe, así que no hay
-  // ningún cobro futuro que "detener" pausando — a diferencia de la mensual,
-  // donde pausar SÍ evita el siguiente cargo.
-  if (account.billingInterval === "year") {
-    throw new AppError("Las suscripciones anuales no se pueden pausar: ya están cobradas por todo el año.", 409);
+  // Milestones 2.7b/3.1.7b: el periodo (trimestre o año) ya se cobró completo
+  // de golpe, así que no hay ningún cobro futuro que "detener" pausando — a
+  // diferencia de la mensual, donde pausar SÍ evita el siguiente cargo.
+  if (isPrepaidInterval(account.billingInterval)) {
+    throw new AppError(PREPAID_PAUSE_MESSAGE[account.billingInterval], 409);
   }
   if (account.status === SubscriptionStatus.PAST_DUE) {
     throw new AppError("Regulariza tu pago antes de pausar tu suscripción.", 409);

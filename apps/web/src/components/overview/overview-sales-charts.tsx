@@ -17,7 +17,7 @@ function OverviewSalesCharts() {
       />
       <SalesChartCard
         title="Ingresos por suscripciones"
-        description="Cobros exitosos de cajas mensuales y anuales."
+        description="Cobros exitosos de cajas mensuales, trimestrales y anuales."
         valueKey="subscriptionRevenueCents"
         color={CHART_COLORS.subscriptions}
         formatValue={formatMoneyMXN}
