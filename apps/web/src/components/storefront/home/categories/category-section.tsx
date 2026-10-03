@@ -17,7 +17,7 @@ function CategorySection({ categories }: { categories: ShowcaseCategory[] }) {
 
   return (
     <section aria-labelledby={TITLE_ID} className="bg-blush py-16 md:py-24">
-      <h2 id={TITLE_ID} className="mb-10 px-4 text-center font-mono text-section-title uppercase tracking-[0.12em] text-foreground md:mb-12">
+      <h2 id={TITLE_ID} className="mb-10 px-4 text-center type-shop-section text-foreground md:mb-12">
         Compra por categoría
       </h2>
       <SnapCarousel

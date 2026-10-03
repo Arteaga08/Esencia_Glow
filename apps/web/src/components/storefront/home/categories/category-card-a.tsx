@@ -16,11 +16,11 @@ function CategoryCardA({ category, priority }: { category: ShowcaseCategory; pri
         <CategoryImage category={category} sizes={SIZES} priority={priority} />
       </Link>
       <div className="flex flex-1 flex-col items-center justify-between px-6 pt-6 text-center">
-        <h3 className="font-mono text-section-title uppercase tracking-[0.08em] text-foreground">{category.name}</h3>
+        <h3 className="type-shop-card-title text-foreground">{category.name}</h3>
         {category.description ? (
           <p className="mt-3 line-clamp-2 max-w-[32ch] text-body text-foreground/80">{category.description}</p>
         ) : null}
-        <Link href={category.href} aria-label={`Comprar ${category.name}`} className={`${VIEW_ALL_BUTTON} mt-6 mb-12 font-mono uppercase tracking-[0.08em]`}>
+        <Link href={category.href} aria-label={`Comprar ${category.name}`} className={`${VIEW_ALL_BUTTON} mt-6 mb-12`}>
           Comprar
         </Link>
       </div>

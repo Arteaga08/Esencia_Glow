@@ -14,7 +14,7 @@ async function HeroSection() {
   if (slides.length === 0) {
     return (
       <section className="flex min-h-svh items-end bg-blush px-4 pb-16 md:px-8 lg:px-12">
-        <h1 className="text-display text-foreground">Esencia Glow</h1>
+        <h1 className="text-hero text-foreground">Esencia Glow</h1>
       </section>
     );
   }
