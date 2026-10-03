@@ -11,6 +11,7 @@ import { sanitizeMultipart } from "../middlewares/sanitize-multipart.js";
 import {
   deleteImageQuerySchema,
   heroSlideImageParamsSchema,
+  imageSlotParamsSchema,
   imageVersionBodySchema,
   spotlightImageParamsSchema,
   spotlightParamsSchema,
@@ -19,6 +20,7 @@ import {
   updateFeaturedCategoriesSchema,
   updateFeaturedProductsSchema,
   updateHeroSchema,
+  updateOfferBannerSchema,
   updateSpotlightSchema,
   updateSubscriptionPromoSchema,
   updateTestimonialsSchema,
@@ -65,6 +67,7 @@ router.put(
   validate(updateSpotlightSchema),
   homeContentController.updateSpotlight,
 );
+router.put("/offer-banner", validate(updateOfferBannerSchema), homeContentController.updateOfferBanner);
 
 router.put(
   "/hero/slides/:slideId/images/:slot",
@@ -109,6 +112,22 @@ router.delete(
   validate(spotlightImageParamsSchema, "params"),
   validate(deleteImageQuerySchema, "query"),
   homeImageController.removeSpotlightImage,
+);
+
+router.put(
+  "/offer-banner/images/:slot",
+  uploadRateLimiter,
+  validate(imageSlotParamsSchema, "params"),
+  uploadSingleImage("image"),
+  sanitizeMultipart,
+  validate(imageVersionBodySchema),
+  homeImageController.setOfferBannerImage,
+);
+router.delete(
+  "/offer-banner/images/:slot",
+  validate(imageSlotParamsSchema, "params"),
+  validate(deleteImageQuerySchema, "query"),
+  homeImageController.removeOfferBannerImage,
 );
 
 export { router as adminHomeRoutes };

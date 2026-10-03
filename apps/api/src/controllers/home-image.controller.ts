@@ -99,7 +99,28 @@ const removeSpotlightImage = asyncHandler(async (req: Request<SpotlightImagePara
   sendResponse(res, 200, "Foto del bloque eliminada.", result);
 });
 
+type SlotParams = { slot: HeroImageSlot };
+
+const setOfferBannerImage = asyncHandler(async (req: Request<SlotParams>, res: Response) => {
+  const file = requireFile(req);
+  const { version, alt } = req.body as { version: number; alt?: string };
+
+  const result = await homeImageService.setOfferBannerImage(req.params.slot, file.buffer, version, alt);
+
+  await auditImageChange(req, HomeSectionKey.OFFER_BANNER, result.version, req.params.slot);
+  sendResponse(res, 200, "Foto del banner actualizada.", result);
+});
+
+const removeOfferBannerImage = asyncHandler(async (req: Request<SlotParams>, res: Response) => {
+  const result = await homeImageService.removeOfferBannerImage(req.params.slot, queryVersion(req));
+
+  await auditImageChange(req, HomeSectionKey.OFFER_BANNER, result.version, req.params.slot);
+  sendResponse(res, 200, "Foto del banner eliminada.", result);
+});
+
 export {
+  setOfferBannerImage,
+  removeOfferBannerImage,
   setHeroSlideImage,
   removeHeroSlideImage,
   setPromoImage,

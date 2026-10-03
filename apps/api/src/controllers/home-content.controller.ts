@@ -12,7 +12,7 @@ const get = asyncHandler(async (_req: Request, res: Response) => {
 });
 
 /**
- * Fábrica de los 7 handlers de escritura: todos hacen lo mismo — llamar al
+ * Fábrica de los 8 handlers de escritura: todos hacen lo mismo — llamar al
  * service de SU sección, dejar UNA entrada de auditoría que identifica la
  * sección (`metadata.section`, no solo "el home cambió") y responder con la
  * sección ya actualizada, con su nueva `version`.
@@ -90,6 +90,12 @@ const updateBenefits = sectionUpdateHandler(
   (section) => ({ items: section.items.length }),
 );
 
+const updateOfferBanner = sectionUpdateHandler(
+  HomeSectionKey.OFFER_BANNER,
+  "Banner de oferta actualizado.",
+  homeContentService.updateOfferBanner,
+);
+
 /**
  * Novedades y Kits comparten ruta (`/spotlights/:section`): la sección sale del
  * segmento de URL, ya validado por Joi. Misma auditoría que el resto.
@@ -109,6 +115,7 @@ const updateSpotlight = asyncHandler(async (req: Request<{ section: string }>, r
 
 export {
   updateSpotlight,
+  updateOfferBanner,
   get,
   updateAnnouncement,
   updateHero,

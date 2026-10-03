@@ -111,6 +111,19 @@ const updateSpotlightSchema = Joi.object({
   subtitle: Joi.string().trim().max(LIMITS.subtitleMax),
 });
 
+/** Banner de oferta: la frase, el botón y su enlace son obligatorios (el banner sin ellos no tiene sentido). */
+const updateOfferBannerSchema = Joi.object({
+  version: versionField,
+  isActive: Joi.boolean().required(),
+  text: Joi.string().trim().min(1).max(LIMITS.offerTextMax).required(),
+  ctaLabel: Joi.string().trim().min(1).max(LIMITS.ctaLabelMax).required(),
+  ctaHref: hrefField.required(),
+});
+
+const imageSlotParamsSchema = Joi.object({
+  slot: Joi.string().valid("desktop", "mobile").required(),
+});
+
 /** Segmento de URL de las secciones de Novedades y Kits. */
 const spotlightParamsSchema = Joi.object({
   section: Joi.string().valid("new-arrivals", "kits").required(),
@@ -145,6 +158,8 @@ export {
   updateTestimonialsSchema,
   updateBenefitsSchema,
   updateSpotlightSchema,
+  updateOfferBannerSchema,
+  imageSlotParamsSchema,
   spotlightParamsSchema,
   spotlightImageParamsSchema,
   heroSlideImageParamsSchema,

@@ -124,5 +124,5 @@ function fingerprint(value: HeroFormValue): string {
   });
 }
 
-export { emptySlide, toFormValue, toPayload, validateSlide, hasDesktopImage, fingerprint };
+export { HREF_PATTERN, emptySlide, toFormValue, toPayload, validateSlide, hasDesktopImage, fingerprint };
 export type { HeroImageSlot, HeroImageDraft, HeroSlideDraft, HeroFormValue };

@@ -13,6 +13,8 @@ const HOME_CONTENT_LIMITS = {
   /** Novedades del home (bloque 5): la rejilla 2×2 muestra exactamente cuatro. */
   maxNewArrivals: 4,
   announcementTextMax: 120,
+  /** Frase de la cinta del banner de oferta (bloque 8): se lee de corrido mientras se desplaza. */
+  offerTextMax: 80,
   titleMax: 120,
   subtitleMax: 240,
   ctaLabelMax: 40,

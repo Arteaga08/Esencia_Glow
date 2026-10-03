@@ -5,6 +5,7 @@ import {
   featuredCategoriesSchema,
   featuredProductsSchema,
   heroSchema,
+  offerBannerSchema,
   spotlightSchema,
   subscriptionPromoSchema,
   testimonialsSchema,
@@ -13,6 +14,7 @@ import {
   type HomeFeaturedCategoriesAttrs,
   type HomeFeaturedProductsAttrs,
   type HomeHeroAttrs,
+  type HomeOfferBannerAttrs,
   type HomeSpotlightAttrs,
   type HomeSubscriptionPromoAttrs,
   type HomeTestimonialsAttrs,
@@ -41,6 +43,7 @@ interface HomeContentAttrs {
   benefits?: HomeBenefitsAttrs;
   newArrivals?: HomeSpotlightAttrs;
   kits?: HomeSpotlightAttrs;
+  offerBanner?: HomeOfferBannerAttrs;
 }
 
 type HomeContentDocument = HydratedDocument<HomeContentAttrs>;
@@ -58,6 +61,7 @@ const homeContentSchema = new Schema<HomeContentAttrs, HomeContentModel>(
     benefits: { type: benefitsSchema },
     newArrivals: { type: spotlightSchema },
     kits: { type: spotlightSchema },
+    offerBanner: { type: offerBannerSchema },
   },
   { timestamps: true },
 );
