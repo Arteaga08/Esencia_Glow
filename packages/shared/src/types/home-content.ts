@@ -95,6 +95,17 @@ interface AdminHomeSpotlight extends HomeSectionMeta {
   images: Partial<HomeHeroSlideImages>;
 }
 
+/**
+ * Banner de oferta (bloque 8): foto a todo lo ancho, una frase que corre en
+ * bucle sobre ella y un botón que lleva al producto en oferta.
+ */
+interface AdminHomeOfferBanner extends HomeSectionMeta {
+  text: string;
+  ctaLabel: string;
+  ctaHref: string;
+  images: Partial<HomeHeroSlideImages>;
+}
+
 interface AdminHomeContent {
   announcement: AdminHomeAnnouncement;
   hero: AdminHomeHero;
@@ -105,6 +116,7 @@ interface AdminHomeContent {
   benefits: AdminHomeBenefits;
   newArrivals: AdminHomeSpotlight;
   kits: AdminHomeSpotlight;
+  offerBanner: AdminHomeOfferBanner;
 }
 
 interface PublicHomeHeroSlide {
@@ -124,6 +136,14 @@ interface PublicHomeSpotlight {
   images: HomeHeroSlideImages<PublicProductImage>;
 }
 
+/** Sin foto de escritorio, frase, botón o enlace no se publica: todo viene. */
+interface PublicHomeOfferBanner {
+  text: string;
+  ctaLabel: string;
+  ctaHref: string;
+  images: HomeHeroSlideImages<PublicProductImage>;
+}
+
 interface PublicHomeContent {
   announcement?: { text: string; href?: string };
   hero?: { slides: PublicHomeHeroSlide[] };
@@ -140,6 +160,7 @@ interface PublicHomeContent {
   benefits?: { items: Omit<AdminHomeBenefit, "isActive">[] };
   newArrivals?: PublicHomeSpotlight;
   kits?: PublicHomeSpotlight;
+  offerBanner?: PublicHomeOfferBanner;
 }
 
 export type {
@@ -155,8 +176,10 @@ export type {
   AdminHomeBenefit,
   AdminHomeBenefits,
   AdminHomeSpotlight,
+  AdminHomeOfferBanner,
   AdminHomeContent,
   PublicHomeSpotlight,
+  PublicHomeOfferBanner,
   PublicHomeHeroSlide,
   PublicHomeContent,
 };

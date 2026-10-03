@@ -2,6 +2,7 @@ import { Types } from "mongoose";
 import {
   HomeSectionKey,
   type AdminHomeHero,
+  type AdminHomeOfferBanner,
   type AdminHomeSpotlight,
   type AdminHomeSubscriptionPromo,
   type HomeSpotlightKey,
@@ -9,14 +10,15 @@ import {
 import type { HomeContentAttrs } from "../models/home-content.model.js";
 import type { HomeHeroSlideAttrs, HomeImageAttrs } from "../models/home-section.schemas.js";
 import { AppError } from "../utils/app-error.js";
-import { buildHero, buildSpotlight, buildSubscriptionPromo } from "./home-content-dto.js";
+import { buildHero, buildOfferBanner, buildSpotlight, buildSubscriptionPromo } from "./home-content-dto.js";
 import { assertVersionMatches, readHomeContent, writeSection, type SectionWrite } from "./home-content-store.js";
 import { destroyImageBestEffort, uploadImage } from "./upload.service.js";
 import type { MediaAsset } from "./media-provider.js";
 
 /**
  * Imágenes del home (Milestone 1.8): sub-recursos de SU sección — la imagen
- * de cada slide del hero (`desktop`/`mobile`) y la de la promo de suscripción.
+ * de cada slide del hero (`desktop`/`mobile`), la de la promo de suscripción
+ * y el par de fotos de Novedades, Kits y el banner de oferta.
  * Cada operación es una escritura de sección más: pide la `version` que el
  * editor leyó, la sube en +1 y deja su auditoría (la registra el controller).
  *
@@ -136,14 +138,17 @@ async function removePromoImage(version: number): Promise<AdminHomeSubscriptionP
   return buildSubscriptionPromo(doc);
 }
 
-/** Foto de portada de Novedades o Kits (`desktop`/`mobile`); la sección se crea con la primera foto si hace falta. */
-async function setSpotlightImage(
-  section: HomeSpotlightKey,
+/** Secciones con un par de fotos `images.{desktop,mobile}` a nivel de sección. */
+type SlotImageSection = HomeSpotlightKey | HomeSectionKey.OFFER_BANNER;
+
+/** Sube la foto de un slot de la sección; la sección se crea con la primera foto si hace falta. */
+async function setSectionSlotImage(
+  section: SlotImageSection,
   slot: HeroImageSlot,
   buffer: Buffer,
   version: number,
   alt?: string,
-): Promise<AdminHomeSpotlight> {
+): Promise<HomeContentAttrs> {
   const current = await readHomeContent();
   assertVersionMatches(current, section, version);
   const previous: HomeImageAttrs | undefined = current?.[section]?.images?.[slot];
@@ -153,14 +158,14 @@ async function setSpotlightImage(
   }));
 
   if (previous) await destroyImageBestEffort(previous.publicId);
-  return buildSpotlight(doc, section);
+  return doc;
 }
 
-async function removeSpotlightImage(
-  section: HomeSpotlightKey,
+async function removeSectionSlotImage(
+  section: SlotImageSection,
   slot: HeroImageSlot,
   version: number,
-): Promise<AdminHomeSpotlight> {
+): Promise<HomeContentAttrs> {
   const current = await readHomeContent();
   assertVersionMatches(current, section, version);
   const previous = current?.[section]?.images?.[slot];
@@ -169,8 +174,50 @@ async function removeSpotlightImage(
   const doc = await writeSection(section, version, { unset: [`images.${slot}`] });
 
   await destroyImageBestEffort(previous.publicId);
-  return buildSpotlight(doc, section);
+  return doc;
 }
 
-export { setHeroSlideImage, removeHeroSlideImage, setPromoImage, removePromoImage, setSpotlightImage, removeSpotlightImage };
+/** Foto de portada de Novedades o Kits (`desktop`/`mobile`). */
+async function setSpotlightImage(
+  section: HomeSpotlightKey,
+  slot: HeroImageSlot,
+  buffer: Buffer,
+  version: number,
+  alt?: string,
+): Promise<AdminHomeSpotlight> {
+  return buildSpotlight(await setSectionSlotImage(section, slot, buffer, version, alt), section);
+}
+
+async function removeSpotlightImage(
+  section: HomeSpotlightKey,
+  slot: HeroImageSlot,
+  version: number,
+): Promise<AdminHomeSpotlight> {
+  return buildSpotlight(await removeSectionSlotImage(section, slot, version), section);
+}
+
+/** Foto del banner de oferta (`desktop`/`mobile`). */
+async function setOfferBannerImage(
+  slot: HeroImageSlot,
+  buffer: Buffer,
+  version: number,
+  alt?: string,
+): Promise<AdminHomeOfferBanner> {
+  return buildOfferBanner(await setSectionSlotImage(HomeSectionKey.OFFER_BANNER, slot, buffer, version, alt));
+}
+
+async function removeOfferBannerImage(slot: HeroImageSlot, version: number): Promise<AdminHomeOfferBanner> {
+  return buildOfferBanner(await removeSectionSlotImage(HomeSectionKey.OFFER_BANNER, slot, version));
+}
+
+export {
+  setHeroSlideImage,
+  removeHeroSlideImage,
+  setPromoImage,
+  removePromoImage,
+  setSpotlightImage,
+  removeSpotlightImage,
+  setOfferBannerImage,
+  removeOfferBannerImage,
+};
 export type { HeroImageSlot };

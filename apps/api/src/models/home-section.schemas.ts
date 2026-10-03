@@ -90,6 +90,14 @@ interface HomeSpotlightAttrs extends HomeSectionBaseAttrs {
   images?: { desktop?: HomeImageAttrs; mobile?: HomeImageAttrs };
 }
 
+/** Banner de oferta (bloque 8): frase de la cinta, botón con su enlace y dos fotos. */
+interface HomeOfferBannerAttrs extends HomeSectionBaseAttrs {
+  text?: string;
+  ctaLabel?: string;
+  ctaHref?: string;
+  images?: { desktop?: HomeImageAttrs; mobile?: HomeImageAttrs };
+}
+
 const baseFields = {
   version: { type: Number },
   isActive: { type: Boolean },
@@ -196,9 +204,23 @@ const spotlightSchema = new Schema<HomeSpotlightAttrs>(
   { _id: false },
 );
 
+const offerBannerSchema = new Schema<HomeOfferBannerAttrs>(
+  {
+    ...baseFields,
+    text: { type: String, trim: true, maxlength: 80 },
+    ctaLabel: { type: String, trim: true, maxlength: 40 },
+    ctaHref: { type: String, trim: true, maxlength: 500 },
+    images: {
+      type: new Schema({ desktop: { type: mediaImageSchema }, mobile: { type: mediaImageSchema } }, { _id: false }),
+    },
+  },
+  { _id: false },
+);
+
 export {
   announcementSchema,
   spotlightSchema,
+  offerBannerSchema,
   heroSchema,
   featuredProductsSchema,
   featuredCategoriesSchema,
@@ -220,4 +242,5 @@ export type {
   HomeBenefitAttrs,
   HomeBenefitsAttrs,
   HomeSpotlightAttrs,
+  HomeOfferBannerAttrs,
 };

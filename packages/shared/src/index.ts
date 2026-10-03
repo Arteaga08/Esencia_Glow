@@ -198,8 +198,10 @@ export type {
   AdminHomeBenefit,
   AdminHomeBenefits,
   AdminHomeSpotlight,
+  AdminHomeOfferBanner,
   AdminHomeContent,
   PublicHomeSpotlight,
+  PublicHomeOfferBanner,
   PublicHomeHeroSlide,
   PublicHomeContent,
 } from "./types/home-content.js";
