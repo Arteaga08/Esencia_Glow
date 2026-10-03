@@ -1,6 +1,7 @@
 import { CategoryBlock } from "../../components/storefront/home/categories/category-block";
 import { HeroSection } from "../../components/storefront/home/hero/hero-section";
 import { ShelfBlock } from "../../components/storefront/home/shelf/shelf-block";
+import { SocialSection } from "../../components/storefront/home/social/social-section";
 import { SubscriptionBlock } from "../../components/storefront/home/subscription/subscription-block";
 import { SpotlightBlock } from "../../components/storefront/home/spotlight/spotlight-block";
 
@@ -13,6 +14,7 @@ export default function HomePage() {
       <CategoryBlock />
       <SpotlightBlock />
       <SubscriptionBlock />
+      <SocialSection />
     </main>
   );
 }
