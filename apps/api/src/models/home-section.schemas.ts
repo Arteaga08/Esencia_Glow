@@ -83,6 +83,13 @@ interface HomeBenefitsAttrs extends HomeSectionBaseAttrs {
   items?: HomeBenefitAttrs[];
 }
 
+/** Portada de un bloque del home (Novedades o Kits): título, subtítulo y dos fotos. */
+interface HomeSpotlightAttrs extends HomeSectionBaseAttrs {
+  title?: string;
+  subtitle?: string;
+  images?: { desktop?: HomeImageAttrs; mobile?: HomeImageAttrs };
+}
+
 const baseFields = {
   version: { type: Number },
   isActive: { type: Boolean },
@@ -176,8 +183,22 @@ const benefitsSchema = new Schema<HomeBenefitsAttrs>(
   { _id: false },
 );
 
+/** Novedades y Kits comparten forma: dos secciones del singleton con este mismo subesquema. */
+const spotlightSchema = new Schema<HomeSpotlightAttrs>(
+  {
+    ...baseFields,
+    title: { type: String, trim: true, maxlength: 120 },
+    subtitle: { type: String, trim: true, maxlength: 240 },
+    images: {
+      type: new Schema({ desktop: { type: mediaImageSchema }, mobile: { type: mediaImageSchema } }, { _id: false }),
+    },
+  },
+  { _id: false },
+);
+
 export {
   announcementSchema,
+  spotlightSchema,
   heroSchema,
   featuredProductsSchema,
   featuredCategoriesSchema,
@@ -198,4 +219,5 @@ export type {
   HomeTestimonialsAttrs,
   HomeBenefitAttrs,
   HomeBenefitsAttrs,
+  HomeSpotlightAttrs,
 };

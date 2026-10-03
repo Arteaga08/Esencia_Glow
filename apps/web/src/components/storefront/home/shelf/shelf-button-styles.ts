@@ -11,7 +11,7 @@ const FROSTED_HOVER =
 
 /** "Ver todo": texto en tinta, borde rosa, hover esmerilado. */
 const VIEW_ALL_BUTTON =
-  `inline-flex items-center justify-center rounded-md border border-primary-action bg-surface px-4 py-2.5 text-body text-foreground hover:border-foreground ${FROSTED_HOVER}`;
+  `inline-flex items-center justify-center rounded-md border border-primary-action bg-surface px-4 py-2.5 type-shop-cta text-foreground hover:border-foreground ${FROSTED_HOVER}`;
 
 /** Flechas del carrusel, flotando sobre las fotos: esmeriladas desde el reposo. */
 const ARROW_BUTTON =

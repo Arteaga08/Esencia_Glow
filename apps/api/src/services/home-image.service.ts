@@ -1,9 +1,15 @@
 import { Types } from "mongoose";
-import { HomeSectionKey, type AdminHomeHero, type AdminHomeSubscriptionPromo } from "@esencia-glow/shared";
+import {
+  HomeSectionKey,
+  type AdminHomeHero,
+  type AdminHomeSpotlight,
+  type AdminHomeSubscriptionPromo,
+  type HomeSpotlightKey,
+} from "@esencia-glow/shared";
 import type { HomeContentAttrs } from "../models/home-content.model.js";
 import type { HomeHeroSlideAttrs, HomeImageAttrs } from "../models/home-section.schemas.js";
 import { AppError } from "../utils/app-error.js";
-import { buildHero, buildSubscriptionPromo } from "./home-content-dto.js";
+import { buildHero, buildSpotlight, buildSubscriptionPromo } from "./home-content-dto.js";
 import { assertVersionMatches, readHomeContent, writeSection, type SectionWrite } from "./home-content-store.js";
 import { destroyImageBestEffort, uploadImage } from "./upload.service.js";
 import type { MediaAsset } from "./media-provider.js";
@@ -130,5 +136,41 @@ async function removePromoImage(version: number): Promise<AdminHomeSubscriptionP
   return buildSubscriptionPromo(doc);
 }
 
-export { setHeroSlideImage, removeHeroSlideImage, setPromoImage, removePromoImage };
+/** Foto de portada de Novedades o Kits (`desktop`/`mobile`); la sección se crea con la primera foto si hace falta. */
+async function setSpotlightImage(
+  section: HomeSpotlightKey,
+  slot: HeroImageSlot,
+  buffer: Buffer,
+  version: number,
+  alt?: string,
+): Promise<AdminHomeSpotlight> {
+  const current = await readHomeContent();
+  assertVersionMatches(current, section, version);
+  const previous: HomeImageAttrs | undefined = current?.[section]?.images?.[slot];
+
+  const doc = await uploadAndWrite(buffer, alt, section, version, (image) => ({
+    set: { [`images.${slot}`]: image },
+  }));
+
+  if (previous) await destroyImageBestEffort(previous.publicId);
+  return buildSpotlight(doc, section);
+}
+
+async function removeSpotlightImage(
+  section: HomeSpotlightKey,
+  slot: HeroImageSlot,
+  version: number,
+): Promise<AdminHomeSpotlight> {
+  const current = await readHomeContent();
+  assertVersionMatches(current, section, version);
+  const previous = current?.[section]?.images?.[slot];
+  if (!previous) throw new AppError("Imagen no encontrada", 404);
+
+  const doc = await writeSection(section, version, { unset: [`images.${slot}`] });
+
+  await destroyImageBestEffort(previous.publicId);
+  return buildSpotlight(doc, section);
+}
+
+export { setHeroSlideImage, removeHeroSlideImage, setPromoImage, removePromoImage, setSpotlightImage, removeSpotlightImage };
 export type { HeroImageSlot };

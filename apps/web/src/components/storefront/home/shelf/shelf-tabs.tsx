@@ -51,7 +51,7 @@ function ShelfTabs({ tabs, active, onChange }: ShelfTabsProps) {
             onClick={() => onChange(tab.id)}
             onKeyDown={(event) => handleKeyDown(event, index)}
             className={`transition-colors duration-[var(--duration-base)] ease-out-quart focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring ${
-              `text-display ${selected ? "text-foreground" : "text-muted-foreground hover:text-muted-foreground-strong"}`
+              `type-shop-section ${selected ? "text-foreground" : "text-muted-foreground-strong hover:text-foreground"}`
             }`}
           >
             {tab.label}

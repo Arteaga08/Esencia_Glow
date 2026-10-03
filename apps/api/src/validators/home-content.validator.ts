@@ -104,6 +104,22 @@ const updateBenefitsSchema = Joi.object({
   items: Joi.array().items(benefitItemSchema).max(LIMITS.maxBenefits).unique(uniqueDefinedIds).required(),
 });
 
+const updateSpotlightSchema = Joi.object({
+  version: versionField,
+  isActive: Joi.boolean().required(),
+  title: Joi.string().trim().min(1).max(LIMITS.titleMax).required(),
+  subtitle: Joi.string().trim().max(LIMITS.subtitleMax),
+});
+
+/** Segmento de URL de las secciones de Novedades y Kits. */
+const spotlightParamsSchema = Joi.object({
+  section: Joi.string().valid("new-arrivals", "kits").required(),
+});
+
+const spotlightImageParamsSchema = spotlightParamsSchema.keys({
+  slot: Joi.string().valid("desktop", "mobile").required(),
+});
+
 /** Params de las rutas de imagen del hero. */
 const heroSlideImageParamsSchema = Joi.object({
   slideId: objectId.required().messages({ "string.length": "Id inválido", "string.hex": "Id inválido" }),
@@ -128,6 +144,9 @@ export {
   updateSubscriptionPromoSchema,
   updateTestimonialsSchema,
   updateBenefitsSchema,
+  updateSpotlightSchema,
+  spotlightParamsSchema,
+  spotlightImageParamsSchema,
   heroSlideImageParamsSchema,
   imageVersionBodySchema,
   deleteImageQuerySchema,

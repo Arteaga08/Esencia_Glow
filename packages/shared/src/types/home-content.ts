@@ -84,6 +84,17 @@ interface AdminHomeBenefits extends HomeSectionMeta {
   items: AdminHomeBenefit[];
 }
 
+/**
+ * Portada de un bloque del home (Novedades o Kits, bloque 5): título,
+ * subtítulo y dos fotos. Las cuatro tarjetas NO se guardan aquí: salen del
+ * catálogo (productos con `isNewArrival`, paquetes publicados).
+ */
+interface AdminHomeSpotlight extends HomeSectionMeta {
+  title: string;
+  subtitle?: string;
+  images: Partial<HomeHeroSlideImages>;
+}
+
 interface AdminHomeContent {
   announcement: AdminHomeAnnouncement;
   hero: AdminHomeHero;
@@ -92,6 +103,8 @@ interface AdminHomeContent {
   subscriptionPromo: AdminHomeSubscriptionPromo;
   testimonials: AdminHomeTestimonials;
   benefits: AdminHomeBenefits;
+  newArrivals: AdminHomeSpotlight;
+  kits: AdminHomeSpotlight;
 }
 
 interface PublicHomeHeroSlide {
@@ -101,6 +114,13 @@ interface PublicHomeHeroSlide {
   ctaLabel?: string;
   ctaHref?: string;
   /** Un slide sin imagen de escritorio no se publica — `desktop` siempre viene. */
+  images: HomeHeroSlideImages<PublicProductImage>;
+}
+
+/** Un bloque sin foto de escritorio no se publica: `desktop` siempre viene. */
+interface PublicHomeSpotlight {
+  title: string;
+  subtitle?: string;
   images: HomeHeroSlideImages<PublicProductImage>;
 }
 
@@ -118,6 +138,8 @@ interface PublicHomeContent {
   };
   testimonials?: { items: Omit<AdminHomeTestimonial, "isActive">[] };
   benefits?: { items: Omit<AdminHomeBenefit, "isActive">[] };
+  newArrivals?: PublicHomeSpotlight;
+  kits?: PublicHomeSpotlight;
 }
 
 export type {
@@ -132,7 +154,9 @@ export type {
   AdminHomeTestimonials,
   AdminHomeBenefit,
   AdminHomeBenefits,
+  AdminHomeSpotlight,
   AdminHomeContent,
+  PublicHomeSpotlight,
   PublicHomeHeroSlide,
   PublicHomeContent,
 };

@@ -29,8 +29,8 @@ function HeroSlide({ slide, priority }: { slide: PublicHomeHeroSlide; priority: 
         className="absolute inset-x-0 bottom-0 h-[45%] bg-gradient-to-t from-primary via-primary/60 to-transparent md:hidden"
       />
       <div className="absolute inset-x-0 bottom-0 mx-auto max-w-shell px-4 pb-20 md:px-8 md:pb-24 xl:px-12">
-        <h2 className="text-display max-w-2xl text-foreground">{slide.title}</h2>
-        {slide.subtitle ? <p className="mt-2 max-w-xl text-foreground">{slide.subtitle}</p> : null}
+        <h2 className="text-hero max-w-3xl text-foreground">{slide.title}</h2>
+        {slide.subtitle ? <p className="mt-3 max-w-xl text-subtitle text-foreground">{slide.subtitle}</p> : null}
       </div>
     </Link>
   );

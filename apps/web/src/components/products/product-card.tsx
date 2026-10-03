@@ -72,6 +72,12 @@ function ProductCard({
         <p className="mt-0.5 truncate text-body-sm text-muted-foreground-strong">
           {category?.name ?? "Sin categoría"}
         </p>
+        {product.isNewArrival || product.isBestseller ? (
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {product.isNewArrival ? <Badge color="primary">Novedad</Badge> : null}
+            {product.isBestseller ? <Badge color="success">Más vendido</Badge> : null}
+          </div>
+        ) : null}
 
         <div className="mt-2.5 flex items-center justify-between border-t border-border pt-2.5">
           <div className="font-mono text-data tabular-nums text-foreground">

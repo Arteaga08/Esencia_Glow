@@ -1,5 +1,13 @@
 import { Types } from "mongoose";
-import { BundleStatus, EditionStatus, ProductChannel, type ListQuery, type PaginationMeta, type ProductStatus } from "@esencia-glow/shared";
+import {
+  BundleStatus,
+  EditionStatus,
+  HOME_CONTENT_LIMITS,
+  ProductChannel,
+  ProductStatus,
+  type ListQuery,
+  type PaginationMeta,
+} from "@esencia-glow/shared";
 import { Product, type ProductDocument } from "../models/product.model.js";
 import { Category } from "../models/category.model.js";
 import { Badge } from "../models/badge.model.js";
@@ -114,9 +122,38 @@ async function resolveCategoryIds(categoryId: string): Promise<Types.ObjectId[]>
  * tampoco debe quedar creado. `initialStock` nunca llega a `Product.variants`
  * — se extrae del input antes de construir el documento.
  */
+/**
+ * La rejilla de Novedades del home muestra exactamente cuatro productos. Una
+ * novedad "ocupa lugar" mientras tenga la marca, no esté archivada y se venda
+ * en la tienda (un producto solo de suscripción nunca sale en el home, así que
+ * no puede quitarle el lugar a uno que sí); marcar
+ * una quinta responde 409 en vez de dejar una que el home nunca mostraría.
+ * Un solo operador edita el catálogo: no hace falta bloqueo transaccional.
+ */
+async function assertNewArrivalSlotFree(excludeId?: string): Promise<void> {
+  const taken = await Product.countDocuments({
+    isNewArrival: true,
+    status: { $ne: ProductStatus.ARCHIVED },
+    channel: { $ne: ProductChannel.SUBSCRIPTION },
+    ...(excludeId ? { _id: { $ne: excludeId } } : {}),
+  });
+  if (taken >= HOME_CONTENT_LIMITS.maxNewArrivals) {
+    const message = `Ya hay ${HOME_CONTENT_LIMITS.maxNewArrivals} novedades. Quita la marca de otro producto antes de marcar este.`;
+    // `errors` deja que el panel pegue el mensaje al interruptor de Novedad.
+    throw new AppError(message, 409, { isNewArrival: message });
+  }
+}
+
+function takesNewArrivalSlot(product: ProductDocument): boolean {
+  return (
+    product.isNewArrival && product.status !== ProductStatus.ARCHIVED && product.channel !== ProductChannel.SUBSCRIPTION
+  );
+}
+
 async function createProduct(input: CreateProductInput): Promise<ProductDocument> {
   await assertCategoryExists(input.categoryId);
   if (input.badgeId) await assertBadgeExists(input.badgeId);
+  if (input.isNewArrival && input.channel !== ProductChannel.SUBSCRIPTION) await assertNewArrivalSlotFree();
 
   const stockBySku = new Map(
     input.variants
@@ -201,6 +238,7 @@ async function assertChannelChangeAllowed(product: ProductDocument, nextChannel:
 
 async function updateProduct(id: string, input: UpdateProductInput): Promise<ProductDocument> {
   const product = await getProductDocument(id);
+  const occupiedSlot = takesNewArrivalSlot(product);
 
   if (input.categoryId !== undefined) {
     await assertCategoryExists(input.categoryId);
@@ -227,6 +265,8 @@ async function updateProduct(id: string, input: UpdateProductInput): Promise<Pro
   if (input.content !== undefined) {
     product.content = { ...product.content, ...input.content } as ProductContentAttrs;
   }
+
+  if (takesNewArrivalSlot(product) && !occupiedSlot) await assertNewArrivalSlotFree(id);
 
   await product.save();
   return product;

@@ -45,7 +45,7 @@ describe("routes/admin-home — acceso", () => {
 });
 
 describe("routes/admin-home — lectura", () => {
-  it("GET sin documento devuelve las 7 secciones vacías en versión 0 y NO crea el documento", async () => {
+  it("GET sin documento devuelve las 9 secciones vacías en versión 0 y NO crea el documento", async () => {
     const { agent } = await createAdminSession(app);
     const response = await agent.get(BASE);
 

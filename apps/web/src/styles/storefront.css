@@ -1,7 +1,7 @@
 /*
  * Extensiones propias del storefront (registro `brand`): lo que el panel no
- * define. Hoy: contenedor del contenido y rosa `blush` del hero/header. Se
- * amplía con cada bloque del home.
+ * define. Hoy: contenedor del contenido, rosa `blush` del hero/header y la
+ * escala tipográfica del home. Se amplía con cada bloque del home.
  */
 
 @theme {
@@ -13,4 +13,47 @@
    * scroll.
    */
   --color-blush: color-mix(in oklab, var(--color-primary) 40%, var(--color-background));
+
+  /*
+   * Título del hero: lo más grande de la portada (40px en móvil, 64px en
+   * escritorio), para que ninguna sección le gane en jerarquía.
+   */
+  --text-hero: clamp(2.5rem, 1.75rem + 3vw, 4rem);
+  --text-hero--line-height: 1.05;
+  --text-hero--letter-spacing: -0.02em;
+  --text-hero--font-weight: 600;
+}
+
+/*
+ * Voz de "etiqueta de frasco" del storefront: PT Mono en mayúsculas con
+ * tracking abierto. Es la del bloque de Categorías, extendida a todo título de
+ * sección, título de tarjeta y botón del home. Siempre peso 400: PT Mono no
+ * tiene otro (DESIGN.md §3), por eso no se apoya en `text-section-title`,
+ * que trae 600.
+ */
+@utility type-shop-section {
+  font-family: var(--font-mono);
+  font-weight: 400;
+  font-size: clamp(1.25rem, 1.125rem + 0.5vw, 1.5rem);
+  line-height: 1.25;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+@utility type-shop-card-title {
+  font-family: var(--font-mono);
+  font-weight: 400;
+  font-size: clamp(1.125rem, 1.05rem + 0.3vw, 1.25rem);
+  line-height: 1.3;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+@utility type-shop-cta {
+  font-family: var(--font-mono);
+  font-weight: 400;
+  font-size: 13px;
+  line-height: 1.3;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }

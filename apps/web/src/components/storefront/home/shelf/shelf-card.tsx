@@ -14,15 +14,16 @@ const IMAGE_SIZES = "(min-width: 1024px) 22vw, (min-width: 640px) 42vw, 72vw";
 /**
  * Tarjeta del estante. La foto es el enlace; al pasar el cursor cambia a la
  * segunda foto (si hay) y sube el panel de compra rápida. En táctil, el "+"
- * de la esquina abre ese mismo panel.
+ * de la esquina abre ese mismo panel. `compact` (bloque Novedades/Kits): foto
+ * cuadrada y sin descripción, para que el bloque sea menos alto.
  */
-function ShelfCard({ item, priority = false }: { item: ShelfItem; priority?: boolean }) {
+function ShelfCard({ item, priority = false, compact = false }: { item: ShelfItem; priority?: boolean; compact?: boolean }) {
   const [open, setOpen] = useState(false);
   const [primary, secondary] = item.images;
 
   return (
     <article className="group flex h-full flex-col">
-      <div className="relative aspect-[4/5] overflow-hidden rounded-md bg-muted">
+      <div className={`relative overflow-hidden rounded-md bg-muted ${compact ? "aspect-square" : "aspect-[4/5]"}`}>
         <Link href={item.href} aria-label={item.name} className="absolute inset-0 focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-ring">
           {primary ? (
             <Image src={primary.url} alt={primary.alt ?? ""} fill sizes={IMAGE_SIZES} priority={priority} className="object-cover" />
@@ -68,7 +69,7 @@ function ShelfCard({ item, priority = false }: { item: ShelfItem; priority?: boo
           {item.quantityLabel}
           {item.variantCount > 1 ? <span> · {item.variantCount} presentaciones</span> : null}
         </p>
-        {item.summary ? <p className="mt-2 line-clamp-2 text-body-sm text-foreground/80">{item.summary}</p> : null}
+        {item.summary && !compact ? <p className="mt-2 line-clamp-2 text-body-sm text-foreground/80">{item.summary}</p> : null}
       </div>
     </article>
   );

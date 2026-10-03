@@ -7,6 +7,8 @@ import {
   type AdminHomeFeaturedCategories,
   type AdminHomeFeaturedProducts,
   type AdminHomeHero,
+  type AdminHomeSpotlight,
+  type HomeSpotlightKey,
   type AdminHomeSubscriptionPromo,
   type AdminHomeTestimonials,
 } from "@esencia-glow/shared";
@@ -22,6 +24,7 @@ import {
   buildFeaturedCategories,
   buildFeaturedProducts,
   buildHero,
+  buildSpotlight,
   buildSubscriptionPromo,
   buildTestimonials,
 } from "./home-content-dto.js";
@@ -271,7 +274,27 @@ async function updateBenefits(input: BenefitsInput): Promise<AdminHomeBenefits> 
   return buildBenefits(doc);
 }
 
+interface SpotlightInput extends SectionInput {
+  title: string;
+  subtitle?: string;
+}
+
+/**
+ * Novedades y Kits (bloque 5): título y subtítulo del bloque. Las fotos tienen
+ * su propio endpoint (`home-image.service.ts`), y las tarjetas salen del
+ * catálogo, no de aquí.
+ */
+async function updateSpotlight(section: HomeSpotlightKey, input: SpotlightInput): Promise<AdminHomeSpotlight> {
+  const doc = await writeSection(
+    section,
+    input.version,
+    contentWrite({ isActive: input.isActive, title: input.title }, { subtitle: input.subtitle }),
+  );
+  return buildSpotlight(doc, section);
+}
+
 export {
+  updateSpotlight,
   getAdminHomeContent,
   updateAnnouncement,
   updateHero,

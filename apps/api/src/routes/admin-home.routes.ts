@@ -12,11 +12,14 @@ import {
   deleteImageQuerySchema,
   heroSlideImageParamsSchema,
   imageVersionBodySchema,
+  spotlightImageParamsSchema,
+  spotlightParamsSchema,
   updateAnnouncementSchema,
   updateBenefitsSchema,
   updateFeaturedCategoriesSchema,
   updateFeaturedProductsSchema,
   updateHeroSchema,
+  updateSpotlightSchema,
   updateSubscriptionPromoSchema,
   updateTestimonialsSchema,
 } from "../validators/home-content.validator.js";
@@ -56,6 +59,12 @@ router.put(
 );
 router.put("/testimonials", validate(updateTestimonialsSchema), homeContentController.updateTestimonials);
 router.put("/benefits", validate(updateBenefitsSchema), homeContentController.updateBenefits);
+router.put(
+  "/spotlights/:section",
+  validate(spotlightParamsSchema, "params"),
+  validate(updateSpotlightSchema),
+  homeContentController.updateSpotlight,
+);
 
 router.put(
   "/hero/slides/:slideId/images/:slot",
@@ -84,6 +93,22 @@ router.delete(
   "/subscription-promo/image",
   validate(deleteImageQuerySchema, "query"),
   homeImageController.removePromoImage,
+);
+
+router.put(
+  "/spotlights/:section/images/:slot",
+  uploadRateLimiter,
+  validate(spotlightImageParamsSchema, "params"),
+  uploadSingleImage("image"),
+  sanitizeMultipart,
+  validate(imageVersionBodySchema),
+  homeImageController.setSpotlightImage,
+);
+router.delete(
+  "/spotlights/:section/images/:slot",
+  validate(spotlightImageParamsSchema, "params"),
+  validate(deleteImageQuerySchema, "query"),
+  homeImageController.removeSpotlightImage,
 );
 
 export { router as adminHomeRoutes };
