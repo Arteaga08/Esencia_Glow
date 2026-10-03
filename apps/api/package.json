@@ -19,6 +19,7 @@
     "seed:catalog": "NODE_ENV=development DOTENV_CONFIG_PATH=.env.development.local tsx src/scripts/seed-catalog-demo.ts",
     "seed:inventory": "NODE_ENV=development DOTENV_CONFIG_PATH=.env.development.local tsx src/scripts/seed-inventory-demo.ts",
     "seed:customers": "NODE_ENV=development DOTENV_CONFIG_PATH=.env.development.local tsx src/scripts/seed-customers-demo.ts",
+    "reset:subscriptions": "NODE_ENV=development DOTENV_CONFIG_PATH=.env.development.local tsx src/scripts/reset-subscriptions-dev.ts",
     "seed:subscriptions": "NODE_ENV=development DOTENV_CONFIG_PATH=.env.development.local tsx src/scripts/seed-subscriptions-demo.ts",
     "seed:overview": "NODE_ENV=development DOTENV_CONFIG_PATH=.env.development.local tsx src/scripts/seed-overview-demo.ts",
     "sync-indexes": "node dist/scripts/sync-indexes.js",

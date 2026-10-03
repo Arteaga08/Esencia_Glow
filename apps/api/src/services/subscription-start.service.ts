@@ -6,7 +6,8 @@ import { SubscriptionPlan } from "../models/subscription-plan.model.js";
 import { Settings } from "../models/settings.model.js";
 import { User } from "../models/user.model.js";
 import { AppError } from "../utils/app-error.js";
-import { isEnrollmentOpen, resolveAnnualAnchor } from "./subscription-enrollment.js";
+import { isEnrollmentOpen, resolvePrepaidAnchorMonth } from "./subscription-enrollment.js";
+import type { BillingInterval, PrepaidInterval } from "./subscription-billing-interval.js";
 import { applyStatusTransition, startSubscription } from "./subscription-seat.service.js";
 import {
   resolveSubscriptionProvider,
@@ -19,8 +20,8 @@ import { recordAudit } from "./audit.service.js";
 interface StartSubscriptionInput {
   userId: string;
   planId: string;
-  /** Intervalo de cobro elegido (Milestone 2.7b). Ausente = mensual. */
-  billingInterval?: "month" | "year";
+  /** Intervalo de cobro elegido (Milestones 2.7b/3.1.7b). Ausente = mensual. */
+  billingInterval?: BillingInterval;
 }
 
 const SETTINGS_ID = "global";
@@ -195,18 +196,24 @@ async function startSubscriptionForUser(input: StartSubscriptionInput): Promise<
   // Normalizado: "month" (el default del validator) se guarda como AUSENTE
   // en la cuenta (mismo precedente que `Product.channel`), nunca como el
   // string literal "month".
-  const billingInterval: "year" | undefined = input.billingInterval === "year" ? "year" : undefined;
+  const billingInterval: PrepaidInterval | undefined =
+    input.billingInterval === "quarter" || input.billingInterval === "year" ? input.billingInterval : undefined;
 
   const plan = await SubscriptionPlan.findById(input.planId);
   if (!plan || !plan.isActive || !plan.providerPriceId) {
     throw new AppError("Este plan aún no está disponible.", 409);
   }
+  if (billingInterval === "quarter" && !plan.providerQuarterlyPriceId) {
+    throw new AppError("Este plan no admite cobro trimestral.", 409);
+  }
   if (billingInterval === "year" && !plan.providerAnnualPriceId) {
     throw new AppError("Este plan no admite cobro anual.", 409);
   }
-  // Ancla anual (Milestone 2.7b): solo se calcula si hace falta — un alta
-  // mensual normal no debe rechazarse por el guard del ancla anual.
-  const billingAnchorMonth = billingInterval === "year" ? resolveAnnualAnchor(new Date(), billingAnchorDay) : undefined;
+  // Ancla prepagada (Milestones 2.7b/3.1.7b): solo se calcula si hace falta —
+  // un alta mensual normal no debe rechazarse por el guard del ancla.
+  const billingAnchorMonth = billingInterval
+    ? resolvePrepaidAnchorMonth(new Date(), billingAnchorDay, billingInterval)
+    : undefined;
 
   // Rama replay (calco de `ensurePaymentIntent`): la respuesta se perdió o
   // el front reintenta, pero Stripe ya tiene la suscripción. Ni el cupo ni
@@ -230,8 +237,8 @@ async function startSubscriptionForUser(input: StartSubscriptionInput): Promise<
         409,
       );
     }
-    // Mismo criterio que el guard del `planId` de arriba (Milestone 2.7b):
-    // un doble-submit que cambia de mensual a anual (o viceversa) sobre el
+    // Mismo criterio que el guard del `planId` de arriba (Milestones 2.7b/3.1.7b):
+    // un doble-submit que cambia de intervalo (mensual/trimestral/anual) sobre el
     // MISMO plan no debe devolver en silencio el `clientSecret` del intento
     // viejo — la clienta pagaría un monto distinto al que confirmó ver.
     if ((existingAccount.billingInterval ?? undefined) !== billingInterval) {
@@ -277,7 +284,12 @@ async function startSubscriptionForUser(input: StartSubscriptionInput): Promise<
     // ventana de 24h de idempotencia de Stripe.
     subscription = await provider.startSubscription({
       customerRef,
-      priceRef: billingInterval === "year" ? plan.providerAnnualPriceId! : plan.providerPriceId,
+      priceRef:
+        billingInterval === "quarter"
+          ? plan.providerQuarterlyPriceId!
+          : billingInterval === "year"
+            ? plan.providerAnnualPriceId!
+            : plan.providerPriceId,
       billingAnchorDay,
       ...(billingAnchorMonth !== undefined ? { billingAnchorMonth } : {}),
       metadata: { accountId: account._id.toString(), userId: input.userId, planId: input.planId },

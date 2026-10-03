@@ -1,32 +1,37 @@
-const MONTHS_PER_YEAR = 12;
+/** Meses que cubre cada periodo prepagado. */
+const PREPAID_MONTHS = { quarter: 3, year: 12 } as const;
 
-interface AnnualComparison {
-  /** Lo que cuesta el año pagado mes a mes, en centavos. */
-  twelveMonthlyCents: number;
-  /** Precio anual repartido entre 12, en centavos (redondeado). */
+type PrepaidPeriod = keyof typeof PREPAID_MONTHS;
+
+interface PrepaidComparison {
+  /** Lo que costaría el mismo periodo pagado mes a mes, en centavos. */
+  fullMonthlyCents: number;
+  /** Precio prepagado repartido entre sus meses, en centavos (redondeado). */
   monthlyEquivalentCents: number;
-  /** Porcentaje de ahorro frente a 12 mensualidades; negativo si el anual
+  /** Porcentaje de ahorro frente a pagar mes a mes; negativo si el prepagado
    * sale MÁS caro (el caso que el panel tiene que advertir). */
   savingsPercent: number;
 }
 
 /**
- * Referencia visual para el operador al fijar el precio anual (decisión de
- * Manuel en 2.7b-2): nada de esto se envía a la API ni lo valida el backend,
- * que acepta cualquier entero >= 0. Existe para que un anual más caro que
- * 12 mensualidades no se cree por un error de dedo, ya que después el precio
- * es inmutable.
+ * Referencia visual para el operador al fijar un precio prepagado (decisión
+ * de Manuel en 2.7b-2, ampliada al trimestral en 3.1.7b): nada de esto se
+ * envía a la API ni lo valida el backend, que acepta cualquier entero >= 0.
+ * Existe para que un precio prepagado más caro que sus mensualidades no se
+ * cree por un error de dedo, ya que después el precio es inmutable.
  */
-function compareAnnualToMonthly(
+function comparePrepaidToMonthly(
   priceCents: number,
-  annualPriceCents: number,
-): AnnualComparison | null {
-  if (priceCents <= 0 || annualPriceCents <= 0) return null;
-  const twelveMonthlyCents = priceCents * MONTHS_PER_YEAR;
+  prepaidCents: number,
+  period: PrepaidPeriod,
+): PrepaidComparison | null {
+  if (priceCents <= 0 || prepaidCents <= 0) return null;
+  const months = PREPAID_MONTHS[period];
+  const fullMonthlyCents = priceCents * months;
   return {
-    twelveMonthlyCents,
-    monthlyEquivalentCents: Math.round(annualPriceCents / MONTHS_PER_YEAR),
-    savingsPercent: ((twelveMonthlyCents - annualPriceCents) / twelveMonthlyCents) * 100,
+    fullMonthlyCents,
+    monthlyEquivalentCents: Math.round(prepaidCents / months),
+    savingsPercent: ((fullMonthlyCents - prepaidCents) / fullMonthlyCents) * 100,
   };
 }
 
@@ -36,5 +41,5 @@ function formatPercent(value: number): string {
   return `${Number.isInteger(rounded) ? rounded.toFixed(0) : rounded.toFixed(1)} %`;
 }
 
-export { compareAnnualToMonthly, formatPercent };
-export type { AnnualComparison };
+export { comparePrepaidToMonthly, formatPercent, PREPAID_MONTHS };
+export type { PrepaidComparison, PrepaidPeriod };

@@ -1,16 +1,17 @@
 import { centsToPesosInput, pesosInputToCents } from "@/lib/format-money";
 import type { AdminSubscriptionPlan } from "@/lib/types/admin-subscription";
 
-type BillingMode = "monthly" | "monthly_and_annual";
-
 /** Estado editable del formulario de plan — todo string, tal cual lo teclea
  * el operador; la conversión a centavos/enteros ocurre solo al enviar. */
 interface PlanFormValue {
   name: string;
   shortDescription: string;
   description: string;
-  billingMode: BillingMode;
+  /** Periodos prepagados que ofrece el plan además del mensual (siempre base). */
+  offersQuarterly: boolean;
+  offersAnnual: boolean;
   price: string;
+  quarterlyPrice: string;
   annualPrice: string;
   maxActiveSeats: string;
   sortOrder: string;
@@ -22,8 +23,10 @@ const EMPTY_PLAN_FORM: PlanFormValue = {
   name: "",
   shortDescription: "",
   description: "",
-  billingMode: "monthly",
+  offersQuarterly: false,
+  offersAnnual: false,
   price: "",
+  quarterlyPrice: "",
   annualPrice: "",
   maxActiveSeats: "",
   sortOrder: "0",
@@ -35,8 +38,10 @@ function planToFormValue(plan: AdminSubscriptionPlan): PlanFormValue {
     name: plan.name,
     shortDescription: plan.shortDescription ?? "",
     description: plan.description,
-    billingMode: plan.annualPriceCents !== undefined ? "monthly_and_annual" : "monthly",
+    offersQuarterly: plan.quarterlyPriceCents !== undefined,
+    offersAnnual: plan.annualPriceCents !== undefined,
     price: centsToPesosInput(plan.priceCents),
+    quarterlyPrice: centsToPesosInput(plan.quarterlyPriceCents),
     annualPrice: centsToPesosInput(plan.annualPriceCents),
     maxActiveSeats: String(plan.maxActiveSeats),
     sortOrder: String(plan.sortOrder),
@@ -65,9 +70,10 @@ function formValueToCreateBody(value: PlanFormValue): Record<string, unknown> {
     description: value.description,
     shortDescription: value.shortDescription,
     priceCents: pesosInputToCents(value.price),
-    ...(value.billingMode === "monthly_and_annual"
-      ? { annualPriceCents: pesosInputToCents(value.annualPrice) }
+    ...(value.offersQuarterly
+      ? { quarterlyPriceCents: pesosInputToCents(value.quarterlyPrice) }
       : {}),
+    ...(value.offersAnnual ? { annualPriceCents: pesosInputToCents(value.annualPrice) } : {}),
     maxActiveSeats: toInteger(value.maxActiveSeats),
     sortOrder: toInteger(value.sortOrder),
     ...(cleanHighlights(value.highlights).length > 0
@@ -105,6 +111,7 @@ const PLAN_FIELD_KEYS = new Set([
   "description",
   "shortDescription",
   "priceCents",
+  "quarterlyPriceCents",
   "annualPriceCents",
   "maxActiveSeats",
   "sortOrder",
@@ -118,4 +125,4 @@ export {
   formValueToCreateBody,
   formValueToPatchBody,
 };
-export type { PlanFormValue, BillingMode };
+export type { PlanFormValue };

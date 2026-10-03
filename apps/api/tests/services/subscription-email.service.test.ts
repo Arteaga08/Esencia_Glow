@@ -5,7 +5,7 @@ import {
   sendSubscriptionPaymentConfirmedEmail,
   sendSubscriptionDunningEmail,
   sendSubscriptionAdminIncidentEmail,
-  sendAnnualRenewalReminderEmail,
+  sendRenewalReminderEmail,
   __setAdminAlertEmailForTests,
 } from "../../src/services/subscription-email.service.js";
 import { __setMailProviderForTests } from "../../src/services/mail-provider.js";
@@ -79,14 +79,48 @@ describe("services/subscription-email", () => {
     expect(call.html).toMatch(/12 cajas|todo el año|ciclo anual/i);
   });
 
-  it("sendAnnualRenewalReminderEmail: asunto de aviso e Idempotency-Key por cuenta+período", async () => {
+  it("sendSubscriptionPaymentConfirmedEmail con billingInterval: 'quarter' usa el copy trimestral", async () => {
+    const userId = await seedUser();
+    const fake = buildFakeMailProvider();
+    __setMailProviderForTests(fake);
+
+    await sendSubscriptionPaymentConfirmedEmail({
+      accountId: new Types.ObjectId().toString(),
+      userId,
+      invoiceRef: "in_quarter_1",
+      amountPaidCents: 146700,
+      currency: "mxn",
+      periodEnd: new Date("2027-01-01T12:00:00Z"),
+      billingInterval: "quarter",
+    });
+
+    expect(fake.calls[0]!.html).toMatch(/trimestre completo/i);
+  });
+
+  it("sendRenewalReminderEmail trimestral: asunto y título hablan del trimestre", async () => {
+    const userId = await seedUser();
+    const fake = buildFakeMailProvider();
+    __setMailProviderForTests(fake);
+
+    await sendRenewalReminderEmail({
+      accountId: new Types.ObjectId().toString(),
+      userId,
+      periodEnd: new Date("2027-01-01T12:00:00Z"),
+      billingInterval: "quarter",
+    });
+
+    expect(fake.calls[0]!.subject.toLowerCase()).toContain("trimestral");
+    expect(fake.calls[0]!.html.toLowerCase()).toContain("trimestre");
+  });
+
+  it("sendRenewalReminderEmail: asunto de aviso e Idempotency-Key por cuenta+período", async () => {
     const userId = await seedUser();
     const fake = buildFakeMailProvider();
     __setMailProviderForTests(fake);
     const accountId = new Types.ObjectId().toString();
     const periodEnd = new Date("2027-09-15T12:00:00Z");
 
-    await sendAnnualRenewalReminderEmail({ accountId, userId, periodEnd });
+    await sendRenewalReminderEmail({ accountId, userId, periodEnd, billingInterval: "year" });
 
     expect(fake.calls).toHaveLength(1);
     const call = fake.calls[0]!;

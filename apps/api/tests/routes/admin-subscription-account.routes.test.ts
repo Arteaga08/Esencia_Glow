@@ -346,6 +346,20 @@ describe("routes/admin-subscription (Cuentas) — listado y detalle", () => {
     const detail = await agent.get(`/api/v1/admin/subscriptions/${account._id}`);
     expect(detail.body.data.billingInterval).toBe("year");
   });
+
+  it("billingInterval: 'quarter' en el listado de una cuenta trimestral (Milestone 3.1.7b)", async () => {
+    const plan = await seedPlanWithStripeRefs({ quarterlyPriceCents: 146700 });
+    const account = await startSubscription({
+      userId: new Types.ObjectId().toString(),
+      planId: plan._id.toString(),
+      billingInterval: "quarter",
+    });
+
+    const { agent } = await createAdminSession(app);
+    const list = await agent.get("/api/v1/admin/subscriptions");
+    const row = list.body.data.find((r: { id: string }) => r.id === account._id.toString());
+    expect(row.billingInterval).toBe("quarter");
+  });
 });
 
 describe("routes/admin-subscription-shipments — filtro ?accountId", () => {

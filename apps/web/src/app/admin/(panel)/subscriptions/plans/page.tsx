@@ -9,8 +9,8 @@ import { ErrorState } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, type TableColumn } from "@/components/ui/table";
 import {
-  AnnualPrice,
   MonthlyPrice,
+  PrepaidPrice,
   SeatCount,
 } from "@/components/subscription-plans/plan-price-summary";
 import { PlanStatusBadge } from "@/components/subscription-plans/plan-status-badge";
@@ -22,7 +22,7 @@ import { ADMIN_ROUTES } from "@/lib/admin-routes";
  * Milestone 2.7b-2 — Planes de suscripción: tabla densa (mismo patrón que
  * Cuentas y Clientes), Propuesta A elegida por Manuel de tres presentadas
  * en `/subscriptions/plans/preview` (borrado tras la elección). Cada plan es
- * UNA suscripción con su precio mensual y, opcionalmente, el anual. El
+ * UNA suscripción con su precio mensual y, opcionalmente, el trimestral y el anual. El
  * título de página lo pone `TopBar`.
  */
 export default function SubscriptionPlansPage() {
@@ -46,7 +46,16 @@ export default function SubscriptionPlansPage() {
       ),
     },
     { header: "Mensual", align: "right", render: (plan) => <MonthlyPrice plan={plan} /> },
-    { header: "Anual", align: "right", render: (plan) => <AnnualPrice plan={plan} /> },
+    {
+      header: "Trimestral",
+      align: "right",
+      render: (plan) => <PrepaidPrice plan={plan} period="quarter" />,
+    },
+    {
+      header: "Anual",
+      align: "right",
+      render: (plan) => <PrepaidPrice plan={plan} period="year" />,
+    },
     { header: "Cupo", align: "right", render: (plan) => <SeatCount plan={plan} /> },
     { header: "Orden", align: "right", render: (plan) => plan.sortOrder },
     { header: "Estado", render: (plan) => <PlanStatusBadge isActive={plan.isActive} /> },

@@ -23,7 +23,7 @@ describe("jobs/createPrepaidCycleShipments", () => {
     planId: string,
     userId: string,
     fields: {
-      billingInterval?: "month" | "year";
+      billingInterval?: "month" | "quarter" | "year";
       status?: SubscriptionStatus;
       currentPeriodStart?: Date;
       currentPeriodEnd?: Date;
@@ -269,5 +269,47 @@ describe("jobs/createPrepaidCycleShipments", () => {
     const shipment = await SubscriptionShipment.findOne({ accountId: account._id });
     expect(shipment?.editionIncident).toBe(false);
     expect(shipment?.reservedItems).toHaveLength(1);
+  });
+
+  describe("trimestral (Milestone 3.1.7b)", () => {
+    // Alta 2026-10-01, renovación 2027-01-01 -> ancla día 1; los ciclos
+    // intermedios son noviembre y diciembre.
+    const Q_START = new Date("2026-10-01T18:00:00Z");
+    const Q_END = new Date("2027-01-01T18:00:00Z");
+
+    async function seedQuarterly() {
+      const plan = await seedPlanWithStripeRefs({ quarterlyPriceCents: 146700 });
+      return seedAccount(plan._id.toString(), new Types.ObjectId().toString(), {
+        billingInterval: "quarter",
+        status: SubscriptionStatus.ACTIVE,
+        currentPeriodStart: Q_START,
+        currentPeriodEnd: Q_END,
+        latestInvoiceId: "in_quarter_paid",
+      });
+    }
+
+    it("crea la caja de noviembre y la de diciembre, una por mes", async () => {
+      const account = await seedQuarterly();
+
+      const november = await createPrepaidCycleShipments(new Date("2026-11-02T12:00:00Z"));
+      const december = await createPrepaidCycleShipments(new Date("2026-12-02T12:00:00Z"));
+
+      expect(november.created).toBe(1);
+      expect(december.created).toBe(1);
+      const shipments = await SubscriptionShipment.find({ accountId: account._id }).sort({ cycleMonth: 1 });
+      expect(shipments.map((shipment) => shipment.cycleMonth)).toEqual([11, 12]);
+      expect(shipments[0]?.prepaidInvoiceId).toBe("in_quarter_paid");
+    });
+
+    it("excluye el ciclo del alta (octubre) y el de la renovación (enero)", async () => {
+      await seedQuarterly();
+
+      const onAlta = await createPrepaidCycleShipments(new Date("2026-10-02T12:00:00Z"));
+      const onRenewal = await createPrepaidCycleShipments(new Date("2027-01-02T12:00:00Z"));
+
+      expect(onAlta.created).toBe(0);
+      expect(onRenewal.created).toBe(0);
+      expect(await SubscriptionShipment.countDocuments({})).toBe(0);
+    });
   });
 });

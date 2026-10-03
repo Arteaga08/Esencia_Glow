@@ -1,4 +1,5 @@
 import { AppError } from "../utils/app-error.js";
+import { PREPAID_INTERVAL_MONTHS, type PrepaidInterval } from "./subscription-billing-interval.js";
 
 /**
  * Ventana de inscripciones (Milestone 1.7.2a) — módulo puro, sin I/O, calcado
@@ -87,24 +88,38 @@ function assertWindowClearOfAnchor(
   }
 }
 
+const PREPAID_INTERVAL_LABEL: Record<PrepaidInterval, string> = { quarter: "trimestral", year: "anual" };
+
 /**
- * Mes de `billing_cycle_anchor_config.month` para el ALTA ANUAL (Milestone
- * 2.7b): siempre el mes del alta. Si el día-ancla de ESTE mes ya pasó, la
- * próxima ocurrencia cae el año siguiente — seguro. Si todavía no llega
- * (incluido el propio día-ancla), Stripe la pondría a días de distancia:
- * mismo riesgo de doble cobro que `assertWindowClearOfAnchor` documenta para
- * lo mensual, así que se rechaza (409) en vez de dejarlo pasar.
+ * Mes de `billing_cycle_anchor_config.month` para un alta PREPAGADA
+ * (Milestones 2.7b y 3.1.7b): el mes del alta más los meses que cubre el
+ * periodo (3 trimestral, 12 anual — el anual cae en el mismo mes), con vuelta
+ * de año. Si el día-ancla de ESTE mes ya pasó, el próximo ancla queda a un
+ * periodo completo de distancia — seguro. Si todavía no llega (incluido el
+ * propio día-ancla), Stripe la pondría a días de distancia: mismo riesgo de
+ * doble cobro que `assertWindowClearOfAnchor` documenta para lo mensual, así
+ * que se rechaza (409) en vez de dejarlo pasar.
  */
-function resolveAnnualAnchor(now: Date, anchorDay: number, timeZone: string = DEFAULT_TIME_ZONE): number {
+function resolvePrepaidAnchorMonth(
+  now: Date,
+  anchorDay: number,
+  interval: PrepaidInterval,
+  timeZone: string = DEFAULT_TIME_ZONE,
+): number {
   const { month, day } = extractCalendarDate(now, timeZone);
   if (day <= anchorDay) {
     throw new AppError(
-      `No puedes suscribirte al plan anual antes del día ${anchorDay} del mes: el próximo cobro caería en unos días. Inténtalo de nuevo después de esa fecha.`,
+      `No puedes suscribirte al plan ${PREPAID_INTERVAL_LABEL[interval]} antes del día ${anchorDay} del mes: el próximo cobro caería en unos días. Inténtalo de nuevo después de esa fecha.`,
       409,
     );
   }
-  return month;
+  return ((month - 1 + PREPAID_INTERVAL_MONTHS[interval]) % 12) + 1;
 }
 
-export { isEnrollmentOpen, assertWindowClearOfAnchor, nextAnchorOnOrAfter, resolveAnnualAnchor };
+/** Ancla del alta anual (Milestone 2.7b); atajo de `resolvePrepaidAnchorMonth`. */
+function resolveAnnualAnchor(now: Date, anchorDay: number, timeZone: string = DEFAULT_TIME_ZONE): number {
+  return resolvePrepaidAnchorMonth(now, anchorDay, "year", timeZone);
+}
+
+export { isEnrollmentOpen, assertWindowClearOfAnchor, nextAnchorOnOrAfter, resolvePrepaidAnchorMonth, resolveAnnualAnchor };
 export type { EnrollmentWindow };

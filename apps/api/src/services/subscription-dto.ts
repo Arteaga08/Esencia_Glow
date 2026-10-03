@@ -19,6 +19,8 @@ interface LeanSubscriptionPlan {
   priceCents: number;
   /** Precio del ciclo anual (Milestone 2.7b), opcional. */
   annualPriceCents?: number;
+  /** Precio del ciclo trimestral (Milestone 3.1.7b), opcional. */
+  quarterlyPriceCents?: number;
   currency: string;
   billingInterval: string;
   maxActiveSeats: number;
@@ -38,6 +40,7 @@ interface AdminSubscriptionPlan {
   shortDescription?: string;
   priceCents: number;
   annualPriceCents?: number;
+  quarterlyPriceCents?: number;
   currency: string;
   billingInterval: string;
   maxActiveSeats: number;
@@ -56,6 +59,7 @@ function buildAdminSubscriptionPlan(plan: LeanSubscriptionPlan): AdminSubscripti
     description: plan.description,
     ...(plan.shortDescription ? { shortDescription: plan.shortDescription } : {}),
     priceCents: plan.priceCents,
+    ...(plan.quarterlyPriceCents !== undefined ? { quarterlyPriceCents: plan.quarterlyPriceCents } : {}),
     ...(plan.annualPriceCents !== undefined ? { annualPriceCents: plan.annualPriceCents } : {}),
     currency: plan.currency,
     billingInterval: plan.billingInterval,

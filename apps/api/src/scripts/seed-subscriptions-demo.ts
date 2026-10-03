@@ -6,84 +6,85 @@ import { User } from "../models/user.model.js";
 import { Category } from "../models/category.model.js";
 import { Product, type ProductDocument } from "../models/product.model.js";
 import { Inventory } from "../models/inventory.model.js";
+import { HomeContent } from "../models/home-content.model.js";
 import { SubscriptionPlan, type SubscriptionPlanDocument } from "../models/subscription-plan.model.js";
 import { SubscriptionEdition } from "../models/subscription-edition.model.js";
 import { SubscriptionAccount, type SubscriptionAccountDocument } from "../models/subscription-account.model.js";
 import { applyStatusTransition, startSubscription } from "../services/subscription-seat.service.js";
 import { updateEdition, type EditionItemInput } from "../services/subscription-edition.service.js";
 import { publishEdition } from "../services/subscription-edition-publish.service.js";
+import { createPlan } from "../services/subscription-plan.service.js";
+import { addPlanImages } from "../services/subscription-plan-image.service.js";
+import { slugify } from "../utils/slugify.js";
 import { resolveCycleFromDate } from "../utils/resolve-cycle.js";
 
 /**
- * Seed de demostración para el panel de Suscripciones (Milestones 2.7a/2.7b):
- * 3 planes demo (mensual + anual) + 5 productos de canal `subscription` con
- * inventario + 3 ediciones (borrador, publicada, de otro plan) + 6 cuentas
- * cubriendo los 5 estados de `SubscriptionStatus` más las banderas que el
- * panel filtra.
+ * Seed de demostración para Suscripciones (Milestones 2.7a/2.7b/3.1.7b): UNA
+ * caja con tres periodos de cobro (mensual $499, trimestral $1,467 y anual
+ * $5,748, los precios de la propuesta del home) + 5 productos de canal
+ * `subscription` con inventario + 2 ediciones (mes en curso publicada, mes
+ * siguiente en borrador) + 7 cuentas cubriendo los 5 estados de
+ * `SubscriptionStatus`, los tres intervalos y las banderas que el panel
+ * filtra.
  *
- * NUNCA toca Stripe: los planes se crean con `SubscriptionPlan.create`
- * directo (sin `providerProductId`/`providerPriceId`) en vez de `createPlan()`
- * (que exige `STRIPE_SECRET_KEY`, ver subscription-plan.service.ts) — mismo
- * motivo por el que `seed-customers-demo.ts` nunca crea un plan. **Por eso
- * estos planes NUNCA aparecen en el catálogo público** (`GET
- * /subscription-plans` exige `providerPriceId`, ver
- * `subscription-plan-public.service.ts`): para probar el alta de punta a
- * punta contra Stripe real (modo test) hay que crear un plan vía
- * `POST /admin/subscription-plans` con la llave de prueba ya configurada en
- * `.env.development.local`.
+ * El plan SÍ pasa por `createPlan()` y por tanto toca Stripe en modo test
+ * (crea Product + 3 Prices con la llave `sk_test_…` de
+ * `.env.development.local`): sin `providerPriceId` el catálogo público
+ * (`GET /subscription-plans`, ver `subscription-plan-public.service.ts`) no
+ * lo listaría y el bloque Suscripción del home quedaría vacío. Las
+ * SUSCRIPCIONES de las cuentas demo, en cambio, nunca existen en Stripe: se
+ * crean con los servicios locales (`startSubscription`/
+ * `applyStatusTransition`), así que cobrar o cancelar una desde el panel no
+ * tiene contraparte allá.
  *
- * Las cuentas y ediciones SÍ pasan por los servicios reales
- * (`startSubscription`/`applyStatusTransition`/`updateEdition`/
- * `publishEdition`) para que `seatsTaken`/`statusHistory`/`publishedAt`
- * queden coherentes — mismo criterio que `seedSubscribedAccount`/
- * `seedPublishedEdition` en tests/helpers/subscription-fixtures.ts.
+ * Fotos: la portada de Kits del home (`HomeContent.kits`) se descarga y se
+ * vuelve a subir como imagen PROPIA del plan (`addPlanImages`), para que
+ * borrar la foto del plan desde el panel nunca rompa la portada de Kits. Sin
+ * portada de Kits (o sin Cloudinary) el plan se crea sin fotos y avisa.
+ *
+ * Las ediciones y cuentas pasan por los servicios reales para que
+ * `seatsTaken`/`statusHistory`/`publishedAt` queden coherentes — mismo
+ * criterio que `seedSubscribedAccount`/`seedPublishedEdition` en
+ * tests/helpers/subscription-fixtures.ts.
  *
  * Corre sobre las clientas que deja `seed:customers`
  * (`demo-cliente-N@esenciaglow.mx`) — nunca crea usuarias propias, para no
  * duplicar esa fuente de verdad. Requiere haber corrido `pnpm seed:customers`
- * antes. Idempotente: cada paso verifica si ya existe antes de crear.
+ * y `pnpm seed:admin` antes. Idempotente: cada paso verifica si ya existe
+ * antes de crear (el plan por `slug`, sin volver a tocar Stripe).
+ * Para empezar de cero: `pnpm reset:subscriptions --confirm`.
  */
 
 const DEMO_EMAIL_DOMAIN = "esenciaglow.mx";
-type DemoPlanSlug = "demo-caja-esencial" | "demo-caja-premium" | "demo-caja-deluxe";
-
 interface DemoPlanSpec {
-  slug: DemoPlanSlug;
   name: string;
   description: string;
+  shortDescription: string;
+  /** Mensual, trimestral y anual en centavos (Milestone 3.1.7). */
   priceCents: number;
-  /** ~10x el mensual, precedente de la decisión de Manuel para el precio
-   * anual de las cajas demo. */
+  quarterlyPriceCents: number;
   annualPriceCents: number;
   maxActiveSeats: number;
+  highlights: string[];
 }
 
-const PLANS: DemoPlanSpec[] = [
-  {
-    slug: "demo-caja-esencial",
-    name: "Caja Esencial (demo)",
-    description: "Caja mensual de demostración — nunca sincronizada con Stripe.",
-    priceCents: 39900,
-    annualPriceCents: 399000,
-    maxActiveSeats: 50,
-  },
-  {
-    slug: "demo-caja-premium",
-    name: "Caja Premium (demo)",
-    description: "Caja mensual de demostración, nivel premium — nunca sincronizada con Stripe.",
-    priceCents: 69900,
-    annualPriceCents: 699000,
-    maxActiveSeats: 50,
-  },
-  {
-    slug: "demo-caja-deluxe",
-    name: "Caja Deluxe (demo)",
-    description: "Caja mensual de demostración, nivel deluxe — nunca sincronizada con Stripe.",
-    priceCents: 99900,
-    annualPriceCents: 999000,
-    maxActiveSeats: 30,
-  },
-];
+/** Una sola caja con tres periodos (decisión de negocio de 3.1.7). El texto
+ * es el del fixture aprobado del bloque Suscripción del home. */
+const PLAN: DemoPlanSpec = {
+  name: "Caja Esencia Glow",
+  description: "Una selección curada de skincare y lifestyle, distinta cada mes.",
+  shortDescription: "Tu caja mensual de skincare y lifestyle.",
+  priceCents: 49900,
+  quarterlyPriceCents: 146700,
+  annualPriceCents: 574800,
+  maxActiveSeats: 50,
+  highlights: [
+    "Envío gratis en cada caja",
+    "Productos de tamaño completo y de viaje",
+    "Una selección nueva cada mes",
+    "Cancela cuando quieras",
+  ],
+};
 
 interface DemoProductSpec {
   slug: string;
@@ -108,55 +109,69 @@ interface DemoAccountSpec {
   /** Índice de `demo-cliente-N@esenciaglow.mx` (1-based, mismo esquema que
    * seed-customers-demo.ts). */
   customerIndex: number;
-  planSlug: DemoPlanSlug;
   status: SubscriptionStatus;
-  billingInterval?: "month" | "year";
+  billingInterval?: "quarter" | "year";
   cancelAtPeriodEnd?: boolean;
   pastDueSince?: Date;
   dunningAttempts?: number;
 }
 
 const NOW = new Date();
-const MONTH_MS = 30 * 24 * 60 * 60 * 1000;
-const YEAR_MS = 365 * 24 * 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const PERIOD_MS = { month: 30 * DAY_MS, quarter: 90 * DAY_MS, year: 365 * DAY_MS } as const;
 
 const ACCOUNTS: DemoAccountSpec[] = [
-  { customerIndex: 1, planSlug: "demo-caja-esencial", status: SubscriptionStatus.INCOMPLETE },
-  { customerIndex: 2, planSlug: "demo-caja-esencial", status: SubscriptionStatus.ACTIVE },
+  { customerIndex: 1, status: SubscriptionStatus.INCOMPLETE },
+  { customerIndex: 2, status: SubscriptionStatus.ACTIVE },
   {
     customerIndex: 3,
-    planSlug: "demo-caja-premium",
     status: SubscriptionStatus.PAST_DUE,
-    pastDueSince: new Date(NOW.getTime() - 5 * 24 * 60 * 60 * 1000),
+    pastDueSince: new Date(NOW.getTime() - 5 * DAY_MS),
     dunningAttempts: 2,
   },
-  { customerIndex: 4, planSlug: "demo-caja-esencial", status: SubscriptionStatus.PAUSED },
-  { customerIndex: 5, planSlug: "demo-caja-premium", status: SubscriptionStatus.CANCELED },
-  {
-    customerIndex: 6,
-    planSlug: "demo-caja-deluxe",
-    status: SubscriptionStatus.ACTIVE,
-    billingInterval: "year",
-    cancelAtPeriodEnd: true,
-  },
+  { customerIndex: 4, status: SubscriptionStatus.PAUSED },
+  { customerIndex: 5, status: SubscriptionStatus.CANCELED },
+  { customerIndex: 6, status: SubscriptionStatus.ACTIVE, billingInterval: "quarter" },
+  { customerIndex: 7, status: SubscriptionStatus.ACTIVE, billingInterval: "year", cancelAtPeriodEnd: true },
 ];
 
+/** Portada de Kits del home como buffer, o `undefined` si no hay (o no baja). */
+async function readKitsCoverBuffer(): Promise<Buffer | undefined> {
+  const home = await HomeContent.findById("home").lean();
+  const url = home?.kits?.images?.desktop?.url ?? home?.kits?.images?.mobile?.url;
+  if (!url) return undefined;
+  const response = await fetch(url);
+  if (!response.ok) return undefined;
+  return Buffer.from(await response.arrayBuffer());
+}
+
 async function ensureDemoPlan(spec: DemoPlanSpec): Promise<SubscriptionPlanDocument> {
-  const existing = await SubscriptionPlan.findOne({ slug: spec.slug });
+  const existing = await SubscriptionPlan.findOne({ slug: slugify(spec.name) });
   if (existing) return existing;
-  return SubscriptionPlan.create({
+
+  // Toca Stripe (modo test): Product + 3 Prices. Falla con 503 si no hay llave.
+  const plan = await createPlan({
     name: spec.name,
-    slug: spec.slug,
     description: spec.description,
+    shortDescription: spec.shortDescription,
     priceCents: spec.priceCents,
+    quarterlyPriceCents: spec.quarterlyPriceCents,
     annualPriceCents: spec.annualPriceCents,
-    currency: "mxn",
-    billingInterval: "month",
     maxActiveSeats: spec.maxActiveSeats,
-    seatsTaken: 0,
-    isActive: true,
     sortOrder: 0,
+    highlights: spec.highlights,
   });
+
+  try {
+    const cover = await readKitsCoverBuffer();
+    if (cover) {
+      return await addPlanImages(plan._id.toString(), [cover], spec.name);
+    }
+    logger.warn("No hay portada de Kits en el home: el plan se creó sin fotos");
+  } catch (error) {
+    logger.warn({ err: error }, "No se pudo subir la foto del plan (¿Cloudinary configurado?): se creó sin fotos");
+  }
+  return plan;
 }
 
 async function ensureDemoCategory(): Promise<string> {
@@ -218,7 +233,7 @@ async function advanceToStatus(
   return current;
 }
 
-async function seedDemoAccount(spec: DemoAccountSpec, planBySlug: Map<string, SubscriptionPlanDocument>): Promise<void> {
+async function seedDemoAccount(spec: DemoAccountSpec, plan: SubscriptionPlanDocument): Promise<void> {
   const email = `demo-cliente-${spec.customerIndex}@${DEMO_EMAIL_DOMAIN}`;
   const user = await User.findOne({ email });
   if (!user) {
@@ -232,9 +247,6 @@ async function seedDemoAccount(spec: DemoAccountSpec, planBySlug: Map<string, Su
     return;
   }
 
-  const plan = planBySlug.get(spec.planSlug);
-  if (!plan) throw new Error(`Plan demo ${spec.planSlug} no encontrado — esto no debería pasar.`);
-
   const started = await startSubscription({
     userId: user._id.toString(),
     planId: plan._id.toString(),
@@ -245,7 +257,7 @@ async function seedDemoAccount(spec: DemoAccountSpec, planBySlug: Map<string, Su
   const fields: Record<string, unknown> = {};
   if (spec.status !== SubscriptionStatus.INCOMPLETE && spec.status !== SubscriptionStatus.CANCELED) {
     fields.currentPeriodStart = NOW;
-    fields.currentPeriodEnd = new Date(NOW.getTime() + (spec.billingInterval === "year" ? YEAR_MS : MONTH_MS));
+    fields.currentPeriodEnd = new Date(NOW.getTime() + PERIOD_MS[spec.billingInterval ?? "month"]);
   }
   if (spec.cancelAtPeriodEnd) fields.cancelAtPeriodEnd = true;
   if (spec.pastDueSince) fields.pastDueSince = spec.pastDueSince;
@@ -255,7 +267,7 @@ async function seedDemoAccount(spec: DemoAccountSpec, planBySlug: Map<string, Su
     await SubscriptionAccount.updateOne({ _id: account._id }, { $set: fields });
   }
 
-  logger.info({ email, plan: plan.slug, status: spec.status }, "Cuenta de suscripción de demo sembrada");
+  logger.info({ email, plan: plan.slug, status: spec.status, interval: spec.billingInterval ?? "month" }, "Cuenta de suscripción de demo sembrada");
 }
 
 async function ensureDemoEdition(
@@ -288,14 +300,11 @@ async function ensureDemoEdition(
 }
 
 async function seedSubscriptionsDemo(): Promise<void> {
-  const plans = await Promise.all(PLANS.map(ensureDemoPlan));
-  const planBySlug = new Map(plans.map((plan) => [plan.slug, plan]));
+  const plan = await ensureDemoPlan(PLAN);
 
   const categoryId = await ensureDemoCategory();
   const products = await Promise.all(PRODUCTS.map((spec) => ensureDemoProduct(spec, categoryId)));
 
-  const esencial = planBySlug.get("demo-caja-esencial")!;
-  const premium = planBySlug.get("demo-caja-premium")!;
   const { cycleYear, cycleMonth } = resolveCycleFromDate(NOW);
   const nextCycleDate = new Date(NOW);
   nextCycleDate.setUTCMonth(nextCycleDate.getUTCMonth() + 1);
@@ -303,10 +312,9 @@ async function seedSubscriptionsDemo(): Promise<void> {
 
   const variantId = (product: ProductDocument) => product.variants[0]!._id.toString();
 
-  // Plan A (esencial), ciclo actual, publicada — la que usarían las cuentas
-  // ACTIVE/PAST_DUE de arriba.
+  // Mes en curso, publicada — la que usarían las cuentas ACTIVE/PAST_DUE.
   await ensureDemoEdition(
-    esencial._id.toString(),
+    plan._id.toString(),
     cycleYear,
     cycleMonth,
     [
@@ -316,30 +324,18 @@ async function seedSubscriptionsDemo(): Promise<void> {
     ],
     true,
   );
-  // Plan A, ciclo SIGUIENTE, sin publicar — para ver el estado "borrador" en
-  // el panel antes de armarla del todo.
+  // Mes SIGUIENTE, sin publicar — para ver el estado "borrador" en el panel
+  // antes de armarla del todo.
   await ensureDemoEdition(
-    esencial._id.toString(),
+    plan._id.toString(),
     nextCycleYear,
     nextCycleMonth,
     [{ productId: products[3]!._id.toString(), variantId: variantId(products[3]!), quantity: 1 }],
     false,
   );
-  // Plan B (premium), ciclo actual, publicada.
-  await ensureDemoEdition(
-    premium._id.toString(),
-    cycleYear,
-    cycleMonth,
-    [
-      { productId: products[0]!._id.toString(), variantId: variantId(products[0]!), quantity: 1 },
-      { productId: products[3]!._id.toString(), variantId: variantId(products[3]!), quantity: 1 },
-      { productId: products[4]!._id.toString(), variantId: variantId(products[4]!), quantity: 1 },
-    ],
-    true,
-  );
 
   for (const spec of ACCOUNTS) {
-    await seedDemoAccount(spec, planBySlug);
+    await seedDemoAccount(spec, plan);
   }
 }
 

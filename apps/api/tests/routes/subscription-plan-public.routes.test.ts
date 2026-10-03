@@ -88,6 +88,23 @@ describe("routes/subscription-plans — GET /", () => {
     expect(serialized).not.toMatch(/providerAnnualPriceId|price_fake_year/);
   });
 
+  it("expone quarterlyPriceCents cuando el plan lo tiene y NUNCA el id del Price trimestral (Milestone 3.1.7b)", async () => {
+    await seedPlanWithStripeRefs({ priceCents: 49900, quarterlyPriceCents: 146700 });
+
+    const response = await request(app).get(BASE);
+
+    expect(response.body.data.plans[0].quarterlyPriceCents).toBe(146700);
+    expect(JSON.stringify(response.body)).not.toMatch(/providerQuarterlyPriceId|price_fake_quarter/);
+  });
+
+  it("no incluye quarterlyPriceCents cuando el plan no lo tiene", async () => {
+    await seedPlanWithStripeRefs({ name: "Sin trimestral" });
+
+    const response = await request(app).get(BASE);
+
+    expect(response.body.data.plans[0].quarterlyPriceCents).toBeUndefined();
+  });
+
   it("excluye planes inactivos y planes sin precio en Stripe (no se podrían contratar)", async () => {
     const visible = await seedPlanWithStripeRefs({ name: "Visible" });
     const inactive = await seedPlanWithStripeRefs({ name: "Inactivo" });

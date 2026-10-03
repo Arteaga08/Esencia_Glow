@@ -86,4 +86,28 @@ describe("models/SubscriptionPlan", () => {
     await SubscriptionPlan.create(buildPlanAttrs({ slug: "plan-n" }));
     await expect(SubscriptionPlan.create(buildPlanAttrs({ slug: "plan-o" }))).resolves.toBeDefined();
   });
+
+  it("quarterlyPriceCents es opcional y acepta un entero válido", async () => {
+    const without = await SubscriptionPlan.create(buildPlanAttrs({ slug: "plan-q0" }));
+    expect(without.quarterlyPriceCents).toBeUndefined();
+    const plan = await SubscriptionPlan.create(buildPlanAttrs({ slug: "plan-q1", quarterlyPriceCents: 146700 }));
+    expect(plan.quarterlyPriceCents).toBe(146700);
+  });
+
+  it("rechaza quarterlyPriceCents no entero o negativo", async () => {
+    await expect(SubscriptionPlan.create(buildPlanAttrs({ slug: "plan-q2", quarterlyPriceCents: 1.5 }))).rejects.toThrow();
+    await expect(SubscriptionPlan.create(buildPlanAttrs({ slug: "plan-q3", quarterlyPriceCents: -1 }))).rejects.toThrow();
+  });
+
+  it("rechaza un providerQuarterlyPriceId duplicado entre dos planes", async () => {
+    await SubscriptionPlan.create(buildPlanAttrs({ slug: "plan-q4", providerQuarterlyPriceId: "price_q_123" }));
+    await expect(
+      SubscriptionPlan.create(buildPlanAttrs({ slug: "plan-q5", providerQuarterlyPriceId: "price_q_123" })),
+    ).rejects.toMatchObject({ code: 11000 });
+  });
+
+  it("dos planes sin providerQuarterlyPriceId conviven", async () => {
+    await SubscriptionPlan.create(buildPlanAttrs({ slug: "plan-q6" }));
+    await expect(SubscriptionPlan.create(buildPlanAttrs({ slug: "plan-q7" }))).resolves.toBeDefined();
+  });
 });

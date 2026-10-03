@@ -28,7 +28,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 /**
  * Campos del plan en bloques, mismo ritmo que la creación de producto
  * (feedback de Manuel en 2.7b-2): datos, cobro y cupo. Un plan es UNA
- * suscripción con su precio mensual y, opcionalmente, el anual dentro de
+ * suscripción con su precio mensual y, opcionalmente, el trimestral y el anual dentro de
  * ella (decisión de 2.7b-1: nunca dos planes separados). Sin botones: el
  * editor decide cómo se envía. Los nombres de `errors` son los del backend
  * (`fieldErrors` de Joi), así el error queda pegado a su campo.

@@ -15,11 +15,14 @@ interface CreatePrepaidCycleShipmentsSummary {
 }
 
 /**
- * Cajas mensuales 2-12 de una cuenta ANUAL (Milestone 2.7b) — el webhook de
- * Stripe solo dispara `invoice.paid` una vez al año (al alta y en cada
- * renovación), así que este job cubre los ciclos intermedios en cada tick.
+ * Cajas mensuales intermedias de una cuenta PREPAGADA, trimestral o anual
+ * (Milestones 2.7b y 3.1.7b) — el webhook de Stripe solo dispara
+ * `invoice.paid` una vez por periodo (al alta y en cada renovación), así que
+ * este job cubre los ciclos intermedios en cada tick (2 en un trimestre, 11
+ * en un año). Nada de la lógica depende del largo del periodo: usa los
+ * extremos reales de `currentPeriodStart`/`currentPeriodEnd`.
  *
- * Filtro: `billingInterval: "year"` + `ACTIVE` (incluye `cancelAtPeriodEnd`:
+ * Filtro: `billingInterval` en `quarter`/`year` + `ACTIVE` (incluye `cancelAtPeriodEnd`:
  * el año ya está pagado completo, las cajas siguen llegando hasta el fin del
  * período). `PAST_DUE`/`PAUSED`/`CANCELED`/`INCOMPLETE` quedan fuera — sin
  * cobro confirmado no hay caja que enviar.
@@ -34,7 +37,7 @@ interface CreatePrepaidCycleShipmentsSummary {
  *
  * `coveringInvoiceRef` viaja como `account.latestInvoiceId` (lo escribe
  * `subscription-billing.service.ts::recordPaidInvoice` al procesar la
- * factura anual) — es solo informativo (`prepaidInvoiceId`, ver el modelo),
+ * factura prepagada) — es solo informativo (`prepaidInvoiceId`, ver el modelo),
  * la idempotencia real es el índice único de `{accountId, cycleYear,
  * cycleMonth}`.
  */
@@ -46,12 +49,12 @@ async function createPrepaidCycleShipments(
   const today = dayOfMonthInTimeZone(now);
 
   const candidates = await SubscriptionAccount.find({
-    billingInterval: "year",
+    billingInterval: { $in: ["quarter", "year"] },
     status: SubscriptionStatus.ACTIVE,
     currentPeriodStart: { $exists: true },
     currentPeriodEnd: { $exists: true },
   })
-    .select("_id userId planId currentPeriodStart currentPeriodEnd latestInvoiceId")
+    .select("_id userId planId billingInterval currentPeriodStart currentPeriodEnd latestInvoiceId")
     .limit(batchSize)
     .lean();
 
@@ -88,7 +91,7 @@ async function createPrepaidCycleShipments(
         accountId: account._id,
         userId: account.userId,
         planId: account.planId,
-        coveringInvoiceRef: account.latestInvoiceId ?? `annual:${account._id.toString()}`,
+        coveringInvoiceRef: account.latestInvoiceId ?? `${account.billingInterval}:${account._id.toString()}`,
         cycleYear: currentCycle.cycleYear,
         cycleMonth: currentCycle.cycleMonth,
       });
@@ -98,7 +101,7 @@ async function createPrepaidCycleShipments(
       failed += 1;
       logger.error(
         { err: error, accountId: account._id.toString() },
-        "Fallo al crear la caja prepagada de un ciclo anual",
+        "Fallo al crear la caja prepagada de un ciclo trimestral o anual",
       );
     }
   }

@@ -122,6 +122,67 @@ describe("services/stripe-subscription-provider — createPlanProduct", () => {
     expect(annualOptions.idempotencyKey).toBe("plan:caja-esencia:price-year");
   });
 
+  it("con quarterlyPriceCents crea un Price trimestral (interval_count 3) con su propia key", async () => {
+    const productsCreate = vi.fn().mockResolvedValue({ id: "prod_1" });
+    const pricesCreate = vi
+      .fn()
+      .mockResolvedValueOnce({ id: "price_1" })
+      .mockResolvedValueOnce({ id: "price_q_1" })
+      .mockResolvedValueOnce({ id: "price_year_1" });
+    const client = buildFakeClient({
+      products: { create: productsCreate },
+      prices: { create: pricesCreate },
+    });
+    const provider = createStripeSubscriptionProvider(client);
+
+    const result = await provider.createPlanProduct({
+      planSlug: "caja-esencia",
+      name: "Caja Esencia",
+      description: "Caja mensual curada",
+      priceCents: 49900,
+      quarterlyPriceCents: 146700,
+      annualPriceCents: 574800,
+      currency: "mxn",
+      idempotencyKey: "plan:caja-esencia",
+    });
+
+    expect(result).toEqual({
+      productRef: "prod_1",
+      priceRef: "price_1",
+      quarterlyPriceRef: "price_q_1",
+      annualPriceRef: "price_year_1",
+    });
+    expect(pricesCreate).toHaveBeenCalledTimes(3);
+
+    const [quarterlyParams, quarterlyOptions] = pricesCreate.mock.calls[1];
+    expect(quarterlyParams.product).toBe("prod_1");
+    expect(quarterlyParams.unit_amount).toBe(146700);
+    expect(quarterlyParams.recurring).toEqual({ interval: "month", interval_count: 3 });
+    expect(quarterlyOptions.idempotencyKey).toBe("plan:caja-esencia:price-quarter");
+    expect(pricesCreate.mock.calls[2][1].idempotencyKey).toBe("plan:caja-esencia:price-year");
+  });
+
+  it("sin quarterlyPriceCents no crea Price trimestral", async () => {
+    const pricesCreate = vi.fn().mockResolvedValue({ id: "price_1" });
+    const client = buildFakeClient({
+      products: { create: vi.fn().mockResolvedValue({ id: "prod_1" }) },
+      prices: { create: pricesCreate },
+    });
+    const provider = createStripeSubscriptionProvider(client);
+
+    const result = await provider.createPlanProduct({
+      planSlug: "caja-esencia",
+      name: "Caja Esencia",
+      description: "Caja mensual curada",
+      priceCents: 49900,
+      currency: "mxn",
+      idempotencyKey: "plan:caja-esencia",
+    });
+
+    expect(result.quarterlyPriceRef).toBeUndefined();
+    expect(pricesCreate).toHaveBeenCalledTimes(1);
+  });
+
   it("sin annualPriceCents no crea un segundo Price", async () => {
     const productsCreate = vi.fn().mockResolvedValue({ id: "prod_1" });
     const pricesCreate = vi.fn().mockResolvedValue({ id: "price_1" });

@@ -9,6 +9,7 @@ import { compensate, loadOwnAccount, requireProviderRef } from "./subscription-a
 import { resolveSubscriptionProvider } from "./subscription-provider.js";
 import { claimSeat, releaseSeat } from "./subscription-seat.service.js";
 import { SEAT_HOLDING_STATUSES } from "./subscription-state.js";
+import { isPrepaidInterval } from "./subscription-billing-interval.js";
 
 /**
  * Cambio de plan inmediato y sin prorrateo (Milestone 1.7.3): el cupo se
@@ -43,14 +44,15 @@ import { SEAT_HOLDING_STATUSES } from "./subscription-state.js";
 type PlanChangeOutcome = "finalized" | "aborted" | "noop";
 
 function assertCanChangePlan(account: Awaited<ReturnType<typeof loadOwnAccount>>): void {
-  // Milestone 2.7b: cambiar de plan reinicia el ancla de Stripe
+  // Milestones 2.7b/3.1.7b: cambiar de plan reinicia el ancla de Stripe
   // (`billing_cycle_anchor: "unchanged"` deja de aplicar entre intervalos
-  // distintos), y el año ya se cobró completo — no hay forma de aplicar un
+  // distintos), y el periodo (trimestre o año) ya se cobró completo — no hay forma de aplicar un
   // cambio de plan sin resolver primero un prorrateo/reembolso que este
   // milestone no cubre. Queda fuera de alcance, no solo el cambio de
   // intervalo.
-  if (account.billingInterval === "year") {
-    throw new AppError("Las suscripciones anuales no pueden cambiar de plan por ahora.", 409);
+  if (isPrepaidInterval(account.billingInterval)) {
+    const label = account.billingInterval === "quarter" ? "trimestrales" : "anuales";
+    throw new AppError(`Las suscripciones ${label} no pueden cambiar de plan por ahora.`, 409);
   }
   if (account.status === SubscriptionStatus.PAST_DUE) {
     throw new AppError("Regulariza tu pago antes de cambiar de plan.", 409);

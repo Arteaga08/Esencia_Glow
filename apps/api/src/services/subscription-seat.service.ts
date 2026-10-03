@@ -10,6 +10,7 @@ import type { SubscriptionStatusHistoryEntryAttrs } from "../models/subscription
 import { AppError } from "../utils/app-error.js";
 import { withTransaction } from "../utils/with-transaction.js";
 import { assertTransition, seatEffect, type SubscriptionActor } from "./subscription-state.js";
+import type { BillingInterval } from "./subscription-billing-interval.js";
 
 /**
  * Cupo de un plan (decisión 2 del plan de 1.7.1): `seatsTaken` decide en el
@@ -38,9 +39,9 @@ interface TransitionExtra {
 interface StartSubscriptionInput {
   userId: string;
   planId: string;
-  /** Intervalo de cobro elegido (Milestone 2.7b). Ausente = mensual, sin
-   * escribir el campo (mismo precedente que `Product.channel`). */
-  billingInterval?: "month" | "year";
+  /** Intervalo de cobro elegido (Milestones 2.7b/3.1.7b). Ausente = mensual,
+   * sin escribir el campo (mismo precedente que `Product.channel`). */
+  billingInterval?: BillingInterval;
 }
 
 /** Reclama un lugar en el plan, atómico. Lanza 409 si el plan está inactivo,

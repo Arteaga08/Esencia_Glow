@@ -70,6 +70,11 @@ describe("models/SubscriptionAccount", () => {
     expect(account.billingInterval).toBe("year");
   });
 
+  it("acepta billingInterval: quarter", async () => {
+    const account = await SubscriptionAccount.create(buildAccountAttrs({ billingInterval: "quarter" }));
+    expect(account.billingInterval).toBe("quarter");
+  });
+
   it("acepta billingInterval: month", async () => {
     const account = await SubscriptionAccount.create(buildAccountAttrs({ billingInterval: "month" }));
     expect(account.billingInterval).toBe("month");

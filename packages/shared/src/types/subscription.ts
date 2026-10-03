@@ -55,7 +55,7 @@ interface MySubscription {
   /** Intervalo de cobro contratado (Milestone 2.7b). Siempre presente,
    * normalizado a `"month"` cuando la cuenta no tiene el campo (cuentas
    * creadas antes de 2.7b). */
-  billingInterval: "month" | "year";
+  billingInterval: "month" | "quarter" | "year";
   /** Fin del período pagado = fecha del próximo cobro. Ausente mientras la
    * cuenta sigue `INCOMPLETE` (Stripe todavía no cobró nada). */
   nextChargeAt?: string;

@@ -1,4 +1,5 @@
 import { Schema, model, type HydratedDocument, type Model, type Types } from "mongoose";
+import type { BillingInterval } from "../services/subscription-billing-interval.js";
 
 /**
  * Registro de cada cobro exitoso de suscripción (Milestone 2.9) — hasta
@@ -24,7 +25,7 @@ interface SubscriptionInvoiceAttrs {
   accountId: Types.ObjectId;
   userId: Types.ObjectId;
   planId: Types.ObjectId;
-  billingInterval?: "month" | "year";
+  billingInterval?: BillingInterval;
   amountPaidCents: number;
   currency: string;
   paidAt: Date;
@@ -41,7 +42,7 @@ const subscriptionInvoiceSchema = new Schema<SubscriptionInvoiceAttrs, Subscript
     accountId: { type: Schema.Types.ObjectId, ref: "SubscriptionAccount", required: true },
     userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
     planId: { type: Schema.Types.ObjectId, ref: "SubscriptionPlan", required: true },
-    billingInterval: { type: String, enum: ["month", "year"] },
+    billingInterval: { type: String, enum: ["month", "quarter", "year"] },
     amountPaidCents: { type: Number, required: true, min: 0, validate: integerValidator },
     currency: { type: String, required: true, trim: true },
     paidAt: { type: Date, required: true },

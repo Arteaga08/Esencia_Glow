@@ -32,6 +32,8 @@ interface CreatePlanProductInput {
   /** Precio del ciclo anual (Milestone 2.7b), opcional: un plan puede
    * ofrecer solo mensual. */
   annualPriceCents?: number;
+  /** Precio del ciclo trimestral prepagado (Milestone 3.1.7b), opcional. */
+  quarterlyPriceCents?: number;
   currency: string;
   idempotencyKey: string;
 }
@@ -40,6 +42,7 @@ interface PlanProductRefs {
   productRef: string;
   priceRef: string;
   annualPriceRef?: string;
+  quarterlyPriceRef?: string;
 }
 
 /** Estado del proveedor, YA traducido — el vocabulario crudo de Stripe
@@ -64,10 +67,10 @@ interface StartProviderSubscriptionInput {
   customerRef: string;
   priceRef: string;
   billingAnchorDay: number;
-  /** Solo en el alta ANUAL (Milestone 2.7b): fija el mes del ciclo completo
-   * en `billing_cycle_anchor_config.month`, para que la renovación caiga un
-   * año después del alta en vez de al mes siguiente. Ausente = mensual, el
-   * comportamiento de siempre. */
+  /** Solo en altas PREPAGADAS (anual 2.7b, trimestral 3.1.7b): fija el mes
+   * del ciclo completo en `billing_cycle_anchor_config.month`, para que la
+   * renovación caiga un año (o un trimestre) después del alta en vez de al
+   * mes siguiente. Ausente = mensual, el comportamiento de siempre. */
   billingAnchorMonth?: number;
   metadata: { accountId: string; userId: string; planId: string };
   idempotencyKey: string;
