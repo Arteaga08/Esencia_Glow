@@ -2,6 +2,7 @@ import type { Request, RequestHandler, Response } from "express";
 import { ContentAction, HomeSectionKey, type HomeSectionMeta } from "@esencia-glow/shared";
 import { asyncHandler } from "../utils/async-handler.js";
 import { sendResponse } from "../utils/send-response.js";
+import { SPOTLIGHT_BY_SLUG } from "../utils/home-spotlight.js";
 import * as homeContentService from "../services/home-content.service.js";
 import { recordAudit } from "../services/audit.service.js";
 
@@ -89,7 +90,25 @@ const updateBenefits = sectionUpdateHandler(
   (section) => ({ items: section.items.length }),
 );
 
+/**
+ * Novedades y Kits comparten ruta (`/spotlights/:section`): la sección sale del
+ * segmento de URL, ya validado por Joi. Misma auditoría que el resto.
+ */
+const updateSpotlight = asyncHandler(async (req: Request<{ section: string }>, res: Response) => {
+  const section = SPOTLIGHT_BY_SLUG[req.params.section]!;
+  const result = await homeContentService.updateSpotlight(section, req.body);
+
+  await recordAudit({
+    action: ContentAction.HOME_SECTION_UPDATED,
+    actorId: req.user!.id,
+    metadata: { section, version: result.version, change: "content" },
+  });
+
+  sendResponse(res, 200, "Bloque del home actualizado.", result);
+});
+
 export {
+  updateSpotlight,
   get,
   updateAnnouncement,
   updateHero,

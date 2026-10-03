@@ -13,6 +13,12 @@ enum HomeSectionKey {
   SUBSCRIPTION_PROMO = "subscriptionPromo",
   TESTIMONIALS = "testimonials",
   BENEFITS = "benefits",
+  NEW_ARRIVALS = "newArrivals",
+  KITS = "kits",
 }
 
+/** Las dos secciones con forma de "portada + tarjetas del catálogo" (bloque 5 del home). */
+type HomeSpotlightKey = HomeSectionKey.NEW_ARRIVALS | HomeSectionKey.KITS;
+
 export { HomeSectionKey };
+export type { HomeSpotlightKey };

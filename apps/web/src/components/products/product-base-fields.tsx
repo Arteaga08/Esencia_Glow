@@ -1,5 +1,6 @@
 "use client";
 
+import { FieldError } from "@/components/ui/field-error";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
@@ -106,9 +107,10 @@ function ProductBaseFields({ value, onChange, errors }: ProductBaseFieldsProps) 
         />
         <MerchandisingToggle
           label="Novedad"
-          helper="Se muestra en la sección de Novedades de la tienda."
+          helper="Se muestra en Novedades de la tienda. Máximo 4 productos a la vez."
           checked={value.isNewArrival}
           onChange={(checked) => onChange({ isNewArrival: checked })}
+          error={errors?.isNewArrival}
         />
       </div>
     </div>
@@ -121,18 +123,21 @@ function MerchandisingToggle({
   helper,
   checked,
   onChange,
+  error,
 }: {
   label: string;
   helper: string;
   checked: boolean;
   onChange: (checked: boolean) => void;
+  error?: string;
 }) {
   return (
-    <div className="flex items-start gap-3 rounded-md border border-border-strong p-3">
+    <div className={`flex items-start gap-3 rounded-md border p-3 ${error ? "border-destructive-action" : "border-border-strong"}`}>
       <Switch label={label} checked={checked} onChange={onChange} />
       <div className="flex flex-col gap-0.5">
         <span className="text-body text-foreground">{label}</span>
         <span className="text-body-sm text-muted-foreground-strong">{helper}</span>
+        {error ? <FieldError message={error} /> : null}
       </div>
     </div>
   );

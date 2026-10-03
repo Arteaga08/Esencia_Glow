@@ -1,20 +1,23 @@
-import type {
-  AdminHomeAnnouncement,
-  AdminHomeBenefits,
-  AdminHomeContent,
-  AdminHomeFeaturedCategories,
-  AdminHomeFeaturedProducts,
-  AdminHomeHero,
-  AdminHomeSubscriptionPromo,
-  AdminHomeTestimonials,
-  HomeSectionMeta,
+import {
+  HomeSectionKey,
+  type AdminHomeAnnouncement,
+  type AdminHomeBenefits,
+  type AdminHomeContent,
+  type AdminHomeFeaturedCategories,
+  type AdminHomeFeaturedProducts,
+  type AdminHomeHero,
+  type AdminHomeSpotlight,
+  type AdminHomeSubscriptionPromo,
+  type AdminHomeTestimonials,
+  type HomeSectionMeta,
+  type HomeSpotlightKey,
 } from "@esencia-glow/shared";
 import type { HomeContentAttrs } from "../models/home-content.model.js";
 import type { HomeSectionBaseAttrs } from "../models/home-section.schemas.js";
 import { buildImageDto } from "./catalog-dto.js";
 
 /**
- * Vista admin del singleton: SIEMPRE las siete secciones. Una sección que
+ * Vista admin del singleton: SIEMPRE las nueve secciones. Una sección que
  * nadie ha escrito sale como `{version: 0, isActive: false, ...vacío}` — los
  * defaults se completan aquí, AL LEER, nunca al escribir (mismo criterio que
  * `getSettings`). El `version: 0` es lo que el editor devuelve en su primera
@@ -117,6 +120,20 @@ function buildBenefits(doc: HomeContentAttrs | null): AdminHomeBenefits {
   };
 }
 
+/** Novedades y Kits: misma forma, cambia la clave de la sección. */
+function buildSpotlight(doc: HomeContentAttrs | null, key: HomeSpotlightKey): AdminHomeSpotlight {
+  const section = doc?.[key];
+  return {
+    ...buildMeta(section),
+    title: section?.title ?? "",
+    ...(section?.subtitle ? { subtitle: section.subtitle } : {}),
+    images: {
+      ...(section?.images?.desktop ? { desktop: buildImageDto(section.images.desktop) } : {}),
+      ...(section?.images?.mobile ? { mobile: buildImageDto(section.images.mobile) } : {}),
+    },
+  };
+}
+
 function buildAdminHomeContent(doc: HomeContentAttrs | null): AdminHomeContent {
   return {
     announcement: buildAnnouncement(doc),
@@ -126,6 +143,8 @@ function buildAdminHomeContent(doc: HomeContentAttrs | null): AdminHomeContent {
     subscriptionPromo: buildSubscriptionPromo(doc),
     testimonials: buildTestimonials(doc),
     benefits: buildBenefits(doc),
+    newArrivals: buildSpotlight(doc, HomeSectionKey.NEW_ARRIVALS),
+    kits: buildSpotlight(doc, HomeSectionKey.KITS),
   };
 }
 
@@ -138,4 +157,5 @@ export {
   buildSubscriptionPromo,
   buildTestimonials,
   buildBenefits,
+  buildSpotlight,
 };

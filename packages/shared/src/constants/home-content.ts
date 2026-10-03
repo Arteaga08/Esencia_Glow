@@ -10,6 +10,8 @@ const HOME_CONTENT_LIMITS = {
   maxFeaturedCategories: 8,
   maxTestimonials: 12,
   maxBenefits: 6,
+  /** Novedades del home (bloque 5): la rejilla 2×2 muestra exactamente cuatro. */
+  maxNewArrivals: 4,
   announcementTextMax: 120,
   titleMax: 120,
   subtitleMax: 240,

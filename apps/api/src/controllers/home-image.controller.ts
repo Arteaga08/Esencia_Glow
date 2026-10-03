@@ -3,6 +3,7 @@ import { ContentAction, HomeSectionKey } from "@esencia-glow/shared";
 import { asyncHandler } from "../utils/async-handler.js";
 import { sendResponse } from "../utils/send-response.js";
 import { AppError } from "../utils/app-error.js";
+import { SPOTLIGHT_BY_SLUG } from "../utils/home-spotlight.js";
 import * as homeImageService from "../services/home-image.service.js";
 import { recordAudit } from "../services/audit.service.js";
 import type { HeroImageSlot } from "../services/home-image.service.js";
@@ -76,4 +77,33 @@ const removePromoImage = asyncHandler(async (req: Request, res: Response) => {
   sendResponse(res, 200, "Imagen de la promo eliminada.", promo);
 });
 
-export { setHeroSlideImage, removeHeroSlideImage, setPromoImage, removePromoImage };
+type SpotlightImageParams = { section: string; slot: HeroImageSlot };
+
+const setSpotlightImage = asyncHandler(async (req: Request<SpotlightImageParams>, res: Response) => {
+  const file = requireFile(req);
+  const { version, alt } = req.body as { version: number; alt?: string };
+  const section = SPOTLIGHT_BY_SLUG[req.params.section]!;
+
+  const result = await homeImageService.setSpotlightImage(section, req.params.slot, file.buffer, version, alt);
+
+  await auditImageChange(req, section, result.version, req.params.slot);
+  sendResponse(res, 200, "Foto del bloque actualizada.", result);
+});
+
+const removeSpotlightImage = asyncHandler(async (req: Request<SpotlightImageParams>, res: Response) => {
+  const section = SPOTLIGHT_BY_SLUG[req.params.section]!;
+
+  const result = await homeImageService.removeSpotlightImage(section, req.params.slot, queryVersion(req));
+
+  await auditImageChange(req, section, result.version, req.params.slot);
+  sendResponse(res, 200, "Foto del bloque eliminada.", result);
+});
+
+export {
+  setHeroSlideImage,
+  removeHeroSlideImage,
+  setPromoImage,
+  removePromoImage,
+  setSpotlightImage,
+  removeSpotlightImage,
+};

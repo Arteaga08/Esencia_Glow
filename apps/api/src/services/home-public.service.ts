@@ -1,5 +1,11 @@
 import type { Types } from "mongoose";
-import type { PublicHomeContent, PublicHomeHeroSlide } from "@esencia-glow/shared";
+import {
+  HomeSectionKey,
+  type HomeSpotlightKey,
+  type PublicHomeContent,
+  type PublicHomeHeroSlide,
+  type PublicHomeSpotlight,
+} from "@esencia-glow/shared";
 import type { HomeContentAttrs } from "../models/home-content.model.js";
 import { Category } from "../models/category.model.js";
 import { Product } from "../models/product.model.js";
@@ -118,6 +124,19 @@ function buildTestimonials(doc: HomeContentAttrs): PublicHomeContent["testimonia
   return items.length > 0 ? { items } : undefined;
 }
 
+/** Novedades / Kits: sin foto de escritorio no se publica, igual que un slide del hero. */
+function buildSpotlight(doc: HomeContentAttrs, key: HomeSpotlightKey): PublicHomeSpotlight | undefined {
+  const section = doc[key];
+  const desktop = buildImageDto(section?.images?.desktop);
+  if (!section?.isActive || !section.title || !desktop) return undefined;
+  const mobile = buildImageDto(section.images?.mobile);
+  return {
+    title: section.title,
+    ...(section.subtitle ? { subtitle: section.subtitle } : {}),
+    images: { desktop, ...(mobile ? { mobile } : {}) },
+  };
+}
+
 function buildBenefits(doc: HomeContentAttrs): PublicHomeContent["benefits"] {
   const section = doc.benefits;
   if (!section?.isActive) return undefined;
@@ -149,6 +168,8 @@ async function getPublicHomeContent(): Promise<PublicHomeContent> {
     subscriptionPromo: buildSubscriptionPromo(doc),
     testimonials: buildTestimonials(doc),
     benefits: buildBenefits(doc),
+    newArrivals: buildSpotlight(doc, HomeSectionKey.NEW_ARRIVALS),
+    kits: buildSpotlight(doc, HomeSectionKey.KITS),
   };
 
   // Sin claves `undefined`: el JSON las omite igual, pero así el objeto
