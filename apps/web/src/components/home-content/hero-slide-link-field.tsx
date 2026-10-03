@@ -12,6 +12,8 @@ const PRODUCT_HREF_PREFIX = "/producto/";
 interface HeroSlideLinkFieldProps {
   href: string;
   error?: string;
+  /** Texto de ayuda bajo el buscador; por defecto, el del slide del hero. */
+  hint?: string;
   onChange: (href: string) => void;
 }
 
@@ -32,7 +34,12 @@ function slugFromHref(href: string): string | null {
  * nombre; si el enlace no es de producto (uno escrito antes de este cambio) se
  * muestra tal cual hasta que elija un producto que lo reemplace.
  */
-function HeroSlideLinkField({ href, error, onChange }: HeroSlideLinkFieldProps) {
+function HeroSlideLinkField({
+  href,
+  error,
+  hint = "Al tocar el slide, la clienta llega a este producto.",
+  onChange,
+}: HeroSlideLinkFieldProps) {
   const [selected, setSelected] = useState<AdminProduct | null>(null);
   const slug = slugFromHref(href);
   const resolved = selected && productHref(selected) === href ? selected : null;
@@ -79,7 +86,7 @@ function HeroSlideLinkField({ href, error, onChange }: HeroSlideLinkFieldProps) 
         <p className="text-body-sm text-muted-foreground">
           {legacyHref
             ? `Enlace actual: ${legacyHref}. Elige un producto para reemplazarlo.`
-            : "Al tocar el slide, la clienta llega a este producto."}
+            : hint}
         </p>
       )}
     </div>

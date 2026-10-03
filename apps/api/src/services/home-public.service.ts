@@ -4,6 +4,7 @@ import {
   type HomeSpotlightKey,
   type PublicHomeContent,
   type PublicHomeHeroSlide,
+  type PublicHomeOfferBanner,
   type PublicHomeSpotlight,
 } from "@esencia-glow/shared";
 import type { HomeContentAttrs } from "../models/home-content.model.js";
@@ -137,6 +138,20 @@ function buildSpotlight(doc: HomeContentAttrs, key: HomeSpotlightKey): PublicHom
   };
 }
 
+/** Banner de oferta: sin foto de escritorio, frase, botón o enlace no se publica. */
+function buildOfferBanner(doc: HomeContentAttrs): PublicHomeOfferBanner | undefined {
+  const section = doc.offerBanner;
+  const desktop = buildImageDto(section?.images?.desktop);
+  if (!section?.isActive || !section.text || !section.ctaLabel || !section.ctaHref || !desktop) return undefined;
+  const mobile = buildImageDto(section.images?.mobile);
+  return {
+    text: section.text,
+    ctaLabel: section.ctaLabel,
+    ctaHref: section.ctaHref,
+    images: { desktop, ...(mobile ? { mobile } : {}) },
+  };
+}
+
 function buildBenefits(doc: HomeContentAttrs): PublicHomeContent["benefits"] {
   const section = doc.benefits;
   if (!section?.isActive) return undefined;
@@ -170,6 +185,7 @@ async function getPublicHomeContent(): Promise<PublicHomeContent> {
     benefits: buildBenefits(doc),
     newArrivals: buildSpotlight(doc, HomeSectionKey.NEW_ARRIVALS),
     kits: buildSpotlight(doc, HomeSectionKey.KITS),
+    offerBanner: buildOfferBanner(doc),
   };
 
   // Sin claves `undefined`: el JSON las omite igual, pero así el objeto

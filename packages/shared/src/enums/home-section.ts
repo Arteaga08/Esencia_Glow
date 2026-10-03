@@ -15,6 +15,7 @@ enum HomeSectionKey {
   BENEFITS = "benefits",
   NEW_ARRIVALS = "newArrivals",
   KITS = "kits",
+  OFFER_BANNER = "offerBanner",
 }
 
 /** Las dos secciones con forma de "portada + tarjetas del catálogo" (bloque 5 del home). */

@@ -7,6 +7,7 @@ import {
   type AdminHomeFeaturedCategories,
   type AdminHomeFeaturedProducts,
   type AdminHomeHero,
+  type AdminHomeOfferBanner,
   type AdminHomeSpotlight,
   type HomeSpotlightKey,
   type AdminHomeSubscriptionPromo,
@@ -24,6 +25,7 @@ import {
   buildFeaturedCategories,
   buildFeaturedProducts,
   buildHero,
+  buildOfferBanner,
   buildSpotlight,
   buildSubscriptionPromo,
   buildTestimonials,
@@ -293,8 +295,23 @@ async function updateSpotlight(section: HomeSpotlightKey, input: SpotlightInput)
   return buildSpotlight(doc, section);
 }
 
+interface OfferBannerInput extends SectionInput {
+  text: string;
+  ctaLabel: string;
+  ctaHref: string;
+}
+
+/** Banner de oferta (bloque 8): frase, botón y enlace. Las fotos tienen su propio endpoint. */
+async function updateOfferBanner(input: OfferBannerInput): Promise<AdminHomeOfferBanner> {
+  const doc = await writeSection(HomeSectionKey.OFFER_BANNER, input.version, {
+    set: { isActive: input.isActive, text: input.text, ctaLabel: input.ctaLabel, ctaHref: input.ctaHref },
+  });
+  return buildOfferBanner(doc);
+}
+
 export {
   updateSpotlight,
+  updateOfferBanner,
   getAdminHomeContent,
   updateAnnouncement,
   updateHero,
