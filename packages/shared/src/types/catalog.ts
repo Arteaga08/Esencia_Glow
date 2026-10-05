@@ -100,6 +100,13 @@ interface PublicCategoryNode extends PublicCategory {
   children: PublicCategory[];
 }
 
+/** Filtros disponibles en una categoría: marcas y rango de precio en centavos MXN. */
+interface PublicProductFacets {
+  brands: string[];
+  minPrice: number | null;
+  maxPrice: number | null;
+}
+
 /**
  * Señal de disponibilidad por variante — nunca el número de `onHand`/
  * `reserved` (información de negocio, ver §"Disponibilidad pública" de
@@ -122,5 +129,6 @@ export type {
   PublicProduct,
   PublicCategory,
   PublicCategoryNode,
+  PublicProductFacets,
   PublicVariantAvailability,
 };

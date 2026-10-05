@@ -5,6 +5,7 @@ import type {
   PublicCategory,
   PublicCategoryNode,
   PublicProduct,
+  PublicProductFacets,
   PublicVariantAvailability,
 } from "@esencia-glow/shared";
 import { Product } from "../models/product.model.js";
@@ -29,6 +30,7 @@ const PUBLIC_PRODUCT_SORT_FIELDS = ["createdAt", "name", "minPrice"] as const;
 
 interface ListPublicProductsInput extends ListQuery {
   categorySlug?: string;
+  brands?: string[];
   minPrice?: number;
   maxPrice?: number;
   bestseller?: boolean;
@@ -72,21 +74,27 @@ async function buildPublicProductsWithRefs(documents: LeanProduct[]): Promise<Pu
   );
 }
 
+/**
+ * Slug de categoría -> ids (la raíz incluye sus subcategorías). Un slug
+ * desconocido no es un error: devuelve `[]` y no hay productos que mostrar
+ * (evita filtrar existencia de categorías por timing). Sin slug -> `undefined`.
+ */
+async function resolveCategoryIdsBySlug(slug?: string): Promise<Types.ObjectId[] | undefined> {
+  if (!slug) return undefined;
+  const category = await Category.findOne({ slug }).select("_id").lean();
+  return category ? resolveCategoryIds(category._id.toString()) : [];
+}
+
 async function listPublicProducts(
   input: ListPublicProductsInput,
 ): Promise<{ products: PublicProduct[]; meta: PaginationMeta }> {
-  let categoryIds;
-  if (input.categorySlug) {
-    const category = await Category.findOne({ slug: input.categorySlug }).select("_id").lean();
-    // Un slug de categoría desconocido no es un error: simplemente no hay
-    // productos que mostrar (evita filtrar existencia de categorías por timing).
-    categoryIds = category ? await resolveCategoryIds(category._id.toString()) : [];
-  }
+  const categoryIds = await resolveCategoryIdsBySlug(input.categorySlug);
 
   const filter = buildProductFilter({
     search: input.search,
     categoryIds,
     publicOnly: true,
+    brands: input.brands,
     minPrice: input.minPrice,
     maxPrice: input.maxPrice,
     isBestseller: input.bestseller,
@@ -107,6 +115,35 @@ async function listPublicProducts(
     products: await buildPublicProductsWithRefs(documents),
     meta: buildMeta(total, input),
   };
+}
+
+/**
+ * Marcas distintas y rango de precio de la categoría (la raíz incluye sus
+ * subcategorías) para armar los filtros del catálogo. Mismo match público que
+ * el listado: borradores, canal de suscripción y productos sin variante activa
+ * no aportan marcas ni precios. Categoría desconocida -> facetas vacías.
+ */
+async function getPublicProductFacets(categorySlug?: string): Promise<PublicProductFacets> {
+  const categoryIds = await resolveCategoryIdsBySlug(categorySlug);
+  const filter = buildProductFilter({ categoryIds, publicOnly: true });
+
+  const [summary] = await Product.aggregate<{ brands: string[]; minPrice: number | null; maxPrice: number | null }>([
+    { $match: filter },
+    {
+      $group: {
+        _id: null,
+        brands: { $addToSet: "$brand" },
+        minPrice: { $min: "$minPrice" },
+        maxPrice: { $max: "$minPrice" },
+      },
+    },
+  ]);
+
+  if (!summary) return { brands: [], minPrice: null, maxPrice: null };
+  const brands = summary.brands
+    .filter((brand): brand is string => typeof brand === "string" && brand.length > 0)
+    .sort((a, b) => a.localeCompare(b, "es"));
+  return { brands, minPrice: summary.minPrice ?? null, maxPrice: summary.maxPrice ?? null };
 }
 
 async function getPublicProductBySlug(slug: string): Promise<PublicProduct> {
@@ -164,6 +201,7 @@ async function getPublicCategoryBySlug(slug: string): Promise<PublicCategory> {
 export {
   buildPublicProductsWithRefs,
   listPublicProducts,
+  getPublicProductFacets,
   getPublicProductBySlug,
   getPublicVariantAvailability,
   getPublicCategoryTree,

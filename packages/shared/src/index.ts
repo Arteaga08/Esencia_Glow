@@ -108,6 +108,7 @@ export type {
   PublicProduct,
   PublicCategory,
   PublicCategoryNode,
+  PublicProductFacets,
   PublicVariantAvailability,
 } from "./types/catalog.js";
 export type { PublicBundleItem, PublicBundle, PublicBundleAvailability } from "./types/bundle.js";

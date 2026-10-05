@@ -8,6 +8,8 @@ const nextConfig: NextConfig = {
   // Las fotos del home (hero, etc.) las sube el panel a Cloudinary.
   images: {
     remotePatterns: [{ protocol: "https", hostname: "res.cloudinary.com" }],
+    // 90 solo para el banner de categoría (foto a todo el ancho); el resto usa el 75 por defecto.
+    qualities: [75, 90],
   },
 };
 
