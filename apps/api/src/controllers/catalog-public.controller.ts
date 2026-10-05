@@ -6,8 +6,9 @@ import * as catalogPublicService from "../services/catalog-public.service.js";
 
 const listProducts = asyncHandler(async (req: Request, res: Response) => {
   const query = parseListQuery(req.query);
-  const { category, minPrice, maxPrice, bestseller, newArrival } = req.query as {
+  const { category, brand, minPrice, maxPrice, bestseller, newArrival } = req.query as {
     category?: string;
+    brand?: string[];
     minPrice?: number;
     maxPrice?: number;
     bestseller?: boolean;
@@ -16,12 +17,19 @@ const listProducts = asyncHandler(async (req: Request, res: Response) => {
   const { products, meta } = await catalogPublicService.listPublicProducts({
     ...query,
     categorySlug: category,
+    brands: brand,
     minPrice,
     maxPrice,
     bestseller,
     newArrival,
   });
   sendResponse(res, 200, "Productos obtenidos.", products, meta);
+});
+
+const getProductFacets = asyncHandler(async (req: Request, res: Response) => {
+  const { category } = req.query as { category?: string };
+  const facets = await catalogPublicService.getPublicProductFacets(category);
+  sendResponse(res, 200, "Facetas obtenidas.", facets);
 });
 
 const getProduct = asyncHandler(async (req: Request<{ slug: string }>, res: Response) => {
@@ -44,4 +52,4 @@ const getCategory = asyncHandler(async (req: Request<{ slug: string }>, res: Res
   sendResponse(res, 200, "Categoría obtenida.", category);
 });
 
-export { listProducts, getProduct, getAvailability, getCategoryTree, getCategory };
+export { listProducts, getProductFacets, getProduct, getAvailability, getCategoryTree, getCategory };

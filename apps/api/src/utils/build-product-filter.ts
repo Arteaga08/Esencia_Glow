@@ -23,6 +23,8 @@ interface ProductFilterInput {
   availableIn?: "store" | "subscription";
   minPrice?: number;
   maxPrice?: number;
+  /** Marcas exactas (los valores salen de las facetas). Vacío o ausente no restringe. */
+  brands?: string[];
   /** Marcas de merchandising: `true` filtra, ausente no restringe. */
   isBestseller?: boolean;
   isNewArrival?: boolean;
@@ -67,6 +69,8 @@ function buildProductFilter(input: ProductFilterInput): FilterQuery<ProductAttrs
   if (input.categoryIds && input.categoryIds.length > 0) {
     filter.categoryId = { $in: input.categoryIds };
   }
+
+  if (input.brands && input.brands.length > 0) filter.brand = { $in: input.brands };
 
   if (input.isBestseller) filter.isBestseller = true;
   if (input.isNewArrival) filter.isNewArrival = true;

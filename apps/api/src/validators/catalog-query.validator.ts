@@ -31,12 +31,38 @@ const listBadgesQuerySchema = listQueryBaseSchema.keys({
 
 const publicCategoryQuerySchema = Joi.object({});
 
+const MAX_BRANDS_PER_QUERY = 10;
+const MAX_BRAND_LENGTH = 80;
+
+/**
+ * Marcas del filtro: llegan como "Cosrx,Isntree" y salen como `string[]`
+ * (Joi entrega el valor ya convertido al controller). Las vacías se ignoran;
+ * pasar de 10 marcas o de 80 caracteres por marca es un 400.
+ */
+const brandListSchema = Joi.string()
+  .trim()
+  .max(MAX_BRANDS_PER_QUERY * (MAX_BRAND_LENGTH + 1))
+  .custom((value: string, helpers) => {
+    const brands = [...new Set(value.split(",").map((brand) => brand.trim()).filter(Boolean))];
+    if (brands.length > MAX_BRANDS_PER_QUERY || brands.some((brand) => brand.length > MAX_BRAND_LENGTH)) {
+      return helpers.error("any.invalid");
+    }
+    return brands;
+  })
+  .messages({ "any.invalid": "Máximo 10 marcas de hasta 80 caracteres cada una." });
+
 const publicProductQuerySchema = listQueryBaseSchema.keys({
   category: Joi.string().trim().lowercase().max(80),
+  brand: brandListSchema,
   bestseller: Joi.boolean(),
   newArrival: Joi.boolean(),
   minPrice: Joi.number().integer().min(0),
   maxPrice: Joi.number().integer().min(0),
+});
+
+/** Facetas del catálogo: solo la categoría; marcas y precios los calcula el servidor. */
+const publicProductFacetsQuerySchema = Joi.object({
+  category: Joi.string().trim().lowercase().max(80),
 });
 
 export {
@@ -45,4 +71,5 @@ export {
   listBadgesQuerySchema,
   publicCategoryQuerySchema,
   publicProductQuerySchema,
+  publicProductFacetsQuerySchema,
 };

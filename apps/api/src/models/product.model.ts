@@ -101,6 +101,7 @@ const productSchema = new Schema<ProductAttrs, ProductModel>(
 productSchema.index({ "variants.sku": 1 }, { unique: true, sparse: true });
 productSchema.index({ status: 1, channel: 1, createdAt: -1 });
 productSchema.index({ status: 1, categoryId: 1, minPrice: 1 });
+productSchema.index({ status: 1, categoryId: 1, brand: 1 });
 productSchema.index({ status: 1, isBestseller: 1, createdAt: -1 });
 productSchema.index({ status: 1, isNewArrival: 1, createdAt: -1 });
 productSchema.index({ name: 1 });

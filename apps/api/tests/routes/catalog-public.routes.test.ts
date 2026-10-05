@@ -157,6 +157,132 @@ describe("routes/catalog-public — productos y categorías", () => {
     expect(response.body.data.badge).toBeUndefined();
   });
 
+  describe("filtro por marca y facetas", () => {
+    async function createActiveProduct(
+      agent: ReturnType<typeof request.agent>,
+      categoryId: string,
+      input: { name: string; sku: string; brand?: string; price?: number; channel?: string; isActive?: boolean },
+    ) {
+      const created = await agent.post("/api/v1/admin/products").send({
+        name: input.name,
+        description: "Producto de prueba",
+        categoryId,
+        ...(input.brand ? { brand: input.brand } : {}),
+        ...(input.channel ? { channel: input.channel } : {}),
+        variants: [sampleVariant({ sku: input.sku, price: input.price ?? 10000 })],
+      });
+      await agent.patch(`/api/v1/admin/products/${created.body.data.id}`).send({ status: "active" });
+      return created.body.data.id as string;
+    }
+
+    async function seedBrands(agent: ReturnType<typeof request.agent>) {
+      const { rootId } = await seedCatalog(agent);
+      const other = await agent.post("/api/v1/admin/categories").send({ name: "Cuerpo" });
+      await createActiveProduct(agent, rootId, { name: "Gel Cosrx", sku: "COS-1", brand: "Cosrx", price: 20000 });
+      await createActiveProduct(agent, rootId, { name: "Crema Cosrx", sku: "COS-2", brand: "Cosrx", price: 45000 });
+      await createActiveProduct(agent, rootId, { name: "Tónico Isntree", sku: "ISN-1", brand: "Isntree", price: 30000 });
+      await createActiveProduct(agent, other.body.data.id, { name: "Loción Beauty of Joseon", sku: "BOJ-1", brand: "Beauty of Joseon" });
+      return { rootId };
+    }
+
+    it("brand filtra por una marca exacta", async () => {
+      const { agent } = await createAdminSession(app);
+      await seedBrands(agent);
+
+      const response = await request(app).get("/api/v1/products").query({ brand: "Cosrx" });
+      expect(response.status).toBe(200);
+      expect(response.body.data.map((p: { name: string }) => p.name).sort()).toEqual(["Crema Cosrx", "Gel Cosrx"]);
+    });
+
+    it("brand acepta varias marcas separadas por coma", async () => {
+      const { agent } = await createAdminSession(app);
+      await seedBrands(agent);
+
+      const response = await request(app).get("/api/v1/products").query({ brand: "Cosrx,Isntree" });
+      expect(response.body.data).toHaveLength(3);
+    });
+
+    it("brand se combina con categoría y rango de precio", async () => {
+      const { agent } = await createAdminSession(app);
+      await seedBrands(agent);
+
+      const response = await request(app)
+        .get("/api/v1/products")
+        .query({ category: "skincare-coreano", brand: "Cosrx", minPrice: 30000 });
+      expect(response.body.data.map((p: { name: string }) => p.name)).toEqual(["Crema Cosrx"]);
+    });
+
+    it("una marca inexistente devuelve lista vacía, no error", async () => {
+      const { agent } = await createAdminSession(app);
+      await seedBrands(agent);
+
+      const response = await request(app).get("/api/v1/products").query({ brand: "Marca Fantasma" });
+      expect(response.status).toBe(200);
+      expect(response.body.data).toEqual([]);
+    });
+
+    it("más de 10 marcas responde 400", async () => {
+      const brands = Array.from({ length: 11 }, (_, index) => `Marca ${index}`).join(",");
+      const response = await request(app).get("/api/v1/products").query({ brand: brands });
+      expect(response.status).toBe(400);
+    });
+
+    it("un operador Mongo en brand no se interpreta", async () => {
+      const { agent } = await createAdminSession(app);
+      await seedBrands(agent);
+
+      // Si `$in` se interpretara, solo saldrían los 2 productos Cosrx. La
+      // defensa correcta es que el operador no filtre nada (o que dé 400).
+      const response = await request(app).get("/api/v1/products?brand[$in]=Cosrx");
+      expect(response.status).toBeLessThan(500);
+      if (response.status === 200) expect(response.body.data).toHaveLength(5);
+    });
+
+    it("facets devuelve marcas ordenadas y rango de precio de la categoría, sin duplicar", async () => {
+      const { agent } = await createAdminSession(app);
+      await seedBrands(agent);
+
+      const response = await request(app).get("/api/v1/products/facets").query({ category: "skincare-coreano" });
+      expect(response.status).toBe(200);
+      expect(response.body.data).toEqual({ brands: ["Cosrx", "Isntree"], minPrice: 20000, maxPrice: 45000 });
+    });
+
+    it("facets sin categoría cubre todo el catálogo público", async () => {
+      const { agent } = await createAdminSession(app);
+      await seedBrands(agent);
+
+      const response = await request(app).get("/api/v1/products/facets");
+      expect(response.body.data.brands).toEqual(["Beauty of Joseon", "Cosrx", "Isntree"]);
+    });
+
+    it("facets deja fuera borradores, canal suscripción y variantes inactivas", async () => {
+      const { agent } = await createAdminSession(app);
+      const { rootId } = await seedBrands(agent);
+      await createActiveProduct(agent, rootId, { name: "Solo Suscripción", sku: "SUB-1", brand: "Marca Suscripción", channel: "subscription" });
+      await agent.post("/api/v1/admin/products").send({
+        name: "Borrador Marca",
+        description: "Sin publicar",
+        categoryId: rootId,
+        brand: "Marca Borrador",
+        variants: [sampleVariant({ sku: "DRF-9" })],
+      });
+
+      const response = await request(app).get("/api/v1/products/facets").query({ category: "skincare-coreano" });
+      expect(response.body.data.brands).toEqual(["Cosrx", "Isntree"]);
+    });
+
+    it("facets con una categoría desconocida responde vacío, no 404", async () => {
+      const response = await request(app).get("/api/v1/products/facets").query({ category: "no-existe" });
+      expect(response.status).toBe(200);
+      expect(response.body.data).toEqual({ brands: [], minPrice: null, maxPrice: null });
+    });
+
+    it("facets no choca con la ruta /:slug", async () => {
+      const response = await request(app).get("/api/v1/products/facets");
+      expect(response.status).toBe(200);
+    });
+  });
+
   describe("GET /:slug/availability", () => {
     it("responde isAvailable: true cuando hay stock disponible, sin exponer onHand/reserved", async () => {
       const { agent } = await createAdminSession(app);
