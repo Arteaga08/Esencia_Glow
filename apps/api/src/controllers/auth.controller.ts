@@ -172,7 +172,7 @@ const me = asyncHandler(async (req: Request, res: Response) => {
 });
 
 const verifyEmail = asyncHandler(async (req: Request, res: Response) => {
-  await accountService.verifyEmail(req.body.token);
+  await accountService.verifyEmail(req.body.token, req.body.password);
   sendResponse(res, 200, "Correo verificado. Ya puedes iniciar sesión.", null);
 });
 

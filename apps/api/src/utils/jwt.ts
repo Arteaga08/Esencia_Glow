@@ -22,6 +22,9 @@ import { AppError } from "./app-error.js";
  * invalidarían.
  */
 
+// Algoritmo fijado en firma Y verificación: nunca se acepta el que declare el token.
+const JWT_ALGORITHM = "HS256" as const;
+
 const PENDING_TWO_FACTOR_TTL_MS = 5 * 60 * 1000;
 const PENDING_TWO_FACTOR_TTL = "5m";
 
@@ -68,11 +71,11 @@ interface PendingEnrollmentPayload extends Omit<jwt.JwtPayload, "sub">, PendingE
 
 function signAccessToken(claims: AccessTokenClaims): string {
   const payload: AccessTokenPayload = { ...claims, purpose: "access" };
-  return jwt.sign(payload, env.jwtSecret, { expiresIn: env.accessTokenTtl as jwt.SignOptions["expiresIn"] });
+  return jwt.sign(payload, env.jwtSecret, { algorithm: JWT_ALGORITHM, expiresIn: env.accessTokenTtl as jwt.SignOptions["expiresIn"] });
 }
 
 function verifyAccessToken(token: string): AccessTokenPayload {
-  const decoded = jwt.verify(token, env.jwtSecret) as jwt.JwtPayload;
+  const decoded = jwt.verify(token, env.jwtSecret, { algorithms: [JWT_ALGORITHM] }) as jwt.JwtPayload;
   if (decoded.purpose !== "access") {
     throw new AppError("No autenticado", 401);
   }
@@ -81,11 +84,11 @@ function verifyAccessToken(token: string): AccessTokenPayload {
 
 function signPendingTwoFactorToken(claims: PendingTwoFactorClaims): string {
   const payload: PendingTwoFactorPayload = { ...claims, purpose: "pending_2fa" };
-  return jwt.sign(payload, env.jwtSecret, { expiresIn: PENDING_TWO_FACTOR_TTL });
+  return jwt.sign(payload, env.jwtSecret, { algorithm: JWT_ALGORITHM, expiresIn: PENDING_TWO_FACTOR_TTL });
 }
 
 function verifyPendingTwoFactorToken(token: string): PendingTwoFactorPayload {
-  const decoded = jwt.verify(token, env.jwtSecret) as jwt.JwtPayload;
+  const decoded = jwt.verify(token, env.jwtSecret, { algorithms: [JWT_ALGORITHM] }) as jwt.JwtPayload;
   if (decoded.purpose !== "pending_2fa") {
     throw new AppError("No hay un inicio de sesión pendiente de verificación", 401);
   }
@@ -94,11 +97,11 @@ function verifyPendingTwoFactorToken(token: string): PendingTwoFactorPayload {
 
 function signPendingEnrollmentToken(claims: PendingEnrollmentClaims): string {
   const payload: PendingEnrollmentPayload = { ...claims, purpose: "pending_2fa_setup" };
-  return jwt.sign(payload, env.jwtSecret, { expiresIn: PENDING_TWO_FACTOR_TTL });
+  return jwt.sign(payload, env.jwtSecret, { algorithm: JWT_ALGORITHM, expiresIn: PENDING_TWO_FACTOR_TTL });
 }
 
 function verifyPendingEnrollmentToken(token: string): PendingEnrollmentPayload {
-  const decoded = jwt.verify(token, env.jwtSecret) as jwt.JwtPayload;
+  const decoded = jwt.verify(token, env.jwtSecret, { algorithms: [JWT_ALGORITHM] }) as jwt.JwtPayload;
   if (decoded.purpose !== "pending_2fa_setup") {
     throw new AppError("No hay un inicio de sesión pendiente de verificación", 401);
   }

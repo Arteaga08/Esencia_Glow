@@ -32,13 +32,13 @@ describe("services/account — verificación de email", () => {
       expiresAt: new Date(Date.now() + 60_000),
     });
 
-    await verifyEmail(raw);
+    await verifyEmail(raw, "Contrasena1");
 
     const reloaded = await User.findById(user._id);
     expect(reloaded?.emailVerified).toBe(true);
 
     // Reusar el mismo token ya no funciona.
-    await expect(verifyEmail(raw)).rejects.toThrow();
+    await expect(verifyEmail(raw, "Contrasena1")).rejects.toThrow();
   });
 
   it("un token expirado se rechaza", async () => {
@@ -51,11 +51,11 @@ describe("services/account — verificación de email", () => {
       expiresAt: new Date(Date.now() - 1000),
     });
 
-    await expect(verifyEmail(raw)).rejects.toThrow();
+    await expect(verifyEmail(raw, "Contrasena1")).rejects.toThrow();
   });
 
   it("un token inexistente se rechaza", async () => {
-    await expect(verifyEmail("token-que-no-existe")).rejects.toThrow();
+    await expect(verifyEmail("token-que-no-existe", "Contrasena1")).rejects.toThrow();
   });
 });
 
