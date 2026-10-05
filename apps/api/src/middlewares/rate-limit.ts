@@ -15,6 +15,10 @@ interface RateLimiterConfig {
   /** Excluir rutas de la cuota (Milestone 1.10: el healthcheck de Railway,
    * que solo el limiter global necesita eximir). */
   skip?: (req: Request) => boolean;
+  /** Solo cuentan las respuestas de error (>= 400): entrar bien no gasta la
+   * cuota. Para login, donde una red compartida (NAT móvil, oficina) no debe
+   * quedarse sin acceso por la gente que sí acierta su contraseña. */
+  skipSuccessfulRequests?: boolean;
 }
 
 /**
@@ -39,6 +43,7 @@ function createRateLimiter(config: RateLimiterConfig) {
     message: { status: "fail", message: config.message },
     ...(config.keyGenerator ? { keyGenerator: config.keyGenerator } : {}),
     ...(config.skip ? { skip: config.skip } : {}),
+    ...(config.skipSuccessfulRequests ? { skipSuccessfulRequests: true } : {}),
   } satisfies Partial<Options>);
 }
 
@@ -57,10 +62,71 @@ const globalRateLimiter = createRateLimiter({
   skip: (req) => req.path.startsWith("/api/v1/health"),
 });
 
+/**
+ * Login, por IP: cuenta solo los intentos fallidos. 10 y no 5 porque una IP
+ * puede ser una red móvil o de oficina compartida; el freno fino contra
+ * adivinar UNA contraseña es el de por cuenta (`loginAccountRateLimiter`).
+ */
 const loginRateLimiter = createRateLimiter({
   windowMs: 15 * 60 * 1000,
-  max: 5,
+  max: 10,
   message: "Demasiados intentos de inicio de sesión, intenta de nuevo más tarde.",
+  skipSuccessfulRequests: true,
+});
+
+/** Clave por correo del body (normalizado), con la IP como respaldo si no viene uno usable. */
+function emailKeyGenerator(req: Request): string {
+  const email = (req.body as { email?: unknown } | undefined)?.email;
+  if (typeof email === "string" && email.length > 0 && email.length <= 254) {
+    return `email:${email.trim().toLowerCase()}`;
+  }
+  return req.ip ?? "unknown";
+}
+
+/**
+ * Login, por cuenta: 5 fallos en 15 min por correo, desde cualquier IP. Frena
+ * el ataque distribuido (muchas IPs, una cuenta) que el límite por IP no ve.
+ * Costo asumido: alguien puede bloquear 15 min el login de una cuenta ajena;
+ * quien la dueña legítima tiene "olvidé mi contraseña", que no pasa por aquí.
+ */
+const loginAccountRateLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: "Demasiados intentos con esta cuenta, intenta de nuevo en 15 minutos o recupera tu contraseña.",
+  keyGenerator: emailKeyGenerator,
+  skipSuccessfulRequests: true,
+});
+
+/**
+ * Acciones que MANDAN un correo (registro, reenviar verificación, olvidé mi
+ * contraseña): 3 por correo cada 15 min, sin importar la IP. Es el freno contra
+ * bombardear una bandeja ajena desde muchas IPs. La respuesta 429 depende solo
+ * del correo escrito, nunca de si la cuenta existe.
+ */
+const emailActionRateLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 3,
+  message: "Demasiadas solicitudes para este correo, intenta de nuevo en unos minutos.",
+  keyGenerator: emailKeyGenerator,
+});
+
+/**
+ * `PATCH /auth/password`: adivinar la contraseña actual con una sesión ya
+ * robada. Cuenta por usuario autenticado (monte este limiter DESPUÉS de
+ * `protect`), no por IP.
+ */
+const passwordChangeRateLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: "Demasiados intentos de cambio de contraseña, intenta de nuevo más tarde.",
+  keyGenerator: (req) => req.user?.id ?? req.ip ?? "unknown",
+});
+
+/** `POST /auth/refresh`: una persona renueva una vez por access token; 30 cubre varias pestañas. */
+const refreshRateLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  message: "Demasiadas renovaciones de sesión, intenta de nuevo más tarde.",
 });
 
 /**
@@ -224,6 +290,10 @@ export {
   createRateLimiter,
   globalRateLimiter,
   loginRateLimiter,
+  loginAccountRateLimiter,
+  emailActionRateLimiter,
+  passwordChangeRateLimiter,
+  refreshRateLimiter,
   twoFactorEnrollmentRateLimiter,
   uploadRateLimiter,
   catalogRateLimiter,

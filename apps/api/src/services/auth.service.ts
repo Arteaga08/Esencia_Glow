@@ -7,6 +7,8 @@ import { signAccessToken, signPendingEnrollmentToken, signPendingTwoFactorToken 
 import { issueSession, revokeAllForUser, revokeSession, type SessionMeta } from "./session.service.js";
 import { sendVerificationEmail } from "./email.service.js";
 import { issueVerificationTokenForRegistration } from "./account.service.js";
+import { assertPasswordNotBreached } from "./password-breach.service.js";
+import { isDuplicateKeyError } from "../utils/duplicate-key-error.js";
 import { enableTwoFactor, ensureEnrollmentSecret, verifyTwoFactorCode } from "./two-factor.service.js";
 import { recordAudit } from "./audit.service.js";
 
@@ -71,29 +73,57 @@ function buildPublicUser(user: {
 }
 
 /**
- * Siempre responde con éxito genérico — nunca revela si el email ya existía
- * (register hace su propio trabajo equivalente vía el `pre("save")` de
- * hashing, que corre igual se cree o no el usuario, porque solo se hashea
- * cuando el usuario sí se crea; la rama "ya existe" hace el mismo trabajo de
- * CPU explícitamente para no filtrar tiempo de respuesta).
+ * Siempre responde con éxito genérico — nunca revela si el email ya existía.
+ * Las tres ramas hacen UN bcrypt (crear, reemplazar o el señuelo) y ninguna
+ * espera el envío del correo, para que ni el CPU ni la latencia de red
+ * distingan un correo nuevo de uno existente.
+ *
+ * - Correo nuevo: crea la cuenta.
+ * - Cuenta SIN verificar: la contraseña y el nombre nuevos la reemplazan y el
+ *   enlace anterior muere (quien se registró primero y nunca verificó no tiene
+ *   nada que perder; quien vuelve a intentarlo es casi siempre la dueña real).
+ *   Aun así, verificar el correo exige la contraseña (ver `verifyEmail`), así
+ *   que registrar el correo ajeno no sirve para tomar la cuenta.
+ * - Cuenta verificada: no cambia nada ni manda correo.
+ *
+ * La revisión de contraseña filtrada corre ANTES de tocar la base: una
+ * contraseña conocida se rechaza igual exista o no el correo.
  */
 async function register(input: RegisterInput): Promise<void> {
-  const existing = await User.findOne({ email: input.email }).select("_id");
-  if (existing) {
+  await assertPasswordNotBreached(input.password);
+
+  const existing = await User.findOne({ email: input.email });
+  if (existing?.emailVerified) {
     await bcrypt.compare("dummy-timing-oracle-guard", DUMMY_PASSWORD_HASH);
     return;
   }
 
-  const user = await User.create({
-    email: input.email,
-    password: input.password,
-    firstName: input.firstName,
-    lastName: input.lastName,
-    role: UserRole.CUSTOMER,
-  });
+  let user: UserDocument;
+  if (existing) {
+    existing.password = input.password;
+    existing.firstName = input.firstName;
+    existing.lastName = input.lastName;
+    await existing.save();
+    user = existing;
+  } else {
+    try {
+      user = await User.create({
+        email: input.email,
+        password: input.password,
+        firstName: input.firstName,
+        lastName: input.lastName,
+        role: UserRole.CUSTOMER,
+      });
+    } catch (error) {
+      // Dos registros simultáneos del mismo correo: el segundo pierde la carrera
+      // y se comporta como "ya existe" (respuesta genérica).
+      if (isDuplicateKeyError(error)) return;
+      throw error;
+    }
+  }
 
   const rawToken = await issueVerificationTokenForRegistration(user._id);
-  await sendVerificationEmail(user.email, rawToken);
+  void sendVerificationEmail(user.email, rawToken);
   await recordAudit({ action: AuthAction.REGISTER, actorId: user._id, targetId: user._id });
 }
 

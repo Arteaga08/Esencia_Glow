@@ -899,6 +899,33 @@ multiplica por el número de instancias) y el cron correría duplicado en cada u
 `numReplicas` en Railway hace falta mover ambos a algo compartido entre instancias — típicamente
 Redis (rate limit distribuido + lock del cron, o un scheduler externo). Fuera de alcance de 1.10.
 
+## Cuentas de cliente: endurecimiento del acceso (Milestone 3.5)
+
+Auditoría del flujo de registro/login/recuperación y los arreglos aplicados:
+
+- **Verificar el correo exige la contraseña** (`POST /auth/verify-email` recibe `{ token, password }`).
+  Cierra el pre-hijacking: quien registra el correo de otra persona con una contraseña propia no puede
+  aprovechar que la dueña abra el enlace, porque ella no la conoce. Con contraseña incorrecta responde
+  401 y el token **no** se consume. Restablecer la contraseña por el enlace del correo también marca
+  `emailVerified` (el enlace prueba control de la bandeja) y es la salida para quien no recuerda la suya.
+- **Registrar un correo ya existente** responde siempre igual (201 genérico). Cuenta sin verificar: la
+  contraseña/nombre nuevos la reemplazan y el enlace anterior muere. Cuenta verificada: no cambia nada.
+  Las tres ramas pagan un bcrypt y ninguna espera el envío del correo (sin oráculo de tiempo).
+  `resendVerification` y `forgotPassword` también igualan el costo en las tres ramas.
+- **Un enlace vivo por cuenta y tipo**: al emitir uno nuevo se invalidan los anteriores, y hay un
+  enfriamiento de 60 s en el servidor (no depende de la memoria del proceso).
+- **Contraseña**: 10 a **72 bytes** (bcrypt trunca más allá), con mayúscula, minúscula y número; correo
+  máx. 254; nombre y apellido 2 a 60. Se rechazan contraseñas **filtradas** (Pwned Passwords con
+  k-anonymity: solo viajan 5 caracteres del SHA-1; **falla abierto** si el servicio no responde) en
+  registro, restablecer y cambiar.
+- **Límites** (`middlewares/rate-limit.ts`, solo activos en producción): login por IP 10 fallos/15 min
+  y **por cuenta 5 fallos/15 min** (solo cuentan los fallos); registro, reenviar y olvidé: **3 por
+  correo/15 min** además del límite por IP; `PATCH /auth/password` 5/15 min por usuaria; `/auth/refresh`
+  30/15 min. Siguen siendo en memoria (ver la sección 10: con 2+ réplicas hace falta Redis).
+- **JWT** con algoritmo fijado a HS256 al firmar y al verificar.
+- **Web**: `Referrer-Policy: no-referrer` y `Cache-Control: no-store` en `/verificar-correo` y
+  `/restablecer-contrasena` (el token viaja en la URL).
+
 ## Dashboard admin (Milestone 2.1 — shell, guard de sesión, login)
 
 Primera sesión de código del Milestone 2 (el sistema de diseño de 2.0 vive en `PRODUCT.md` y

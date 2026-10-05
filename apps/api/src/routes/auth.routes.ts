@@ -5,7 +5,15 @@ import * as twoFactorController from "../controllers/two-factor.controller.js";
 import { validate } from "../middlewares/validate.js";
 import { protect } from "../middlewares/protect.js";
 import { restrictTo } from "../middlewares/restrict-to.js";
-import { createRateLimiter, loginRateLimiter, twoFactorEnrollmentRateLimiter } from "../middlewares/rate-limit.js";
+import {
+  createRateLimiter,
+  emailActionRateLimiter,
+  loginAccountRateLimiter,
+  loginRateLimiter,
+  passwordChangeRateLimiter,
+  refreshRateLimiter,
+  twoFactorEnrollmentRateLimiter,
+} from "../middlewares/rate-limit.js";
 import {
   changePasswordSchema,
   emailOnlySchema,
@@ -48,8 +56,8 @@ const tokenActionRateLimiter = createRateLimiter({
 
 const router = Router();
 
-router.post("/register", registerRateLimiter, validate(registerSchema), authController.register);
-router.post("/login", loginRateLimiter, validate(loginSchema), authController.login);
+router.post("/register", registerRateLimiter, emailActionRateLimiter, validate(registerSchema), authController.register);
+router.post("/login", loginRateLimiter, loginAccountRateLimiter, validate(loginSchema), authController.login);
 router.post(
   "/login/2fa",
   loginRateLimiter,
@@ -68,7 +76,7 @@ router.post(
   validate(twoFactorLoginSchema),
   authController.completeTwoFactorEnrollment,
 );
-router.post("/refresh", authController.refresh);
+router.post("/refresh", refreshRateLimiter, authController.refresh);
 router.post("/logout", authController.logout);
 router.post("/logout-all", protect, authController.logoutAll);
 router.get("/me", protect, authController.me);
@@ -82,12 +90,14 @@ router.post(
 router.post(
   "/resend-verification",
   forgotPasswordRateLimiter,
+  emailActionRateLimiter,
   validate(emailOnlySchema),
   authController.resendVerification,
 );
 router.post(
   "/forgot-password",
   forgotPasswordRateLimiter,
+  emailActionRateLimiter,
   validate(emailOnlySchema),
   authController.forgotPassword,
 );
@@ -100,6 +110,7 @@ router.post(
 router.patch(
   "/password",
   protect,
+  passwordChangeRateLimiter,
   validate(changePasswordSchema),
   authController.changePassword,
 );

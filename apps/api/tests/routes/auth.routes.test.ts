@@ -28,7 +28,7 @@ async function registerAndVerify(overrides: Partial<{ email: string }> = {}) {
     type: "email_verification",
     expiresAt: new Date(Date.now() + 60_000),
   });
-  await request(app).post("/api/v1/auth/verify-email").send({ token: raw });
+  await request(app).post("/api/v1/auth/verify-email").send({ token: raw, password: "Contrasena1" });
 
   return { email, userId: user!._id };
 }
