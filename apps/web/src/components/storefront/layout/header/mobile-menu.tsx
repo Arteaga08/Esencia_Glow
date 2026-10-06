@@ -105,12 +105,12 @@ function MobileMenu({
         </ul>
       </nav>
       <Link
-        href="/cuenta"
+        href="/mi-cuenta"
         onClick={onNavigate}
         className="mt-8 inline-flex min-h-12 items-center gap-2 rounded-full border border-border-strong px-5 text-subtitle text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
       >
         <User size={20} aria-hidden="true" />
-        Iniciar sesión
+        Mi cuenta
       </Link>
     </div>
   );
