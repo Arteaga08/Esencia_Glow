@@ -1,7 +1,7 @@
 import { ProductStatus } from "@esencia-glow/shared";
 import { Types } from "mongoose";
 import request from "supertest";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { buildApp } from "../../src/app.js";
 import { Category } from "../../src/models/category.model.js";
 import { Inventory } from "../../src/models/inventory.model.js";
@@ -35,6 +35,12 @@ async function seedProduct(opts: { status?: ProductStatus; onHand?: number } = {
   const variant = product.variants[0]!;
   await Inventory.create({ productId: product._id, variantId: variant._id, sku: variant.sku, onHand: opts.onHand ?? 5, reserved: 0 });
   return product;
+}
+
+async function storedWishlistLength(userId: string): Promise<number> {
+  const { User } = await import("../../src/models/user.model.js");
+  const user = await User.findById(userId).select("wishlist").lean<{ wishlist?: unknown[] }>();
+  return user?.wishlist?.length ?? 0;
 }
 
 const add = (agent: ReturnType<typeof request.agent>, itemId: string) =>
@@ -94,7 +100,7 @@ describe("routes/account/wishlist — guardados", () => {
     expect((await agent.get("/api/v1/account/wishlist")).body.data[0].available).toBe(false);
   });
 
-  it("filtra un producto archivado de la lista y lo poda del conteo", async () => {
+  it("oculta un producto archivado de la lista y del conteo", async () => {
     const { agent } = await createCustomerSession(app);
     const product = await seedProduct();
     await add(agent, product._id.toString());
@@ -102,6 +108,75 @@ describe("routes/account/wishlist — guardados", () => {
 
     expect((await agent.get("/api/v1/account/wishlist")).body.data).toHaveLength(0);
     expect((await agent.get("/api/v1/account")).body.data.wishlistCount).toBe(0);
+  });
+
+  it("el guardado sobrevive a un borrador y reaparece al reactivar el producto", async () => {
+    const { agent, userId } = await createCustomerSession(app);
+    const product = await seedProduct();
+    await add(agent, product._id.toString());
+
+    await Product.updateOne({ _id: product._id }, { $set: { status: ProductStatus.DRAFT } });
+    expect((await agent.get("/api/v1/account/wishlist")).body.data).toHaveLength(0);
+    expect((await agent.get("/api/v1/account")).body.data.wishlistCount).toBe(0);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(await storedWishlistLength(userId)).toBe(1);
+
+    await Product.updateOne({ _id: product._id }, { $set: { status: ProductStatus.ACTIVE } });
+    expect((await agent.get("/api/v1/account/wishlist")).body.data).toHaveLength(1);
+    expect((await agent.get("/api/v1/account")).body.data.wishlistCount).toBe(1);
+  });
+
+  it("solo poda el guardado cuando el producto ya no existe en la colección", async () => {
+    const { agent, userId } = await createCustomerSession(app);
+    const product = await seedProduct();
+    await add(agent, product._id.toString());
+    await Product.deleteOne({ _id: product._id });
+
+    expect((await agent.get("/api/v1/account/wishlist")).body.data).toHaveLength(0);
+    await vi.waitFor(async () => expect(await storedWishlistLength(userId)).toBe(0));
+  });
+
+  it("404 al guardar un producto activo sin variantes activas", async () => {
+    const { agent } = await createCustomerSession(app);
+    const product = await seedProduct();
+    await Product.updateOne({ _id: product._id }, { $set: { "variants.0.isActive": false } });
+
+    expect((await add(agent, product._id.toString())).status).toBe(404);
+  });
+
+  it("dos guardados simultáneos del mismo producto dejan una sola entrada", async () => {
+    const { agent, userId } = await createCustomerSession(app);
+    const product = await seedProduct();
+    const results = await Promise.all([add(agent, product._id.toString()), add(agent, product._id.toString()), add(agent, product._id.toString())]);
+
+    expect(results.filter((r) => r.status === 201)).toHaveLength(1);
+    expect(await storedWishlistLength(userId)).toBe(1);
+  });
+
+  it("GET ?itemId= responde saved sin hidratar el catálogo", async () => {
+    const { agent } = await createCustomerSession(app);
+    const saved = await seedProduct();
+    const other = await seedProduct();
+    await add(agent, saved._id.toString());
+
+    const yes = await agent.get(`/api/v1/account/wishlist?itemId=${saved._id}`);
+    expect(yes.status).toBe(200);
+    expect(yes.body.data).toEqual({ saved: true });
+    expect((await agent.get(`/api/v1/account/wishlist?itemId=${other._id}`)).body.data).toEqual({ saved: false });
+  });
+
+  it("GET ?itemId= responde saved aunque el producto esté oculto (no toca el catálogo)", async () => {
+    const { agent } = await createCustomerSession(app);
+    const product = await seedProduct();
+    await add(agent, product._id.toString());
+    await Product.updateOne({ _id: product._id }, { $set: { status: ProductStatus.DRAFT } });
+
+    expect((await agent.get(`/api/v1/account/wishlist?itemId=${product._id}`)).body.data).toEqual({ saved: true });
+  });
+
+  it("400 con un itemId mal formado", async () => {
+    const { agent } = await createCustomerSession(app);
+    expect((await agent.get("/api/v1/account/wishlist?itemId=nope")).status).toBe(400);
   });
 
   it("404 al guardar un producto inexistente, archivado o en borrador", async () => {

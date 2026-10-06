@@ -19,7 +19,7 @@ interface LeanAccountUser {
   city?: string;
   addresses?: Array<SavedAddressAttrs & { _id: Types.ObjectId }>;
   billingInfo?: BillingInfoAttrs;
-  wishlist?: unknown[];
+  wishlist?: Array<{ itemId: Types.ObjectId }>;
 }
 
 function buildSavedAddress(address: SavedAddressAttrs & { _id: Types.ObjectId }): SavedAddress {
@@ -51,7 +51,7 @@ function buildBillingInfo(info: BillingInfoAttrs | undefined): BillingInfo | nul
   };
 }
 
-function buildAccountDto(user: LeanAccountUser): AccountDto {
+function buildAccountDto(user: LeanAccountUser, wishlistCount: number): AccountDto {
   return {
     profile: {
       firstName: user.firstName,
@@ -63,7 +63,7 @@ function buildAccountDto(user: LeanAccountUser): AccountDto {
     },
     addresses: (user.addresses ?? []).map(buildSavedAddress),
     billingInfo: buildBillingInfo(user.billingInfo),
-    wishlistCount: user.wishlist?.length ?? 0,
+    wishlistCount,
   };
 }
 

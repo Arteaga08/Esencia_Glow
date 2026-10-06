@@ -22,7 +22,8 @@ const updateProfile = asyncHandler(async (req: Request, res: Response) => {
 });
 
 const createAddress = asyncHandler(async (req: Request, res: Response) => {
-  sendResponse(res, 201, "Dirección guardada.", await addressService.addAddress(userId(req), req.body));
+  const { isDefault, ...input } = req.body;
+  sendResponse(res, 201, "Dirección guardada.", await addressService.addAddress(userId(req), input, isDefault === true));
 });
 
 const updateAddress = asyncHandler(async (req: Request, res: Response) => {
@@ -49,6 +50,8 @@ const deleteBillingInfo = asyncHandler(async (req: Request, res: Response) => {
 });
 
 const listWishlist = asyncHandler(async (req: Request, res: Response) => {
+  const itemId = req.query.itemId as string | undefined;
+  if (itemId) return sendResponse(res, 200, "OK", await wishlistService.isWishlisted(userId(req), "product", itemId));
   sendResponse(res, 200, "OK", await wishlistService.listWishlist(userId(req)));
 });
 

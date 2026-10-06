@@ -3,7 +3,7 @@
 import { Star } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import type { WishlistItem } from "@esencia-glow/shared";
+import type { WishlistMembership } from "@esencia-glow/shared";
 import { ApiRequestError } from "@/lib/api";
 import { accountRequest } from "@/lib/storefront/account-api";
 import { classifyError } from "@/lib/storefront/auth-errors";
@@ -41,10 +41,10 @@ function SaveButton({ productId, slug, name }: SaveButtonProps) {
     // Sin sesión ya conocida no se pregunta al API (ver `session-hint`).
     const lookup: Promise<SaveState> = isKnownAnonymous()
       ? Promise.resolve("unsaved")
-      : accountRequest<WishlistItem[]>("/api/v1/account/wishlist", QUIET)
+      : accountRequest<WishlistMembership>(`/api/v1/account/wishlist?itemId=${productId}`, QUIET)
           .then((result): SaveState => {
             clearAnonymous();
-            return result.data.some((item) => item.itemId === productId) ? "saved" : "unsaved";
+            return result.data.saved ? "saved" : "unsaved";
           })
           .catch((error: unknown): SaveState => {
             // 401 que sobrevivió al refresco = sin sesión; 403 = una cuenta del equipo (no tiene guardados). Ambos: estrella vacía.

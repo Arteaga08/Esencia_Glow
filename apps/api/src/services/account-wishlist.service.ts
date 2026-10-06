@@ -8,8 +8,12 @@ import { AppError } from "../utils/app-error.js";
 /**
  * Guardados (máx. 50, sin duplicados). Se guarda solo la referencia
  * `(itemType, itemId)`; el contenido se hidrata contra el catálogo vivo en cada
- * lectura, así un cambio de precio o de stock se refleja siempre y un producto
- * archivado desaparece de la lista (y se poda de la libreta de paso).
+ * lectura, así un cambio de precio o de stock se refleja siempre.
+ *
+ * Un producto que no está a la venta (borrador, archivado o sin variantes
+ * activas) se OCULTA pero el guardado se conserva: reaparece si se reactiva. Solo
+ * se poda el guardado cuyo producto ya no existe en la colección. Los ocultos
+ * siguen ocupando cupo del tope.
  */
 
 type WishlistItemType = "product";
@@ -20,9 +24,24 @@ interface StoredEntry {
   addedAt: Date;
 }
 
+/** "A la venta": activo y con al menos una variante activa. Un solo criterio para guardar, listar y contar. */
+const VISIBLE_PRODUCT_FILTER = { status: ProductStatus.ACTIVE, variants: { $elemMatch: { isActive: true } } };
+
+/** Cuántos guardados son visibles hoy (lo que lista `/mi-cuenta/guardados`). */
+async function countVisibleWishlist(entries: Array<{ itemId: Types.ObjectId }> | undefined): Promise<number> {
+  if (!entries || entries.length === 0) return 0;
+  return Product.countDocuments({ _id: { $in: entries.map((entry) => entry.itemId) }, ...VISIBLE_PRODUCT_FILTER });
+}
+
+/** ¿Está guardado? Consulta solo la libreta de la clienta: no toca el catálogo. */
+async function isWishlisted(userId: string, itemType: WishlistItemType, itemId: string): Promise<{ saved: boolean }> {
+  const found = await User.exists({ _id: userId, wishlist: { $elemMatch: { itemType, itemId: new Types.ObjectId(itemId) } } });
+  return { saved: found !== null };
+}
+
 /** `true` si se agregó; `false` si ya estaba (guardar es idempotente). */
 async function addWishlistItem(userId: string, itemType: WishlistItemType, itemId: string): Promise<boolean> {
-  const exists = await Product.exists({ _id: itemId, status: ProductStatus.ACTIVE });
+  const exists = await Product.exists({ _id: itemId, ...VISIBLE_PRODUCT_FILTER });
   if (!exists) throw new AppError("Producto no encontrado", 404);
 
   const id = new Types.ObjectId(itemId);
@@ -46,22 +65,26 @@ async function listWishlist(userId: string): Promise<WishlistItem[]> {
   const entries = user?.wishlist ?? [];
   if (entries.length === 0) return [];
 
-  const products = await Product.find({ _id: { $in: entries.map((entry) => entry.itemId) }, status: ProductStatus.ACTIVE }).lean();
-  const variantIds = products.flatMap((product) => product.variants.filter((variant) => variant.isActive).map((variant) => variant._id));
+  const products = await Product.find({ _id: { $in: entries.map((entry) => entry.itemId) } }).lean();
+  const byId = new Map(products.map((product) => [product._id.toString(), product]));
+  const variantIds = products.flatMap((product) =>
+    product.status === ProductStatus.ACTIVE ? product.variants.filter((variant) => variant.isActive).map((variant) => variant._id) : [],
+  );
   const stock = await Inventory.find({ variantId: { $in: variantIds } }).select("variantId onHand reserved").lean();
   const sellable = new Set(stock.filter((row) => row.onHand - row.reserved > 0).map((row) => row.variantId.toString()));
-  const byId = new Map(products.map((product) => [product._id.toString(), product]));
 
   const items: WishlistItem[] = [];
   const staleIds: Types.ObjectId[] = [];
 
   for (const entry of entries) {
     const product = byId.get(entry.itemId.toString());
-    const active = product?.variants.filter((variant) => variant.isActive) ?? [];
-    if (!product || active.length === 0) {
+    // Inexistente → se poda; existe pero fuera de venta → se oculta y se conserva.
+    if (!product) {
       staleIds.push(entry.itemId);
       continue;
     }
+    const active = product.variants.filter((variant) => variant.isActive);
+    if (product.status !== ProductStatus.ACTIVE || active.length === 0) continue;
     const cheapest = active.reduce((best, variant) => (variant.price < best.price ? variant : best));
     const image = product.images[0];
 
@@ -80,8 +103,8 @@ async function listWishlist(userId: string): Promise<WishlistItem[]> {
     });
   }
 
-  // Poda de lo que ya no existe en el catálogo, para que el conteo converja
-  // y los huecos no ocupen cupo. Mejor esfuerzo: nunca rompe la lectura.
+  // Poda de lo que ya no existe en la colección, para que los huecos no
+  // ocupen cupo. Mejor esfuerzo: nunca rompe la lectura.
   if (staleIds.length > 0) {
     void User.updateOne({ _id: userId }, { $pull: { wishlist: { itemId: { $in: staleIds } } } }).catch(() => undefined);
   }
@@ -89,5 +112,5 @@ async function listWishlist(userId: string): Promise<WishlistItem[]> {
   return items.sort((a, b) => b.addedAt.localeCompare(a.addedAt));
 }
 
-export { addWishlistItem, removeWishlistItem, listWishlist };
+export { addWishlistItem, removeWishlistItem, listWishlist, isWishlisted, countVisibleWishlist };
 export type { WishlistItemType };

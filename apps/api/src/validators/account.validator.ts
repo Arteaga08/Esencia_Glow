@@ -58,7 +58,7 @@ const baseAddress = shippingAddressSchema.fork(FREE_TEXT_ADDRESS_FIELDS, (field)
 const ADDRESS_FIELDS = [...FREE_TEXT_ADDRESS_FIELDS, "phone", "state", "postalCode"];
 
 const createAddressSchema = baseAddress
-  .keys({ label: text(40).min(1).required() })
+  .keys({ label: text(40).min(1).required(), isDefault: Joi.boolean().strict() })
   .messages(MESSAGES);
 
 const updateAddressSchema = baseAddress
@@ -91,6 +91,8 @@ const addWishlistItemSchema = Joi.object({
   itemId: objectId.required(),
 }).messages(MESSAGES);
 
+const wishlistQuerySchema = Joi.object({ itemId: objectId }).messages(MESSAGES);
+
 const wishlistParamSchema = Joi.object({
   itemType: Joi.string().valid("product").required(),
   itemId: objectId.required(),
@@ -104,4 +106,5 @@ export {
   billingInfoSchema,
   addWishlistItemSchema,
   wishlistParamSchema,
+  wishlistQuerySchema,
 };

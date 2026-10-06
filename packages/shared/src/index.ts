@@ -221,4 +221,5 @@ export type {
   BillingInfo,
   AccountDto,
   WishlistItem,
+  WishlistMembership,
 } from "./types/account.js";

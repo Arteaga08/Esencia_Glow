@@ -40,14 +40,74 @@ describe("routes/account/addresses — libreta de direcciones", () => {
     expect(second.body.data.isDefault).toBe(false);
   });
 
-  it("ignora el isDefault que mande el cliente (a lo más una principal)", async () => {
+  it("el alta con isDefault true deja la nueva como única principal", async () => {
     const { agent } = await createCustomerSession(app);
     await addAddress(agent, "Casa");
-    await addAddress(agent, "Oficina", { isDefault: true });
+    const created = await addAddress(agent, "Oficina", { isDefault: true });
+
+    expect(created.status).toBe(201);
+    expect(created.body.data.isDefault).toBe(true);
+    const all = await list(agent);
+    expect(all.filter((a) => a.isDefault).map((a) => a.label)).toEqual(["Oficina"]);
+  });
+
+  it("el alta con isDefault false no le quita la principal a la existente", async () => {
+    const { agent } = await createCustomerSession(app);
+    await addAddress(agent, "Casa");
+    await addAddress(agent, "Oficina", { isDefault: false });
+
+    expect((await list(agent)).filter((a) => a.isDefault).map((a) => a.label)).toEqual(["Casa"]);
+  });
+
+  it("400 con un isDefault que no es booleano", async () => {
+    const { agent } = await createCustomerSession(app);
+    expect((await addAddress(agent, "Casa", { isDefault: "yes" })).status).toBe(400);
+  });
+
+  it("dos altas simultáneas con isDefault dejan una sola principal", async () => {
+    const { agent } = await createCustomerSession(app);
+    await addAddress(agent, "Casa");
+    const results = await Promise.all([addAddress(agent, "A", { isDefault: true }), addAddress(agent, "B", { isDefault: true })]);
+
+    expect(results.map((r) => r.status)).toEqual([201, 201]);
+    const all = await list(agent);
+    expect(all).toHaveLength(3);
+    expect(all.filter((a) => a.isDefault)).toHaveLength(1);
+  });
+
+  it("el alta con isDefault respeta el tope de 5", async () => {
+    const { agent } = await createCustomerSession(app);
+    for (let i = 1; i <= 5; i += 1) await addAddress(agent, `Dir ${i}`);
+
+    expect((await addAddress(agent, "Dir 6", { isDefault: true })).status).toBe(409);
+    const all = await list(agent);
+    expect(all).toHaveLength(5);
+    expect(all.find((a) => a.isDefault)?.label).toBe("Dir 1");
+  });
+
+  it("guarda literales los valores que empiezan con $", async () => {
+    const { agent } = await createCustomerSession(app);
+    await addAddress(agent, "Casa");
+    const res = await addAddress(agent, "Oficina", { isDefault: true, street: "$street", references: "$$ROOT", neighborhood: "$addresses" });
+
+    expect(res.status).toBe(201);
+    expect(res.body.data).toMatchObject({ street: "$street", references: "$$ROOT", neighborhood: "$addresses", isDefault: true });
+  });
+
+  it("borrar y fijar principal a la vez nunca deja dos principales", async () => {
+    const { agent } = await createCustomerSession(app);
+    const home = await addAddress(agent, "Casa");
+    const office = await addAddress(agent, "Oficina");
+    await addAddress(agent, "Bodega");
+
+    await Promise.all([
+      agent.delete(`/api/v1/account/addresses/${home.body.data.id}`),
+      agent.post(`/api/v1/account/addresses/${office.body.data.id}/default`),
+    ]);
 
     const all = await list(agent);
+    expect(all).toHaveLength(2);
     expect(all.filter((a) => a.isDefault)).toHaveLength(1);
-    expect(all.find((a) => a.isDefault)?.label).toBe("Casa");
   });
 
   it("topa en 5 con 409", async () => {
