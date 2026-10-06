@@ -7,9 +7,9 @@ import { FieldError } from "@/components/ui/field-error";
 import { Input } from "@/components/ui/input";
 import { accountRequest } from "@/lib/storefront/account-api";
 import { classifyError } from "@/lib/storefront/auth-errors";
+import { validateAddress } from "@/lib/storefront/checkout/address-validation";
 import { CheckboxField } from "../shared/checkbox-field";
 import { CTA_DISABLED, CTA_PRIMARY, CTA_SECONDARY } from "../shared/styles";
-import { compact } from "../shared/validation";
 
 interface AddressFormProps {
   /** Con `address` se edita; sin ella se crea. */
@@ -18,20 +18,6 @@ interface AddressFormProps {
   isFirst: boolean;
   onSaved: () => void;
   onCancel: () => void;
-}
-
-function validateAddress(value: AddressFormValue, label: string) {
-  return compact({
-    label: label.trim().length === 0 ? "Ponle un nombre, por ejemplo Casa u Oficina." : undefined,
-    fullName: value.fullName.trim().length === 0 ? "Falta el nombre de quien recibe." : undefined,
-    phone: value.phone.length !== 10 ? "Escribe los 10 dígitos del celular, sin espacios ni guiones." : undefined,
-    street: value.street.trim().length === 0 ? "Falta la calle." : undefined,
-    exteriorNumber: value.exteriorNumber.trim().length === 0 ? "Falta el número exterior." : undefined,
-    neighborhood: value.neighborhood.trim().length === 0 ? "Falta la colonia." : undefined,
-    city: value.city.trim().length === 0 ? "Falta la ciudad." : undefined,
-    state: value.state ? undefined : "Elige un estado.",
-    postalCode: value.postalCode.length !== 5 ? "Escribe los 5 dígitos del código postal." : undefined,
-  });
 }
 
 /**

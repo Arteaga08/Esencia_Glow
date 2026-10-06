@@ -8,7 +8,7 @@ import { classifyError } from "@/lib/storefront/auth-errors";
 import { TEXT_LINK } from "../shared/styles";
 
 /** Cancelar un pedido propio que aún no se paga (`POST /orders/:id/cancel`). */
-function CancelOrderButton({ orderId }: { orderId: string }) {
+function CancelOrderButton({ orderId, onCancelled }: { orderId: string; /** Aviso a quien lo usa dentro de una pantalla que no se recarga sola (el checkout). */ onCancelled?: () => void }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -20,6 +20,7 @@ function CancelOrderButton({ orderId }: { orderId: string }) {
     try {
       await accountRequest(`/api/v1/orders/${orderId}/cancel`, { method: "POST" });
       setOpen(false);
+      onCancelled?.();
       router.refresh();
     } catch (caught) {
       setError(classifyError(caught).message);

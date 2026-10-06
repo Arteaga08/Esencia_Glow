@@ -1,5 +1,5 @@
 import { Types } from "mongoose";
-import { InventoryAction, OrderAction, OrderStatus } from "@esencia-glow/shared";
+import { ErrorCode, InventoryAction, OrderAction, OrderStatus } from "@esencia-glow/shared";
 import { Order } from "../models/order.model.js";
 import { AppError } from "../utils/app-error.js";
 import { withTransaction } from "../utils/with-transaction.js";
@@ -89,6 +89,7 @@ async function createOrder(input: CreateOrderInput): Promise<CreateOrderResult> 
           "Ya tienes un pedido pendiente de pago.",
           409,
           existing ? { orderId: existing._id.toString() } : undefined,
+          ErrorCode.PENDING_ORDER_EXISTS,
         );
       }
       throw error;

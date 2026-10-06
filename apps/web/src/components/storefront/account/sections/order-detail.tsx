@@ -12,7 +12,7 @@ import { Timeline, type TimelineItem } from "@/components/ui/timeline";
 import { formatMoneyMXN } from "@/lib/format-money";
 import { formatLongDate } from "../shared/dates";
 import { Thumb } from "../shared/frame";
-import { CTA_SECONDARY, LABEL, TEXT_LINK } from "../shared/styles";
+import { CTA_PRIMARY, CTA_SECONDARY, LABEL, TEXT_LINK } from "../shared/styles";
 import { CancelOrderButton } from "./cancel-order-button";
 import { ORDER_STATUS_COLOR } from "./order-status";
 
@@ -73,7 +73,10 @@ function OrderDetail({ order, tracking }: OrderDetailProps) {
                 ? `Lo apartamos para ti hasta el ${formatLongDate(order.expiresAt)}.`
                 : "Lo apartamos para ti por tiempo limitado."}
           </p>
-          <div className="mt-4">
+          <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-1">
+            <Link href="/checkout" className={CTA_PRIMARY}>
+              Pagar ahora
+            </Link>
             <CancelOrderButton orderId={order.id} />
           </div>
         </section>

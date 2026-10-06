@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { Types, type ClientSession } from "mongoose";
-import { CATALOG_CURRENCY, SHIPPING_QUOTE_TIMEOUT_MS } from "@esencia-glow/shared";
+import { CATALOG_CURRENCY, ErrorCode, SHIPPING_QUOTE_TIMEOUT_MS } from "@esencia-glow/shared";
 import type { PublicShippingAddress } from "@esencia-glow/shared";
 import { ShippingQuote, type ShippingQuoteDocument, type ShippingRateAttrs } from "../models/shipping-quote.model.js";
 import { logger } from "../config/logger.js";
@@ -142,11 +142,11 @@ async function resolveUsableRate(input: ResolveUsableRateInput, session?: Client
   const isExpired = !quote || quote.expiresAt.getTime() < Date.now();
 
   if (!quote || !rate || isExpired) {
-    throw new AppError("La opción de envío elegida ya no es válida. Vuelve a cotizar.", 409);
+    throw new AppError("La opción de envío elegida ya no es válida. Vuelve a cotizar.", 409, undefined, ErrorCode.SHIPPING_QUOTE_INVALID);
   }
 
   if (quote.cartFingerprint !== input.cartFingerprint) {
-    throw new AppError("Tu carrito cambió, vuelve a cotizar el envío.", 409);
+    throw new AppError("Tu carrito cambió, vuelve a cotizar el envío.", 409, undefined, ErrorCode.CART_CHANGED);
   }
 
   return { quote, rate };

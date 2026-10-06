@@ -97,6 +97,11 @@ function removeCartItem(key: string): void {
   writeCart(removeLine(readCart(), key));
 }
 
+/** Se llama solo cuando el pedido ya se creó: el carrito cumplió y la compra sigue en el pedido. */
+function clearCart(): void {
+  writeCart(EMPTY_CART);
+}
+
 function subscribeNever(): () => void {
   return () => undefined;
 }
@@ -119,5 +124,5 @@ function useCart(): UseCart {
   return { lines, count: countItems(lines), hydrated };
 }
 
-export { useCart, addCartItem, setCartQuantity, removeCartItem };
+export { useCart, addCartItem, setCartQuantity, removeCartItem, clearCart };
 export type { UseCart, AddToCartResult };

@@ -211,6 +211,21 @@ describe("services/stripe-payment-provider — getAuthorization", () => {
     expect(result.lastError).toBe("Tu tarjeta fue rechazada.");
   });
 
+  it("devuelve el client_secret del intent: reanudar un pago de tarjeta necesita volver a montar el formulario", async () => {
+    const retrieve = vi.fn().mockResolvedValue({
+      id: "pi_resume",
+      status: "requires_payment_method",
+      amount: 50000,
+      currency: "mxn",
+      client_secret: "pi_resume_secret_abc",
+    });
+    const client = buildFakeClient({ paymentIntents: { create: vi.fn(), retrieve, cancel: vi.fn() } });
+    const provider = createStripePaymentProvider(client, WEBHOOK_CONFIG);
+
+    const result = await provider.getAuthorization("pi_resume");
+    expect(result.clientSecret).toBe("pi_resume_secret_abc");
+  });
+
   it("canceled -> canceled", async () => {
     const retrieve = vi.fn().mockResolvedValue({ id: "pi_3", status: "canceled", amount: 50000, currency: "mxn" });
     const client = buildFakeClient({ paymentIntents: { create: vi.fn(), retrieve, cancel: vi.fn() } });

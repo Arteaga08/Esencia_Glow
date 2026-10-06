@@ -238,7 +238,10 @@ function createStripePaymentProvider(
         // `expand: ["latest_charge"]` es la única forma de leer la tarjeta
         // (brand/last4): sin expandir, `latest_charge` llega como id crudo.
         const pi = await client.paymentIntents.retrieve(intentId, { expand: ["latest_charge"] });
-        return toPaymentAuthorization(pi);
+        // El `client_secret` viaja también aquí: "reanudar pago" (POST /orders/:id/payment)
+        // llega por esta lectura y necesita volver a montar el formulario de tarjeta.
+        // Solo sale hacia la dueña del pedido (`ensurePaymentIntent` filtra por usuaria).
+        return toPaymentAuthorization(pi, pi.client_secret ?? undefined);
       } catch (error) {
         translateStripeError(error);
       }

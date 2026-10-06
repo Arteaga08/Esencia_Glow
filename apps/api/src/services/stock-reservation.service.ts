@@ -1,5 +1,5 @@
 import { Types, type ClientSession, type FilterQuery } from "mongoose";
-import { InventoryAction, MAX_LINE_QUANTITY, ProductStatus, ReservationStatus } from "@esencia-glow/shared";
+import { ErrorCode, InventoryAction, MAX_LINE_QUANTITY, ProductStatus, ReservationStatus } from "@esencia-glow/shared";
 import type { ListQuery, PaginationMeta } from "@esencia-glow/shared";
 import { Inventory } from "../models/inventory.model.js";
 import { Product } from "../models/product.model.js";
@@ -89,7 +89,7 @@ async function assertVariantsAvailable(
 
   const unavailable = variantIds.filter((id) => !activeVariantIds.has(id));
   if (unavailable.length > 0) {
-    throw new AppError("Una o más variantes ya no están disponibles para la venta.", 409);
+    throw new AppError("Una o más variantes ya no están disponibles para la venta.", 409, undefined, ErrorCode.ITEM_UNAVAILABLE);
   }
 }
 
@@ -137,7 +137,7 @@ async function reserveStock(
         { new: true, session },
       );
       if (!updated) {
-        throw new AppError("Sin stock disponible", 409);
+        throw new AppError("Sin stock disponible", 409, undefined, ErrorCode.ITEM_UNAVAILABLE);
       }
       reservationLines.push({ variantId: updated.variantId, sku: updated.sku, quantity });
     }
