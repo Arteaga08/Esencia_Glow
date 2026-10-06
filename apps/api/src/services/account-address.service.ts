@@ -29,18 +29,26 @@ async function readAddress(userId: string, addressId: string): Promise<SavedAddr
   return buildSavedAddress(found);
 }
 
-/** La primera dirección queda principal; las siguientes no (se decide dentro de la misma escritura). */
-async function addAddress(userId: string, input: AddressInput): Promise<SavedAddress> {
+/**
+ * La primera dirección queda principal; las siguientes solo si `makeDefault`. Todo se decide dentro
+ * de la misma escritura: al fijar la nueva, las demás pasan a `false` en el mismo `$set`. `isDefault`
+ * se calcula aparte y nunca viaja dentro del documento de la usuaria (que va en `$literal`).
+ */
+async function addAddress(userId: string, input: AddressInput, makeDefault = false): Promise<SavedAddress> {
   const id = new Types.ObjectId();
   const document = { ...input, _id: id };
+  const existing = makeDefault
+    ? { $map: { input: addressesOf, in: { $mergeObjects: ["$$this", { isDefault: false }] } } }
+    : addressesOf;
+  const becomesDefault = makeDefault ? true : { $eq: [{ $size: addressesOf }, 0] };
 
   const result = await User.updateOne({ _id: userId, [`addresses.${MAX_ADDRESSES - 1}`]: { $exists: false } }, [
     {
       $set: {
         addresses: {
           $concatArrays: [
-            addressesOf,
-            [{ $mergeObjects: [{ $literal: document }, { isDefault: { $eq: [{ $size: addressesOf }, 0] } }] }],
+            existing,
+            [{ $mergeObjects: [{ $literal: document }, { isDefault: becomesDefault }] }],
           ],
         },
       },

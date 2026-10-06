@@ -98,7 +98,7 @@ function OrderDone({ data, rate, totals, oxxo, split = false }: OrderDoneProps) 
       </div>
 
       <div className="flex flex-wrap gap-3">
-        <Link href="/cuenta" className={CTA_PRIMARY}>
+        <Link href="/mi-cuenta" className={CTA_PRIMARY}>
           Ver mis pedidos
         </Link>
         <Link href="/" className={CTA_SECONDARY}>

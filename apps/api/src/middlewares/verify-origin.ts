@@ -1,3 +1,4 @@
+import { ErrorCode } from "@esencia-glow/shared";
 import type { NextFunction, Request, Response } from "express";
 import { AppError } from "../utils/app-error.js";
 
@@ -34,7 +35,7 @@ function verifyOrigin(allowedOrigins: readonly string[]) {
     }
 
     if (!allowedOrigins.includes(origin)) {
-      next(new AppError("Origen no permitido", 403));
+      next(new AppError("Origen no permitido", 403, undefined, ErrorCode.ORIGIN_NOT_ALLOWED));
       return;
     }
 

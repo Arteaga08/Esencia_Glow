@@ -13,6 +13,7 @@ import {
   updateAddressSchema,
   updateProfileSchema,
   wishlistParamSchema,
+  wishlistQuerySchema,
 } from "../validators/account.validator.js";
 
 /**
@@ -52,7 +53,7 @@ router.delete(
 router.put("/billing-info", accountWriteRateLimiter, validate(billingInfoSchema), accountController.saveBillingInfo);
 router.delete("/billing-info", accountWriteRateLimiter, accountController.deleteBillingInfo);
 
-router.get("/wishlist", accountController.listWishlist);
+router.get("/wishlist", validate(wishlistQuerySchema, "query"), accountController.listWishlist);
 router.post("/wishlist", accountWriteRateLimiter, validate(addWishlistItemSchema), accountController.addWishlistItem);
 router.delete(
   "/wishlist/:itemType/:itemId",

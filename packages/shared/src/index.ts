@@ -9,6 +9,7 @@ export type { SortDirection, ListSort, ListQuery } from "./types/list-query.js";
 export type { PublicUser, LoginOutcome, TwoFactorEnrollment } from "./types/auth.js";
 export { OrderStatus } from "./enums/order-status.js";
 export { UserRole } from "./enums/user-role.js";
+export { ErrorCode } from "./enums/error-code.js";
 export { AuthAction } from "./enums/auth-action.js";
 export { ProductStatus } from "./enums/product-status.js";
 export { ReservationStatus } from "./enums/reservation-status.js";
@@ -220,4 +221,5 @@ export type {
   BillingInfo,
   AccountDto,
   WishlistItem,
+  WishlistMembership,
 } from "./types/account.js";

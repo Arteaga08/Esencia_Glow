@@ -10,6 +10,7 @@ import { apiRequest } from "@/lib/api";
 import { classifyError } from "@/lib/storefront/auth-errors";
 import { clearAnonymous } from "@/lib/storefront/session-hint";
 import { AuthHeading } from "../shared/auth-heading";
+import { mapLoginFailure } from "../shared/form-failures";
 import { PasswordField } from "../shared/password-field";
 import { CTA_SECONDARY, TEXT_LINK } from "../shared/styles";
 import { compact, validateEmail } from "../shared/validation";
@@ -23,11 +24,6 @@ interface LoginFormProps {
   /** Enlaces a las otras pantallas conservan el `?redirect=` para no perder a dónde iba. */
   registerHref: string;
 }
-
-// Un solo texto para cualquier credencial que no entra: nunca dice si el correo
-// existe (anti-enumeración). Solo quien ya acertó la contraseña se entera de que
-// su cuenta falta verificar.
-const CREDENTIALS_ERROR = "Correo o contraseña incorrectos. Revisa tus datos e inténtalo de nuevo.";
 
 function validate(email: string, password: string) {
   return compact({
@@ -82,9 +78,9 @@ function LoginForm({ redirectTo, registerHref }: LoginFormProps) {
       router.refresh();
     } catch (caught) {
       const failure = classifyError(caught);
-      if (failure.kind === "forbidden") setOutcome("unverified");
-      else if (failure.kind === "invalid" || failure.kind === "unauthorized") setFormError(CREDENTIALS_ERROR);
-      else setFormError(failure.message);
+      const mapped = mapLoginFailure(failure);
+      if (mapped.kind === "unverified") setOutcome("unverified");
+      else setFormError(mapped.message);
     } finally {
       setSubmitting(false);
     }

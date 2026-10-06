@@ -82,4 +82,27 @@ describe("middlewares/rate-limit — skip de healthcheck", () => {
 
     expect(third.status).toBe(429);
   });
+
+  it("accountWriteRateLimiter cuenta por usuaria, no por IP", async () => {
+    const { createRateLimiter, userKeyGenerator } = await importRateLimitInProduction();
+    const limiter = createRateLimiter({ windowMs: 60_000, max: 2, message: "límite", keyGenerator: userKeyGenerator });
+
+    const app = express();
+    // Simula `protect`: puebla `req.user` desde un header de prueba.
+    app.use((req, _res, next) => {
+      req.user = { id: String(req.header("x-user")) } as typeof req.user;
+      next();
+    });
+    app.use(limiter);
+    app.post("/cuenta", (_req, res) => res.status(200).json({ ok: true }));
+
+    // Misma IP (supertest), dos usuarias: la cuota de una no afecta a la otra.
+    await request(app).post("/cuenta").set("x-user", "ana");
+    await request(app).post("/cuenta").set("x-user", "ana");
+    const anaThird = await request(app).post("/cuenta").set("x-user", "ana");
+    const bea = await request(app).post("/cuenta").set("x-user", "bea");
+
+    expect(anaThird.status).toBe(429);
+    expect(bea.status).toBe(200);
+  });
 });

@@ -84,7 +84,8 @@ function AddressesSection({ initial }: { initial: SavedAddress[] }) {
     setNotice(null);
     try {
       await accountRequest(`/api/v1/account/addresses/${address.id}/default`, { method: "POST" });
-      await reload();
+      // La mutación ya se aplicó: si la relectura falla, ajusta la lista en local.
+      await reload().catch(() => setAddresses((current) => current.map((item) => ({ ...item, isDefault: item.id === address.id }))));
       setNotice({ tone: "success", text: `“${address.label}” es ahora tu dirección principal.` });
     } catch (caught) {
       setNotice({ tone: "danger", text: classifyError(caught).message });
@@ -98,8 +99,10 @@ function AddressesSection({ initial }: { initial: SavedAddress[] }) {
     setBusy(true);
     setDeleteError(null);
     try {
-      await accountRequest(`/api/v1/account/addresses/${toDelete.id}`, { method: "DELETE" });
-      await reload();
+      const deletedId = toDelete.id;
+      await accountRequest(`/api/v1/account/addresses/${deletedId}`, { method: "DELETE" });
+      // La baja ya se aplicó: si la relectura falla, quita la dirección en local.
+      await reload().catch(() => setAddresses((current) => current.filter((item) => item.id !== deletedId)));
       setNotice({ tone: "success", text: "Eliminamos la dirección." });
       setToDelete(null);
     } catch (caught) {

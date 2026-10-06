@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import type { PublicOrder, PublicOrderTracking } from "@esencia-glow/shared";
-import { LoadError } from "@/components/storefront/account/shared/load-error";
+import { LoadFailure } from "@/components/storefront/account/shared/load-failure";
 import { OrderDetail } from "@/components/storefront/account/sections/order-detail";
 import { fetchAccountData } from "@/lib/storefront/account-server";
 
@@ -13,7 +13,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
   ]);
 
   if (order.status === "notFound") notFound();
-  if (order.status === "error") return <LoadError what="tu pedido" />;
+  if (order.status === "error" || order.status === "unauthorized") return <LoadFailure status={order.status} what="tu pedido" />;
 
   return <OrderDetail order={order.data} tracking={tracking.status === "ok" ? tracking.data : null} />;
 }

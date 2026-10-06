@@ -5,8 +5,9 @@ import { useState, type FormEvent } from "react";
 import type { AccountDto, AccountProfile } from "@esencia-glow/shared";
 import { FieldError } from "@/components/ui/field-error";
 import { Input } from "@/components/ui/input";
-import { accountRequest, goToLogin } from "@/lib/storefront/account-api";
+import { accountRequest } from "@/lib/storefront/account-api";
 import { classifyError } from "@/lib/storefront/auth-errors";
+import { mapPasswordChangeFailure } from "../shared/form-failures";
 import { describeMissing } from "../shared/password";
 import { PasswordField } from "../shared/password-field";
 import { CTA_DISABLED, CTA_PRIMARY, CTA_SECONDARY } from "../shared/styles";
@@ -27,7 +28,11 @@ function validateProfile(firstName: string, lastName: string, phone: string) {
 }
 
 function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
+  // Local, no UTC: pasada la tarde en México `toISOString` ya marca el día siguiente.
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${now.getFullYear()}-${month}-${day}`;
 }
 
 /** Edición de los datos personales. Teléfono, nacimiento y ciudad son opcionales: aquí se capturan, nunca en el alta. */
@@ -95,7 +100,7 @@ function ProfileForm({ profile, onSaved, onCancel }: ProfileFormProps) {
           autoComplete="tel-national"
           error={errors.phone}
         />
-        <Input label="Fecha de nacimiento (opcional)" type="date" value={birthDate} max={todayIso()} onChange={(event) => setBirthDate(event.target.value)} autoComplete="bday" error={errors.birthDate} />
+        <Input label="Fecha de nacimiento (opcional)" type="date" value={birthDate} min="1900-01-01" max={todayIso()} onChange={(event) => setBirthDate(event.target.value)} autoComplete="bday" error={errors.birthDate} />
       </div>
       <Input label="Ciudad (opcional)" value={city} onChange={(event) => setCity(event.target.value)} placeholder="Guadalajara" autoComplete="address-level2" error={errors.city} />
       <div className="flex flex-wrap gap-3">
@@ -147,21 +152,17 @@ function ChangePasswordForm({ onSaved, onCancel }: ChangePasswordFormProps) {
 
     setSaving(true);
     try {
-      // Aquí un 401 puede ser "la actual está mal": no se trata como sesión vencida.
+      // Un 401 con `code` es "la actual está mal"; uno sin `code` es sesión vencida y
+      // `accountRequest` ya refrescó y reintentó (sin perder lo escrito en el formulario).
       await accountRequest("/api/v1/auth/password", {
         method: "PATCH",
-        refreshOn401: false,
         body: { currentPassword: current, newPassword: next },
       });
       onSaved();
     } catch (caught) {
-      const failure = classifyError(caught);
-      if (failure.kind === "unauthorized") {
-        if (/actual/i.test(failure.message)) setErrors({ current: "Esa no es tu contraseña actual. Revísala e inténtalo de nuevo." });
-        else goToLogin();
-      } else if (failure.fieldErrors.newPassword) setErrors({ next: failure.fieldErrors.newPassword });
-      else if (failure.kind === "invalid" && /filtraciones/i.test(failure.message)) setErrors({ next: failure.message });
-      else setFormError(failure.message);
+      const mapped = mapPasswordChangeFailure(classifyError(caught));
+      setErrors(mapped.errors);
+      setFormError(mapped.formError);
     } finally {
       setSaving(false);
     }

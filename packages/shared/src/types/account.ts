@@ -56,4 +56,9 @@ interface WishlistItem {
   addedAt: string;
 }
 
-export type { AccountProfile, SavedAddress, BillingInfo, AccountDto, WishlistItem };
+/** Respuesta de `GET /account/wishlist?itemId=`: ¿está guardado este producto? */
+interface WishlistMembership {
+  saved: boolean;
+}
+
+export type { AccountProfile, SavedAddress, BillingInfo, AccountDto, WishlistItem, WishlistMembership };

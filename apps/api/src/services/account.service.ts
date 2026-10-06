@@ -1,6 +1,6 @@
 import bcrypt from "bcrypt";
 import type { Types } from "mongoose";
-import { AuthAction } from "@esencia-glow/shared";
+import { AuthAction, ErrorCode } from "@esencia-glow/shared";
 import { User } from "../models/user.model.js";
 import { VerificationToken } from "../models/verification-token.model.js";
 import { SALT_ROUNDS } from "../models/user.model.js";
@@ -184,7 +184,7 @@ async function changePassword(
   if (!user) throw new AppError("Usuario no encontrado", 404);
 
   const isValid = await user.comparePassword(currentPassword);
-  if (!isValid) throw new AppError("La contraseña actual no es correcta", 401);
+  if (!isValid) throw new AppError("La contraseña actual no es correcta", 401, undefined, ErrorCode.CURRENT_PASSWORD_INCORRECT);
   await assertPasswordNotBreached(newPassword);
 
   user.password = newPassword;

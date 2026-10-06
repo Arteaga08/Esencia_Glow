@@ -66,10 +66,11 @@ function AddressForm({ address, isFirst, onSaved, onCancel }: AddressFormProps) 
           body: { ...body, interiorNumber: body.interiorNumber ?? null, references: body.references ?? null },
         });
       } else {
-        const created = await accountRequest<SavedAddress>("/api/v1/account/addresses", { method: "POST", body });
-        if (makeDefault && !created.data.isDefault) {
-          await accountRequest(`/api/v1/account/addresses/${created.data.id}/default`, { method: "POST" });
-        }
+        // La principal se resuelve en la misma escritura del API: una sola petición.
+        await accountRequest<SavedAddress>("/api/v1/account/addresses", {
+          method: "POST",
+          body: makeDefault ? { ...body, isDefault: true } : body,
+        });
       }
       onSaved();
     } catch (caught) {

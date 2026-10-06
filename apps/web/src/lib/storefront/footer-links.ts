@@ -53,7 +53,7 @@ const STATIC_COLUMNS: FooterColumn[] = [
     links: [
       { label: "Cómo funciona", href: "/suscripcion" },
       { label: "Planes", href: "/suscripcion#planes" },
-      { label: "Mi suscripción", href: "/cuenta/suscripcion" },
+      { label: "Mi suscripción", href: "/mi-cuenta/suscripcion" },
     ],
   },
 ];

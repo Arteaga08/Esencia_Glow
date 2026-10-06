@@ -97,6 +97,11 @@ const loginAccountRateLimiter = createRateLimiter({
   skipSuccessfulRequests: true,
 });
 
+/** Clave por usuaria autenticada (el limiter va DESPUÉS de `protect`), con la IP como respaldo. */
+function userKeyGenerator(req: Request): string {
+  return req.user?.id ?? req.ip ?? "unknown";
+}
+
 /**
  * Acciones que MANDAN un correo (registro, reenviar verificación, olvidé mi
  * contraseña): 3 por correo cada 15 min, sin importar la IP. Es el freno contra
@@ -119,7 +124,7 @@ const passwordChangeRateLimiter = createRateLimiter({
   windowMs: 15 * 60 * 1000,
   max: 5,
   message: "Demasiados intentos de cambio de contraseña, intenta de nuevo más tarde.",
-  keyGenerator: (req) => req.user?.id ?? req.ip ?? "unknown",
+  keyGenerator: userKeyGenerator,
 });
 
 /** `POST /auth/refresh`: una persona renueva una vez por access token; 30 cubre varias pestañas. */
@@ -241,7 +246,7 @@ const refundRateLimiter = createRateLimiter({
   windowMs: 15 * 60 * 1000,
   max: 5,
   message: "Demasiados intentos de reembolso, intenta de nuevo más tarde.",
-  keyGenerator: (req) => req.user?.id ?? req.ip ?? "unknown",
+  keyGenerator: userKeyGenerator,
 });
 
 /**
@@ -254,7 +259,7 @@ const accountWriteRateLimiter = createRateLimiter({
   windowMs: 15 * 60 * 1000,
   max: 60,
   message: "Demasiados cambios en tu cuenta, intenta de nuevo en unos minutos.",
-  keyGenerator: (req) => req.user?.id ?? req.ip ?? "unknown",
+  keyGenerator: userKeyGenerator,
 });
 
 /**
@@ -270,7 +275,7 @@ const shippingQuoteRateLimiter = createRateLimiter({
   windowMs: 15 * 60 * 1000,
   max: 60,
   message: "Demasiadas cotizaciones de envío, intenta de nuevo más tarde.",
-  keyGenerator: (req) => req.user?.id ?? req.ip ?? "unknown",
+  keyGenerator: userKeyGenerator,
 });
 
 /**
@@ -284,7 +289,7 @@ const subscriptionManageRateLimiter = createRateLimiter({
   windowMs: 15 * 60 * 1000,
   max: 20,
   message: "Demasiados cambios en tu suscripción, intenta de nuevo más tarde.",
-  keyGenerator: (req) => req.user?.id ?? req.ip ?? "unknown",
+  keyGenerator: userKeyGenerator,
 });
 
 /**
@@ -296,11 +301,12 @@ const paymentMethodRateLimiter = createRateLimiter({
   windowMs: 15 * 60 * 1000,
   max: 10,
   message: "Demasiados intentos de cambiar tu tarjeta, intenta de nuevo más tarde.",
-  keyGenerator: (req) => req.user?.id ?? req.ip ?? "unknown",
+  keyGenerator: userKeyGenerator,
 });
 
 export {
   createRateLimiter,
+  userKeyGenerator,
   globalRateLimiter,
   loginRateLimiter,
   loginAccountRateLimiter,

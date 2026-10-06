@@ -936,12 +936,13 @@ lleva el id del dueño (todo cuelga de `req.user.id`) y un admin recibe 403. Las
 |---|---|
 | `GET /account` | DTO único: perfil, direcciones, facturación y `wishlistCount` |
 | `PATCH /account/profile` | nombre, apellido, teléfono (10 dígitos), nacimiento y ciudad; `null` borra un opcional; el correo es solo lectura |
-| `POST /account/addresses` | alta (máx. **5**, 409 al pasar); la primera queda principal |
+| `POST /account/addresses` | alta (máx. **5**, 409 al pasar); la primera queda principal y `isDefault: true` en el alta fija esa como principal en la misma escritura |
 | `PATCH /account/addresses/:addressId` | edita |
 | `POST /account/addresses/:addressId/default` | fija la principal y limpia las demás |
 | `DELETE /account/addresses/:addressId` | borra; si era la principal se promueve otra |
 | `PUT` / `DELETE /account/billing-info` | RFC, razón social, uso de CFDI, régimen y CP fiscal. Se **guardan**, no se timbra |
 | `GET /account/wishlist` | guardados hidratados contra el catálogo vivo (precio, foto, disponibilidad) |
+| `GET /account/wishlist?itemId=` | `{ saved }`: si ese producto está guardado (lo usa la estrella del producto) |
 | `POST /account/wishlist` | `{ itemType: "product", itemId }`; máx. **50**, idempotente |
 | `DELETE /account/wishlist/:itemType/:itemId` | quita |
 
@@ -950,8 +951,17 @@ lleva el id del dueño (todo cuelga de `req.user.id`) y un admin recibe 403. Las
   atómica** (update con pipeline), no leer-mutar-guardar: dos altas simultáneas no pasan del tope y "a lo
   más una principal" no depende del flag que mande el cliente (se ignora). Una dirección ajena o
   inexistente es 404, nunca 403.
-- **Guardados**: solo se guarda `(itemType, itemId)`. Un producto archivado o borrado desaparece de la
-  lista y se poda de la libreta en la misma lectura.
+- **Guardados**: solo se guarda `(itemType, itemId)`. Un producto archivado o sin variante activa se
+  **oculta sin borrarse** (vuelve si se reactiva) y `wishlistCount` cuenta solo los visibles; solo se
+  poda cuando el producto ya no existe. Guardar exige una variante activa.
+- **Errores con `code` estable**: los 401/403 de dominio (`CURRENT_PASSWORD_INCORRECT`,
+  `EMAIL_NOT_VERIFIED`, `ORIGIN_NOT_ALLOWED`) llevan `code`; un 401 **sin** `code` significa sesión
+  vencida. El front decide por `code`, no por el texto del mensaje.
+- **Refresco coordinado**: ante un 401 sin `code`, `accountRequest` renueva la sesión una vez y
+  reintenta. Entre pestañas se coordina con `navigator.locks` más una marca en `localStorage`
+  (`eg-session-refreshed-at`), para que dos pestañas no roten el refresh token a la vez. Si el refresco
+  falla, se muestra la pantalla de sesión vencida.
+- `birthDate` no admite fechas anteriores a 1900-01-01 ni futuras.
 - Texto libre sin HTML (`<`, `>` y sus entidades se rechazan con error por campo).
 
 ## Dashboard admin (Milestone 2.1 — shell, guard de sesión, login)

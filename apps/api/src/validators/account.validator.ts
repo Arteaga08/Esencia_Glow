@@ -25,6 +25,7 @@ const MESSAGES = {
   "date.base": "Fecha inválida",
   "date.format": "Fecha inválida",
   "date.max": "La fecha no puede ser futura",
+  "date.min": "La fecha es demasiado antigua",
   "object.min": "No hay nada que actualizar",
 };
 
@@ -44,7 +45,7 @@ const updateProfileSchema = Joi.object({
     .pattern(/^\d{10}$/)
     .allow(null)
     .messages({ "string.pattern.base": "El teléfono debe tener 10 dígitos" }),
-  birthDate: Joi.date().iso().max("now").allow(null),
+  birthDate: Joi.date().iso().min("1900-01-01").max("now").allow(null),
   city: text(120).allow(null),
 })
   .min(1)
@@ -58,7 +59,7 @@ const baseAddress = shippingAddressSchema.fork(FREE_TEXT_ADDRESS_FIELDS, (field)
 const ADDRESS_FIELDS = [...FREE_TEXT_ADDRESS_FIELDS, "phone", "state", "postalCode"];
 
 const createAddressSchema = baseAddress
-  .keys({ label: text(40).min(1).required() })
+  .keys({ label: text(40).min(1).required(), isDefault: Joi.boolean().strict() })
   .messages(MESSAGES);
 
 const updateAddressSchema = baseAddress
@@ -91,6 +92,8 @@ const addWishlistItemSchema = Joi.object({
   itemId: objectId.required(),
 }).messages(MESSAGES);
 
+const wishlistQuerySchema = Joi.object({ itemId: objectId }).messages(MESSAGES);
+
 const wishlistParamSchema = Joi.object({
   itemType: Joi.string().valid("product").required(),
   itemId: objectId.required(),
@@ -104,4 +107,5 @@ export {
   billingInfoSchema,
   addWishlistItemSchema,
   wishlistParamSchema,
+  wishlistQuerySchema,
 };

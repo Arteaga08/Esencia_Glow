@@ -1,6 +1,7 @@
 import type { AccountDto } from "@esencia-glow/shared";
 import { User } from "../models/user.model.js";
 import { AppError } from "../utils/app-error.js";
+import { countVisibleWishlist } from "./account-wishlist.service.js";
 import { ACCOUNT_SELECT, buildAccountDto, type LeanAccountUser } from "./account-dto.js";
 
 /**
@@ -19,7 +20,7 @@ interface UpdateProfileInput {
 async function getAccount(userId: string): Promise<AccountDto> {
   const user = await User.findById(userId).select(ACCOUNT_SELECT).lean<LeanAccountUser>();
   if (!user) throw new AppError("No autenticado", 401);
-  return buildAccountDto(user);
+  return buildAccountDto(user, await countVisibleWishlist(user.wishlist));
 }
 
 /** `null` borra un opcional (`$unset`); un campo ausente no se toca. */

@@ -1,3 +1,4 @@
+import type { ErrorCode } from "@esencia-glow/shared";
 import { ApiRequestError } from "../api";
 
 /**
@@ -12,6 +13,8 @@ interface Failure {
   /** Errores por campo del API (`errors`), con las mismas claves que los inputs. */
   fieldErrors: Record<string, string>;
   status?: number;
+  /** Código estable del API (p. ej. correo sin verificar); ver `ErrorCode` en shared. */
+  code?: ErrorCode;
 }
 
 const NETWORK_ERROR = "No pudimos conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.";
@@ -33,7 +36,7 @@ function classifyError(error: unknown): Failure {
 
   const kind = kindOf(error.status);
   const message = kind === "server" ? SERVER_ERROR : kind === "rateLimited" ? error.message || RATE_LIMIT_ERROR : error.message;
-  return { kind, message, fieldErrors: error.fieldErrors ?? {}, status: error.status };
+  return { kind, message, fieldErrors: error.fieldErrors ?? {}, status: error.status, ...(error.code ? { code: error.code } : {}) };
 }
 
 export { classifyError, NETWORK_ERROR, SERVER_ERROR, RATE_LIMIT_ERROR };

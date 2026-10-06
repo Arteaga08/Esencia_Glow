@@ -1,3 +1,5 @@
+import type { ErrorCode } from "../enums/error-code.js";
+
 /**
  * Envoltura única de toda respuesta de la API. Los controllers nunca arman el JSON
  * a mano: pasan por `sendResponse`, que produce exactamente esta forma.
@@ -22,6 +24,8 @@ interface ApiSuccessResponse<TData = unknown, TMeta = PaginationMeta> {
 interface ApiErrorResponse {
   status: "fail" | "error";
   message: string;
+  /** Código estable para que el front distinga errores con el mismo status. Opcional. */
+  code?: ErrorCode;
   /** Errores por campo. Presente solo cuando la validación de entrada falla. */
   errors?: Record<string, string>;
   /** Stack trace. El servidor lo incluye únicamente fuera de producción. */
