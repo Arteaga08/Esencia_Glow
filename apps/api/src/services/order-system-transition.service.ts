@@ -5,6 +5,7 @@ import { recordAudit } from "./audit.service.js";
 import { assertTransition } from "./order-state.js";
 import { isDisputeBlockedTransition } from "./order-dispute.service.js";
 import { claimStatusTransition, type ShipmentInput } from "./order-status-claim.js";
+import { notifyOrderStatusEmail } from "./order-status-email.js";
 
 /**
  * Transiciones de estado disparadas por el SISTEMA (Milestone 1.9): la guía
@@ -84,6 +85,7 @@ async function applySystemOrderTransition(
     await recordAudit({ action: OrderAction.ORDER_SHIPMENT_UPDATED, targetId: claimed._id, metadata: { actor: "system" } });
   }
 
+  notifyOrderStatusEmail(input.orderId, input.to);
   return { outcome: "applied" };
 }
 

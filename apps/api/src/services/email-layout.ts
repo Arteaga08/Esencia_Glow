@@ -1,13 +1,30 @@
-import { EMAIL_BRAND_NAME, EMAIL_COLORS, EMAIL_LOGO_DATA_URI } from "./email-brand.js";
+import { EMAIL_BRAND_NAME, EMAIL_COLORS as C, EMAIL_FONTS as F, EMAIL_LOGO_DATA_URI } from "./email-brand.js";
+import {
+  renderCoupon,
+  renderFacts,
+  renderGuide,
+  renderOrder,
+  renderStatusChip,
+  type EmailCouponBlock,
+  type EmailFact,
+  type EmailGuideBlock,
+  type EmailOrderBlock,
+  type EmailStatus,
+} from "./email-blocks.js";
 
 /**
- * Shell HTML compartido de todo correo transaccional
- * (ECOMMERCE_ARCHITECTURE_GUIDELINES.md §"Cómo se ve — correo", §8 del plan
- * de 1.6.3): reglas que un cliente de correo real impone y que un
- * navegador no. `paragraphs`/`title`/`preheader`/`disclaimer` ya deben
- * venir escapados por el caller (`order-email.service.ts`,
- * `email.service.ts`) — este archivo compone HTML, no decide qué es seguro
- * interpolar.
+ * Shell HTML compartido de todo correo transaccional (Milestone 3.6,
+ * propuesta A "Etiqueta de frasco"): hoja blanca sobre el lienzo rosado,
+ * datos en recuadros con la voz mono del home y el botón rosa de la tienda.
+ * Reglas que un cliente de correo real impone y que un navegador no
+ * (ECOMMERCE_ARCHITECTURE_GUIDELINES.md §"Cómo se ve — correo"): solo
+ * tablas, CSS en línea, botón en una `<td>`, preheader oculto, cuerpo de
+ * 16px y `disclaimer` siempre.
+ *
+ * `title`/`paragraphs`/`preheader`/`disclaimer`/`button.url` ya deben venir
+ * escapados por el caller; los bloques opcionales (`status`, `facts`,
+ * `order`, `guide`, `coupon`) son texto plano y se escapan en
+ * `email-blocks.ts`.
  */
 interface EmailButton {
   label: string;
@@ -16,27 +33,28 @@ interface EmailButton {
 
 interface RenderTransactionalEmailInput {
   /** Texto oculto de 1px, ANTES que cualquier otro contenido — evita que la
-   * vista previa de la bandeja muestre lo primero que encuentre (ver
-   * "Truco del preheader" en el estándar). */
+   * vista previa de la bandeja muestre lo primero que encuentre. */
   preheader: string;
   title: string;
-  /** Cada string es un párrafo (ya HTML seguro — nunca texto de un cliente
-   * sin escapar, salvo que el caller ya lo haya pasado por `escapeHtml`). */
+  /** Cada string es un párrafo (ya HTML seguro). */
   paragraphs: string[];
   disclaimer: string;
   button?: EmailButton;
+  status?: EmailStatus;
+  facts?: EmailFact[];
+  guide?: EmailGuideBlock;
+  coupon?: EmailCouponBlock;
+  order?: EmailOrderBlock;
 }
 
-/** Botón "a prueba de balas": una `<table>` con una sola `<td>` con
- * `padding`/`background-color` envolviendo el `<a>`, en vez de esos
- * estilos en el `<a>` mismo — Outlook desktop (motor de Word) ignora
- * `padding`/`border-radius` en un `<a>` pero sí los respeta en una `<td>`. */
+/** Botón "a prueba de balas": fondo, borde y radio en la `<td>`; el `<a>` solo
+ * lleva texto y relleno (Outlook/Word ignora el radio en un `<a>`). */
 function renderButton(button: EmailButton): string {
   return `
-    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:24px 0;">
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 8px;">
       <tr>
-        <td style="border-radius:6px;background-color:${EMAIL_COLORS.accent};" align="center">
-          <a href="${button.url}" style="display:inline-block;padding:14px 28px;font-family:Arial,Helvetica,sans-serif;font-size:16px;color:${EMAIL_COLORS.accentText};text-decoration:none;">
+        <td align="center" bgcolor="${C.rose}" style="background-color:${C.rose};border:1px solid ${C.roseAction};border-radius:6px;">
+          <a href="${button.url}" style="display:block;padding:15px 28px;font-family:${F.mono};font-size:14px;line-height:1.2;letter-spacing:0.1em;text-transform:uppercase;color:${C.ink};text-decoration:none;">
             ${button.label}
           </a>
         </td>
@@ -48,37 +66,46 @@ function renderHeader(): string {
   if (EMAIL_LOGO_DATA_URI) {
     return `<img src="${EMAIL_LOGO_DATA_URI}" alt="${EMAIL_BRAND_NAME}" style="height:32px;" />`;
   }
-  return `<span style="font-family:Arial,Helvetica,sans-serif;font-size:20px;font-weight:bold;color:${EMAIL_COLORS.accent};">${EMAIL_BRAND_NAME}</span>`;
+  return `<span style="font-family:${F.sans};font-size:20px;font-weight:600;color:${C.ink};">${EMAIL_BRAND_NAME} <span style="font-size:13px;color:${C.butterText};">&#10022;</span></span>`;
 }
 
 function renderTransactionalEmail(input: RenderTransactionalEmailInput): string {
   const paragraphsHtml = input.paragraphs
     .map(
       (paragraph) =>
-        `<p style="margin:0 0 16px;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.5;color:${EMAIL_COLORS.text};">${paragraph}</p>`,
+        `<p style="margin:0 0 16px;font-family:${F.sans};font-size:16px;line-height:1.6;color:${C.ink};">${paragraph}</p>`,
     )
     .join("\n");
+
+  const blocks = [
+    input.facts ? renderFacts(input.facts) : "",
+    input.guide ? renderGuide(input.guide) : "",
+    input.coupon ? renderCoupon(input.coupon) : "",
+    input.order ? renderOrder(input.order) : "",
+    input.button ? renderButton(input.button) : "",
+  ].join("");
 
   return `<!-- preheader -->
 <div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">
   ${input.preheader}
 </div>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:${EMAIL_COLORS.background};padding:32px 0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:${C.canvas};">
   <tr>
-    <td align="center">
-      <table role="presentation" width="480" cellpadding="0" cellspacing="0" border="0" style="background-color:${EMAIL_COLORS.cardBackground};border:1px solid ${EMAIL_COLORS.border};border-radius:8px;">
+    <td align="center" style="padding:32px 12px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;background-color:${C.surface};border:1px solid ${C.border};border-radius:12px;">
         <tr>
-          <td style="padding:24px 32px 0;">
-            ${renderHeader()}
+          <td style="padding:28px 36px 0;">${renderHeader()}</td>
+        </tr>
+        ${input.status ? `<tr><td style="padding:28px 36px 0;">${renderStatusChip(input.status)}</td></tr>` : ""}
+        <tr>
+          <td style="padding:16px 36px 0;">
+            <h1 style="margin:0 0 16px;font-family:${F.sans};font-size:28px;line-height:1.2;letter-spacing:-0.01em;font-weight:600;color:${C.ink};">${input.title}</h1>
+            ${paragraphsHtml}
+            ${blocks}
           </td>
         </tr>
         <tr>
-          <td style="padding:24px 32px 32px;">
-            <h1 style="margin:0 0 16px;font-family:Arial,Helvetica,sans-serif;font-size:20px;color:${EMAIL_COLORS.text};">${input.title}</h1>
-            ${paragraphsHtml}
-            ${input.button ? renderButton(input.button) : ""}
-            <p style="margin:24px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.5;color:${EMAIL_COLORS.muted};">${input.disclaimer}</p>
-          </td>
+          <td style="padding:20px 36px 32px;font-family:${F.sans};font-size:13px;line-height:1.5;color:${C.muted};">${input.disclaimer}</td>
         </tr>
       </table>
     </td>

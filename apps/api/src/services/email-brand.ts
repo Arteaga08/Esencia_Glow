@@ -1,27 +1,47 @@
 /**
- * Tokens de marca del shell de correo (§8 del plan de 1.6.3) — un solo
- * archivo, para que 2.0 ("System design") los reemplace por la paleta y el
- * logo finales sin tocar `email-layout.ts`. Provisionales a propósito: el
- * sistema de diseño de Esencia Glow todavía no existe (llega en Milestone
- * 2), así que el header lleva el nombre de la marca en texto en vez de un
- * logo — nunca una URL externa (un cliente de correo no es confiable para
- * ir a buscar un asset remoto, ver ECOMMERCE_ARCHITECTURE_GUIDELINES.md
- * §"Cómo se ve — correo"); cuando haya logo, va aquí como *data URI*.
+ * Tokens de marca del shell de correo — un solo archivo para que el logo
+ * final entre sin tocar `email-layout.ts`. Son los OKLCH de `DESIGN.md`
+ * convertidos a hex y copiados por valor: un cliente de correo no resuelve
+ * variables CSS ni `@theme` (ECOMMERCE_ARCHITECTURE_GUIDELINES.md, "Cómo se
+ * ve — correo"). Los pares de texto sobre fondo se midieron contra WCAG AA.
+ *
+ * El header lleva el nombre de la marca en texto hasta que haya logo; cuando
+ * exista, va aquí como *data URI*, nunca como una URL externa.
  */
 const EMAIL_BRAND_NAME = "Esencia Glow";
 
-/** `undefined` hasta que 2.0 entregue un logo real — `email-layout.ts` cae
- * al nombre en texto cuando esto falta. */
+/** `undefined` hasta que Manuel entregue el logo — `email-layout.ts` cae al nombre en texto. */
 const EMAIL_LOGO_DATA_URI: string | undefined = undefined;
 
 const EMAIL_COLORS = {
-  background: "#f4f1ee",
-  cardBackground: "#ffffff",
-  text: "#2b2b2b",
-  muted: "#6b6b6b",
-  accent: "#8a6d5c",
-  accentText: "#ffffff",
-  border: "#e5ddd6",
-};
+  /** Lienzo de página (`background`). */
+  canvas: "#fff9fb",
+  surface: "#ffffff",
+  /** Tinta, texto principal (`foreground`): 9.3:1 sobre blanco. */
+  ink: "#5d4037",
+  /** Texto secundario (`muted-foreground-strong`): 6.1:1 sobre blanco. */
+  muted: "#785a63",
+  /** Rosa Bitácora (`primary`): fondo del botón, siempre con tinta encima (5.7:1). */
+  rose: "#ffb7c5",
+  /** Rosa Acción (`primary-action`): borde del botón y de acentos. */
+  roseAction: "#9f5f6d",
+  roseSoft: "#ffdde4",
+  mint: "#b2e2d2",
+  mintText: "#2d4a3e",
+  butter: "#fff0c2",
+  butterText: "#816829",
+  border: "#ffe1e9",
+  borderStrong: "#a58a91",
+} as const;
 
-export { EMAIL_BRAND_NAME, EMAIL_LOGO_DATA_URI, EMAIL_COLORS };
+/**
+ * Schibsted Grotesk y PT Mono solo se ven si la clienta los tiene instalados
+ * (un correo no descarga fuentes web de forma confiable); la pila cae a
+ * Helvetica/Arial y Courier, que conservan el contraste de voz.
+ */
+const EMAIL_FONTS = {
+  sans: "'Schibsted Grotesk','Helvetica Neue',Helvetica,Arial,sans-serif",
+  mono: "'PT Mono','Courier New',Courier,monospace",
+} as const;
+
+export { EMAIL_BRAND_NAME, EMAIL_LOGO_DATA_URI, EMAIL_COLORS, EMAIL_FONTS };
