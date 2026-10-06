@@ -11,6 +11,14 @@ enum ErrorCode {
   EMAIL_NOT_VERIFIED = "EMAIL_NOT_VERIFIED",
   /** 403 de `verifyOrigin`: la petición viene de un origen que no está en la lista. */
   ORIGIN_NOT_ALLOWED = "ORIGIN_NOT_ALLOWED",
+  /** 409 al crear un pedido: la clienta ya tiene uno pendiente de pago (`errors.orderId`). */
+  PENDING_ORDER_EXISTS = "PENDING_ORDER_EXISTS",
+  /** 409 al crear un pedido: la cotización de envío venció, no existe o no es suya. */
+  SHIPPING_QUOTE_INVALID = "SHIPPING_QUOTE_INVALID",
+  /** 409 al crear un pedido: el carrito cambió desde que se cotizó el envío. */
+  CART_CHANGED = "CART_CHANGED",
+  /** 409 al crear un pedido: algo del carrito ya no se vende o se quedó sin stock. */
+  ITEM_UNAVAILABLE = "ITEM_UNAVAILABLE",
 }
 
 export { ErrorCode };

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { CheckCircle } from "@phosphor-icons/react";
 import { useState, type FormEvent } from "react";
 import { apiRequest } from "@/lib/api";
+import { useCart } from "@/lib/storefront/cart/use-cart";
 import { classifyError } from "@/lib/storefront/auth-errors";
 import { FieldError } from "@/components/ui/field-error";
 import { AuthHeading } from "../shared/auth-heading";
@@ -23,6 +24,8 @@ type Step = "form" | "done" | "invalid";
  * escrita NO gasta el enlace (el API responde 401 sin consumirlo).
  */
 function VerifyFlow({ token }: { token: string | null }) {
+  // Quien llegó desde el checkout y sigue con carrito vuelve a él: el carrito vive en el navegador y sigue intacto.
+  const { count } = useCart();
   const [step, setStep] = useState<Step>(token ? "form" : "invalid");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | undefined>();
@@ -60,8 +63,8 @@ function VerifyFlow({ token }: { token: string | null }) {
         tone="success"
         title="Cuenta verificada"
         actions={
-          <Link href="/ingresar" className={CTA_PRIMARY}>
-            Ingresar
+          <Link href={count > 0 ? "/ingresar?redirect=%2Fcheckout" : "/ingresar"} className={CTA_PRIMARY}>
+            {count > 0 ? "Ingresar y seguir con mi compra" : "Ingresar"}
           </Link>
         }
       >

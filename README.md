@@ -47,6 +47,7 @@ ignora cualquier `.env`/`.env.*` real y re-permite explícitamente los `.example
 | `COOKIE_DOMAIN` | Opcional, siempre | Milestone 2.1: alcance de dominio de las cookies de sesión. Sin ella, host-only (alcanza en dev, front y API comparten `localhost`); en producción, con front en `www.<dominio>` y API en `api.<dominio>`, hace falta `.<dominio>` para que el guard de sesión server-side del dashboard reciba la cookie. No debilita `sameSite: "strict"` (mismo sitio registrable) |
 | `STRIPE_SECRET_KEY` | Fail-fast en producción | Requerida para el flujo de pagos (Milestone 1.6) |
 | `STRIPE_WEBHOOK_SECRET` | Fail-fast en producción | Verificación de firma del webhook de Stripe |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Solo `apps/web` | Milestone 3.4b: llave **publicable** de Stripe (`pk_…`), la única que puede estar en el navegador. Va en `apps/web/.env.local`, no en la API. Se ignora cualquier valor que no empiece con `pk_` (una `sk_` pegada por error no se usa). Sin ella el checkout dice que los pagos con tarjeta no están disponibles, sin tumbar la tienda |
 | `STRIPE_WEBHOOK_TOLERANCE_SECONDS` | Con default, fail-fast si es inválida | Tolerancia de timestamp del webhook (anti-replay). Default `300` (5 min). Debe ser un entero positivo — `0` o negativo no arranca el server |
 | `PAYMENT_RECONCILE_AFTER_MINUTES` | Con default, fail-fast si es inválida | Umbral del reconciliador: cuánto espera un pedido `pending` con PaymentIntent antes de que el cron le pregunte a Stripe. Default `10`, mismo criterio de entero positivo |
 | `SUBSCRIPTION_INCOMPLETE_EXPIRE_MINUTES` | Con default, fail-fast si es inválida | Milestone 1.7.2a: minutos tras reclamar el cupo antes de que el cron libere una cuenta de suscripción `INCOMPLETE` sin `providerSubscriptionId`. Default `30`, mismo criterio de entero positivo |
@@ -963,6 +964,48 @@ lleva el id del dueño (todo cuelga de `req.user.id`) y un admin recibe 403. Las
   falla, se muestra la pantalla de sesión vencida.
 - `birthDate` no admite fechas anteriores a 1900-01-01 ni futuras.
 - Texto libre sin HTML (`<`, `>` y sus entidades se rechazan con error por campo).
+
+## Checkout de la tienda (`/checkout`, Milestone 3.4b)
+
+Una sola página (propuesta A): **Cuenta, Envío y Pago** apilados, con el resumen fijo a la derecha. Los
+tres pasos se ven siempre; lo hecho queda como resumen y lo que falta, apagado hasta habilitarse.
+**Solo se cobra con tarjeta** (decisión de Manuel, 2026-10-06): la tienda no ofrece OXXO. El backend de
+OXXO sigue ahí, sin uso.
+
+- **Cuenta dentro del checkout**: entrar o crear cuenta sin salir de la página. El registro no deja
+  entrar hasta verificar el correo; el carrito vive en el navegador (`localStorage`), así que sigue
+  intacto mientras la clienta abre el enlace. Tras verificar, el aviso la regresa a `/checkout`. Sin
+  sesión se intenta **un** refresco silencioso antes de mostrar el formulario (el access token dura 15
+  min). Nunca se redirige a `/ingresar`.
+- **Envío**: direcciones guardadas (`GET /account`, la principal preseleccionada) o "Usar otra
+  dirección". Lo capturado aquí **no** se guarda en la libreta. "Ver opciones de envío" llama a
+  `POST /shipping/quotes`; cambiar la dirección o el carrito invalida lo cotizado, y al llegar
+  `expiresAt` la cotización pasa sola a "vencida".
+- **Pago**: `@stripe/stripe-js` con el **Payment Element en modo diferido** (se monta antes de que exista
+  el pedido). Los datos de la tarjeta viven en el iframe de Stripe; esta app nunca los ve. Al pagar:
+  se revisa el formulario, `POST /orders` (líneas, `quoteId`, `rateId`, `paymentMethod: "card"`,
+  `termsAccepted`, `Idempotency-Key`) y `stripe.confirmPayment` con el `clientSecret`.
+  - La llave de idempotencia se guarda en `sessionStorage` **atada a la huella** (líneas + cotización +
+    tarifa): reintentar lo mismo hace replay; cambiar algo genera otra.
+  - El carrito se vacía **solo cuando el pedido se crea**. Desde ahí la página muestra ESE pedido (con el
+    total que recalculó el servidor); si difiere del que la clienta vio, no se cobra a ciegas.
+  - Un rechazo del banco se avisa pegado al formulario de tarjeta y se reintenta con el mismo pedido.
+- **Reanudar pago**: al entrar a `/checkout` se consulta el último pedido; si está `pending` se reanuda
+  (`POST /orders/:id/payment` devuelve el `clientSecret`) en vez de crear otro. También lo atiende el
+  409 `PENDING_ORDER_EXISTS`. Mi cuenta ofrece "Pagar ahora" en un pedido pendiente.
+- **Confirmación** (`/checkout/confirmacion/:id`, también a donde vuelve 3D Secure): "pagado" lo decide
+  **solo el webhook**. Con el pedido aún `pending` dice "Estamos confirmando tu pago" y lo reconsulta unos
+  segundos; con `paid` o posterior, "Recibimos tu pago".
+- **Errores con `code` estable** en `POST /orders` y `POST /shipping/quotes`: `PENDING_ORDER_EXISTS`,
+  `SHIPPING_QUOTE_INVALID`, `CART_CHANGED`, `ITEM_UNAVAILABLE` (mismo status y mensaje que antes; solo se
+  añadió el `code`). El front decide por `code`: cotización inválida o carrito cambiado regresan al paso de
+  envío; algo agotado, al carrito.
+- **Cambio en el adaptador de Stripe**: `getAuthorization` ahora devuelve el `client_secret` del
+  PaymentIntent. Sin eso, reanudar el pago de una tarjeta no podía volver a montar el formulario.
+- **Para probar** (llaves de prueba): `4242 4242 4242 4242` paga; `4000 0000 0000 0002` rechaza;
+  `4000 0027 6000 3184` pide 3D Secure. `stripe listen --forward-to localhost:4000/api/v1/webhooks/stripe`
+  para ver el paso a pagado. En el Dashboard de Stripe conviene dejar **solo Tarjeta** activa para MXN: el
+  campo excluye OXXO y transferencia, pero el PaymentIntent del API es solo de tarjeta.
 
 ## Dashboard admin (Milestone 2.1 — shell, guard de sesión, login)
 
