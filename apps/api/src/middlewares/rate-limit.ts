@@ -181,6 +181,18 @@ const catalogRateLimiter = createRateLimiter({
 });
 
 /**
+ * `POST /cart/resolve` (Milestone 3.4a): lectura pública del carrito. Se llama
+ * al abrir el panel o la página, así que es más frecuente que el catálogo por
+ * visita, pero cada llamada es solo lectura. Por IP, holgado para una red
+ * compartida.
+ */
+const cartResolveRateLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  message: "Demasiadas solicitudes, intenta de nuevo más tarde.",
+});
+
+/**
  * `POST /orders`: crear una orden abre una transacción de 6 colecciones y
  * apalanca inventario real — más caro y más sensible a abuso que cotizar
  * (`quoteRateLimiter`, en `shipping.routes.ts`). El índice único de "un
@@ -316,6 +328,7 @@ export {
   twoFactorEnrollmentRateLimiter,
   uploadRateLimiter,
   catalogRateLimiter,
+  cartResolveRateLimiter,
   checkoutRateLimiter,
   paymentResumeRateLimiter,
   subscribeRateLimiter,

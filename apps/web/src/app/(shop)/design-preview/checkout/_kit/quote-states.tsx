@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { FieldError } from "@/components/ui/field-error";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CTA_SECONDARY } from "./cta-styles";
+import { CTA_SECONDARY } from "@/components/storefront/cart/cta-styles";
 
 /** Mientras la paquetería responde: bloques con la forma de las tarjetas reales (nunca un spinner). */
 function QuoteSkeleton() {

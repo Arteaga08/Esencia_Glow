@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CTA_SECONDARY } from "./_kit/cta-styles";
+import { CTA_SECONDARY } from "@/components/storefront/cart/cta-styles";
 
 const PROPOSALS = [
   {

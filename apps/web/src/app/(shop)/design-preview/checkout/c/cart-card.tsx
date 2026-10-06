@@ -3,8 +3,8 @@
 import { QuantityStepper } from "@/components/storefront/product/quantity-stepper";
 import { FieldError } from "@/components/ui/field-error";
 import { formatMoneyMXN } from "@/lib/format-money";
-import { FOCUS, LABEL } from "../_kit/cta-styles";
-import { LineThumb } from "../_kit/line-thumb";
+import { FOCUS, LABEL } from "@/components/storefront/cart/cta-styles";
+import { LineThumb } from "@/components/storefront/cart/line-thumb";
 import type { PreviewLine } from "../_kit/preview-types";
 
 interface CartCardProps {

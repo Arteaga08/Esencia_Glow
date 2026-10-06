@@ -162,17 +162,22 @@ async function resolveBundleLine(
   };
 }
 
-async function resolveCartLines(
-  inputs: readonly CartLineInput[],
+interface CartCatalog {
+  productsByVariantId: Map<string, LeanProductForCart>;
+  bundlesById: Map<string, LeanBundleForCart>;
+  productsById: Map<string, LeanProductForCart>;
+}
+
+/**
+ * Carga del catálogo que necesitan las líneas (ya normalizadas): los productos
+ * dueños de cada variante pedida, los bundles pedidos y los productos
+ * componentes de esos bundles. Compartida con la lectura pública del carrito
+ * (`cart-public.service.ts`) para que ambas decidan sobre los mismos datos.
+ */
+async function loadCartCatalog(
+  normalized: readonly Pick<CartLineForFingerprint, "itemType" | "itemId">[],
   session?: ClientSession,
-): Promise<ResolvedLine[]> {
-  assertLinesWithinLimits(inputs);
-
-  // Dedupe/fusiona por (itemType, itemId) ANTES de resolver, con el mismo
-  // criterio que `cart-fingerprint.ts` — dos líneas para el mismo producto
-  // en el payload no deben leerse ni facturarse dos veces por separado.
-  const normalized: CartLineForFingerprint[] = normalizeCartLines(inputs);
-
+): Promise<CartCatalog> {
   const productVariantIds = normalized.filter((l) => l.itemType === "product").map((l) => l.itemId);
   const bundleIds = normalized.filter((l) => l.itemType === "bundle").map((l) => l.itemId);
 
@@ -212,6 +217,21 @@ async function resolveCartLines(
   const productsById = new Map(componentProducts.map((p) => [p._id.toString(), p]));
   for (const product of directProducts) productsById.set(product._id.toString(), product);
 
+  return { productsByVariantId, bundlesById, productsById };
+}
+
+async function resolveCartLines(
+  inputs: readonly CartLineInput[],
+  session?: ClientSession,
+): Promise<ResolvedLine[]> {
+  assertLinesWithinLimits(inputs);
+
+  // Dedupe/fusiona por (itemType, itemId) ANTES de resolver, con el mismo
+  // criterio que `cart-fingerprint.ts` — dos líneas para el mismo producto
+  // en el payload no deben leerse ni facturarse dos veces por separado.
+  const normalized: CartLineForFingerprint[] = normalizeCartLines(inputs);
+  const { productsByVariantId, bundlesById, productsById } = await loadCartCatalog(normalized, session);
+
   const resolved: ResolvedLine[] = [];
   for (const line of normalized) {
     resolved.push(
@@ -224,5 +244,13 @@ async function resolveCartLines(
   return resolved;
 }
 
-export { resolveCartLines };
-export type { CartLineInput, ResolvedLine, ResolvedComponent, ResolvedParcelItem };
+export { resolveCartLines, loadCartCatalog, findVariant };
+export type {
+  CartLineInput,
+  ResolvedLine,
+  ResolvedComponent,
+  ResolvedParcelItem,
+  CartCatalog,
+  LeanProductForCart,
+  LeanBundleForCart,
+};

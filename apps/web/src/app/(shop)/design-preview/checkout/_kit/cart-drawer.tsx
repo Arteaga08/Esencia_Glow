@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { X } from "@phosphor-icons/react";
 import { formatMoneyMXN } from "@/lib/format-money";
-import { CartEmpty } from "./cart-empty";
-import { CartLineRow } from "./cart-line-row";
-import { CTA_DISABLED, CTA_PRIMARY, CTA_PRIMARY_LARGE, CTA_SECONDARY, FOCUS, TEXT_LINK } from "./cta-styles";
+import { CartEmpty } from "@/components/storefront/cart/cart-empty";
+import { CartLineRow } from "@/components/storefront/cart/cart-line-row";
+import { CTA_DISABLED, CTA_PRIMARY, CTA_PRIMARY_LARGE, CTA_SECONDARY, FOCUS, TEXT_LINK } from "@/components/storefront/cart/cta-styles";
 import { previewHref } from "./preview-state";
 import type { PreviewData } from "./preview-types";
 import { computeTotals } from "./totals";

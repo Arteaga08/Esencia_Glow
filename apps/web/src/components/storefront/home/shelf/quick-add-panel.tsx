@@ -1,8 +1,60 @@
+import type { CartItemInput } from "@/lib/storefront/cart/cart-store";
 import type { ShelfItem } from "@/lib/storefront/shelf-item";
 import { AddChip } from "./add-chip";
 
 // Hasta tres fichas en una fila, cada una con el mismo ancho; más de tres bajan de renglón.
 const MAX_COLUMNS = 3;
+
+interface QuickAddOption {
+  id: string;
+  label: string;
+  priceCents: number;
+  ariaLabel: string;
+  line: CartItemInput;
+}
+
+/** Datos para pintar la línea al instante en el carrito, antes de que llegue el precio vivo. */
+function snapshotOf(item: ShelfItem, variantLabel: string, priceCents: number): CartItemInput["snapshot"] {
+  const image = item.images[0];
+  return {
+    name: item.name,
+    ...(item.brand ? { brand: item.brand } : {}),
+    variantLabel,
+    priceCents,
+    ...(item.listPriceCents ? { listPriceCents: item.listPriceCents } : {}),
+    ...(image ? { image: { url: image.url, ...(image.alt ? { alt: image.alt } : {}) } } : {}),
+  };
+}
+
+function buildOptions(item: ShelfItem): QuickAddOption[] {
+  if (item.variants.length > 0) {
+    return item.variants.map((variant) => ({
+      id: variant.id,
+      label: variant.label,
+      priceCents: variant.priceCents,
+      ariaLabel: `Agregar ${item.name}, ${variant.label}`,
+      line: { itemType: "product", itemId: variant.id, snapshot: snapshotOf(item, variant.label, variant.priceCents) },
+    }));
+  }
+
+  // Un kit agrega el paquete; un producto de una sola variante, su variante base.
+  const itemId = item.kind === "kit" ? item.id : item.baseVariantId;
+  if (!itemId) return [];
+
+  return [
+    {
+      id: itemId,
+      label: item.kind === "kit" ? "Agregar kit" : "Agregar",
+      priceCents: item.priceCents,
+      ariaLabel: `Agregar ${item.name}`,
+      line: {
+        itemType: item.kind === "kit" ? "bundle" : "product",
+        itemId,
+        snapshot: snapshotOf(item, item.quantityLabel, item.priceCents),
+      },
+    },
+  ];
+}
 
 /**
  * Panel que sube sobre la parte baja de la foto, con las presentaciones como
@@ -12,22 +64,8 @@ const MAX_COLUMNS = 3;
  * la tarjeta; en táctil lo abre el "+" (`open`). Solo mueve `transform` y `opacity`.
  */
 function QuickAddPanel({ item, open }: { item: ShelfItem; open: boolean }) {
-  const options =
-    item.variants.length > 0
-      ? item.variants.map((variant) => ({
-          id: variant.id,
-          label: variant.label,
-          priceCents: variant.priceCents,
-          ariaLabel: `Agregar ${item.name}, ${variant.label}`,
-        }))
-      : [
-          {
-            id: item.id,
-            label: item.kind === "kit" ? "Agregar kit" : "Agregar",
-            priceCents: item.priceCents,
-            ariaLabel: `Agregar ${item.name}`,
-          },
-        ];
+  const options = buildOptions(item);
+  if (options.length === 0) return null;
 
   return (
     <div
@@ -39,6 +77,7 @@ function QuickAddPanel({ item, open }: { item: ShelfItem; open: boolean }) {
       {options.map((option) => (
         <AddChip
           key={option.id}
+          item={option.line}
           label={option.label}
           priceCents={option.priceCents}
           ariaLabel={option.ariaLabel}

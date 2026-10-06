@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { FOCUS } from "./cta-styles";
+import { FOCUS } from "@/components/storefront/cart/cta-styles";
 import { previewHref, type PreviewState } from "./preview-state";
 import { PREVIEW_VIEWS, VIEW_LABELS, VIEW_STATES } from "./preview-types";
 

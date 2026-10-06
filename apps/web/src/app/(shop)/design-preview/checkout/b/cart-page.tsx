@@ -1,12 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { CartEmpty } from "../_kit/cart-empty";
-import { CartLineRow } from "../_kit/cart-line-row";
-import { CTA_DISABLED, CTA_PRIMARY, TEXT_LINK } from "../_kit/cta-styles";
+import { CartEmpty } from "@/components/storefront/cart/cart-empty";
+import { CartLineRow } from "@/components/storefront/cart/cart-line-row";
+import { CTA_DISABLED, CTA_PRIMARY, TEXT_LINK } from "@/components/storefront/cart/cta-styles";
 import { previewHref } from "../_kit/preview-state";
 import type { PreviewData } from "../_kit/preview-types";
-import { TotalsList } from "../_kit/totals-list";
+import { TotalsList } from "@/components/storefront/cart/totals-list";
 import { computeTotals } from "../_kit/totals";
 import { useCartLines } from "../_kit/use-cart-lines";
 

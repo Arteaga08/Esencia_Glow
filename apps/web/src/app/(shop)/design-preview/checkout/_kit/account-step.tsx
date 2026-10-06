@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Envelope } from "@phosphor-icons/react";
 import { Input } from "@/components/ui/input";
 import { Tabs } from "@/components/ui/tabs";
-import { CTA_PRIMARY, CTA_SECONDARY, TEXT_LINK } from "./cta-styles";
+import { CTA_PRIMARY, CTA_SECONDARY, TEXT_LINK } from "@/components/storefront/cart/cta-styles";
 
 type AccountMode = "login" | "register" | "verify" | "session";
 

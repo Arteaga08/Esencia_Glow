@@ -35,6 +35,8 @@ interface ShelfItem {
   variantCount: number;
   /** Vacío en un kit y en un producto de una sola variante. */
   variants: ShelfVariant[];
+  /** Id de la variante base de un producto: es lo que se agrega al carrito cuando no hay selector de presentación. Un kit no la lleva. */
+  baseVariantId?: string;
   badge?: { text: string; color: string };
 }
 
@@ -57,6 +59,7 @@ function toShelfProduct(product: PublicProduct): ShelfItem {
     priceCents: base.price,
     listPriceCents: base.listPrice && base.listPrice > base.price ? base.listPrice : undefined,
     variantCount: product.variants.length,
+    baseVariantId: base.id,
     variants:
       product.variants.length > 1
         ? product.variants.map((variant) => ({ id: variant.id, label: variant.name, priceCents: variant.price }))

@@ -1,8 +1,8 @@
 import { formatMoneyMXN } from "@/lib/format-money";
-import type { PreviewTotals } from "./totals";
+import type { CartTotals } from "@/lib/storefront/cart/cart-view";
 
 interface TotalsListProps {
-  totals: PreviewTotals;
+  totals: CartTotals;
   /** Tamaño del total: "lg" para el resumen principal, "md" en espacios chicos. */
   size?: "md" | "lg";
   className?: string;

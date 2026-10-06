@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import type { PublicShippingAddress, PublicShippingRate } from "@esencia-glow/shared";
 import { AddressFields, addressToFormValue, type AddressFormValue } from "@/components/addresses/address-fields";
-import { CTA_DISABLED, CTA_PRIMARY } from "./cta-styles";
+import { CTA_DISABLED, CTA_PRIMARY } from "@/components/storefront/cart/cta-styles";
 import { QuoteError, QuoteSkeleton } from "./quote-states";
 import { ShippingRates } from "./shipping-rates";
 

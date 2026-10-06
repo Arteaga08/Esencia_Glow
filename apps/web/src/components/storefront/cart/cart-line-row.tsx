@@ -5,13 +5,30 @@ import { FieldError } from "@/components/ui/field-error";
 import { formatMoneyMXN } from "@/lib/format-money";
 import { FOCUS, LABEL } from "./cta-styles";
 import { LineThumb } from "./line-thumb";
-import type { PreviewLine } from "./preview-types";
 
 type RowSize = "sm" | "md";
 
+/**
+ * Lo mínimo que pinta un renglón. `CartLineView` (carrito real) y la línea de
+ * ejemplo de la vista previa lo cumplen de forma estructural.
+ */
+interface CartRowLine {
+  kind: "product" | "kit";
+  brand?: string;
+  name: string;
+  variantLabel: string;
+  priceCents: number;
+  listPriceCents?: number;
+  quantity: number;
+  image?: { url: string; alt: string };
+  available: boolean;
+}
+
 interface CartLineRowProps {
-  line: PreviewLine;
+  line: CartRowLine;
   size?: RowSize;
+  /** Tope de unidades de esta línea (10 por producto, 20 por kit). */
+  maxQuantity?: number;
   onQuantityChange?: (quantity: number) => void;
   onRemove?: () => void;
 }
@@ -26,7 +43,7 @@ const THUMB: Record<RowSize, string> = {
  * y página del carrito); sin ellos es de solo lectura (resumen del checkout).
  * Una línea agotada lo dice con texto pegado al renglón y no suma al total.
  */
-function CartLineRow({ line, size = "md", onQuantityChange, onRemove }: CartLineRowProps) {
+function CartLineRow({ line, size = "md", maxQuantity = 10, onQuantityChange, onRemove }: CartLineRowProps) {
   const editable = Boolean(onQuantityChange && onRemove);
   const lineTotal = line.priceCents * line.quantity;
 
@@ -54,7 +71,7 @@ function CartLineRow({ line, size = "md", onQuantityChange, onRemove }: CartLine
 
         {editable ? (
           <div className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-1 pt-3">
-            {line.available ? <QuantityStepper value={line.quantity} onChange={onQuantityChange!} /> : null}
+            {line.available ? <QuantityStepper value={line.quantity} max={maxQuantity} onChange={onQuantityChange!} /> : null}
             <button
               type="button"
               aria-label={`Quitar ${line.name} del carrito`}
@@ -63,6 +80,11 @@ function CartLineRow({ line, size = "md", onQuantityChange, onRemove }: CartLine
             >
               Quitar
             </button>
+            {line.available && line.quantity >= maxQuantity ? (
+              <p role="status" className="basis-full text-body-sm text-muted-foreground-strong">
+                Máximo {maxQuantity} por pedido.
+              </p>
+            ) : null}
           </div>
         ) : (
           <p className="mt-auto pt-2 text-body-sm text-muted-foreground-strong">
@@ -75,3 +97,4 @@ function CartLineRow({ line, size = "md", onQuantityChange, onRemove }: CartLine
 }
 
 export { CartLineRow };
+export type { CartRowLine };

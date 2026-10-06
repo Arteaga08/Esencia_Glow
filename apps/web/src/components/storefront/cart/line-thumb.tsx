@@ -1,14 +1,14 @@
 import Image from "next/image";
-import type { PreviewLine } from "./preview-types";
+import type { CartRowLine } from "./cart-line-row";
 
 interface LineThumbProps {
-  line: PreviewLine;
+  line: Pick<CartRowLine, "name" | "image" | "available">;
   /** Tamaño y proporción, p. ej. "h-24 w-20". La foto llena el recuadro. */
   className: string;
   sizes: string;
 }
 
-/** Miniatura de una línea del carrito. Sin foto (respaldo sin API) cae a la inicial del producto. */
+/** Miniatura de una línea del carrito. Sin foto cae a la inicial del producto. */
 function LineThumb({ line, className, sizes }: LineThumbProps) {
   return (
     <div className={`relative shrink-0 overflow-hidden rounded-md bg-muted ${line.available ? "" : "opacity-50"} ${className}`}>
