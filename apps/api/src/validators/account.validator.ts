@@ -25,6 +25,7 @@ const MESSAGES = {
   "date.base": "Fecha inválida",
   "date.format": "Fecha inválida",
   "date.max": "La fecha no puede ser futura",
+  "date.min": "La fecha es demasiado antigua",
   "object.min": "No hay nada que actualizar",
 };
 
@@ -44,7 +45,7 @@ const updateProfileSchema = Joi.object({
     .pattern(/^\d{10}$/)
     .allow(null)
     .messages({ "string.pattern.base": "El teléfono debe tener 10 dígitos" }),
-  birthDate: Joi.date().iso().max("now").allow(null),
+  birthDate: Joi.date().iso().min("1900-01-01").max("now").allow(null),
   city: text(120).allow(null),
 })
   .min(1)

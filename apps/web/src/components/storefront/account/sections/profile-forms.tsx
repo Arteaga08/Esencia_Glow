@@ -28,7 +28,11 @@ function validateProfile(firstName: string, lastName: string, phone: string) {
 }
 
 function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
+  // Local, no UTC: pasada la tarde en México `toISOString` ya marca el día siguiente.
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${now.getFullYear()}-${month}-${day}`;
 }
 
 /** Edición de los datos personales. Teléfono, nacimiento y ciudad son opcionales: aquí se capturan, nunca en el alta. */
@@ -96,7 +100,7 @@ function ProfileForm({ profile, onSaved, onCancel }: ProfileFormProps) {
           autoComplete="tel-national"
           error={errors.phone}
         />
-        <Input label="Fecha de nacimiento (opcional)" type="date" value={birthDate} max={todayIso()} onChange={(event) => setBirthDate(event.target.value)} autoComplete="bday" error={errors.birthDate} />
+        <Input label="Fecha de nacimiento (opcional)" type="date" value={birthDate} min="1900-01-01" max={todayIso()} onChange={(event) => setBirthDate(event.target.value)} autoComplete="bday" error={errors.birthDate} />
       </div>
       <Input label="Ciudad (opcional)" value={city} onChange={(event) => setCity(event.target.value)} placeholder="Guadalajara" autoComplete="address-level2" error={errors.city} />
       <div className="flex flex-wrap gap-3">

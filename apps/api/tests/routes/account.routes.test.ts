@@ -81,6 +81,14 @@ describe("routes/account — acceso y perfil", () => {
     expect(res.status).toBe(400);
     expect(Object.keys(res.body.errors)).toEqual(expect.arrayContaining(["phone", "birthDate", "city"]));
   });
+
+  it("400 con birthDate anterior a 1900 (año 0001 no es una fecha de nacimiento)", async () => {
+    const { agent } = await createCustomerSession(app);
+    const res = await agent.patch("/api/v1/account/profile").send({ birthDate: "0001-01-01" });
+
+    expect(res.status).toBe(400);
+    expect(res.body.errors.birthDate).toBe("La fecha es demasiado antigua");
+  });
 });
 
 describe("routes/account — datos de facturación", () => {
