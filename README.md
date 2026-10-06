@@ -926,6 +926,34 @@ Auditoría del flujo de registro/login/recuperación y los arreglos aplicados:
 - **Web**: `Referrer-Policy: no-referrer` y `Cache-Control: no-store` en `/verificar-correo` y
   `/restablecer-contrasena` (el token viaja en la URL).
 
+## Mi Cuenta (`/api/v1/account`, Milestone 3.5b)
+
+Recurso **self-scoped por sesión**: `protect` + `restrictTo(customer)` al tope del router, ninguna ruta
+lleva el id del dueño (todo cuelga de `req.user.id`) y un admin recibe 403. Las escrituras comparten
+`accountWriteRateLimiter` (60/15 min por usuaria, en memoria).
+
+| Ruta | Qué hace |
+|---|---|
+| `GET /account` | DTO único: perfil, direcciones, facturación y `wishlistCount` |
+| `PATCH /account/profile` | nombre, apellido, teléfono (10 dígitos), nacimiento y ciudad; `null` borra un opcional; el correo es solo lectura |
+| `POST /account/addresses` | alta (máx. **5**, 409 al pasar); la primera queda principal |
+| `PATCH /account/addresses/:addressId` | edita |
+| `POST /account/addresses/:addressId/default` | fija la principal y limpia las demás |
+| `DELETE /account/addresses/:addressId` | borra; si era la principal se promueve otra |
+| `PUT` / `DELETE /account/billing-info` | RFC, razón social, uso de CFDI, régimen y CP fiscal. Se **guardan**, no se timbra |
+| `GET /account/wishlist` | guardados hidratados contra el catálogo vivo (precio, foto, disponibilidad) |
+| `POST /account/wishlist` | `{ itemType: "product", itemId }`; máx. **50**, idempotente |
+| `DELETE /account/wishlist/:itemType/:itemId` | quita |
+
+- **Direcciones**: misma forma que la del checkout (el schema `saved-address` fusiona
+  `shippingAddressSchema`, no lo copia) + `label` e `isDefault`. Cada operación es una **escritura
+  atómica** (update con pipeline), no leer-mutar-guardar: dos altas simultáneas no pasan del tope y "a lo
+  más una principal" no depende del flag que mande el cliente (se ignora). Una dirección ajena o
+  inexistente es 404, nunca 403.
+- **Guardados**: solo se guarda `(itemType, itemId)`. Un producto archivado o borrado desaparece de la
+  lista y se poda de la libreta en la misma lectura.
+- Texto libre sin HTML (`<`, `>` y sus entidades se rechazan con error por campo).
+
 ## Dashboard admin (Milestone 2.1 — shell, guard de sesión, login)
 
 Primera sesión de código del Milestone 2 (el sistema de diseño de 2.0 vive en `PRODUCT.md` y

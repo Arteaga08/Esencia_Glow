@@ -206,3 +206,18 @@ export type {
   PublicHomeHeroSlide,
   PublicHomeContent,
 } from "./types/home-content.js";
+export {
+  MAX_ADDRESSES,
+  MAX_WISHLIST_ITEMS,
+  CFDI_USES,
+  FISCAL_REGIMES,
+  RFC_PATTERN,
+} from "./constants/account.js";
+export type { FiscalOption } from "./constants/account.js";
+export type {
+  AccountProfile,
+  SavedAddress,
+  BillingInfo,
+  AccountDto,
+  WishlistItem,
+} from "./types/account.js";

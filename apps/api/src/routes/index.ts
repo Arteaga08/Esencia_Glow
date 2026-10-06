@@ -1,6 +1,7 @@
 import { Router } from "express";
 import healthRoutes from "./health.routes.js";
 import { authRoutes } from "./auth.routes.js";
+import { accountRoutes } from "./account.routes.js";
 import { adminCategoryRoutes } from "./admin-category.routes.js";
 import { adminProductRoutes } from "./admin-product.routes.js";
 import { adminBundleRoutes } from "./admin-bundle.routes.js";
@@ -34,6 +35,7 @@ const v1Router = Router();
 
 v1Router.use(healthRoutes);
 v1Router.use("/auth", authRoutes);
+v1Router.use("/account", accountRoutes);
 v1Router.use("/admin/categories", adminCategoryRoutes);
 v1Router.use("/admin/products", adminProductRoutes);
 v1Router.use("/admin/bundles", adminBundleRoutes);
