@@ -1,10 +1,10 @@
 import { CaretDown } from "@phosphor-icons/react/ssr";
 import type { ReactNode } from "react";
 import { formatMoneyMXN } from "@/lib/format-money";
-import { CartLineRow } from "./cart-line-row";
-import { FOCUS } from "./cta-styles";
+import { CartLineRow } from "@/components/storefront/cart/cart-line-row";
+import { FOCUS } from "@/components/storefront/cart/cta-styles";
 import type { PreviewLine } from "./preview-types";
-import { TotalsList } from "./totals-list";
+import { TotalsList } from "@/components/storefront/cart/totals-list";
 import type { PreviewTotals } from "./totals";
 
 interface SummaryBodyProps {

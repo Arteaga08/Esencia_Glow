@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { PublicShippingAddress, PublicShippingRate } from "@esencia-glow/shared";
-import { TEXT_LINK } from "./cta-styles";
+import { TEXT_LINK } from "@/components/storefront/cart/cta-styles";
 import { rateSummary } from "./shipping-labels";
 
 /** Un paso ya terminado, en dos renglones y con "Cambiar": así se ve en el acordeón y en la página única. */

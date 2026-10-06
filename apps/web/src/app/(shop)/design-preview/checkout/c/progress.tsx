@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { FOCUS } from "../_kit/cta-styles";
+import { FOCUS } from "@/components/storefront/cart/cta-styles";
 import { previewHref } from "../_kit/preview-state";
 
 type ProgressView = "cuenta" | "envio" | "pago" | "listo";

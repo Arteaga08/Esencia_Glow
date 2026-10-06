@@ -6,7 +6,7 @@ import { CreditCard, Storefront } from "@phosphor-icons/react";
 import { FieldError } from "@/components/ui/field-error";
 import { Input } from "@/components/ui/input";
 import { formatMoneyMXN } from "@/lib/format-money";
-import { CTA_DISABLED, CTA_PRIMARY, FOCUS, LABEL, TEXT_LINK } from "./cta-styles";
+import { CTA_DISABLED, CTA_PRIMARY, FOCUS, LABEL, TEXT_LINK } from "@/components/storefront/cart/cta-styles";
 
 type Method = "card" | "oxxo";
 

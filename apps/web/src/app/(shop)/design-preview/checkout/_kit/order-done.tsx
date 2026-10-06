@@ -2,11 +2,11 @@ import Link from "next/link";
 import type { PublicShippingRate } from "@esencia-glow/shared";
 import { CheckCircle } from "@phosphor-icons/react/ssr";
 import { formatMoneyMXN } from "@/lib/format-money";
-import { CartLineRow } from "./cart-line-row";
-import { CTA_PRIMARY, CTA_SECONDARY, LABEL } from "./cta-styles";
+import { CartLineRow } from "@/components/storefront/cart/cart-line-row";
+import { CTA_PRIMARY, CTA_SECONDARY, LABEL } from "@/components/storefront/cart/cta-styles";
 import type { PreviewData } from "./preview-types";
 import { rateSummary } from "./shipping-labels";
-import { TotalsList } from "./totals-list";
+import { TotalsList } from "@/components/storefront/cart/totals-list";
 import type { PreviewTotals } from "./totals";
 
 interface OrderDoneProps {

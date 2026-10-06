@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { CartDrawer } from "../../components/storefront/cart/cart-drawer";
 import { SiteFooter } from "../../components/storefront/layout/footer/site-footer";
 import { SiteHeader } from "../../components/storefront/layout/header/site-header";
 
@@ -8,6 +9,7 @@ export default function ShopLayout({ children }: { children: ReactNode }) {
       <SiteHeader />
       {children}
       <SiteFooter />
+      <CartDrawer />
     </>
   );
 }

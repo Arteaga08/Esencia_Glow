@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { AccountStep } from "../_kit/account-step";
 import { SummaryBody, SummaryDisclosure } from "../_kit/checkout-summary";
-import { TEXT_LINK } from "../_kit/cta-styles";
+import { TEXT_LINK } from "@/components/storefront/cart/cta-styles";
 import { PaymentStep } from "../_kit/payment-step";
 import { previewHref } from "../_kit/preview-state";
 import type { PreviewData } from "../_kit/preview-types";

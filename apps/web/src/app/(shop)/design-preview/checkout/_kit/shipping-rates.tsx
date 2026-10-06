@@ -3,7 +3,7 @@
 import type { PublicShippingRate } from "@esencia-glow/shared";
 import { Badge } from "@/components/ui/badge";
 import { formatMoneyMXN } from "@/lib/format-money";
-import { FOCUS, LABEL } from "./cta-styles";
+import { FOCUS, LABEL } from "@/components/storefront/cart/cta-styles";
 import { CARRIER_NAMES, daysLabel } from "./shipping-labels";
 
 interface ShippingRatesProps {

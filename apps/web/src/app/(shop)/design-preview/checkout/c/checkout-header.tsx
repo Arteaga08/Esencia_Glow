@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { LockKey } from "@phosphor-icons/react/ssr";
 import { BrandLogo } from "@/components/storefront/layout/header/brand-logo";
-import { TEXT_LINK } from "../_kit/cta-styles";
+import { TEXT_LINK } from "@/components/storefront/cart/cta-styles";
 
 /**
  * Header mínimo del checkout: solo marca, salida al carrito y la señal de
