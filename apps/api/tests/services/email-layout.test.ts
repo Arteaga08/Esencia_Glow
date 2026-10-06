@@ -89,4 +89,61 @@ describe("services/email-layout — renderTransactionalEmail", () => {
     const html = renderTransactionalEmail({ preheader: "x", title: "x", paragraphs: ["Cuerpo del mensaje"], disclaimer: "x" });
     expect(html).toMatch(/font-size:\s*16px/);
   });
+
+  it("los bloques de datos son texto plano: se escapan dentro del shell", () => {
+    const html = renderTransactionalEmail({
+      preheader: "x",
+      title: "x",
+      paragraphs: ["x"],
+      disclaimer: "x",
+      status: { label: "<b>Pago</b>", tone: "mint" },
+      facts: [{ label: "Folio", value: "<i>EG-1</i>" }],
+      order: { lines: [{ name: "<script>x</script>", detail: "150 ml", quantity: 2, totalCents: 78000 }] },
+    });
+
+    expect(html).not.toContain("<script>");
+    expect(html).not.toContain("<i>EG-1</i>");
+    expect(html).toContain("&lt;script&gt;");
+    expect(html).toMatch(/\$780\.00/);
+    expect(html).not.toContain("<style");
+  });
+
+  it("el desglose de totales solo aparece cuando se pasan", () => {
+    const withTotals = renderTransactionalEmail({
+      preheader: "x",
+      title: "x",
+      paragraphs: ["x"],
+      disclaimer: "x",
+      order: {
+        lines: [{ name: "Gel", quantity: 1, totalCents: 38900 }],
+        totals: { subtotalCents: 38900, shippingCents: 9900, totalCents: 48800 },
+      },
+    });
+    const without = renderTransactionalEmail({
+      preheader: "x",
+      title: "x",
+      paragraphs: ["x"],
+      disclaimer: "x",
+      order: { lines: [{ name: "Gel", quantity: 1 }] },
+    });
+
+    expect(withTotals).toContain("Subtotal");
+    expect(withTotals).toMatch(/\$488\.00/);
+    expect(without).not.toContain("Subtotal");
+  });
+
+  it("el bloque de cupón y el de guía renderizan sus datos", () => {
+    const html = renderTransactionalEmail({
+      preheader: "x",
+      title: "x",
+      paragraphs: ["x"],
+      disclaimer: "x",
+      coupon: { code: "ANA15", discountLabel: "15% de descuento", message: "Gracias" },
+      guide: { carrier: "Estafeta", trackingNumber: "EST1" },
+    });
+
+    expect(html).toContain("ANA15");
+    expect(html).toContain("Estafeta");
+    expect(html).toContain("EST1");
+  });
 });

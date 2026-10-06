@@ -11,6 +11,7 @@ import { recordAudit } from "./audit.service.js";
 import { logger } from "../config/logger.js";
 import { closePendingOrder } from "./order-closing.service.js";
 import type { LeanOrder } from "./order-dto.js";
+import { notifyOrderStatusEmail } from "./order-status-email.js";
 
 /**
  * Transiciones de estado + guía del panel admin sobre una orden (§J del
@@ -140,6 +141,7 @@ async function changeOrderStatus(input: ChangeOrderStatusInput): Promise<LeanOrd
     await recordAudit({ action: OrderAction.ORDER_SHIPMENT_UPDATED, actorId: input.adminId, targetId: result.order._id });
   }
 
+  notifyOrderStatusEmail(input.orderId, input.targetStatus);
   return result.order;
 }
 

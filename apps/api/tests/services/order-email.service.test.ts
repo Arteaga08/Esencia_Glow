@@ -55,6 +55,20 @@ describe("services/order-email", () => {
     expect(call.idempotencyKey).toBe(`order-${order._id.toString()}-paid`);
   });
 
+  it("sendPaymentReceivedEmail: lleva el recuadro del pedido con líneas y total en pesos", async () => {
+    const order = await seedOrder();
+    const fake = buildFakeMailProvider();
+    __setMailProviderForTests(fake);
+
+    await sendPaymentReceivedEmail(order._id.toString());
+
+    const html = fake.calls[0]!.html;
+    expect(html).toContain("Tu pedido");
+    expect(html).toContain("Subtotal");
+    expect(html).toMatch(/\$\s?[\d,]+\.00/);
+    expect(html).toContain("1×");
+  });
+
   it("sendOxxoVoucherEmail: incluye el botón a la ficha y la fecha de vencimiento en es-MX", async () => {
     const order = await seedOrder();
     const fake = buildFakeMailProvider();

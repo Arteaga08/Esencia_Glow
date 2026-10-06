@@ -3,8 +3,8 @@ import { sendEmail } from "./mail-provider.js";
 import { renderTransactionalEmail } from "./email-layout.js";
 
 /**
- * Plantillas de correo transaccional del flujo de auth — migradas al shell
- * compartido (§8 del plan de 1.6.3): mismo copy y las mismas firmas
+ * Plantillas de correo transaccional del flujo de auth sobre el shell
+ * compartido (§8 del plan de 1.6.3, rediseñado en 3.6): las mismas firmas
  * exportadas que antes de 1.6.3 (los spies de `auth.routes.test.ts` siguen
  * funcionando sin tocar ese archivo). El envío es best-effort y no
  * bloqueante (ver `mail-provider.ts`) — un fallo aquí nunca revierte el
@@ -24,9 +24,13 @@ async function sendVerificationEmail(to: string, token: string): Promise<void> {
     to,
     subject: "Confirma tu correo — Esencia Glow",
     html: renderTransactionalEmail({
-      preheader: "Confirma tu correo para activar tu cuenta.",
-      title: "Gracias por registrarte en Esencia Glow",
-      paragraphs: ["Confirma tu correo para activar tu cuenta."],
+      preheader: "Un paso más para activar tu cuenta.",
+      status: { label: "Cuenta nueva", tone: "rose" },
+      title: "Confirma tu correo",
+      paragraphs: [
+        "Gracias por crear tu cuenta en Esencia Glow.",
+        "Confirma tu correo para activarla y empezar a comprar.",
+      ],
       button: { label: "Confirmar mi correo", url: verificationUrl(token) },
       disclaimer: "Este enlace vence en 24 horas. Si tú no creaste esta cuenta, ignora este mensaje.",
     }),
@@ -38,10 +42,14 @@ async function sendPasswordResetEmail(to: string, token: string): Promise<void> 
     to,
     subject: "Restablece tu contraseña — Esencia Glow",
     html: renderTransactionalEmail({
-      preheader: "Recibimos una solicitud para restablecer tu contraseña.",
+      preheader: "Usa este enlace para elegir una contraseña nueva.",
+      status: { label: "Seguridad", tone: "rose" },
       title: "Restablece tu contraseña",
-      paragraphs: ["Recibimos una solicitud para restablecer tu contraseña."],
-      button: { label: "Restablecer mi contraseña", url: resetUrl(token) },
+      paragraphs: [
+        "Recibimos una solicitud para cambiar la contraseña de tu cuenta.",
+        "El enlace funciona una sola vez. Al abrirlo podrás elegir una contraseña nueva.",
+      ],
+      button: { label: "Elegir contraseña nueva", url: resetUrl(token) },
       disclaimer:
         "Este enlace vence en 15 minutos. Si tú no lo solicitaste, ignora este mensaje — tu contraseña actual sigue funcionando.",
     }),
@@ -54,6 +62,7 @@ async function sendPasswordChangedNotice(to: string): Promise<void> {
     subject: "Tu contraseña cambió — Esencia Glow",
     html: renderTransactionalEmail({
       preheader: "Tu contraseña se actualizó correctamente.",
+      status: { label: "Seguridad", tone: "rose" },
       title: "Tu contraseña cambió",
       paragraphs: ["Tu contraseña se actualizó correctamente."],
       disclaimer: "Si no reconoces este cambio, contáctanos de inmediato.",
