@@ -6,6 +6,7 @@ import { AddToCartButton } from "./add-to-cart-button";
 import { BenefitTags } from "./benefit-tags";
 import { ProductHeading } from "./product-heading";
 import { QuantityStepper } from "./quantity-stepper";
+import { SaveButton } from "./save-button";
 import { SkinTypes } from "./skin-types";
 import { VariantPicker } from "./variant-picker";
 
@@ -43,6 +44,7 @@ function PurchasePanel({ product }: { product: ProductView }) {
           ariaLabel={`Agregar ${quantity} ${product.name}, ${variant.label}`}
           className="flex-1"
         />
+        <SaveButton productId={product.id} slug={product.slug} name={product.name} />
       </div>
     </div>
   );

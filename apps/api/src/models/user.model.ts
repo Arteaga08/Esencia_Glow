@@ -1,11 +1,13 @@
 import bcrypt from "bcrypt";
-import { Schema, model, type HydratedDocument, type Model } from "mongoose";
-import { UserRole } from "@esencia-glow/shared";
+import { Schema, model, type HydratedDocument, type Model, type Types } from "mongoose";
+import { CFDI_USES, FISCAL_REGIMES, RFC_PATTERN, UserRole } from "@esencia-glow/shared";
+import { savedAddressSchema, type SavedAddressAttrs } from "./saved-address.schema.js";
 
 /**
- * Identidad + auth + flag de staff. Documento ligero: direcciones, orden de
- * compra y suscripción son documentos propios ligados por `userId` en
- * milestones posteriores — no crecen este modelo.
+ * Identidad + auth + flag de staff + perfil de "Mi Cuenta" (3.5b). Las
+ * colecciones chicas y acotadas por clienta (libreta de direcciones, máx. 5;
+ * guardados, máx. 50) van embebidas con su tope; las órdenes y la suscripción
+ * siguen siendo documentos propios ligados por `userId` — no crecen este modelo.
  *
  * `password` y `twoFactor.secret` van `select: false`
  * (BACKEND_SECURITY_GUIDELINES.md §1-2): se recuperan explícitamente con
@@ -22,6 +24,20 @@ interface TwoFactorSubdocument {
   pendingSince?: Date;
 }
 
+interface BillingInfoAttrs {
+  rfc: string;
+  legalName: string;
+  cfdiUse?: string;
+  fiscalRegime?: string;
+  postalCode: string;
+}
+
+interface WishlistEntryAttrs {
+  itemType: "product";
+  itemId: Types.ObjectId;
+  addedAt: Date;
+}
+
 interface UserAttrs {
   email: string;
   password: string;
@@ -32,6 +48,12 @@ interface UserAttrs {
   sessionVersion: number;
   twoFactor: TwoFactorSubdocument;
   passwordChangedAt?: Date;
+  phone?: string;
+  birthDate?: Date;
+  city?: string;
+  addresses: SavedAddressAttrs[];
+  billingInfo?: BillingInfoAttrs;
+  wishlist: WishlistEntryAttrs[];
 }
 
 interface UserMethods {
@@ -46,6 +68,28 @@ const twoFactorSchema = new Schema<TwoFactorSubdocument>(
     secret: { type: String, select: false },
     enabled: { type: Boolean, default: false },
     pendingSince: { type: Date },
+  },
+  { _id: false },
+);
+
+// Todo opcional de punta a punta: se captura para no pedirlo de nuevo, hoy no se
+// timbra ninguna factura con estos datos.
+const billingInfoSchema = new Schema<BillingInfoAttrs>(
+  {
+    rfc: { type: String, required: true, trim: true, uppercase: true, match: RFC_PATTERN },
+    legalName: { type: String, required: true, trim: true, maxlength: 200 },
+    cfdiUse: { type: String, enum: CFDI_USES.map((option) => option.value) },
+    fiscalRegime: { type: String, enum: FISCAL_REGIMES.map((option) => option.value) },
+    postalCode: { type: String, required: true, trim: true, match: /^\d{5}$/ },
+  },
+  { _id: false },
+);
+
+const wishlistEntrySchema = new Schema<WishlistEntryAttrs>(
+  {
+    itemType: { type: String, enum: ["product"], required: true },
+    itemId: { type: Schema.Types.ObjectId, required: true },
+    addedAt: { type: Date, default: Date.now },
   },
   { _id: false },
 );
@@ -76,6 +120,12 @@ const userSchema = new Schema<UserAttrs, UserModel, UserMethods>(
     sessionVersion: { type: Number, default: 0 },
     twoFactor: { type: twoFactorSchema, default: () => ({ enabled: false }) },
     passwordChangedAt: { type: Date },
+    phone: { type: String, trim: true, match: /^\d{10}$/ },
+    birthDate: { type: Date },
+    city: { type: String, trim: true, maxlength: 120 },
+    addresses: { type: [savedAddressSchema], default: [] },
+    billingInfo: { type: billingInfoSchema },
+    wishlist: { type: [wishlistEntrySchema], default: [] },
   },
   { timestamps: true },
 );
@@ -105,4 +155,4 @@ userSchema.index({ role: 1, createdAt: -1 });
 const User = model<UserAttrs, UserModel>("User", userSchema);
 
 export { User, SALT_ROUNDS };
-export type { UserDocument, UserAttrs, TwoFactorSubdocument };
+export type { UserDocument, UserAttrs, TwoFactorSubdocument, BillingInfoAttrs, WishlistEntryAttrs };

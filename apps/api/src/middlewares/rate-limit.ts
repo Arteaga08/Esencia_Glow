@@ -245,6 +245,19 @@ const refundRateLimiter = createRateLimiter({
 });
 
 /**
+ * Escrituras de "Mi Cuenta" (Milestone 3.5b): perfil, direcciones, facturación y
+ * guardados. Barato por operación, pero es PII editable por una sesión: el tope
+ * evita que una sesión robada o un script martille la libreta. Cuenta por USUARIA
+ * (va DESPUÉS de `protect`), no por IP.
+ */
+const accountWriteRateLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  message: "Demasiados cambios en tu cuenta, intenta de nuevo en unos minutos.",
+  keyGenerator: (req) => req.user?.id ?? req.ip ?? "unknown",
+});
+
+/**
  * `POST /shipping/quotes` (Milestone 1.9): cada cotización es una llamada a un
  * tercero (Skydropx) dentro del checkout, con su propio costo y límite de
  * ~2 req/s por cuenta — un cliente descontrolado no debe agotar la cuota que
@@ -305,4 +318,5 @@ export {
   shippingQuoteRateLimiter,
   subscriptionManageRateLimiter,
   paymentMethodRateLimiter,
+  accountWriteRateLimiter,
 };
