@@ -1,4 +1,4 @@
-import type { ApiErrorResponse, ApiResponse, ApiSuccessResponse } from "@esencia-glow/shared";
+import type { ApiErrorResponse, ApiResponse, ApiSuccessResponse, ErrorCode } from "@esencia-glow/shared";
 import { API_URL } from "./config";
 
 /**
@@ -9,10 +9,13 @@ import { API_URL } from "./config";
 class ApiRequestError extends Error {
   readonly status: number;
   readonly fieldErrors?: Record<string, string>;
+  /** Código estable del API: se decide por él, nunca por el texto del mensaje. */
+  readonly code?: ErrorCode;
 
   constructor(status: number, response: ApiErrorResponse) {
     super(response.message);
     this.name = "ApiRequestError";
+    this.code = response.code;
     this.status = status;
     this.fieldErrors = response.errors;
   }

@@ -1,6 +1,6 @@
 import bcrypt from "bcrypt";
 import type { Types } from "mongoose";
-import { AuthAction, UserRole, type PublicUser, type TwoFactorEnrollment } from "@esencia-glow/shared";
+import { AuthAction, ErrorCode, UserRole, type PublicUser, type TwoFactorEnrollment } from "@esencia-glow/shared";
 import { User, SALT_ROUNDS, type UserDocument } from "../models/user.model.js";
 import { AppError } from "../utils/app-error.js";
 import { signAccessToken, signPendingEnrollmentToken, signPendingTwoFactorToken } from "../utils/jwt.js";
@@ -156,7 +156,7 @@ async function login(input: LoginInput, meta: SessionMeta): Promise<LoginResult>
   // El 403 de verificación solo llega tras validar la contraseña — antes de
   // eso sería un oráculo de enumeración de cuentas.
   if (!user.emailVerified) {
-    throw new AppError("Verifica tu correo antes de iniciar sesión", 403);
+    throw new AppError("Verifica tu correo antes de iniciar sesión", 403, undefined, ErrorCode.EMAIL_NOT_VERIFIED);
   }
 
   if (user.twoFactor.enabled) {
@@ -250,7 +250,7 @@ async function completeTwoFactorEnrollment(
 ): Promise<{ session: AuthenticatedSession; user: ReturnType<typeof buildPublicUser> }> {
   const user = await assertPendingEnrollment(userId, sessionVersion);
   if (!user.emailVerified) {
-    throw new AppError("Verifica tu correo antes de iniciar sesión", 403);
+    throw new AppError("Verifica tu correo antes de iniciar sesión", 403, undefined, ErrorCode.EMAIL_NOT_VERIFIED);
   }
 
   await enableTwoFactor(user._id, code);

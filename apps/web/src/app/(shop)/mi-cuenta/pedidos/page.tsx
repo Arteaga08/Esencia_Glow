@@ -1,5 +1,5 @@
 import type { PaginationMeta, PublicOrder } from "@esencia-glow/shared";
-import { LoadError } from "@/components/storefront/account/shared/load-error";
+import { LoadFailure } from "@/components/storefront/account/shared/load-failure";
 import { SectionTitle } from "@/components/storefront/account/shared/section-title";
 import { OrdersSection } from "@/components/storefront/account/sections/orders-section";
 import { ORDERS_PAGE_SIZE } from "@/components/storefront/account/sections/orders-page-size";
@@ -13,7 +13,7 @@ export default async function OrdersPage() {
       {orders.status === "ok" ? (
         <OrdersSection initialOrders={orders.data} initialMeta={orders.meta ?? { total: orders.data.length, page: 1, limit: ORDERS_PAGE_SIZE, pages: 1 }} />
       ) : (
-        <LoadError what="tus pedidos" />
+        <LoadFailure status={orders.status} what="tus pedidos" />
       )}
     </>
   );

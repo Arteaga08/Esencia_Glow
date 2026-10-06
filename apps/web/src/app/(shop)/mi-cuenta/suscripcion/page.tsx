@@ -1,5 +1,5 @@
 import type { MySubscription } from "@esencia-glow/shared";
-import { LoadError } from "@/components/storefront/account/shared/load-error";
+import { LoadFailure } from "@/components/storefront/account/shared/load-failure";
 import { SectionTitle } from "@/components/storefront/account/shared/section-title";
 import { SubscriptionSection } from "@/components/storefront/account/sections/subscription-section";
 import { fetchAccountData } from "@/lib/storefront/account-server";
@@ -9,7 +9,7 @@ export default async function SubscriptionPage() {
   return (
     <>
       <SectionTitle>Mi suscripción</SectionTitle>
-      {result.status === "ok" ? <SubscriptionSection initial={result.data.subscription} /> : <LoadError what="tu suscripción" />}
+      {result.status === "ok" ? <SubscriptionSection initial={result.data.subscription} /> : <LoadFailure status={result.status} what="tu suscripción" />}
     </>
   );
 }

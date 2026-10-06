@@ -7,14 +7,19 @@ import { buildQueryString, type QueryParams } from "../api";
 /**
  * Lectura server-side de datos de Mi cuenta. A diferencia de `fetchServerJson`
  * distingue "no existe / no es tuyo" (404) de "no pudimos traerlo" (red, 5xx,
- * sesión vencida entre el layout y esta página): la ficha de un pedido ajeno es
+ * y, aparte, sesión vencida: `unauthorized`): la ficha de un pedido ajeno es
  * un 404, no un "reintentar".
  */
-type AccountFetch<TData, TMeta> = { status: "ok"; data: TData; meta?: TMeta } | { status: "notFound" } | { status: "error" };
+type AccountFetch<TData, TMeta> =
+  | { status: "ok"; data: TData; meta?: TMeta }
+  | { status: "notFound" }
+  /** Sin access token válido: el layout ya no se vuelve a ejecutar en la navegación cliente, así que la página lo trata. */
+  | { status: "unauthorized" }
+  | { status: "error" };
 
 async function fetchAccountData<TData, TMeta = never>(path: string, query?: QueryParams): Promise<AccountFetch<TData, TMeta>> {
   const accessToken = (await cookies()).get("access_token")?.value;
-  if (!accessToken) return { status: "error" };
+  if (!accessToken) return { status: "unauthorized" };
 
   let response: Response;
   try {
@@ -22,6 +27,8 @@ async function fetchAccountData<TData, TMeta = never>(path: string, query?: Quer
   } catch {
     return { status: "error" };
   }
+
+  if (response.status === 401) return { status: "unauthorized" };
 
   // 400 = id mal formado: para quien lo escribió a mano es lo mismo que "no existe".
   if (response.status === 404 || response.status === 400) return { status: "notFound" };

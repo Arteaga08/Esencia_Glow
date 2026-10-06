@@ -1,5 +1,5 @@
 import type { AccountDto, MySubscription, PaginationMeta, PublicOrder } from "@esencia-glow/shared";
-import { LoadError } from "@/components/storefront/account/shared/load-error";
+import { LoadFailure } from "@/components/storefront/account/shared/load-failure";
 import { Overview } from "@/components/storefront/account/overview";
 import { fetchAccountData } from "@/lib/storefront/account-server";
 import { getCustomerSession } from "@/lib/storefront/customer-session";
@@ -16,7 +16,7 @@ export default async function AccountHomePage() {
   ]);
 
   // La cuenta es lo mínimo para pintar algo útil; pedidos y suscripción degradan a "vacío".
-  if (account.status !== "ok") return <LoadError what="tu cuenta" />;
+  if (account.status !== "ok") return <LoadFailure status={account.status} what="tu cuenta" />;
 
   return (
     <Overview

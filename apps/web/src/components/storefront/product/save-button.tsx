@@ -4,7 +4,8 @@ import { Star } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { WishlistItem } from "@esencia-glow/shared";
-import { ApiRequestError, apiRequest } from "@/lib/api";
+import { ApiRequestError } from "@/lib/api";
+import { accountRequest } from "@/lib/storefront/account-api";
 import { classifyError } from "@/lib/storefront/auth-errors";
 import { clearAnonymous, isKnownAnonymous, markAnonymous } from "@/lib/storefront/session-hint";
 import { FOCUS } from "./product-styles";
@@ -17,10 +18,16 @@ interface SaveButtonProps {
 
 type SaveState = "unknown" | "unsaved" | "saved";
 
+// La ficha es pública: si la sesión no se puede recuperar, este botón decide
+// (estrella vacía / mandar a ingresar con regreso aquí), no `accountRequest`.
+const QUIET = { redirectOnFailure: false } as const;
+
 /**
  * Estrella de "guardar" de la ficha de producto (Mi cuenta → Guardados). Sin
- * sesión no pide nada al API de entrada (ver `session-hint`) y, al tocarla,
- * manda a ingresar con `?redirect=` de regreso a este producto.
+ * sesión no pide nada al API de entrada (ver `session-hint`). Con el access
+ * token vencido refresca en silencio (`accountRequest`): solo si el refresco
+ * también falla se marca anónima y, al tocarla, manda a ingresar con
+ * `?redirect=` de regreso a este producto.
  */
 function SaveButton({ productId, slug, name }: SaveButtonProps) {
   const router = useRouter();
@@ -34,13 +41,13 @@ function SaveButton({ productId, slug, name }: SaveButtonProps) {
     // Sin sesión ya conocida no se pregunta al API (ver `session-hint`).
     const lookup: Promise<SaveState> = isKnownAnonymous()
       ? Promise.resolve("unsaved")
-      : apiRequest<WishlistItem[]>("/api/v1/account/wishlist", { authenticated: true })
+      : accountRequest<WishlistItem[]>("/api/v1/account/wishlist", QUIET)
           .then((result): SaveState => {
             clearAnonymous();
             return result.data.some((item) => item.itemId === productId) ? "saved" : "unsaved";
           })
           .catch((error: unknown): SaveState => {
-            // 401 = sin sesión; 403 = una cuenta del equipo (no tiene guardados). Ambos: estrella vacía.
+            // 401 que sobrevivió al refresco = sin sesión; 403 = una cuenta del equipo (no tiene guardados). Ambos: estrella vacía.
             if (error instanceof ApiRequestError && error.status === 401) markAnonymous();
             return "unsaved";
           });
@@ -63,11 +70,11 @@ function SaveButton({ productId, slug, name }: SaveButtonProps) {
     setMessage("");
     try {
       if (state === "saved") {
-        await apiRequest(`/api/v1/account/wishlist/product/${productId}`, { method: "DELETE", authenticated: true });
+        await accountRequest(`/api/v1/account/wishlist/product/${productId}`, { method: "DELETE", ...QUIET });
         setState("unsaved");
         setMessage("Quitado de guardados");
       } else {
-        await apiRequest("/api/v1/account/wishlist", { method: "POST", authenticated: true, body: { itemType: "product", itemId: productId } });
+        await accountRequest("/api/v1/account/wishlist", { method: "POST", body: { itemType: "product", itemId: productId }, ...QUIET });
         setState("saved");
         setMessage("Guardado en tu cuenta");
       }

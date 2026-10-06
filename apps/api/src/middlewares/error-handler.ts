@@ -68,6 +68,7 @@ function errorHandler(error: unknown, req: Request, res: Response, _next: NextFu
   res.status(normalized.statusCode).json({
     status: normalized.statusCode >= 500 ? "error" : "fail",
     message,
+    ...(normalized.code ? { code: normalized.code } : {}),
     ...(normalized.errors ? { errors: normalized.errors } : {}),
     ...(env.isDevelopment && error instanceof Error ? { stack: error.stack } : {}),
   });

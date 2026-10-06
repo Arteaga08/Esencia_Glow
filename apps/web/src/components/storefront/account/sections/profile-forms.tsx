@@ -5,8 +5,9 @@ import { useState, type FormEvent } from "react";
 import type { AccountDto, AccountProfile } from "@esencia-glow/shared";
 import { FieldError } from "@/components/ui/field-error";
 import { Input } from "@/components/ui/input";
-import { accountRequest, goToLogin } from "@/lib/storefront/account-api";
+import { accountRequest } from "@/lib/storefront/account-api";
 import { classifyError } from "@/lib/storefront/auth-errors";
+import { mapPasswordChangeFailure } from "../shared/form-failures";
 import { describeMissing } from "../shared/password";
 import { PasswordField } from "../shared/password-field";
 import { CTA_DISABLED, CTA_PRIMARY, CTA_SECONDARY } from "../shared/styles";
@@ -147,21 +148,17 @@ function ChangePasswordForm({ onSaved, onCancel }: ChangePasswordFormProps) {
 
     setSaving(true);
     try {
-      // Aquí un 401 puede ser "la actual está mal": no se trata como sesión vencida.
+      // Un 401 con `code` es "la actual está mal"; uno sin `code` es sesión vencida y
+      // `accountRequest` ya refrescó y reintentó (sin perder lo escrito en el formulario).
       await accountRequest("/api/v1/auth/password", {
         method: "PATCH",
-        refreshOn401: false,
         body: { currentPassword: current, newPassword: next },
       });
       onSaved();
     } catch (caught) {
-      const failure = classifyError(caught);
-      if (failure.kind === "unauthorized") {
-        if (/actual/i.test(failure.message)) setErrors({ current: "Esa no es tu contraseña actual. Revísala e inténtalo de nuevo." });
-        else goToLogin();
-      } else if (failure.fieldErrors.newPassword) setErrors({ next: failure.fieldErrors.newPassword });
-      else if (failure.kind === "invalid" && /filtraciones/i.test(failure.message)) setErrors({ next: failure.message });
-      else setFormError(failure.message);
+      const mapped = mapPasswordChangeFailure(classifyError(caught));
+      setErrors(mapped.errors);
+      setFormError(mapped.formError);
     } finally {
       setSaving(false);
     }
