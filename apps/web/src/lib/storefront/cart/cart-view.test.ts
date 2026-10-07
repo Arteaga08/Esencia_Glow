@@ -80,4 +80,24 @@ describe("computeTotals", () => {
   it("un carrito vacío da ceros", () => {
     expect(computeTotals([], null)).toMatchObject({ subtotalCents: 0, totalCents: 0, taxCents: 0, itemCount: 0 });
   });
+
+  describe("con descuento de cupón", () => {
+    it("resta el descuento del total y desglosa el IVA del total ya descontado", () => {
+      const totals = computeTotals(view, 9900, 3000);
+      expect(totals.subtotalCents).toBe(20000);
+      expect(totals.discountCents).toBe(3000);
+      expect(totals.totalCents).toBe(20000 - 3000 + 9900);
+      // neto = round(26900 * 10000 / 11600) ; IVA = total - neto
+      expect(totals.taxCents).toBe(26900 - Math.round((26900 * 10_000) / 11_600));
+    });
+
+    it("sin descuento no agrega el campo (el carrito sigue igual)", () => {
+      expect(computeTotals(view, null)).not.toHaveProperty("discountCents");
+      expect(computeTotals(view, null, 0)).not.toHaveProperty("discountCents");
+    });
+
+    it("nunca deja el total por debajo de cero", () => {
+      expect(computeTotals(view, null, 999999).totalCents).toBe(0);
+    });
+  });
 });

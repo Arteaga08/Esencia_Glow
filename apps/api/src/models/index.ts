@@ -2,6 +2,8 @@ import { AuditLog } from "./audit-log.model.js";
 import { Badge } from "./badge.model.js";
 import { Bundle } from "./bundle.model.js";
 import { Category } from "./category.model.js";
+import { Coupon } from "./coupon.model.js";
+import { CouponUsage } from "./coupon-usage.model.js";
 import { HomeContent } from "./home-content.model.js";
 import { Inventory } from "./inventory.model.js";
 import { Order } from "./order.model.js";
@@ -38,6 +40,8 @@ const models = [
   Badge,
   Bundle,
   Category,
+  Coupon,
+  CouponUsage,
   HomeContent,
   Inventory,
   Order,

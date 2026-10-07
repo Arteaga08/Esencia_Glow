@@ -1,8 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { Package } from "@phosphor-icons/react";
+import { Package, Ticket } from "@phosphor-icons/react";
+import { Button } from "@/components/ui/button";
+import { GiveCouponModal } from "@/components/coupons/give-coupon-modal";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
@@ -23,12 +26,14 @@ import { ADMIN_ROUTES } from "@/lib/admin-routes";
  * reciente, Pedidos. El badge de suscripción va junto al nombre SIEMPRE
  * visible (Sí/No es honesto incluso sin cuenta — PRODUCT.md principio 3,
  * "el estado siempre es honesto"), a pedido de Manuel al elegir esta
- * propuesta.
+ * propuesta. "Dar cupón" (Milestone 3.7) crea un cupón personal y se lo manda
+ * por correo.
  */
 export default function CustomerDetailPage() {
   const params = useParams<{ id: string }>();
   const { customer, loadError } = useAdminCustomer(params.id);
   const { orders, loadError: ordersError } = useCustomerOrders(params.id);
+  const [giveOpen, setGiveOpen] = useState(false);
 
   if (loadError) return <ErrorState description={loadError} />;
 
@@ -65,8 +70,15 @@ export default function CustomerDetailPage() {
           </h2>
           <p className="text-body text-muted-foreground-strong">{customer.email}</p>
         </div>
-        <SubscriptionStatusBadge status={customer.subscription?.status ?? null} />
+        <div className="flex items-center gap-3">
+          <Button type="button" variant="secondary" onClick={() => setGiveOpen(true)}>
+            <Ticket size={16} aria-hidden="true" />
+            Dar cupón
+          </Button>
+          <SubscriptionStatusBadge status={customer.subscription?.status ?? null} />
+        </div>
       </div>
+      <GiveCouponModal key={customer.id} open={giveOpen} customer={{ id: customer.id, firstName: customer.firstName, email: customer.email }} onClose={() => setGiveOpen(false)} />
 
       <Card>
         <p className="mb-4 font-mono text-label uppercase tracking-[0.06em] text-muted-foreground-strong">Cliente</p>

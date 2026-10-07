@@ -1,5 +1,5 @@
 import Joi from "joi";
-import { MAX_ORDER_LINES, PaymentMethod } from "@esencia-glow/shared";
+import { COUPON_CODE_MAX_LENGTH, MAX_ORDER_LINES, PaymentMethod } from "@esencia-glow/shared";
 import { cartLineSchema } from "./shipping.validator.js";
 import { listQueryBaseSchema } from "./list-query.validator.js";
 
@@ -17,6 +17,11 @@ const createOrderSchema = Joi.object({
   paymentMethod: Joi.string()
     .valid(...Object.values(PaymentMethod))
     .required(),
+  // Solo el CÓDIGO, nunca un monto ni un porcentaje: el descuento lo calcula
+  // el servidor desde el cupón guardado. Sin patrón estricto a propósito: un
+  // código mal escrito debe llegar al servicio y responder COUPON_INVALID, el
+  // mismo contrato de error que uno inexistente, no un 400 distinto.
+  couponCode: Joi.string().trim().uppercase().max(COUPON_CODE_MAX_LENGTH).empty("").optional(),
   termsAccepted: Joi.boolean().valid(true).required().messages({
     "any.only": "Debes aceptar los términos y condiciones.",
     "any.required": "Debes aceptar los términos y condiciones.",

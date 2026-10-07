@@ -32,6 +32,10 @@ interface CartTotals {
   /** Desglose del IVA ya incluido en el total, nunca un cargo extra. */
   taxCents: number;
   totalCents: number;
+  /** Descuento de un cupón aplicado; ausente cuando no hay (el carrito nunca lo trae). */
+  discountCents?: number;
+  /** Código del cupón aplicado, solo para rotular el renglón de descuento. */
+  couponCode?: string;
 }
 
 /**
@@ -78,10 +82,12 @@ function buildCartView(cart: Cart, live: readonly PublicCartLine[] | null): Cart
  * líneas agotadas no suman: no se pueden comprar. El IVA sale de los defaults
  * compartidos; no hay lectura pública de Ajustes, y el total no depende de él.
  */
-function computeTotals(lines: readonly CartLineView[], shippingCents: number | null): CartTotals {
+function computeTotals(lines: readonly CartLineView[], shippingCents: number | null, discountCents = 0): CartTotals {
   const buyable = lines.filter((line) => line.available);
   const subtotalCents = buyable.reduce((sum, line) => sum + line.priceCents * line.quantity, 0);
-  const totalCents = subtotalCents + (shippingCents ?? 0);
+  // El descuento nunca pasa del subtotal (mismo tope que el API): no deja un total negativo.
+  const appliedDiscountCents = Math.min(Math.max(0, discountCents), subtotalCents);
+  const totalCents = subtotalCents - appliedDiscountCents + (shippingCents ?? 0);
   const taxRateBps = DEFAULT_COMMERCE_SETTINGS.taxRateBps;
   const netCents = Math.round((totalCents * 10_000) / (10_000 + taxRateBps));
 
@@ -91,6 +97,7 @@ function computeTotals(lines: readonly CartLineView[], shippingCents: number | n
     shippingCents,
     taxCents: totalCents - netCents,
     totalCents,
+    ...(appliedDiscountCents > 0 ? { discountCents: appliedDiscountCents } : {}),
   };
 }
 

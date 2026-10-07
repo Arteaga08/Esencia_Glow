@@ -1,5 +1,13 @@
 import { Types, type ClientSession } from "mongoose";
-import { CATALOG_CURRENCY, OrderPriority, OrderStatus, PaymentMethod, PaymentState } from "@esencia-glow/shared";
+import {
+  CATALOG_CURRENCY,
+  ErrorCode,
+  MIN_PAYABLE_TOTAL_CENTS,
+  OrderPriority,
+  OrderStatus,
+  PaymentMethod,
+  PaymentState,
+} from "@esencia-glow/shared";
 import { Order, type OrderDocument } from "../models/order.model.js";
 import type { getSettings } from "./settings.service.js";
 import { resolveCartLines, type ResolvedLine } from "./cart-resolution.service.js";
@@ -7,6 +15,8 @@ import { computeCartFingerprint } from "./cart-fingerprint.js";
 import { resolveUsableRate, type UsableRate } from "./shipping-quote.service.js";
 import { reserveStock } from "./stock-reservation.service.js";
 import { computeOrderTotals } from "./order-totals.js";
+import { claimCouponUse } from "./coupon-redemption.service.js";
+import { AppError } from "../utils/app-error.js";
 import { generateOrderNumber } from "./order-number.js";
 import { computeOrderExpiresAt, computeReservationExpiresAt } from "./payment-deadlines.js";
 import {
@@ -47,13 +57,44 @@ async function createOrderCore(
   // operación se rechaza sin haber tocado inventario (0 órdenes, 0
   // reservado) — validar después de reservar dejaría stock apartado por un
   // pedido que nunca se va a crear.
+  const lineTotalsCents = resolvedLines.map((line) => line.lineTotalCents);
+
+  // Cupón (Milestone 3.7): el canje es atómico y vive dentro de esta misma
+  // transacción, así que cualquier fallo posterior (total imposible de
+  // cobrar, stock, índice único) lo deshace. Va antes de reservar stock para
+  // que un código inválido se rechace sin haber tocado inventario. El
+  // descuento sale de la base, nunca del cliente.
+  const coupon = input.couponCode
+    ? await claimCouponUse(
+        {
+          code: input.couponCode,
+          userId: input.userId,
+          subtotalCents: lineTotalsCents.reduce((sum, line) => sum + line, 0),
+        },
+        session,
+      )
+    : undefined;
+
   const totals = computeOrderTotals({
-    lineTotalsCents: resolvedLines.map((line) => line.lineTotalCents),
+    lineTotalsCents,
     chosenRateAmountCents: rate.amountCents,
     cheapestRateAmountCents: quote.cheapestAmountCents,
     taxRateBps: settings.commerce.taxRateBps,
     freeShippingThresholdCents: settings.commerce.freeShippingThresholdCents,
+    ...(coupon ? { discountCents: coupon.discountCents } : {}),
   });
+
+  // Stripe no cobra menos de $10 MXN: un descuento que dejara el total por
+  // debajo crearía un pedido imposible de pagar. Solo aplica con cupón; sin
+  // él el comportamiento es el de siempre.
+  if (coupon && totals.totalCents < MIN_PAYABLE_TOTAL_CENTS) {
+    throw new AppError(
+      "Con este cupón el total quedaría por debajo de $10.00. Agrega más productos o quita el cupón.",
+      409,
+      undefined,
+      ErrorCode.COUPON_MIN_NOT_MET,
+    );
+  }
 
   if (input.paymentMethod === PaymentMethod.OXXO) {
     assertOxxoAmountInRange(totals.totalCents);
@@ -106,6 +147,17 @@ async function createOrderCore(
           lines: resolvedLines.map(toOrderLine),
           subtotalCents: totals.subtotalCents,
           discountCents: totals.discountCents,
+          ...(coupon
+            ? {
+                coupon: {
+                  couponId: coupon.couponId,
+                  code: coupon.code,
+                  discountType: coupon.discountType,
+                  ...(coupon.percentOff !== undefined ? { percentOff: coupon.percentOff } : {}),
+                  ...(coupon.amountOffCents !== undefined ? { amountOffCents: coupon.amountOffCents } : {}),
+                },
+              }
+            : {}),
           taxCents: totals.taxCents,
           taxRateBps: totals.taxRateBps,
           shippingCents: totals.shippingCents,

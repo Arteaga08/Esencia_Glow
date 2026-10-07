@@ -29,12 +29,16 @@ interface ComputeOrderTotalsInput {
   /** `0` significa desactivado, explícitamente — con `>=` cualquier
    * carrito calificaría si el umbral no se tratara como apagado. */
   freeShippingThresholdCents: number;
+  /** Descuento de un cupón ya calculado por `computeCouponDiscount` (nunca
+   * viene del cliente). Omitido = 0. Resta del total, pero NO del subtotal
+   * contra el que se compara el umbral de envío gratis. */
+  discountCents?: number;
 }
 
 interface OrderTotals {
   subtotalCents: number;
-  /** Cupones fuera de alcance en 1.5: siempre 0, mantiene la identidad
-   * `total = subtotal - discount + shipping` lista para cuando existan. */
+  /** Descuento del cupón (Milestone 3.7); 0 sin cupón. Mantiene la identidad
+   * `total = subtotal - discount + shipping`. */
   discountCents: number;
   shippingCents: number;
   totalCents: number;
@@ -45,7 +49,7 @@ interface OrderTotals {
 
 function computeOrderTotals(input: ComputeOrderTotalsInput): OrderTotals {
   const subtotalCents = input.lineTotalsCents.reduce((sum, line) => sum + line, 0);
-  const discountCents = 0;
+  const discountCents = input.discountCents ?? 0;
 
   // El umbral se compara contra el subtotal BRUTO de líneas, nunca contra
   // un total que ya incluye el propio envío que se está decidiendo —

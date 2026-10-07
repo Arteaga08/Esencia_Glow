@@ -87,6 +87,7 @@ function buildPublicOrder(order: LeanOrder): PublicOrder {
       totalCents: order.totalCents,
       currency: order.currency as Currency,
     },
+    ...(order.coupon ? { coupon: { code: order.coupon.code } } : {}),
     payment: {
       provider: order.payment.provider,
       method: order.payment.method,

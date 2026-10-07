@@ -26,6 +26,8 @@ function summarizeOrder(order: PublicOrder): { lines: CartRowLine[]; totals: Car
       shippingCents: order.totals.shippingCents,
       taxCents: order.totals.taxCents,
       totalCents: order.totals.totalCents,
+      ...(order.totals.discountCents > 0 ? { discountCents: order.totals.discountCents } : {}),
+      ...(order.coupon ? { couponCode: order.coupon.code } : {}),
     },
   };
 }

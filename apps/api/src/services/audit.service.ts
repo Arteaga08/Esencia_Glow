@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import type { Types } from "mongoose";
 import type {
   AuthAction,
+  CouponAction,
   ContentAction,
   InventoryAction,
   OrderAction,
@@ -21,7 +22,7 @@ import { logger } from "../config/logger.js";
  */
 
 interface RecordAuditInput {
-  action: AuthAction | ContentAction | InventoryAction | OrderAction | SubscriptionAction;
+  action: AuthAction | ContentAction | CouponAction | InventoryAction | OrderAction | SubscriptionAction;
   actorId?: Types.ObjectId | string;
   targetId?: Types.ObjectId | string;
   ip?: string;

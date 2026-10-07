@@ -1,11 +1,10 @@
-import { sendEmail } from "./mail-provider.js";
+import { sendEmail, type SendEmailResult } from "./mail-provider.js";
 import { renderTransactionalEmail } from "./email-layout.js";
 import { escapeHtml } from "../utils/escape-html.js";
 
 /**
- * Correo de cupón personal (Milestone 3.6). Sin ningún llamador todavía: el
- * módulo de cupones (modelo, canje atómico en el checkout, "dar cupón" en
- * Clientes) es una sesión aparte y conecta esta plantilla cuando exista.
+ * Correo de cupón personal (Milestone 3.6, conectado en 3.7 por
+ * `coupon-grant.service.ts`, "dar cupón" desde Clientes).
  *
  * `message` es el único texto de todo el catálogo de correos que escribe una
  * persona (el admin): se pasa tal cual al bloque de cupón, que lo escapa. El
@@ -25,9 +24,10 @@ interface SendCouponEmailInput {
   shopUrl?: string;
 }
 
-/** Best-effort como todo correo: nunca lanza (ver `sendEmail`). */
-async function sendCouponEmail(input: SendCouponEmailInput): Promise<void> {
-  await sendEmail({
+/** Best-effort como todo correo: nunca lanza (ver `sendEmail`). Devuelve el
+ * resultado del envío para que "dar cupón" pueda decirle al admin si salió. */
+async function sendCouponEmail(input: SendCouponEmailInput): Promise<SendEmailResult> {
+  return sendEmail({
     to: input.to,
     subject: "Un detalle de Esencia Glow para ti",
     html: renderTransactionalEmail({

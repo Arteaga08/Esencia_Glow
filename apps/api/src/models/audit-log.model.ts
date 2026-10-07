@@ -1,5 +1,5 @@
 import { Schema, model, type HydratedDocument, type Model, type Types } from "mongoose";
-import { AuthAction, ContentAction, InventoryAction, OrderAction, SubscriptionAction } from "@esencia-glow/shared";
+import { AuthAction, ContentAction, CouponAction, InventoryAction, OrderAction, SubscriptionAction } from "@esencia-glow/shared";
 
 /**
  * Audit trail append-only de acciones sensibles (auth: login, cambio de
@@ -18,7 +18,7 @@ import { AuthAction, ContentAction, InventoryAction, OrderAction, SubscriptionAc
  * suscripciones a un `Plan`/`Edition`/`SubscriptionAccount`, no
  * necesariamente a un usuario, y ningún código hace `populate()` sobre él.
  */
-type AuditAction = AuthAction | ContentAction | InventoryAction | OrderAction | SubscriptionAction;
+type AuditAction = AuthAction | ContentAction | CouponAction | InventoryAction | OrderAction | SubscriptionAction;
 
 interface AuditLogAttrs {
   action: AuditAction;
@@ -37,6 +37,7 @@ const AUDIT_ACTIONS = [
   ...Object.values(OrderAction),
   ...Object.values(SubscriptionAction),
   ...Object.values(ContentAction),
+  ...Object.values(CouponAction),
 ];
 
 const auditLogSchema = new Schema<AuditLogAttrs, AuditLogModel>(

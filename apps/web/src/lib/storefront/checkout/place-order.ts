@@ -10,20 +10,22 @@ interface PlaceOrderInput {
   quoteId: string;
   rateId: string;
   idempotencyKey: string;
+  /** Solo el código: el descuento lo calcula el servidor. */
+  couponCode?: string | undefined;
 }
 
 /**
  * Crea el pedido (`POST /orders`). La tienda solo cobra con tarjeta, así que el
- * método va fijo. Nunca manda un monto: el servidor recalcula todo y el total
+ * método va fijo. Nunca manda un monto (solo el código del cupón, si lo hay): el servidor recalcula todo y el total
  * real vuelve en `order.totals`. Un reintento con la misma llave devuelve el
  * mismo pedido (replay) en vez de crear otro.
  */
-async function placeOrder({ lines, quoteId, rateId, idempotencyKey }: PlaceOrderInput): Promise<PlaceOrderResult> {
+async function placeOrder({ lines, quoteId, rateId, idempotencyKey, couponCode }: PlaceOrderInput): Promise<PlaceOrderResult> {
   try {
     const response = await accountRequest<CheckoutResult>("/api/v1/orders", {
       method: "POST",
       headers: { "Idempotency-Key": idempotencyKey },
-      body: { lines, quoteId, rateId, paymentMethod: PaymentMethod.CARD, termsAccepted: true },
+      body: { lines, quoteId, rateId, paymentMethod: PaymentMethod.CARD, termsAccepted: true, ...(couponCode ? { couponCode } : {}) },
       redirectOnFailure: false,
     });
     return { ok: true, order: response.data.order, clientSecret: response.data.payment.clientSecret ?? null };

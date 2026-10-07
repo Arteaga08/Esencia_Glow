@@ -33,6 +33,26 @@ export { SubscriptionAction } from "./enums/subscription-action.js";
 export { TopCustomersPeriod } from "./enums/top-customers-period.js";
 export { TopCustomersSort } from "./enums/top-customers-sort.js";
 export { OverviewRange } from "./enums/overview-range.js";
+export { CouponKind } from "./enums/coupon-kind.js";
+export { CouponDiscountType } from "./enums/coupon-discount-type.js";
+export { CouponAction } from "./enums/coupon-action.js";
+export {
+  COUPON_CODE_PATTERN,
+  COUPON_CODE_MIN_LENGTH,
+  COUPON_CODE_MAX_LENGTH,
+  COUPON_DESCRIPTION_MAX_LENGTH,
+  COUPON_MAX_PER_CUSTOMER_LIMIT,
+  MIN_PAYABLE_TOTAL_CENTS,
+} from "./constants/coupons.js";
+export type {
+  AdminCouponAssignee,
+  AdminCoupon,
+  CreateCouponInput,
+  GiveCouponInput,
+  ValidateCouponInput,
+  CouponPreview,
+  GiveCouponResult,
+} from "./types/coupon.js";
 export { CATALOG_CURRENCY } from "./constants/currency.js";
 export type { Currency } from "./constants/currency.js";
 export { DEFAULT_INVENTORY_SETTINGS, MAX_LINE_QUANTITY } from "./constants/inventory.js";
@@ -128,6 +148,7 @@ export type {
   PublicOrderLineComponent,
   PublicOrderLine,
   PublicOrderTotals,
+  PublicOrderCoupon,
   PublicShippingSelection,
   PublicOrderPayment,
   AdminOrderPayment,

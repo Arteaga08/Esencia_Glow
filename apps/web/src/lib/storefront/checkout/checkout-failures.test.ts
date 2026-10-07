@@ -46,4 +46,10 @@ describe("mapPlaceOrderFailure", () => {
     expect(mapPlaceOrderFailure(failure({ kind: "rateLimited", status: 429 })).retryable).toBe(true);
     expect(mapPlaceOrderFailure(failure({ code: ErrorCode.CART_CHANGED })).retryable).toBe(false);
   });
+
+  it("cualquier fallo de cupón quita el cupón y muestra el mensaje en su campo, sin mandar al carrito", () => {
+    for (const code of [ErrorCode.COUPON_INVALID, ErrorCode.COUPON_EXPIRED, ErrorCode.COUPON_EXHAUSTED, ErrorCode.COUPON_ALREADY_USED, ErrorCode.COUPON_MIN_NOT_MET]) {
+      expect(mapPlaceOrderFailure(failure({ code, message: "Este cupón ya venció." }))).toMatchObject({ action: "coupon", message: "Este cupón ya venció." });
+    }
+  });
 });

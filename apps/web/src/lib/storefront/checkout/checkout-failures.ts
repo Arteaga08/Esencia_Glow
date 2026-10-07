@@ -1,5 +1,6 @@
 import { ErrorCode } from "@esencia-glow/shared";
 import type { Failure } from "../auth-errors";
+import { isCouponErrorCode } from "./coupon-errors";
 
 /**
  * Qué hace el checkout ante un fallo de `POST /orders`. Decide por `code`
@@ -7,10 +8,12 @@ import type { Failure } from "../auth-errors";
  *  - `requote`: la cotización venció o el carrito cambió → volver al envío.
  *  - `cart`: algo ya no se vende o se agotó → volver al carrito.
  *  - `resume`: ya hay un pedido pendiente (`orderId`) → reanudar su pago.
+ *  - `coupon`: el cupón ya no aplica (venció, se agotó, ya se usó…) → quitarlo
+ *    y decirlo en su campo; el carrito y el envío siguen bien.
  *  - `unavailable`: los pagos están apagados en el servidor.
  *  - `message`: cualquier otro caso; se muestra el mensaje y se puede reintentar.
  */
-type PlaceOrderAction = "requote" | "cart" | "resume" | "unavailable" | "message";
+type PlaceOrderAction = "requote" | "cart" | "resume" | "coupon" | "unavailable" | "message";
 
 interface PlaceOrderFailure {
   action: PlaceOrderAction;
@@ -30,6 +33,7 @@ function mapPlaceOrderFailure(failure: Failure): PlaceOrderFailure {
 
   if (failure.code === ErrorCode.SHIPPING_QUOTE_INVALID || failure.code === ErrorCode.CART_CHANGED) return { action: "requote", message, retryable };
   if (failure.code === ErrorCode.ITEM_UNAVAILABLE) return { action: "cart", message, retryable };
+  if (isCouponErrorCode(failure.code)) return { action: "coupon", message, retryable };
 
   if (failure.code === ErrorCode.PENDING_ORDER_EXISTS) {
     const orderId = failure.fieldErrors.orderId;
