@@ -1,33 +1,41 @@
 /**
- * Tokens del sistema de diseño (DESIGN.md + .impeccable/design.json,
- * Milestone 2.0) — copiados tal cual, esta capa no ajusta ningún valor.
- * Tailwind v4 genera las utilidades (`bg-primary`, `text-body`, etc.) a
- * partir de este bloque `@theme`.
+ * Tokens del sistema de diseño (DESIGN.md + .impeccable/design.json) —
+ * copiados tal cual, esta capa no ajusta ningún valor. Tailwind v4 genera las
+ * utilidades (`bg-primary`, `text-body`, etc.) a partir de este bloque
+ * `@theme`.
+ *
+ * Paleta de la clienta (2026-10-07): rosa sobre crema con tinta negra. Su
+ * tema solo trae un tono por rol; los derivados (`*-hover`, `*-active`,
+ * `*-action`, `*-strong`) conservan su croma y su matiz y solo bajan la
+ * luminosidad hasta pasar AA.
  */
 @theme {
-  /* --- Colores (OKLCH, paleta de Manuel + 5 derivados de 2.0) --- */
-  --color-background: oklch(0.9873 0.0069 354.7893);
+  /* --- Colores (OKLCH) --- */
+  --color-background: oklch(0.9859 0.0076 48.6568);
   --color-foreground: oklch(0.2 0 0);
   --color-surface: oklch(1 0 0);
   --color-surface-foreground: oklch(0.2 0 0);
-  --color-primary: oklch(0.8502 0.0851 6.1876);
-  --color-primary-action: oklch(0.56 0.0851 6.1876);
+  --color-primary: oklch(0.7508 0.161 2.6024);
+  --color-primary-hover: oklch(0.71 0.161 2.6024);
+  --color-primary-active: oklch(0.67 0.161 2.6024);
+  --color-primary-action: oklch(0.5367 0.153 7.7575);
   --color-primary-foreground: oklch(1 0 0);
-  --color-secondary: oklch(0.8747 0.0544 172.6283);
-  --color-secondary-foreground: oklch(0.3821 0.0407 166.3004);
-  --color-muted: oklch(0.9706 0.0124 358.7577);
-  --color-muted-foreground: oklch(0.6265 0.0418 357.7265);
-  --color-muted-foreground-strong: oklch(0.5 0.0418 357.7265);
-  --color-accent: oklch(0.9557 0.0615 92.1287);
-  --color-accent-foreground: oklch(0.563 0.0874 87.6337);
-  --color-accent-foreground-strong: oklch(0.53 0.0874 87.6337);
-  --color-destructive: oklch(0.7653 0.1404 16.0328);
-  --color-destructive-action: oklch(0.56 0.1404 16.0328);
-  --color-destructive-foreground: oklch(1 0 0);
-  --color-border: oklch(0.9366 0.0345 359.8126);
-  --color-border-strong: oklch(0.66 0.0345 359.8126);
-  --color-input: oklch(0.9958 0.0025 345.21);
-  --color-ring: oklch(0.56 0.0851 6.1876);
+  --color-secondary: oklch(0.9449 0.011 54.4941);
+  --color-secondary-foreground: oklch(0.2 0 0);
+  --color-muted: oklch(0.9687 0.0086 44.8919);
+  --color-muted-foreground: oklch(0.6608 0.0272 49.5764);
+  --color-muted-foreground-strong: oklch(0.5 0.0272 49.5764);
+  --color-accent: oklch(0.9239 0.0415 1.1045);
+  --color-accent-foreground: oklch(0.5367 0.153 7.7575);
+  --color-accent-foreground-strong: oklch(0.5 0.153 7.7575);
+  --color-destructive: oklch(0.6256 0.1933 23.0261);
+  --color-destructive-action: oklch(0.5 0.1933 23.0261);
+  --color-destructive-action-hover: oklch(0.45 0.1933 23.0261);
+  --color-destructive-foreground: oklch(0.9921 0.0017 325.59);
+  --color-border: oklch(0.9138 0.0146 50.7928);
+  --color-border-strong: oklch(0.64 0.0146 50.7928);
+  --color-input: oklch(1 0 0);
+  --color-ring: oklch(0.5367 0.153 7.7575);
 
   /* --- Tipografía --- */
   --font-sans: var(--font-schibsted-grotesk), ui-sans-serif, system-ui, sans-serif;
@@ -70,16 +78,16 @@
 
   /* --- Radios, espaciado, sombra, movimiento, breakpoints --- */
   --radius-none: 0px;
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
   --radius-full: 999px;
 
   /* Escala 4px del DESIGN.md — Tailwind deriva spacing-1..20 de este base. */
   --spacing: 4px;
 
-  --shadow-overlay: 0 8px 24px -6px oklch(0.2 0 0 / 0.18);
-  --shadow-modal: 0 16px 48px -8px oklch(0.2 0 0 / 0.22);
+  --shadow-overlay: 0 2px 10px 0 oklch(0 0 0 / 0.03), 0 2px 4px -1px oklch(0 0 0 / 0.03);
+  --shadow-modal: 0 2px 10px 0 oklch(0 0 0 / 0.03), 0 8px 10px -1px oklch(0 0 0 / 0.03);
 
   --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
   --duration-fast: 120ms;

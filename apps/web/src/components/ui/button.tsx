@@ -12,27 +12,25 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   children: ReactNode;
 }
 
-// DESIGN.md §5 Buttons: forma 8px, nunca rounded-full salvo badges/avatares.
-// El hover es siempre un cambio de color, jamás una elevación (Regla de lo
-// que Flota) — por eso ninguna variante aquí lleva shadow.
+// DESIGN.md §5 Buttons: forma `rounded-md`, nunca rounded-full salvo
+// badges/avatares. El hover es siempre un cambio de color, jamás una elevación
+// (Regla de lo que Flota) — por eso ninguna variante aquí lleva shadow.
 //
-// El primario usa el rosa de superficie (`primary`, #ffb7c5) con texto TINTA,
-// no `primary-action` con texto blanco: es el rosa que de verdad identifica a
-// la marca, y sobre él la tinta da 5.69:1 (AA limpio). La combinación rosa +
-// blanco del tema original es la única prohibida — 1.64:1, ilegible. Hover y
-// active oscurecen el rosa manteniendo la tinta por encima de 4.5:1
-// (5.15:1 y 4.64:1, medidos).
+// El primario usa el rosa de marca (`primary`) con texto TINTA, no blanco:
+// sobre él la tinta da 7.57:1 y el blanco 2.39:1, ilegible. Hover y active
+// oscurecen el rosa manteniendo la tinta por encima de 4.5:1 (6.51:1 y
+// 5.58:1, medidos).
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   primary:
-    "bg-primary text-foreground hover:bg-[oklch(0.82_0.0851_6.1876)] " +
-    "active:bg-[oklch(0.79_0.0851_6.1876)] disabled:bg-muted disabled:text-muted-foreground",
+    "bg-primary text-foreground hover:bg-primary-hover " +
+    "active:bg-primary-active disabled:bg-muted disabled:text-muted-foreground",
   secondary:
     "bg-surface text-foreground border border-border-strong hover:border-foreground " +
     "hover:bg-muted/40 disabled:border-border disabled:text-muted-foreground disabled:bg-transparent",
   ghost:
     "bg-transparent text-foreground hover:bg-muted disabled:text-muted-foreground",
   destructive:
-    "bg-destructive-action text-destructive-foreground hover:bg-[oklch(0.51_0.1404_16.0328)] " +
+    "bg-destructive-action text-destructive-foreground hover:bg-destructive-action-hover " +
     "disabled:bg-muted disabled:text-muted-foreground",
 };
 

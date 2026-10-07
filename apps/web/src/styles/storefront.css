@@ -1,6 +1,6 @@
 /*
  * Extensiones propias del storefront (registro `brand`): lo que el panel no
- * define. Hoy: contenedor del contenido, rosa `blush` del hero/header y la
+ * define. Hoy: contenedor del contenido, fondo suave `blush` del hero/header y la
  * escala tipográfica del home. Se amplía con cada bloque del home.
  */
 
@@ -8,11 +8,11 @@
   /* Ancho máximo del contenido del storefront (header, secciones del home). */
   --container-shell: 90rem;
   /*
-   * Rosa del hero como color opaco (primary al 40 % sobre el fondo). Lo
-   * comparten el hero (fondo mientras carga la foto) y el header al hacer
-   * scroll.
+   * Fondo suave del storefront: hero (mientras carga la foto), header al
+   * hacer scroll y secciones destacadas. Conserva el nombre `blush` de cuando
+   * era rosa; desde la paleta de la clienta (2026-10-07) es su beige.
    */
-  --color-blush: color-mix(in oklab, var(--color-primary) 40%, var(--color-background));
+  --color-blush: var(--color-secondary);
 
   /*
    * Título del hero: lo más grande de la portada (40px en móvil, 64px en
