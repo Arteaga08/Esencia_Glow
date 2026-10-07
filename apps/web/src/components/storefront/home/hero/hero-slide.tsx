@@ -7,7 +7,8 @@ import type { PublicHomeHeroSlide } from "@esencia-glow/shared";
  * Arte dirigido con `<picture>`: la foto vertical de móvil por defecto y la
  * horizontal de escritorio desde `md` (si no subieron la de móvil, la de
  * escritorio sirve para ambos). El texto va en tinta (`text-foreground`); en
- * móvil, un degradado del rosa principal lo asienta sobre la foto.
+ * móvil, un degradado del rosa pálido (`accent`) lo asienta sobre la foto: el
+ * rosa pleno `primary` se reserva para los botones de compra.
  */
 function HeroSlide({ slide, priority }: { slide: PublicHomeHeroSlide; priority: boolean }) {
   const { desktop, mobile = desktop } = slide.images;
@@ -26,7 +27,7 @@ function HeroSlide({ slide, priority }: { slide: PublicHomeHeroSlide; priority: 
       </picture>
       <div
         aria-hidden="true"
-        className="absolute inset-x-0 bottom-0 h-[45%] bg-gradient-to-t from-primary via-primary/60 to-transparent md:hidden"
+        className="absolute inset-x-0 bottom-0 h-[45%] bg-gradient-to-t from-accent via-accent/70 to-transparent md:hidden"
       />
       <div className="absolute inset-x-0 bottom-0 mx-auto max-w-shell px-4 pb-20 md:px-8 md:pb-24 xl:px-12">
         <h2 className="text-hero max-w-3xl text-foreground">{slide.title}</h2>

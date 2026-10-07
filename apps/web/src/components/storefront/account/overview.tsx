@@ -142,7 +142,8 @@ function Overview(props: OverviewProps) {
               >
                 <item.icon size={24} aria-hidden="true" />
                 <span className="text-subtitle text-foreground">{item.label}</span>
-                <span className="text-body-sm text-muted-foreground-strong">{summaryFor(item.slug, props)}</span>
+                {/* El correo no tiene espacios donde partirse: se recorta con puntos suspensivos. */}
+                <span className={`text-body-sm text-muted-foreground-strong ${item.slug === "perfil" ? "truncate" : ""}`}>{summaryFor(item.slug, props)}</span>
               </Link>
             </li>
           ))}

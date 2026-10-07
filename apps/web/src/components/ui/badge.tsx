@@ -20,19 +20,20 @@ interface BadgeProps {
 /**
  * DESIGN.md §5: `rounded.full`, padding 3px/10px, tipografía Etiqueta. Solo
  * hay 4 pares fondo/texto nombrados en el sistema (neutral/positivo/
- * atención/negativo) pero `BadgeColor` tiene 6 valores — "primary" e "info"
- * no tienen un par dedicado en DESIGN.md, así que se resuelven con el rosa
- * de marca y con el mismo tratamiento neutro, respectivamente. Es una
+ * atención/negativo) pero `BadgeColor` tiene 6 valores — "primary" es el rosa
+ * de marca e "info" es tinta con texto crema (el más sobrio, para "Edición
+ * limitada"). Éxito, atención y peligro usan salvia, arena y arcilla, afinados
+ * al rosa empolvado. Es una
  * decisión de mapeo, no una lectura literal del documento — ajustable al
  * verla renderizada.
  */
 const COLOR_CLASSES: Record<BadgeColorValue, string> = {
   neutral: "bg-muted text-muted-foreground-strong",
   primary: "bg-primary text-foreground",
-  success: "bg-secondary text-secondary-foreground",
-  warning: "bg-accent text-accent-foreground-strong",
-  danger: "bg-destructive/40 text-destructive-action",
-  info: "bg-muted text-foreground",
+  success: "bg-badge-sage text-badge-sage-foreground",
+  warning: "bg-badge-sand text-badge-sand-foreground",
+  danger: "bg-badge-clay text-badge-clay-foreground",
+  info: "bg-foreground text-background",
 };
 
 /** Mismo orden en todo picker/listado de la paleta fija. */

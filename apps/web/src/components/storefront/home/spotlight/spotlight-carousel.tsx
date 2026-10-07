@@ -20,8 +20,8 @@ function SpotlightCarousel({ items, label }: { items: ShelfItem[]; label: string
           </div>
         )}
         label={label}
-        itemClassName="basis-[72%] sm:basis-[42%]"
-        arrowTopClassName="top-[36cqw] sm:top-[21cqw]"
+        itemClassName="basis-[58%] sm:basis-[34%]"
+        arrowTopClassName="top-[29cqw] sm:top-[17cqw]"
         gapClassName="gap-3 px-4"
         barClassName="mx-4 mt-4"
       />
