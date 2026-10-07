@@ -35,19 +35,32 @@ function findCatalogCategory(tree: PublicCategoryNode[], slug: string): CatalogC
   return null;
 }
 
+/** Qué productos recorre el catálogo: los de una categoría o los marcados "Más vendido". */
+interface CatalogScope {
+  category?: string;
+  bestseller?: boolean;
+}
+
 interface CatalogPage {
   items: ShelfItem[];
   meta: PaginationMeta;
 }
 
+function scopeToParams(scope: CatalogScope): Record<string, string> {
+  return {
+    ...(scope.category ? { category: scope.category } : {}),
+    ...(scope.bestseller ? { bestseller: "true" } : {}),
+  };
+}
+
 /**
- * Una página de productos de la categoría con los filtros aplicados. Devuelve
+ * Una página de productos del alcance con los filtros aplicados. Devuelve
  * `null` si el API no responde, para que la página muestre un error en vez de
  * un catálogo vacío que parezca verdadero.
  */
-async function getCatalogPage(categorySlug: string, filters: CatalogFilters, page: number): Promise<CatalogPage | null> {
+async function getCatalogPage(scope: CatalogScope, filters: CatalogFilters, page: number): Promise<CatalogPage | null> {
   const query = new URLSearchParams({
-    category: categorySlug,
+    ...scopeToParams(scope),
     page: String(page),
     limit: String(CATALOG_PAGE_SIZE),
     ...catalogFiltersToApiParams(filters),
@@ -67,12 +80,13 @@ async function getCatalogPage(categorySlug: string, filters: CatalogFilters, pag
 }
 
 /**
- * Marcas y rango de precio de la categoría (o de todo el catálogo si no se
- * pasa slug); vacío si el API no responde (los filtros se ocultan).
+ * Marcas y rango de precio del alcance (todo el catálogo si no se pasa
+ * ninguno); vacío si el API no responde (los filtros se ocultan).
  */
-async function getCatalogFacets(categorySlug?: string): Promise<PublicProductFacets> {
+async function getCatalogFacets(scope: CatalogScope = {}): Promise<PublicProductFacets> {
   try {
-    const query = categorySlug ? `?${new URLSearchParams({ category: categorySlug })}` : "";
+    const params = new URLSearchParams(scopeToParams(scope));
+    const query = params.size > 0 ? `?${params}` : "";
     const response = await fetch(`${API_URL}/api/v1/products/facets${query}`, {
       next: { revalidate: CATALOG_REVALIDATE_SECONDS },
     });
@@ -85,4 +99,4 @@ async function getCatalogFacets(categorySlug?: string): Promise<PublicProductFac
 }
 
 export { CATALOG_PAGE_SIZE, findCatalogCategory, getCatalogPage, getCatalogFacets };
-export type { CatalogCategory, CatalogPage };
+export type { CatalogCategory, CatalogPage, CatalogScope };

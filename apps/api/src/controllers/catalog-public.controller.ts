@@ -27,8 +27,8 @@ const listProducts = asyncHandler(async (req: Request, res: Response) => {
 });
 
 const getProductFacets = asyncHandler(async (req: Request, res: Response) => {
-  const { category } = req.query as { category?: string };
-  const facets = await catalogPublicService.getPublicProductFacets(category);
+  const { category, bestseller } = req.query as { category?: string; bestseller?: boolean };
+  const facets = await catalogPublicService.getPublicProductFacets(category, bestseller);
   sendResponse(res, 200, "Facetas obtenidas.", facets);
 });
 

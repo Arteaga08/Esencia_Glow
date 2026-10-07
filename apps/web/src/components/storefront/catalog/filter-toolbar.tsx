@@ -6,6 +6,7 @@ import type { PublicProductFacets } from "@esencia-glow/shared";
 import { SORT_OPTIONS } from "@/lib/storefront/catalog-filters";
 import { formatMoneyMXN } from "@/lib/format-money";
 import { BrandField, PriceField, SortField } from "./filter-fields";
+import { PRODUCT_COPY, type CatalogCopy } from "./catalog-copy";
 import type { CatalogFilterState } from "./use-catalog-navigation";
 
 type PanelId = "brand" | "price" | "sort";
@@ -15,6 +16,7 @@ interface FilterToolbarProps {
   facets: PublicProductFacets;
   /** Productos que coinciden con los filtros, en todas las páginas. */
   total: number;
+  copy?: CatalogCopy;
 }
 
 interface Panel {
@@ -52,7 +54,7 @@ function summarizePrice(min: string, max: string): string {
  * +1) para no obligar a abrirlo, y el panel trae su propio "Quitar". Solo uno
  * abierto a la vez; cierra con Escape o al tocar fuera.
  */
-function FilterToolbar({ state, facets, total }: FilterToolbarProps) {
+function FilterToolbar({ state, facets, total, copy = PRODUCT_COPY }: FilterToolbarProps) {
   const [openId, setOpenId] = useState<PanelId | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -159,7 +161,7 @@ function FilterToolbar({ state, facets, total }: FilterToolbarProps) {
       <div className="flex flex-wrap items-center gap-2">{filterPanels.map(renderPanel)}</div>
       <div className="flex items-center gap-4">
         <p className="hidden text-body-sm text-muted-foreground-strong sm:block" aria-live="polite">
-          {total} {total === 1 ? "producto" : "productos"}
+          {total} {total === 1 ? copy.countSingular : copy.countPlural}
         </p>
         {renderPanel(sortPanel)}
       </div>

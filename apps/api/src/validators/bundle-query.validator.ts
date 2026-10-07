@@ -6,6 +6,12 @@ const listBundlesQuerySchema = listQueryBaseSchema.keys({
   status: Joi.string().valid(...Object.values(BundleStatus)),
 });
 
-const publicBundleQuerySchema = listQueryBaseSchema;
+const publicBundleQuerySchema = listQueryBaseSchema.keys({
+  minPrice: Joi.number().integer().min(0),
+  maxPrice: Joi.number().integer().min(0),
+});
 
-export { listBundlesQuerySchema, publicBundleQuerySchema };
+/** Sin filtros: el rango lo calcula el servidor sobre los paquetes publicados. */
+const publicBundleFacetsQuerySchema = Joi.object({});
+
+export { listBundlesQuerySchema, publicBundleQuerySchema, publicBundleFacetsQuerySchema };

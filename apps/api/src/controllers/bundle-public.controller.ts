@@ -6,8 +6,14 @@ import * as bundlePublicService from "../services/bundle-public.service.js";
 
 const listBundles = asyncHandler(async (req: Request, res: Response) => {
   const query = parseListQuery(req.query);
-  const { bundles, meta } = await bundlePublicService.listPublicBundles(query);
+  const { minPrice, maxPrice } = req.query as { minPrice?: number; maxPrice?: number };
+  const { bundles, meta } = await bundlePublicService.listPublicBundles({ ...query, minPrice, maxPrice });
   sendResponse(res, 200, "Paquetes obtenidos.", bundles, meta);
+});
+
+const getBundleFacets = asyncHandler(async (_req: Request, res: Response) => {
+  const facets = await bundlePublicService.getPublicBundleFacets();
+  sendResponse(res, 200, "Facetas obtenidas.", facets);
 });
 
 const getBundle = asyncHandler(async (req: Request<{ slug: string }>, res: Response) => {
@@ -20,4 +26,4 @@ const getAvailability = asyncHandler(async (req: Request<{ slug: string }>, res:
   sendResponse(res, 200, "Disponibilidad obtenida.", availability);
 });
 
-export { listBundles, getBundle, getAvailability };
+export { listBundles, getBundleFacets, getBundle, getAvailability };

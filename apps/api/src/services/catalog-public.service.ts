@@ -123,9 +123,9 @@ async function listPublicProducts(
  * el listado: borradores, canal de suscripción y productos sin variante activa
  * no aportan marcas ni precios. Categoría desconocida -> facetas vacías.
  */
-async function getPublicProductFacets(categorySlug?: string): Promise<PublicProductFacets> {
+async function getPublicProductFacets(categorySlug?: string, bestseller?: boolean): Promise<PublicProductFacets> {
   const categoryIds = await resolveCategoryIdsBySlug(categorySlug);
-  const filter = buildProductFilter({ categoryIds, publicOnly: true });
+  const filter = buildProductFilter({ categoryIds, publicOnly: true, isBestseller: bestseller });
 
   const [summary] = await Product.aggregate<{ brands: string[]; minPrice: number | null; maxPrice: number | null }>([
     { $match: filter },
@@ -200,6 +200,7 @@ async function getPublicCategoryBySlug(slug: string): Promise<PublicCategory> {
 
 export {
   buildPublicProductsWithRefs,
+  resolveBadgeRefs,
   listPublicProducts,
   getPublicProductFacets,
   getPublicProductBySlug,

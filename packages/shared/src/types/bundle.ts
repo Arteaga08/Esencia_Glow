@@ -11,6 +11,8 @@ import type { ProductAttributes, ProductContent, PublicProductImage } from "./ca
  */
 interface PublicBundleItem {
   productId: string;
+  /** Solo si el producto está publicado: un borrador o archivado no tiene página a la que enlazar. */
+  productSlug?: string;
   variantId: string;
   name: string;
   attributes: ProductAttributes;
@@ -44,4 +46,10 @@ interface PublicBundleAvailability {
   isAvailable: boolean;
 }
 
-export type { PublicBundleItem, PublicBundle, PublicBundleAvailability };
+/** Rango de precio de los paquetes publicados (centavos), para los atajos del filtro. */
+interface PublicBundleFacets {
+  minPrice: number | null;
+  maxPrice: number | null;
+}
+
+export type { PublicBundleItem, PublicBundle, PublicBundleAvailability, PublicBundleFacets };

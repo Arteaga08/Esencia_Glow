@@ -46,7 +46,14 @@ function PurchasePanel({ product }: { product: ProductView }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <ProductHeading product={product} variant={variant} />
+      <ProductHeading
+        brand={product.brand}
+        badge={product.badge}
+        name={product.name}
+        priceCents={variant.priceCents}
+        listPriceCents={variant.listPriceCents}
+        available={variant.available}
+      />
       <BenefitTags section={benefits} />
       <SkinTypes types={product.skinTypes} />
       <p className="max-w-[65ch] text-body text-foreground/80">{product.description}</p>

@@ -83,6 +83,19 @@ function catalogFiltersToApiParams(filters: CatalogFilters): Record<string, stri
   return params;
 }
 
+/** Orden de `GET /bundles`: el campo de precio se llama `price` (en productos es `minPrice`). */
+const KIT_API_SORT: Record<CatalogSort, string> = { newest: "-createdAt", "price-asc": "price" };
+
+/** Parámetros de `GET /bundles` para estos filtros: los kits no tienen marca, solo precio y orden. */
+function kitFiltersToApiParams(filters: CatalogFilters): Record<string, string> {
+  const params: Record<string, string> = { sort: KIT_API_SORT[filters.sort] };
+  const min = pesosToCents(filters.min);
+  const max = pesosToCents(filters.max);
+  if (min !== undefined) params.minPrice = String(min);
+  if (max !== undefined) params.maxPrice = String(max);
+  return params;
+}
+
 interface PricePreset {
   id: string;
   label: string;
@@ -128,6 +141,7 @@ export {
   parsePage,
   catalogFiltersToQuery,
   catalogFiltersToApiParams,
+  kitFiltersToApiParams,
   buildPricePresets,
   countActiveCatalogFilters,
 };

@@ -94,5 +94,5 @@ function toProductView(
   };
 }
 
-export { toProductView };
+export { toProductView, toSections };
 export type { ProductView, ProductViewImage, ProductViewVariant, ProductViewSection, ContentKey };

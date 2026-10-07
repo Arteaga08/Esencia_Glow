@@ -65,6 +65,19 @@ describe("routes/products — marcas Más vendido y Novedad", () => {
     expect(all.body.data).toHaveLength(3);
   });
 
+  it("las facetas con ?bestseller=true solo cubren los más vendidos", async () => {
+    const { agent } = await createAdminSession(app);
+    const category = await Category.create({ name: "Sueros", slug: "sueros", isActive: true });
+    await createProduct(agent, category.id, "Sérum A", "SER-A1", { isBestseller: true, brand: "Cosrx" });
+    await createProduct(agent, category.id, "Sérum B", "SER-B1", { brand: "Isntree" });
+
+    const bestsellers = await request(app).get("/api/v1/products/facets?bestseller=true");
+    const all = await request(app).get("/api/v1/products/facets");
+
+    expect(bestsellers.body.data.brands).toEqual(["Cosrx"]);
+    expect(all.body.data.brands).toEqual(["Cosrx", "Isntree"]);
+  });
+
   it("la marca se guarda, se edita y se expone en el catálogo público", async () => {
     const { agent } = await createAdminSession(app);
     const category = await Category.create({ name: "Sueros", slug: "sueros", isActive: true });

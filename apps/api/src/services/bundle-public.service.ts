@@ -4,6 +4,7 @@ import {
   type PaginationMeta,
   type PublicBundle,
   type PublicBundleAvailability,
+  type PublicBundleFacets,
 } from "@esencia-glow/shared";
 import { Bundle } from "../models/bundle.model.js";
 import { Product } from "../models/product.model.js";
@@ -13,6 +14,7 @@ import { resolveSort } from "../utils/resolve-sort.js";
 import { computeBundleAvailability } from "./bundle-availability.service.js";
 import { buildPublicBundle, type LeanBundle } from "./bundle-dto.js";
 import type { LeanProduct } from "./catalog-dto.js";
+import { resolveBadgeRefs } from "./catalog-public.service.js";
 
 const PUBLIC_BUNDLE_SORT_FIELDS = ["createdAt", "name", "price"] as const;
 
@@ -27,16 +29,27 @@ async function fetchProductsByIds(productIds: string[]): Promise<Map<string, Lea
   if (uniqueIds.length === 0) return new Map();
 
   const products = await Product.find({ _id: { $in: uniqueIds } })
-    .select("name images variants")
+    .select("name slug status images variants")
     .lean<LeanProduct[]>();
   return new Map(products.map((product) => [product._id.toString(), product]));
 }
 
+interface ListPublicBundlesInput extends ListQuery {
+  minPrice?: number;
+  maxPrice?: number;
+}
+
 async function listPublicBundles(
-  input: ListQuery,
+  input: ListPublicBundlesInput,
 ): Promise<{ bundles: PublicBundle[]; meta: PaginationMeta }> {
   const filter: Record<string, unknown> = { status: BundleStatus.ACTIVE };
   if (input.search) filter.name = new RegExp(escapeRegex(input.search), "i");
+  if (input.minPrice !== undefined || input.maxPrice !== undefined) {
+    filter.price = {
+      ...(input.minPrice !== undefined ? { $gte: input.minPrice } : {}),
+      ...(input.maxPrice !== undefined ? { $lte: input.maxPrice } : {}),
+    };
+  }
 
   const sort = resolveSort(input.sort, PUBLIC_BUNDLE_SORT_FIELDS, "createdAt");
 
@@ -49,12 +62,15 @@ async function listPublicBundles(
     Bundle.countDocuments(filter),
   ]);
 
-  const productById = await fetchProductsByIds(
-    documents.flatMap((bundle) => bundle.items.map((item) => item.productId.toString())),
-  );
+  const [productById, badgeById] = await Promise.all([
+    fetchProductsByIds(documents.flatMap((bundle) => bundle.items.map((item) => item.productId.toString()))),
+    resolveBadgeRefs(documents.map((bundle) => bundle.badgeId)),
+  ]);
 
   return {
-    bundles: documents.map((bundle) => buildPublicBundle(bundle, productById)),
+    bundles: documents.map((bundle) =>
+      buildPublicBundle(bundle, productById, bundle.badgeId ? badgeById.get(bundle.badgeId.toString()) : undefined),
+    ),
     meta: buildMeta(total, input),
   };
 }
@@ -63,8 +79,20 @@ async function getPublicBundleBySlug(slug: string): Promise<PublicBundle> {
   const bundle = await Bundle.findOne({ slug, status: BundleStatus.ACTIVE }).lean<LeanBundle>();
   if (!bundle) throw new AppError("Paquete no encontrado", 404);
 
-  const productById = await fetchProductsByIds(bundle.items.map((item) => item.productId.toString()));
-  return buildPublicBundle(bundle, productById);
+  const [productById, badgeById] = await Promise.all([
+    fetchProductsByIds(bundle.items.map((item) => item.productId.toString())),
+    resolveBadgeRefs([bundle.badgeId]),
+  ]);
+  return buildPublicBundle(bundle, productById, bundle.badgeId ? badgeById.get(bundle.badgeId.toString()) : undefined);
+}
+
+/** Rango de precio de los paquetes publicados; sin ninguno, ambos `null`. */
+async function getPublicBundleFacets(): Promise<PublicBundleFacets> {
+  const [summary] = await Bundle.aggregate<{ minPrice: number; maxPrice: number }>([
+    { $match: { status: BundleStatus.ACTIVE } },
+    { $group: { _id: null, minPrice: { $min: "$price" }, maxPrice: { $max: "$price" } } },
+  ]);
+  return { minPrice: summary?.minPrice ?? null, maxPrice: summary?.maxPrice ?? null };
 }
 
 /**
@@ -82,4 +110,5 @@ async function getPublicBundleAvailability(slug: string): Promise<PublicBundleAv
   return { isAvailable: possible > 0 };
 }
 
-export { listPublicBundles, getPublicBundleBySlug, getPublicBundleAvailability };
+export { listPublicBundles, getPublicBundleBySlug, getPublicBundleAvailability, getPublicBundleFacets };
+export type { ListPublicBundlesInput };
