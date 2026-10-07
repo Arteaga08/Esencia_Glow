@@ -38,7 +38,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
   const page = parsePage(rawSearchParams);
   const pathname = `/categoria/${slug}`;
 
-  const [catalogPage, facets] = await Promise.all([getCatalogPage(slug, filters, page), getCatalogFacets(slug)]);
+  const [catalogPage, facets] = await Promise.all([getCatalogPage({ category: slug }, filters, page), getCatalogFacets({ category: slug })]);
 
   // Una página más allá de la última (filtros que dejaron menos resultados): volver a la primera.
   if (catalogPage && catalogPage.meta.pages > 0 && page > catalogPage.meta.pages) {

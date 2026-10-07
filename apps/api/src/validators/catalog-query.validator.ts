@@ -60,9 +60,10 @@ const publicProductQuerySchema = listQueryBaseSchema.keys({
   maxPrice: Joi.number().integer().min(0),
 });
 
-/** Facetas del catálogo: solo la categoría; marcas y precios los calcula el servidor. */
+/** Facetas del catálogo: categoría y/o "más vendidos"; marcas y precios los calcula el servidor. */
 const publicProductFacetsQuerySchema = Joi.object({
   category: Joi.string().trim().lowercase().max(80),
+  bestseller: Joi.boolean(),
 });
 
 export {

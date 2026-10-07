@@ -132,7 +132,7 @@ export type {
   PublicProductFacets,
   PublicVariantAvailability,
 } from "./types/catalog.js";
-export type { PublicBundleItem, PublicBundle, PublicBundleAvailability } from "./types/bundle.js";
+export type { PublicBundleItem, PublicBundle, PublicBundleAvailability, PublicBundleFacets } from "./types/bundle.js";
 export type { PublicBadge } from "./types/badge.js";
 export type { ResolveCartLineInput, ResolveCartInput, PublicCartLine } from "./types/cart.js";
 export type {

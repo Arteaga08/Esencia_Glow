@@ -1,6 +1,7 @@
 import type { Types } from "mongoose";
 import {
   CATALOG_CURRENCY,
+  ProductStatus,
   type BundleStatus,
   type ProductContent,
   type PublicBundle,
@@ -101,6 +102,8 @@ function buildPublicBundle(
     const variant = product?.variants.find((v) => v._id.toString() === item.variantId.toString());
     return {
       productId: item.productId.toString(),
+      // Solo un producto publicado tiene página: enlazar a uno archivado daría 404.
+      ...(variant && product!.status === ProductStatus.ACTIVE ? { productSlug: product!.slug } : {}),
       variantId: item.variantId.toString(),
       name: variant ? `${product!.name} — ${variant.name}` : "Producto no disponible",
       attributes: buildAttributesDto(variant?.attributes),
