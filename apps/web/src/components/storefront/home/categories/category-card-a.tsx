@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ShowcaseCategory } from "@/lib/storefront/category-showcase";
-import { VIEW_ALL_BUTTON } from "../shelf/shelf-button-styles";
+import { VIEW_ALL_BUTTON_ON_BLUSH } from "../shelf/shelf-button-styles";
 import { CategoryImage } from "./category-image";
 
 const SIZES = "(min-width: 1024px) 25vw, (min-width: 640px) 42vw, 72vw";
@@ -20,7 +20,7 @@ function CategoryCardA({ category, priority }: { category: ShowcaseCategory; pri
         {category.description ? (
           <p className="mt-3 line-clamp-2 max-w-[32ch] text-body text-foreground/80">{category.description}</p>
         ) : null}
-        <Link href={category.href} aria-label={`Comprar ${category.name}`} className={`${VIEW_ALL_BUTTON} mt-5 mb-3`}>
+        <Link href={category.href} aria-label={`Comprar ${category.name}`} className={`${VIEW_ALL_BUTTON_ON_BLUSH} mt-5 mb-3`}>
           Comprar
         </Link>
       </div>

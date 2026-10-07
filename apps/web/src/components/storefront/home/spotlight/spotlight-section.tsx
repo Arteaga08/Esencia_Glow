@@ -14,7 +14,7 @@ function SpotlightSection({ title, subtitle, href, items, cover, coverSide, tone
 
   return (
     <section aria-label={title} className={`py-14 md:py-20 ${tone === "blush" ? "bg-blush" : ""}`}>
-      <SpotlightHeader title={title} subtitle={subtitle} href={href} />
+      <SpotlightHeader title={title} subtitle={subtitle} href={href} tone={tone} />
       <div className="mx-auto max-w-shell px-4 md:px-8 xl:px-12">
         <div className="hidden items-stretch gap-6 lg:grid lg:grid-cols-2">
           <SpotlightCover cover={cover} className={`min-h-[28rem] rounded-md ${coverFirst ? "" : "order-2"}`} />
