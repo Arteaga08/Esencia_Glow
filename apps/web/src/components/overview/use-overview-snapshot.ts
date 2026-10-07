@@ -4,9 +4,9 @@ import {
   StockStatus,
   SubscriptionStatus,
   type OrderStatusGroup,
-  type PaginationMeta,
 } from "@esencia-glow/shared";
 import { apiRequest, ApiRequestError } from "@/lib/api";
+import { fetchTotal } from "@/lib/admin-counts";
 
 /**
  * Foto del momento del Resumen del panel (Milestone 2.9) — composición pura
@@ -41,14 +41,6 @@ interface OverviewSnapshot {
   subscriptionShipmentIncidents: number;
   inventory: { out: number; low: number };
   subscriptions: SubscriptionStatusCounts;
-}
-
-async function fetchTotal(path: string, query: Record<string, string | number | boolean>): Promise<number> {
-  const response = await apiRequest<unknown[], PaginationMeta>(path, {
-    authenticated: true,
-    query: { ...query, page: 1, limit: 1 },
-  });
-  return response.meta?.total ?? 0;
 }
 
 async function fetchSnapshot(): Promise<OverviewSnapshot> {
