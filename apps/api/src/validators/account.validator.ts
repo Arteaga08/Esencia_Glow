@@ -1,6 +1,6 @@
 import Joi from "joi";
 import { CFDI_USES, FISCAL_REGIMES, RFC_PATTERN } from "@esencia-glow/shared";
-import { shippingAddressSchema } from "./shipping.validator.js";
+import { customerShippingAddressSchema } from "./shipping.validator.js";
 
 /**
  * Schemas de entrada de /api/v1/account (Milestone 3.5b). `email`, `role` y
@@ -53,9 +53,9 @@ const updateProfileSchema = Joi.object({
 
 // Campos de la dirección del checkout con la regla "sin HTML" encima. El
 // resto de las reglas (largos, estado de catálogo, teléfono, CP) son las de
-// `shippingAddressSchema`: una sola definición de "dirección válida".
-const FREE_TEXT_ADDRESS_FIELDS = ["fullName", "street", "exteriorNumber", "interiorNumber", "neighborhood", "city", "references"];
-const baseAddress = shippingAddressSchema.fork(FREE_TEXT_ADDRESS_FIELDS, (field) => (field as Joi.StringSchema).pattern(NO_HTML_PATTERN));
+// `customerShippingAddressSchema`: una sola definición de "dirección válida".
+const FREE_TEXT_ADDRESS_FIELDS = ["firstName", "lastName", "street", "exteriorNumber", "interiorNumber", "neighborhood", "city", "references"];
+const baseAddress = customerShippingAddressSchema.fork(FREE_TEXT_ADDRESS_FIELDS, (field) => (field as Joi.StringSchema).pattern(NO_HTML_PATTERN));
 const ADDRESS_FIELDS = [...FREE_TEXT_ADDRESS_FIELDS, "phone", "state", "postalCode"];
 
 const createAddressSchema = baseAddress
@@ -65,6 +65,7 @@ const createAddressSchema = baseAddress
 const updateAddressSchema = baseAddress
   .fork(ADDRESS_FIELDS, (field) => field.optional())
   .fork(["interiorNumber", "references"], (field) => field.allow(null))
+  .and("firstName", "lastName")
   .keys({ label: text(40).min(1) })
   .min(1)
   .messages(MESSAGES);

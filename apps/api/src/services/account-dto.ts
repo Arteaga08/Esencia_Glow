@@ -28,6 +28,8 @@ function buildSavedAddress(address: SavedAddressAttrs & { _id: Types.ObjectId })
     label: address.label,
     isDefault: address.isDefault,
     fullName: address.fullName,
+    ...(address.firstName ? { firstName: address.firstName } : {}),
+    ...(address.lastName ? { lastName: address.lastName } : {}),
     phone: address.phone,
     street: address.street,
     exteriorNumber: address.exteriorNumber,

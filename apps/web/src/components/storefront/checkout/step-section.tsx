@@ -8,6 +8,8 @@ interface StepSectionProps {
   status: StepStatus;
   /** Texto de lo que falta para habilitar este paso (solo `upcoming`). */
   waiting: string;
+  /** En móvil la pantalla actual no es de este paso: no se pinta (en escritorio siempre se ve). */
+  mobileHidden?: boolean;
   children: ReactNode;
 }
 
@@ -22,18 +24,19 @@ const MARKER: Record<StepStatus, string> = {
  * lleva su formulario, la terminada se queda con su resumen (sin esconderlo) y
  * la que falta se ve apagada con lo que necesita para habilitarse.
  */
-function StepSection({ number, title, status, waiting, children }: StepSectionProps) {
+function StepSection({ number, title, status, waiting, mobileHidden = false, children }: StepSectionProps) {
   return (
-    <section aria-labelledby={`step-${number}`} className="border-t border-border-strong py-8">
-      <div className="flex items-center gap-3">
+    <section aria-labelledby={`step-${number}`} className={`border-t border-border-strong py-8 max-lg:border-t-0 max-lg:py-4 ${mobileHidden ? "max-lg:hidden" : ""}`}>
+      {/* En móvil el título lo pone `MobileStepHeader`: aquí solo se queda para lectores de pantalla. */}
+      <div className="flex items-center gap-3 max-lg:sr-only">
         <span className={`flex size-8 shrink-0 items-center justify-center rounded-md border font-mono text-data ${MARKER[status]}`}>
           {status === "done" ? <Check size={16} weight="bold" aria-label="Paso completo" /> : number}
         </span>
-        <h2 id={`step-${number}`} className={`text-section-title ${status === "upcoming" ? "text-muted-foreground-strong" : "text-foreground"}`}>
+        <h2 id={`step-${number}`} tabIndex={-1} className={`scroll-mt-24 text-section-title outline-none ${status === "upcoming" ? "text-muted-foreground-strong" : "text-foreground"}`}>
           {title}
         </h2>
       </div>
-      <div className="mt-6 sm:pl-11">{status === "upcoming" ? <p className="text-body-sm text-muted-foreground-strong">{waiting}</p> : children}</div>
+      <div className="mt-6 max-lg:mt-0 sm:pl-11">{status === "upcoming" ? <p className="text-body-sm text-muted-foreground-strong">{waiting}</p> : children}</div>
     </section>
   );
 }

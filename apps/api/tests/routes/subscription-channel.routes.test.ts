@@ -17,7 +17,8 @@ function sampleVariant(overrides: Partial<Record<string, unknown>> = {}) {
 }
 
 const destination = {
-  fullName: "Ana Pérez",
+  firstName: "Ana",
+  lastName: "Pérez",
   phone: "5512345678",
   street: "Av. Reforma",
   exteriorNumber: "100",

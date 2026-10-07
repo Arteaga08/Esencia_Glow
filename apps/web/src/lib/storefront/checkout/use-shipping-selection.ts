@@ -14,6 +14,8 @@ type AddressChoice = { kind: "saved"; id: string } | { kind: "new" };
 function toDestination(address: SavedAddress): PublicShippingAddress {
   return {
     fullName: address.fullName,
+    ...(address.firstName ? { firstName: address.firstName } : {}),
+    ...(address.lastName ? { lastName: address.lastName } : {}),
     phone: address.phone,
     street: address.street,
     exteriorNumber: address.exteriorNumber,
@@ -89,11 +91,11 @@ function useShippingSelection({ enabled, lines }: UseShippingSelectionOptions) {
     const found = validateAddress(form);
     setErrors(found);
     if (Object.keys(found).length > 0) return;
-    void request(addressFormToBody(form) as unknown as PublicShippingAddress, lines);
+    void request(addressFormToBody(form, true) as unknown as PublicShippingAddress, lines);
   };
 
   const selectedSaved = effectiveChoice.kind === "saved" ? addresses.find((candidate) => candidate.id === effectiveChoice.id) : undefined;
-  const destination: PublicShippingAddress | null = selectedSaved ? toDestination(selectedSaved) : effectiveChoice.kind === "new" ? (addressFormToBody(form) as unknown as PublicShippingAddress) : null;
+  const destination: PublicShippingAddress | null = selectedSaved ? toDestination(selectedSaved) : effectiveChoice.kind === "new" ? (addressFormToBody(form, true) as unknown as PublicShippingAddress) : null;
 
   const rates: PublicShippingRate[] = quote.status === "ready" ? quote.quote.rates : [];
   // Sin elección explícita, la más económica queda preseleccionada.

@@ -51,6 +51,16 @@ describe("services/order — createOrder", () => {
     expect(reservation!.expiresAt.getTime()).toBe(order.expiresAt!.getTime() + 15 * 60_000);
   });
 
+  it("congela en la orden el nombre y los apellidos de la cotización", async () => {
+    const { variantId } = await seedVariantWithStock({ price: 50000, onHand: 10 });
+    const lines = [{ itemType: "product" as const, itemId: variantId.toString(), quantity: 1 }];
+
+    const { order } = await createOrder(await buildCreateOrderInput(randomUserId(), lines));
+
+    const stored = await Order.findById(order._id).lean();
+    expect(stored?.shippingAddress).toMatchObject({ fullName: "Ana Pérez", firstName: "Ana", lastName: "Pérez" });
+  });
+
   it("audita RESERVATION_CREATED (emisor pendiente de 1.4, conectado en 1.5 desde el checkout)", async () => {
     const { variantId } = await seedVariantWithStock({ price: 50000, onHand: 10 });
     const userId = randomUserId();

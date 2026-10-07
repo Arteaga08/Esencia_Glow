@@ -14,6 +14,8 @@ import { MEXICAN_STATES, type MexicanState } from "@esencia-glow/shared";
  */
 interface ShippingAddressAttrs {
   fullName: string;
+  firstName?: string;
+  lastName?: string;
   phone: string;
   street: string;
   exteriorNumber: string;
@@ -28,6 +30,8 @@ interface ShippingAddressAttrs {
 const shippingAddressSchema = new Schema<ShippingAddressAttrs>(
   {
     fullName: { type: String, required: true, trim: true, maxlength: 200 },
+    firstName: { type: String, trim: true, maxlength: 100 },
+    lastName: { type: String, trim: true, maxlength: 100 },
     phone: { type: String, required: true, trim: true, match: /^\d{10}$/ },
     street: { type: String, required: true, trim: true, maxlength: 200 },
     exteriorNumber: { type: String, required: true, trim: true, maxlength: 20 },

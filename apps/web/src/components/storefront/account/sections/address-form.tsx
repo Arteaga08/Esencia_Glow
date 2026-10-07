@@ -44,7 +44,7 @@ function AddressForm({ address, isFirst, onSaved, onCancel }: AddressFormProps) 
 
     setSaving(true);
     try {
-      const body: Record<string, unknown> = { ...addressFormToBody(value), label: label.trim() };
+      const body: Record<string, unknown> = { ...addressFormToBody(value, true), label: label.trim() };
       if (address) {
         // Un opcional vaciado se manda como null para que el API lo borre.
         await accountRequest(`/api/v1/account/addresses/${address.id}`, {
@@ -86,7 +86,7 @@ function AddressForm({ address, isFirst, onSaved, onCancel }: AddressFormProps) 
         maxLength={40}
         error={errors.label}
       />
-      <AddressFields value={value} onChange={(patch) => setValue((current) => ({ ...current, ...patch }))} errors={errors} />
+      <AddressFields value={value} onChange={(patch) => setValue((current) => ({ ...current, ...patch }))} errors={errors} splitName />
       {address || isFirst ? null : (
         <CheckboxField checked={makeDefault} onChange={setMakeDefault}>
           Usar como mi dirección principal

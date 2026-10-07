@@ -1,7 +1,8 @@
 "use client";
 
 import { Check, CaretDown, WarningCircle } from "@phosphor-icons/react";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
+import { filterOptions } from "./select-search";
 
 interface SelectOption {
   value: string;
@@ -18,6 +19,9 @@ interface SelectProps {
   helper?: string;
   disabled?: boolean;
   className?: string;
+  /** Campo de búsqueda al abrir: para listas largas (estados), escribir es más rápido que desplazarse. */
+  searchable?: boolean;
+  searchPlaceholder?: string;
 }
 
 /**
@@ -26,7 +30,8 @@ interface SelectProps {
  * resaltada `muted`, seleccionada `primary` + `Check`; vacío con Cuerpo
  * pequeño centrado. Listbox propio (no `<select>` nativo) porque el overlay
  * documentado no tiene equivalente nativo estilizable de forma consistente
- * entre navegadores.
+ * entre navegadores. Con `searchable`, el menú abre con un campo de texto que
+ * filtra sin distinguir mayúsculas ni acentos; flechas y Enter eligen.
  */
 function Select({
   label,
@@ -38,23 +43,54 @@ function Select({
   helper,
   disabled = false,
   className = "",
+  searchable = false,
+  searchPlaceholder = "Buscar",
 }: SelectProps) {
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [highlight, setHighlight] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
   const autoId = useId();
   const helperId = helper || error ? `${autoId}-helper` : undefined;
   const hasError = Boolean(error);
   const selected = options.find((option) => option.value === value);
+  const visible = searchable ? filterOptions(options, query) : options;
+
+  function close() {
+    setOpen(false);
+    setQuery("");
+    setHighlight(0);
+  }
+
+  function choose(next: string) {
+    onChange(next);
+    close();
+  }
+
+  function handleSearchKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setHighlight((current) => Math.min(current + 1, visible.length - 1));
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setHighlight((current) => Math.max(current - 1, 0));
+    } else if (event.key === "Enter") {
+      // Dentro de un formulario, Enter no debe enviarlo: aquí solo elige.
+      event.preventDefault();
+      const picked = visible[highlight];
+      if (picked) choose(picked.value);
+    }
+  }
 
   useEffect(() => {
     if (!open) return;
     function handlePointerDown(event: PointerEvent) {
       if (rootRef.current && !rootRef.current.contains(event.target as Node)) {
-        setOpen(false);
+        close();
       }
     }
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") setOpen(false);
+    function handleKeyDown(event: globalThis.KeyboardEvent) {
+      if (event.key === "Escape") close();
     }
     document.addEventListener("pointerdown", handlePointerDown);
     document.addEventListener("keydown", handleKeyDown);
@@ -73,7 +109,7 @@ function Select({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-describedby={helperId}
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => (open ? close() : setOpen(true))}
         className={
           "peer flex w-full items-center justify-between rounded-md border bg-input px-3 py-2.75 " +
           "text-left text-body text-foreground outline-none transition-colors duration-[var(--duration-fast)] " +
@@ -120,26 +156,44 @@ function Select({
             "bg-surface py-1 shadow-[var(--shadow-overlay)]"
           }
         >
-          {options.length === 0 ? (
+          {searchable ? (
+            <li role="presentation" className="sticky top-0 border-b border-border bg-surface px-2 pb-2 pt-1">
+              <input
+                type="text"
+                autoFocus
+                value={query}
+                onChange={(event) => {
+                  setQuery(event.target.value);
+                  setHighlight(0);
+                }}
+                onKeyDown={handleSearchKeyDown}
+                placeholder={searchPlaceholder}
+                aria-label={`Buscar: ${label}`}
+                autoComplete="off"
+                className="w-full rounded-md border border-border-strong bg-input px-3 py-2 text-body text-foreground outline-none placeholder:text-muted-foreground focus:border-primary-action"
+              />
+            </li>
+          ) : null}
+          {visible.length === 0 ? (
             <li className="px-3 py-4 text-center text-body-sm text-muted-foreground">
-              No hay opciones disponibles
+              {searchable && options.length > 0 ? "Sin resultados" : "No hay opciones disponibles"}
             </li>
           ) : (
-            options.map((option) => {
+            visible.map((option, index) => {
               const isSelected = option.value === value;
+              const isHighlighted = searchable && index === highlight;
               return (
                 <li key={option.value} role="option" aria-selected={isSelected}>
                   <button
                     type="button"
-                    onClick={() => {
-                      onChange(option.value);
-                      setOpen(false);
-                    }}
+                    onClick={() => choose(option.value)}
                     className={
-                      "flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-body " +
+                      "flex w-full cursor-pointer items-center justify-between gap-2 px-3 py-2 text-left text-body " +
                       (isSelected
                         ? "bg-primary text-foreground"
-                        : "text-foreground hover:bg-muted")
+                        : isHighlighted
+                          ? "bg-muted text-foreground"
+                          : "text-foreground hover:bg-muted")
                     }
                   >
                     {option.label}

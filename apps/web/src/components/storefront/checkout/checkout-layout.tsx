@@ -9,6 +9,8 @@ interface CheckoutLayoutProps {
   totals: CartTotals;
   /** Campo de cupón del resumen; se muestra en el resumen de escritorio y en el plegable de móvil. */
   coupon?: ReactNode;
+  /** En móvil el resumen ya va abierto dentro de la pantalla de pago: el plegable de arriba se oculta. */
+  hideMobileDisclosure?: boolean;
   children: ReactNode;
 }
 
@@ -16,12 +18,12 @@ interface CheckoutLayoutProps {
  * Marco de la página única (propuesta A): pasos a la izquierda y resumen fijo a
  * la derecha; en móvil, el resumen se pliega arriba con el total a la vista.
  */
-function CheckoutLayout({ title, lines, totals, coupon, children }: CheckoutLayoutProps) {
+function CheckoutLayout({ title, lines, totals, coupon, hideMobileDisclosure = false, children }: CheckoutLayoutProps) {
   const summary = <SummaryBody lines={lines} totals={totals} coupon={coupon} />;
 
   return (
     <main className="pt-16 pb-32 xl:pt-20">
-      <SummaryDisclosure totalCents={totals.totalCents} className="border-t-0 lg:hidden">
+      <SummaryDisclosure totalCents={totals.totalCents} className={`border-t-0 lg:hidden ${hideMobileDisclosure ? "hidden" : ""}`}>
         {summary}
       </SummaryDisclosure>
 
