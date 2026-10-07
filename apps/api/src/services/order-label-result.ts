@@ -1,8 +1,6 @@
-import { OrderAction, OrderStatus, ShippingLabelStatus } from "@esencia-glow/shared";
-import { logger } from "../config/logger.js";
+import { OrderAction, ShippingLabelStatus } from "@esencia-glow/shared";
 import { Order } from "../models/order.model.js";
 import { recordAudit } from "./audit.service.js";
-import { applySystemOrderTransition } from "./order-system-transition.service.js";
 import { sendShippingLabelAlertEmail } from "./shipping-email.service.js";
 import type { ShippingLabelResult } from "./shipping-provider.js";
 
@@ -70,22 +68,11 @@ async function recordLabelSuccess(
   return true;
 }
 
-/** Guía `ready`: audita y mueve `paid -> processing` como sistema. Si la
- * orden ya no está en `paid` (el admin la movió a mano) o hay un contracargo
- * abierto, la transición se omite — la guía ya quedó guardada, así que
- * nunca se pierde. */
+/** Guía `ready`: solo se audita. El paso `paid -> processing` es manual: lo
+ * da la dueña desde el panel cuando empieza a preparar el pedido, y ese
+ * cambio es el que dispara el correo de "en preparación". */
 async function completeReadyLabel(orderId: string): Promise<void> {
   await recordAudit({ action: OrderAction.LABEL_CREATED, targetId: orderId });
-  try {
-    await applySystemOrderTransition({
-      orderId,
-      from: OrderStatus.PAID,
-      to: OrderStatus.PROCESSING,
-      reason: "Guía de envío generada",
-    });
-  } catch (error) {
-    logger.error({ err: error, orderId }, "No se pudo mover el pedido a processing tras generar la guía");
-  }
 }
 
 /** Backoff exponencial: base * 2^(intento-1) minutos. */

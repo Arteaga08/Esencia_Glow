@@ -171,6 +171,20 @@ describe("routes/order — checkout, lectura y cancelación del cliente", () => 
     expect(res.body.data).toHaveLength(1);
   });
 
+  it("GET /orders devuelve primero el pedido más reciente (limit=1 = el último)", async () => {
+    const { variantId } = await seedProduct({ onHand: 10 });
+    const { agent } = await createCustomerSession(app);
+
+    const first = await agent.post("/api/v1/orders").set("Idempotency-Key", randomUUID()).send(await checkoutPayload(agent, variantId));
+    await agent.post(`/api/v1/orders/${first.body.data.order.id}/cancel`);
+    const second = await agent.post("/api/v1/orders").set("Idempotency-Key", randomUUID()).send(await checkoutPayload(agent, variantId));
+    expect(second.status).toBe(201);
+
+    const res = await agent.get("/api/v1/orders").query({ limit: 1 });
+
+    expect(res.body.data.map((order: { id: string }) => order.id)).toEqual([second.body.data.order.id]);
+  });
+
   it("cancelar una orden pending responde 200 y libera la reserva", async () => {
     const { variantId } = await seedProduct({ onHand: 10 });
     const { agent } = await createCustomerSession(app);

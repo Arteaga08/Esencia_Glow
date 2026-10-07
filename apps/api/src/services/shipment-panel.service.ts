@@ -15,7 +15,7 @@ import { resolveSort } from "../utils/resolve-sort.js";
 import { buildAdminShipmentRow, type LeanOrderForShipment } from "./shipment-dto.js";
 
 /**
- * Lectura admin de `/admin/shipments` (Milestone 2.4): cuatro colas de
+ * Lectura admin de `/admin/shipments` (Milestone 2.4): cinco colas de
  * trabajo sobre `Order`, calcadas de `order-admin.service.ts` — mismo
  * `parseListQuery`/`resolveSort`/`buildMeta`, misma hidratación de clientes
  * en un solo batch. Las cajas de suscripción viven en otro modelo
@@ -43,8 +43,8 @@ const SHIPPABLE_STATUSES = [OrderStatus.PAID, OrderStatus.PROCESSING, OrderStatu
 const PROBLEM_LABEL_STATUSES = [ShippingLabelStatus.NEEDS_REVIEW, ShippingLabelStatus.FAILED];
 const PROBLEM_TRACKING_STATUSES = [ShipmentTrackingStatus.EXCEPTION, ShipmentTrackingStatus.RETURNED];
 
-/** Las tres colas "sanas" excluyen explícitamente lo que `problems` atrapa
- * — así las cuatro colas son disjuntas por construcción, nunca por
+/** Las cuatro colas "sanas" excluyen explícitamente lo que `problems` atrapa
+ * — así las cinco colas son disjuntas por construcción, nunca por
  * casualidad de qué llega primero. */
 const NOT_PROBLEM: FilterQuery<OrderAttrs> = {
   "label.status": { $nin: PROBLEM_LABEL_STATUSES },
@@ -61,8 +61,10 @@ function buildQueueFilter(queue: ShipmentQueue): FilterQuery<OrderAttrs> {
           { "tracking.status": { $in: PROBLEM_TRACKING_STATUSES } },
         ],
       };
+    case "paid":
+      return { status: OrderStatus.PAID, ...NOT_PROBLEM };
     case "preparing":
-      return { status: { $in: [OrderStatus.PAID, OrderStatus.PROCESSING] }, ...NOT_PROBLEM };
+      return { status: OrderStatus.PROCESSING, ...NOT_PROBLEM };
     case "transit":
       return { status: OrderStatus.SHIPPED, ...NOT_PROBLEM };
     case "delivered":

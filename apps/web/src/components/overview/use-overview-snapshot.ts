@@ -20,6 +20,7 @@ import { apiRequest, ApiRequestError } from "@/lib/api";
 
 interface ShipmentQueueCounts {
   problems: number;
+  paid: number;
   preparing: number;
   transit: number;
   delivered: number;
@@ -72,12 +73,12 @@ async function fetchSnapshot(): Promise<OverviewSnapshot> {
       fetchTotal("/api/v1/admin/subscriptions", { attention: true }),
     ]);
 
-  const [problems, preparing, transit, delivered] = shipmentTotals;
+  const [problems, paid, preparing, transit, delivered] = shipmentTotals;
   const [incomplete, active, pastDue, paused, canceled] = subscriptionTotals;
 
   return {
     orderGroups,
-    shipmentQueues: { problems: problems ?? 0, preparing: preparing ?? 0, transit: transit ?? 0, delivered: delivered ?? 0 },
+    shipmentQueues: { problems: problems ?? 0, paid: paid ?? 0, preparing: preparing ?? 0, transit: transit ?? 0, delivered: delivered ?? 0 },
     subscriptionShipmentIncidents,
     inventory: { out, low },
     subscriptions: {

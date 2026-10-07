@@ -42,7 +42,7 @@ describe("services/payment-settlement — disparo de la guía", () => {
     currency: order.currency,
   });
 
-  it("un pago confirmado (outcome paid) compra la guía y deja la orden en processing", async () => {
+  it("un pago confirmado (outcome paid) compra la guía y la orden se queda en paid", async () => {
     const order = await createPendingOrder();
     const provider = buildFakeShippingProvider();
     __setShippingProviderForTests(provider);
@@ -54,7 +54,7 @@ describe("services/payment-settlement — disparo de la guía", () => {
     expect(provider.purchaseLabel).toHaveBeenCalledTimes(1);
     const after = await Order.findById(order._id).lean();
     expect(after!.label!.status).toBe(ShippingLabelStatus.READY);
-    expect(after!.status).toBe(OrderStatus.PROCESSING);
+    expect(after!.status).toBe(OrderStatus.PAID);
   });
 
   it("un replay del webhook (already_paid) NO vuelve a comprar", async () => {

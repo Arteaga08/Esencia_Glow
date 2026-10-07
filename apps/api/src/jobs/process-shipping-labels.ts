@@ -10,7 +10,6 @@ import { logger } from "../config/logger.js";
 import { Order } from "../models/order.model.js";
 import { processOrderLabel } from "../services/order-label.service.js";
 import { recordLabelNeedsReview, recordLabelSuccess, type LabelClaimToken } from "../services/order-label-result.js";
-import { applySystemOrderTransition } from "../services/order-system-transition.service.js";
 import { resolveShippingProvider, type ShippingProvider } from "../services/shipping-provider.js";
 import { convergeOrderWithTracking } from "../services/shipment-tracking.service.js";
 import { ShipmentTrackingStatus } from "@esencia-glow/shared";
@@ -28,10 +27,11 @@ import { runWithDeadline } from "../utils/run-with-deadline.js";
  *    compra) -> `needs_review`. NO se recompran: no se sabe si el proveedor
  *    cobró.
  *
- * 4. Transiciones de orden que quedaron a medias: una guía `ready` sobre una
- *    orden todavía `paid`, o un rastreo que va más adelante que la orden
- *    (el proceso murió a media transición, o un contracargo la dejó en
- *    pausa y ya se resolvió). Reintenta la misma transición idempotente.
+ * 4. Transiciones de orden que quedaron a medias: un rastreo que va más
+ *    adelante que la orden (el proceso murió a media transición, o un
+ *    contracargo la dejó en pausa y ya se resolvió). Reintenta la misma
+ *    transición idempotente. Una guía `ready` sobre una orden `paid` NO se
+ *    toca: el paso a `processing` es manual.
  *
  * Los barridos 1 y 2 necesitan proveedor; sin él (503 "no configurado") se
  * saltan sin consumir intentos. El 3 no llama al proveedor, así que corre
@@ -152,34 +152,10 @@ async function reviewDeadLabels(now: Date, batchSize: number, summary: ShippingL
 }
 
 async function reconcileStuckOrders(batchSize: number, summary: ShippingLabelsSummary) {
-  // (a) Guía lista sobre una orden que sigue `paid`. Con contracargo abierto no
-  // se despacha: se excluye de la consulta para no reintentarla cada minuto.
-  const readyButPaid = await Order.find({
-    status: OrderStatus.PAID,
-    "label.status": ShippingLabelStatus.READY,
-    disputeStatus: { $ne: DisputeStatus.OPEN },
-  })
-    .limit(batchSize)
-    .select("_id")
-    .lean();
-
-  for (const doc of readyButPaid) {
-    try {
-      const result = await applySystemOrderTransition({
-        orderId: String(doc._id),
-        from: OrderStatus.PAID,
-        to: OrderStatus.PROCESSING,
-        reason: "Guía de envío generada",
-      });
-      if (result.outcome === "applied") summary.reconciled += 1;
-    } catch (error) {
-      summary.failed += 1;
-      logger.error({ err: error, orderId: String(doc._id) }, "Falló la reconciliación de una guía lista");
-    }
-  }
-
-  // (b) Rastreo más adelantado que la orden. Despachar (`shipped`) exige no
-  // tener contracargo abierto; cerrar la entrega desde `shipped` no.
+  // Rastreo más adelantado que la orden. Una guía lista NO mueve la orden por sí
+  // sola (el paso a `processing` es manual); un paquete que la paquetería ya
+  // recogió sí. Despachar (`shipped`) exige no tener contracargo abierto; cerrar
+  // la entrega desde `shipped` no.
   const behindTracking = await Order.find({
     $or: [
       {

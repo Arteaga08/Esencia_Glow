@@ -9,18 +9,20 @@ import { useShipmentQueue } from "@/components/shipments/use-shipment-queue";
 
 const SEARCH_DEBOUNCE_MS = 300;
 
-const QUEUES: ShipmentQueue[] = ["problems", "preparing", "transit", "delivered"];
+const QUEUES: ShipmentQueue[] = ["problems", "paid", "preparing", "transit", "delivered"];
 
 const QUEUE_LABELS: Record<ShipmentQueue, string> = {
   problems: "Requieren atención",
-  preparing: "Por despachar",
+  paid: "Pagados, por preparar",
+  preparing: "En preparación",
   transit: "En camino",
   delivered: "Entregadas",
 };
 
 const QUEUE_EMPTY_MESSAGE: Record<ShipmentQueue, string> = {
   problems: "Ninguna guía atorada ni paquete con incidencia.",
-  preparing: "Ningún pedido pagado esperando guía.",
+  paid: "Ningún pedido pagado esperando que lo prepares.",
+  preparing: "Ningún pedido en preparación.",
   transit: "Ningún paquete en tránsito ahora mismo.",
   delivered: "Sin entregas todavía.",
 };
@@ -63,7 +65,7 @@ function StoreQueueSection({ queue, search, isFiltered, refreshSignal, onRowRetr
 /** Envíos de compras de tienda (producto y paquetes) — las cajas de
  * suscripción son otro modelo y viven en la pestaña Suscripción de esta
  * misma pantalla. Propuesta A elegida por Manuel: misma lógica visual que
- * Pedidos (2.3), cuatro colas apiladas y colapsables. */
+ * Pedidos (2.3), cinco colas apiladas y colapsables. */
 function StoreShipmentsTab() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");

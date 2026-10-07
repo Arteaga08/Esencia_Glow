@@ -54,9 +54,10 @@ const ORDER_TRANSITIONS: Readonly<Record<OrderStatus, readonly OrderStatus[]>> =
 const TRANSITION_ACTORS: Readonly<Record<string, readonly OrderActor[]>> = {
   [`${OrderStatus.PENDING}->${OrderStatus.PAID}`]: ["system"],
   [`${OrderStatus.PENDING}->${OrderStatus.CANCELLED}`]: ["customer", "admin", "system"],
-  // Las tres aristas de despacho las toma el admin a mano O el sistema (1.9):
-  // la guía lista mueve paid->processing y el tracking del proveedor mueve
-  // processing->shipped->delivered. El admin conserva siempre su camino manual
+  // Las tres aristas de despacho las toma el admin a mano O el sistema (1.9).
+  // paid->processing es manual en el flujo normal (la dueña empieza a preparar);
+  // el sistema solo la recorre cuando el tracking del proveedor ya va adelante,
+  // y ese mismo tracking mueve processing->shipped->delivered. El admin conserva siempre su camino manual
   // (guía propia, proveedor caído).
   [`${OrderStatus.PAID}->${OrderStatus.PROCESSING}`]: ["admin", "system"],
   [`${OrderStatus.PROCESSING}->${OrderStatus.SHIPPED}`]: ["admin", "system"],

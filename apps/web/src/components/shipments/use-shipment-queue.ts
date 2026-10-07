@@ -21,7 +21,7 @@ interface ShipmentQueueFilters {
  * `problems` a `preparing`, por ejemplo). Sin esto, la cola de origen se
  * refresca sola pero la cola destino, ya montada, nunca se entera — el
  * pedido desaparecería del panel hasta recargar. El emisor de la señal vive
- * en la pestaña (`store-shipments-tab.tsx`), compartido por las 4 colas.
+ * en la pestaña (`store-shipments-tab.tsx`), compartido por las 5 colas.
  */
 function useShipmentQueue(queue: ShipmentQueue, filters: ShipmentQueueFilters, refreshSignal = 0) {
   const filtersKey = filters.search;
@@ -42,6 +42,8 @@ function useShipmentQueue(queue: ShipmentQueue, filters: ShipmentQueueFilters, r
       authenticated: true,
       query: {
         queue,
+        // Lo más nuevo primero: lo que acaba de entrar queda arriba de su cola.
+        sort: "-createdAt",
         page,
         limit: SECTION_PAGE_LIMIT,
         search: filters.search || undefined,

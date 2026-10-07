@@ -185,7 +185,7 @@ async function sendRefundEmail(orderId: string, amountCents: number): Promise<vo
 }
 
 /** Dispara cuando el pedido entra a `processing` (`order-status-email.ts`):
- * la guía quedó lista (sistema) o un admin lo movió a mano. */
+ * la dueña lo movió a mano desde el panel (o el rastreo ya iba adelante). */
 async function sendOrderProcessingEmail(orderId: string): Promise<void> {
   await sendOrderEmail(orderId, (target) => ({
     subject: `Estamos preparando tu pedido ${target.orderNumber}`,

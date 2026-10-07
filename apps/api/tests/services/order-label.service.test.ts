@@ -64,7 +64,7 @@ describe("services/order-label — processOrderLabel", () => {
   });
 
   describe("compra exitosa", () => {
-    it("compra UNA vez con los datos correctos, deja la guía ready y mueve la orden a processing", async () => {
+    it("compra UNA vez con los datos correctos, deja la guía ready y la orden sigue en paid", async () => {
       const { orderId } = await seedPaidOrder();
       const provider = buildFakeShippingProvider({ purchaseLabel: vi.fn().mockResolvedValue(readyResult(orderId)) });
       const order = await Order.findById(orderId).lean();
@@ -96,8 +96,8 @@ describe("services/order-label — processOrderLabel", () => {
         labelUrl: "https://labels.example/1.pdf",
       });
       expect(after!.label!.readyAt).toBeInstanceOf(Date);
-      expect(after!.status).toBe(OrderStatus.PROCESSING);
-      expect(after!.statusHistory.at(-1)!.actorType).toBe("system");
+      // El paso a processing es manual: comprar la guía no mueve la orden.
+      expect(after!.status).toBe(OrderStatus.PAID);
     });
 
     it("audita label_requested y label_created", async () => {

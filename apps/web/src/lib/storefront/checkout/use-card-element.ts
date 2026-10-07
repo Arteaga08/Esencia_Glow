@@ -51,9 +51,9 @@ function useCardElement(containerRef: RefObject<HTMLDivElement | null>, amountCe
         mode: "payment",
         amount: amountRef.current,
         currency: "mxn",
-        // El PaymentIntent del API es solo de tarjeta y la tienda no cobra con OXXO:
-        // se excluyen los métodos que Stripe ofrecería en MXN si estuvieran activos en el Dashboard.
-        excludedPaymentMethodTypes: ["oxxo", "customer_balance"],
+        // En modo diferido el formulario debe declarar lo mismo que el PaymentIntent del API
+        // (`payment_method_types: ["card"]`): si no, Stripe asume métodos automáticos y rechaza la confirmación.
+        allowedPaymentMethodTypes: ["card"],
         locale: "es-419",
         appearance: STRIPE_APPEARANCE,
       });

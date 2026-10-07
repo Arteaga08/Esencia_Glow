@@ -70,7 +70,7 @@ describe("jobs/processShippingLabels", () => {
       for (const { orderId } of [a, b]) {
         const order = await Order.findById(orderId).lean();
         expect(order!.label!.status).toBe(ShippingLabelStatus.READY);
-        expect(order!.status).toBe(OrderStatus.PROCESSING);
+        expect(order!.status).toBe(OrderStatus.PAID);
       }
     });
 
@@ -140,7 +140,7 @@ describe("jobs/processShippingLabels", () => {
   });
 
   describe("barrido 2: guías processing (el proveedor ya cobró)", () => {
-    it("consulta getLabel y, si ya está lista, la deja ready y mueve la orden a processing", async () => {
+    it("consulta getLabel y, si ya está lista, la deja ready sin mover la orden", async () => {
       const { orderId } = await seedProcessingLabel(new Date());
       const provider = buildFakeShippingProvider({ getLabel: vi.fn().mockResolvedValue(readyFor(orderId)) });
 
@@ -152,7 +152,7 @@ describe("jobs/processShippingLabels", () => {
       const order = await Order.findById(orderId).lean();
       expect(order!.label!.status).toBe(ShippingLabelStatus.READY);
       expect(order!.label!.trackingNumber).toBe(`TRK-${orderId}`);
-      expect(order!.status).toBe(OrderStatus.PROCESSING);
+      expect(order!.status).toBe(OrderStatus.PAID);
     });
 
     it("si sigue processing la deja como está, sin recomprar", async () => {
@@ -222,18 +222,21 @@ describe("jobs/processShippingLabels", () => {
       return seeded;
     }
 
-    it("una guía ready sobre una orden todavía paid (la transición falló) la mueve a processing", async () => {
+    it("una guía ready sobre una orden todavía paid NO la mueve: el paso a processing es manual", async () => {
       const { orderId } = await seedReadyLabelOnPaidOrder();
 
       const summary = await processShippingLabels(new Date(), 100, buildFakeShippingProvider());
 
-      expect(summary.reconciled).toBe(1);
-      expect((await Order.findById(orderId).lean())!.status).toBe(OrderStatus.PROCESSING);
+      expect(summary.reconciled).toBe(0);
+      expect((await Order.findById(orderId).lean())!.status).toBe(OrderStatus.PAID);
     });
 
-    it("con contracargo abierto no la mueve; al cerrarse la disputa, el siguiente barrido sí", async () => {
+    it("un rastreo que ya va adelante sí arrastra la orden; con contracargo abierto espera a que se cierre", async () => {
       const { orderId } = await seedReadyLabelOnPaidOrder();
-      await Order.updateOne({ _id: orderId }, { $set: { disputeStatus: DisputeStatus.OPEN } });
+      await Order.updateOne(
+        { _id: orderId },
+        { $set: { disputeStatus: DisputeStatus.OPEN, tracking: { status: "in_transit", lastEventAt: new Date() } } },
+      );
 
       const blocked = await processShippingLabels(new Date(), 100, buildFakeShippingProvider());
       expect(blocked.reconciled).toBe(0);
@@ -242,7 +245,7 @@ describe("jobs/processShippingLabels", () => {
       await Order.updateOne({ _id: orderId }, { $set: { disputeStatus: DisputeStatus.WON } });
       const allowed = await processShippingLabels(new Date(), 100, buildFakeShippingProvider());
       expect(allowed.reconciled).toBe(1);
-      expect((await Order.findById(orderId).lean())!.status).toBe(OrderStatus.PROCESSING);
+      expect((await Order.findById(orderId).lean())!.status).toBe(OrderStatus.SHIPPED);
     });
 
     it("un rastreo delivered sobre una orden que se quedó en shipped (entrega bloqueada por disputa) la cierra al resolverse", async () => {
@@ -278,12 +281,13 @@ describe("jobs/processShippingLabels", () => {
 
     it("corre aunque no haya proveedor configurado (no lo necesita)", async () => {
       const { orderId } = await seedReadyLabelOnPaidOrder();
+      await Order.updateOne({ _id: orderId }, { $set: { tracking: { status: "in_transit", lastEventAt: new Date() } } });
       __setShippingProviderForTests(undefined);
 
       const summary = await processShippingLabels(new Date(), 100);
 
       expect(summary.reconciled).toBe(1);
-      expect((await Order.findById(orderId).lean())!.status).toBe(OrderStatus.PROCESSING);
+      expect((await Order.findById(orderId).lean())!.status).toBe(OrderStatus.SHIPPED);
     });
   });
 
