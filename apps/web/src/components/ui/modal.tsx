@@ -50,7 +50,7 @@ function Modal({ open, onClose, title, children, footer, size = "md" }: ModalPro
       <div
         aria-hidden="true"
         onClick={onClose}
-        className="absolute inset-0 bg-[oklch(0.4015_0.0436_37.9587_/_0.4)]"
+        className="absolute inset-0 bg-[oklch(0.2_0_0_/_0.4)]"
       />
       <div
         ref={containerRef}

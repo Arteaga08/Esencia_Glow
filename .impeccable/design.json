@@ -22,7 +22,7 @@
       "foreground": {
         "role": "neutral",
         "displayName": "Tinta",
-        "canonical": "oklch(0.4015 0.0436 37.9587)",
+        "canonical": "oklch(0.2 0 0)",
         "tonalRamp": [
           "#1a0401",
           "#391f16",
@@ -282,12 +282,12 @@
     "shadows": [
       {
         "name": "overlay",
-        "value": "0 8px 24px -6px oklch(0.4015 0.0436 37.9587 / 0.18)",
+        "value": "0 8px 24px -6px oklch(0.2 0 0 / 0.18)",
         "purpose": "Menú de select, dropdown, popover, tooltip. La sombra tiñe la tinta del sistema, nunca el rosa de marca."
       },
       {
         "name": "modal",
-        "value": "0 16px 48px -8px oklch(0.4015 0.0436 37.9587 / 0.22)",
+        "value": "0 16px 48px -8px oklch(0.2 0 0 / 0.22)",
         "purpose": "Modal, hoja lateral, toast — lo único que de verdad bloquea o interrumpe el flujo."
       }
     ],
@@ -347,7 +347,7 @@
       "refersTo": "button-secondary",
       "description": "Acción secundaria, con borde estructural en vez de fondo sólido.",
       "html": "<button class=\"ds-btn-secondary\">Cancelar</button>",
-      "css": ".ds-btn-secondary {\n  background: #ffffff;\n  color: #5d4037;\n  font-family: 'Schibsted Grotesk', ui-sans-serif, system-ui, sans-serif;\n  font-size: 14px;\n  padding: 10px 16px;\n  border: 1px solid #a58a91;\n  border-radius: 8px;\n  cursor: pointer;\n  transition: background-color 120ms cubic-bezier(0.25, 1, 0.5, 1), border-color 120ms cubic-bezier(0.25, 1, 0.5, 1);\n}\n.ds-btn-secondary:hover { background: #fdf2f5; border-color: #5d4037; }\n.ds-btn-secondary:focus-visible { outline: 2px solid #9f5f6d; outline-offset: 2px; }"
+      "css": ".ds-btn-secondary {\n  background: #ffffff;\n  color: #161616;\n  font-family: 'Schibsted Grotesk', ui-sans-serif, system-ui, sans-serif;\n  font-size: 14px;\n  padding: 10px 16px;\n  border: 1px solid #a58a91;\n  border-radius: 8px;\n  cursor: pointer;\n  transition: background-color 120ms cubic-bezier(0.25, 1, 0.5, 1), border-color 120ms cubic-bezier(0.25, 1, 0.5, 1);\n}\n.ds-btn-secondary:hover { background: #fdf2f5; border-color: #161616; }\n.ds-btn-secondary:focus-visible { outline: 2px solid #9f5f6d; outline-offset: 2px; }"
     },
     {
       "name": "Campo con etiqueta de muesca",
@@ -355,7 +355,7 @@
       "refersTo": "input-notched",
       "description": "La etiqueta se recorta sobre la línea del borde, como la pestaña de una ficha de bitácora. El fondo del label lee var(--surface-bg) de su contenedor, por eso el segundo ejemplo (dentro de una tarjeta blanca) se recorta limpio también.",
       "html": "<div style=\"--surface-bg:#fff9fb;\">\n  <div class=\"ds-field-notch\">\n    <label class=\"ds-notch-label\" for=\"ds-name\">Nombre del producto</label>\n    <input class=\"ds-notch-input\" id=\"ds-name\" type=\"text\" value=\"Serum reparador de noche\" />\n  </div>\n  <div class=\"ds-field-notch\">\n    <label class=\"ds-notch-label ds-notch-label--focus\" for=\"ds-price\">Precio</label>\n    <input class=\"ds-notch-input ds-notch-input--focus\" id=\"ds-price\" type=\"text\" value=\"680.00\" />\n  </div>\n  <div class=\"ds-field-notch\">\n    <label class=\"ds-notch-label ds-notch-label--error\" for=\"ds-sku\">SKU</label>\n    <input class=\"ds-notch-input ds-notch-input--error\" id=\"ds-sku\" type=\"text\" value=\"eg 30\" />\n    <span class=\"ds-notch-help\">Solo mayúsculas y guiones</span>\n  </div>\n</div>\n<div style=\"--surface-bg:#ffffff; background:#ffffff; border:1px solid #a58a91; border-radius:12px; padding:20px;\">\n  <div class=\"ds-field-notch\" style=\"margin-bottom:0;\">\n    <label class=\"ds-notch-label\" for=\"ds-name-card\">Dentro de una tarjeta</label>\n    <input class=\"ds-notch-input\" id=\"ds-name-card\" type=\"text\" value=\"--surface-bg: #ffffff aquí\" />\n  </div>\n</div>",
-      "css": ".ds-field-notch { position: relative; display: inline-block; width: 220px; margin: 4px 12px 16px 0; }\n.ds-notch-label {\n  position: absolute;\n  top: -9px;\n  left: 10px;\n  padding: 0 4px;\n  background: var(--surface-bg, #fff9fb); /* hereda de la superficie que lo contiene: body, Card, Modal... */\n  font-family: 'PT Mono', ui-monospace, monospace;\n  font-size: 12px;\n  letter-spacing: 0.06em;\n  text-transform: uppercase;\n  color: #785a63;\n  transition: color 120ms cubic-bezier(0.25, 1, 0.5, 1);\n}\n.ds-notch-input {\n  width: 100%;\n  padding: 11px 12px;\n  font-family: 'Schibsted Grotesk', sans-serif;\n  font-size: 14px;\n  color: #5d4037;\n  background: #fffcfd;\n  border: 1.5px solid #a58a91;\n  border-radius: 8px;\n  transition: border-color 120ms cubic-bezier(0.25, 1, 0.5, 1);\n}\n.ds-notch-input:focus { outline: none; border-color: #9f5f6d; }\n.ds-notch-input:focus + .ds-notch-label,\n.ds-notch-label--focus { color: #9f5f6d; }\n.ds-notch-input--focus { border-color: #9f5f6d; }\n.ds-notch-label--error { color: #b84c58; }\n.ds-notch-input--error { border-color: #b84c58; }\n.ds-notch-help { display: block; margin-top: 6px; font-size: 13px; color: #b84c58; }"
+      "css": ".ds-field-notch { position: relative; display: inline-block; width: 220px; margin: 4px 12px 16px 0; }\n.ds-notch-label {\n  position: absolute;\n  top: -9px;\n  left: 10px;\n  padding: 0 4px;\n  background: var(--surface-bg, #fff9fb); /* hereda de la superficie que lo contiene: body, Card, Modal... */\n  font-family: 'PT Mono', ui-monospace, monospace;\n  font-size: 12px;\n  letter-spacing: 0.06em;\n  text-transform: uppercase;\n  color: #785a63;\n  transition: color 120ms cubic-bezier(0.25, 1, 0.5, 1);\n}\n.ds-notch-input {\n  width: 100%;\n  padding: 11px 12px;\n  font-family: 'Schibsted Grotesk', sans-serif;\n  font-size: 14px;\n  color: #161616;\n  background: #fffcfd;\n  border: 1.5px solid #a58a91;\n  border-radius: 8px;\n  transition: border-color 120ms cubic-bezier(0.25, 1, 0.5, 1);\n}\n.ds-notch-input:focus { outline: none; border-color: #9f5f6d; }\n.ds-notch-input:focus + .ds-notch-label,\n.ds-notch-label--focus { color: #9f5f6d; }\n.ds-notch-input--focus { border-color: #9f5f6d; }\n.ds-notch-label--error { color: #b84c58; }\n.ds-notch-input--error { border-color: #b84c58; }\n.ds-notch-help { display: block; margin-top: 6px; font-size: 13px; color: #b84c58; }"
     },
     {
       "name": "Select cerrado/abierto",
@@ -363,7 +363,7 @@
       "refersTo": "select-trigger",
       "description": "Disparador de select con caret Phosphor y menú de opciones (una resaltada, una seleccionada).",
       "html": "<button class=\"ds-select\">\n  <span>Rostro</span>\n  <svg width=\"16\" height=\"16\" viewBox=\"0 0 256 256\" fill=\"currentColor\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80A8,8,0,0,1,53.66,90.34L128,164.69l74.34-74.35a8,8,0,0,1,11.32,11.32Z\"/></svg>\n</button>\n<ul class=\"ds-select-menu\">\n  <li class=\"ds-select-option\">Cuerpo</li>\n  <li class=\"ds-select-option ds-select-option--highlighted\">Cabello</li>\n  <li class=\"ds-select-option ds-select-option--selected\">Rostro <svg width=\"12\" height=\"12\" viewBox=\"0 0 256 256\" fill=\"currentColor\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z\"/></svg></li>\n</ul>",
-      "css": ".ds-select { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 220px; background: #fffcfd; color: #5d4037; font-family: 'Schibsted Grotesk', sans-serif; font-size: 14px; padding: 9px 12px; border: 1px solid #a58a91; border-radius: 8px; cursor: pointer; }\n.ds-select:focus-visible { outline: none; border-color: #9f5f6d; box-shadow: 0 0 0 2px rgba(159,95,109,0.2); }\n.ds-select-menu { list-style: none; margin: 4px 0 0; padding: 4px; width: 220px; background: #ffffff; border: 1px solid #a58a91; border-radius: 8px; box-shadow: 0 8px 24px -6px rgba(93,64,55,0.18); font-family: 'Schibsted Grotesk', sans-serif; font-size: 14px; }\n.ds-select-option { padding: 8px 10px; border-radius: 6px; display: flex; align-items: center; justify-content: space-between; }\n.ds-select-option--highlighted { background: #f4eef1; }\n.ds-select-option--selected { background: #ffb7c5; color: #5d4037; }\n.ds-select-option--selected svg { flex-shrink: 0; }"
+      "css": ".ds-select { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 220px; background: #fffcfd; color: #161616; font-family: 'Schibsted Grotesk', sans-serif; font-size: 14px; padding: 9px 12px; border: 1px solid #a58a91; border-radius: 8px; cursor: pointer; }\n.ds-select:focus-visible { outline: none; border-color: #9f5f6d; box-shadow: 0 0 0 2px rgba(159,95,109,0.2); }\n.ds-select-menu { list-style: none; margin: 4px 0 0; padding: 4px; width: 220px; background: #ffffff; border: 1px solid #a58a91; border-radius: 8px; box-shadow: 0 8px 24px -6px rgba(93,64,55,0.18); font-family: 'Schibsted Grotesk', sans-serif; font-size: 14px; }\n.ds-select-option { padding: 8px 10px; border-radius: 6px; display: flex; align-items: center; justify-content: space-between; }\n.ds-select-option--highlighted { background: #f4eef1; }\n.ds-select-option--selected { background: #ffb7c5; color: #161616; }\n.ds-select-option--selected svg { flex-shrink: 0; }"
     },
     {
       "name": "Checkbox",
@@ -371,7 +371,7 @@
       "refersTo": "checkbox",
       "description": "Casilla con estado marcado y sin marcar.",
       "html": "<label class=\"ds-checkbox\"><input type=\"checkbox\" checked /><span class=\"ds-checkbox-box\"><svg width=\"12\" height=\"12\" viewBox=\"0 0 256 256\" fill=\"currentColor\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z\"/></svg></span> Publicar en catálogo</label>",
-      "css": ".ds-checkbox { display: inline-flex; align-items: center; gap: 8px; font-family: 'Schibsted Grotesk', sans-serif; font-size: 14px; color: #5d4037; cursor: pointer; }\n.ds-checkbox input { position: absolute; opacity: 0; width: 18px; height: 18px; }\n.ds-checkbox-box { width: 18px; height: 18px; border: 1px solid #a58a91; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; background: #ffffff; }\n.ds-checkbox input:checked + .ds-checkbox-box { background: #9f5f6d; border-color: #9f5f6d; color: #ffffff; }\n.ds-checkbox input:focus-visible + .ds-checkbox-box { outline: 2px solid #9f5f6d; outline-offset: 2px; }"
+      "css": ".ds-checkbox { display: inline-flex; align-items: center; gap: 8px; font-family: 'Schibsted Grotesk', sans-serif; font-size: 14px; color: #161616; cursor: pointer; }\n.ds-checkbox input { position: absolute; opacity: 0; width: 18px; height: 18px; }\n.ds-checkbox-box { width: 18px; height: 18px; border: 1px solid #a58a91; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; background: #ffffff; }\n.ds-checkbox input:checked + .ds-checkbox-box { background: #9f5f6d; border-color: #9f5f6d; color: #ffffff; }\n.ds-checkbox input:focus-visible + .ds-checkbox-box { outline: 2px solid #9f5f6d; outline-offset: 2px; }"
     },
     {
       "name": "Badge",
@@ -387,7 +387,7 @@
       "refersTo": "nav-item",
       "description": "Ítem del sidebar en reposo y activo — sin franja lateral de color.",
       "html": "<nav class=\"ds-nav\">\n  <a class=\"ds-nav-item\" href=\"#\">Productos</a>\n  <a class=\"ds-nav-item ds-nav-item--active\" href=\"#\">Pedidos</a>\n  <a class=\"ds-nav-item\" href=\"#\">Inventario</a>\n</nav>",
-      "css": ".ds-nav { display: flex; flex-direction: column; gap: 2px; font-family: 'Schibsted Grotesk', sans-serif; font-size: 14px; width: 200px; }\n.ds-nav-item { color: #785a63; text-decoration: none; padding: 8px 12px; border-radius: 6px; }\n.ds-nav-item:hover { background: #fdf2f5; }\n.ds-nav-item:focus-visible { outline: 2px solid #9f5f6d; outline-offset: 2px; }\n.ds-nav-item--active { background: #ffb7c5; color: #5d4037; }"
+      "css": ".ds-nav { display: flex; flex-direction: column; gap: 2px; font-family: 'Schibsted Grotesk', sans-serif; font-size: 14px; width: 200px; }\n.ds-nav-item { color: #785a63; text-decoration: none; padding: 8px 12px; border-radius: 6px; }\n.ds-nav-item:hover { background: #fdf2f5; }\n.ds-nav-item:focus-visible { outline: 2px solid #9f5f6d; outline-offset: 2px; }\n.ds-nav-item--active { background: #ffb7c5; color: #161616; }"
     },
     {
       "name": "Tabla",
@@ -395,7 +395,7 @@
       "refersTo": "table",
       "description": "Encabezado en PT Mono y celdas de dato alineadas en columna.",
       "html": "<table class=\"ds-table\">\n  <thead>\n    <tr><th>SKU</th><th>Producto</th><th class=\"ds-table-num\">Stock</th><th class=\"ds-table-num\">Precio</th></tr>\n  </thead>\n  <tbody>\n    <tr><td>EG-SER-30</td><td>Serum reparador</td><td class=\"ds-table-num\">124</td><td class=\"ds-table-num\">$ 680.00</td></tr>\n    <tr class=\"ds-table-row--hover\"><td>EG-SER-50</td><td>Serum reparador 50ml</td><td class=\"ds-table-num\">18</td><td class=\"ds-table-num\">$ 940.00</td></tr>\n  </tbody>\n</table>",
-      "css": ".ds-table { width: 100%; border-collapse: collapse; font-family: 'Schibsted Grotesk', sans-serif; font-size: 14px; color: #5d4037; }\n.ds-table thead th { font-family: 'PT Mono', ui-monospace, monospace; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: #785a63; text-align: left; padding: 10px 12px; border-bottom: 1px solid #a58a91; }\n.ds-table tbody td { padding: 10px 12px; border-bottom: 1px solid #ffe1e9; font-family: 'PT Mono', ui-monospace, monospace; }\n.ds-table-num { text-align: right; font-variant-numeric: tabular-nums; }\n.ds-table-row--hover td { background: #fdf7f8; }"
+      "css": ".ds-table { width: 100%; border-collapse: collapse; font-family: 'Schibsted Grotesk', sans-serif; font-size: 14px; color: #161616; }\n.ds-table thead th { font-family: 'PT Mono', ui-monospace, monospace; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: #785a63; text-align: left; padding: 10px 12px; border-bottom: 1px solid #a58a91; }\n.ds-table tbody td { padding: 10px 12px; border-bottom: 1px solid #ffe1e9; font-family: 'PT Mono', ui-monospace, monospace; }\n.ds-table-num { text-align: right; font-variant-numeric: tabular-nums; }\n.ds-table-row--hover td { background: #fdf7f8; }"
     },
     {
       "name": "Destello (marca)",
@@ -403,7 +403,7 @@
       "refersTo": "sparkle-brand",
       "description": "Activo decorativo de marca (Phosphor StarFour, no Sparkle) — remate junto al wordmark y flourish aislado en momentos de confirmación. Único elemento del sistema con color propio, fuera de contexto de UI funcional.",
       "html": "<div class=\"ds-wordmark\">\n  <span>Esencia Glow</span>\n  <svg class=\"ds-sparkle ds-sparkle--outline\" viewBox=\"0 0 256 256\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M229.5,113,166.06,89.94,143,26.5a16,16,0,0,0-30,0L89.94,89.94,26.5,113a16,16,0,0,0,0,30l63.44,23.07L113,229.5a16,16,0,0,0,30,0l23.07-63.44L229.5,143a16,16,0,0,0,0-30ZM157.08,152.3a8,8,0,0,0-4.78,4.78L128,223.9l-24.3-66.82a8,8,0,0,0-4.78-4.78L32.1,128l66.82-24.3a8,8,0,0,0,4.78-4.78L128,32.1l24.3,66.82a8,8,0,0,0,4.78,4.78L223.9,128Z\"/></svg>\n</div>\n<div class=\"ds-sparkle-moment\">\n  <svg class=\"ds-sparkle ds-sparkle--fill\" viewBox=\"0 0 256 256\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M240,128a15.79,15.79,0,0,1-10.5,15l-63.44,23.07L143,229.5a16,16,0,0,1-30,0L89.94,166.06,26.5,143a16,16,0,0,1,0-30L89.94,89.94,113,26.5a16,16,0,0,1,30,0l23.07,63.44L229.5,113A15.79,15.79,0,0,1,240,128Z\"/></svg>\n  <p>Pedido confirmado</p>\n</div>",
-      "css": ".ds-wordmark { display: inline-flex; align-items: center; gap: 6px; font-family: 'Schibsted Grotesk', sans-serif; font-size: 20px; font-weight: 600; color: #5d4037; }\n.ds-sparkle { fill: #816829; }\n.ds-sparkle--outline { width: 16px; height: 16px; }\n.ds-sparkle--fill { width: 28px; height: 28px; }\n.ds-sparkle-moment { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 8px 16px; }\n.ds-sparkle-moment p { margin: 0; font-family: 'Schibsted Grotesk', sans-serif; font-size: 14px; color: #5d4037; }"
+      "css": ".ds-wordmark { display: inline-flex; align-items: center; gap: 6px; font-family: 'Schibsted Grotesk', sans-serif; font-size: 20px; font-weight: 600; color: #161616; }\n.ds-sparkle { fill: #816829; }\n.ds-sparkle--outline { width: 16px; height: 16px; }\n.ds-sparkle--fill { width: 28px; height: 28px; }\n.ds-sparkle-moment { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 8px 16px; }\n.ds-sparkle-moment p { margin: 0; font-family: 'Schibsted Grotesk', sans-serif; font-size: 14px; color: #161616; }"
     }
   ],
   "narrative": {

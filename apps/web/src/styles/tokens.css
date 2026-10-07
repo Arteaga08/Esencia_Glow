@@ -7,9 +7,9 @@
 @theme {
   /* --- Colores (OKLCH, paleta de Manuel + 5 derivados de 2.0) --- */
   --color-background: oklch(0.9873 0.0069 354.7893);
-  --color-foreground: oklch(0.4015 0.0436 37.9587);
+  --color-foreground: oklch(0.2 0 0);
   --color-surface: oklch(1 0 0);
-  --color-surface-foreground: oklch(0.4015 0.0436 37.9587);
+  --color-surface-foreground: oklch(0.2 0 0);
   --color-primary: oklch(0.8502 0.0851 6.1876);
   --color-primary-action: oklch(0.56 0.0851 6.1876);
   --color-primary-foreground: oklch(1 0 0);
@@ -78,8 +78,8 @@
   /* Escala 4px del DESIGN.md — Tailwind deriva spacing-1..20 de este base. */
   --spacing: 4px;
 
-  --shadow-overlay: 0 8px 24px -6px oklch(0.4015 0.0436 37.9587 / 0.18);
-  --shadow-modal: 0 16px 48px -8px oklch(0.4015 0.0436 37.9587 / 0.22);
+  --shadow-overlay: 0 8px 24px -6px oklch(0.2 0 0 / 0.18);
+  --shadow-modal: 0 16px 48px -8px oklch(0.2 0 0 / 0.22);
 
   --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
   --duration-fast: 120ms;

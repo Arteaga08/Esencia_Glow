@@ -13,7 +13,7 @@
   body {
     margin: 0;
     background: oklch(0.9873 0.0069 354.7893);
-    color: oklch(0.4015 0.0436 37.9587);
+    color: oklch(0.2 0 0);
     font-family: 'Schibsted Grotesk', ui-sans-serif, system-ui, sans-serif;
     font-synthesis: none;
     padding: 48px 32px 80px;
@@ -29,20 +29,20 @@
   .swatch-ramp { display: flex; height: 20px; }
   .ramp-step { flex: 1; }
   .swatch-label { padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; }
-  .swatch-label strong { font-size: 13px; color: oklch(0.4015 0.0436 37.9587); }
+  .swatch-label strong { font-size: 13px; color: oklch(0.2 0 0); }
   .swatch-label code { font-family: 'PT Mono', monospace; font-size: 11px; color: oklch(0.50 0.0418 357.7265); }
   .swatch-label .swatch-oklch { font-family: 'PT Mono', monospace; font-size: 10px; color: oklch(0.6265 0.0418 357.7265); }
   .type-row { display: grid; grid-template-columns: 260px 1fr; gap: 24px; padding: 20px 0; border-bottom: 1px solid oklch(0.9366 0.0345 359.8126); align-items: center; }
-  .type-meta strong { display: block; font-size: 14px; margin-bottom: 4px; color: oklch(0.4015 0.0436 37.9587); }
+  .type-meta strong { display: block; font-size: 14px; margin-bottom: 4px; color: oklch(0.2 0 0); }
   .type-meta span { font-family: 'PT Mono', monospace; font-size: 11px; color: oklch(0.50 0.0418 357.7265); display: block; margin-bottom: 6px; }
   .type-meta p { font-size: 12px; color: oklch(0.50 0.0418 357.7265); margin: 0; line-height: 1.4; }
-  .type-sample { color: oklch(0.4015 0.0436 37.9587); }
+  .type-sample { color: oklch(0.2 0 0); }
   .component-block { margin-bottom: 40px; padding: 24px; background: #fff; border: 1px solid oklch(0.66 0.0345 359.8126); border-radius: 12px; }
   .component-block h3 { margin: 0 0 4px; font-size: 16px; font-weight: 600; }
   .component-desc { font-size: 13px; color: oklch(0.50 0.0418 357.7265); margin: 0 0 20px; }
   .component-stage { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; padding: 24px 20px; background: oklch(0.9873 0.0069 354.7893); border-radius: 8px; }
   .shadow-demo { background: #fff; border-radius: 12px; padding: 24px; width: 220px; display: inline-block; margin-right: 20px; }
-  .shadow-demo strong { display: block; font-family: 'PT Mono', monospace; font-size: 12px; text-transform: uppercase; margin-bottom: 6px; color: oklch(0.4015 0.0436 37.9587); }
+  .shadow-demo strong { display: block; font-family: 'PT Mono', monospace; font-size: 12px; text-transform: uppercase; margin-bottom: 6px; color: oklch(0.2 0 0); }
   .shadow-demo code { display: block; font-size: 10px; color: oklch(0.50 0.0418 357.7265); word-break: break-all; margin-bottom: 8px; }
   .shadow-demo p { font-size: 12px; color: oklch(0.50 0.0418 357.7265); margin: 0; }
   .rules-list, .dos-donts ul { padding-left: 20px; }
@@ -84,7 +84,7 @@
     </div>
 
     <div class="swatch">
-      <div class="swatch-main" style="background:oklch(0.4015 0.0436 37.9587)"></div>
+      <div class="swatch-main" style="background:oklch(0.2 0 0)"></div>
       <div class="swatch-ramp">
         <div class="ramp-step" style="background:#1a0401" title="#1a0401"></div>
         <div class="ramp-step" style="background:#391f16" title="#391f16"></div>
@@ -98,7 +98,7 @@
       <div class="swatch-label">
         <strong>Tinta</strong>
         <code>foreground</code>
-        <span class="swatch-oklch">oklch(0.4015 0.0436 37.9587)</span>
+        <span class="swatch-oklch">oklch(0.2 0 0)</span>
       </div>
     </div>
 
@@ -446,15 +446,15 @@
   <h2 class="section-head">Sombras (solo overlays)</h2>
   <div class="shadows">
 
-    <div class="shadow-demo" style="box-shadow:0 8px 24px -6px oklch(0.4015 0.0436 37.9587 / 0.18)">
+    <div class="shadow-demo" style="box-shadow:0 8px 24px -6px oklch(0.2 0 0 / 0.18)">
       <strong>overlay</strong>
-      <code>0 8px 24px -6px oklch(0.4015 0.0436 37.9587 / 0.18)</code>
+      <code>0 8px 24px -6px oklch(0.2 0 0 / 0.18)</code>
       <p>Menú de select, dropdown, popover, tooltip. La sombra tiñe la tinta del sistema, nunca el rosa de marca.</p>
     </div>
 
-    <div class="shadow-demo" style="box-shadow:0 16px 48px -8px oklch(0.4015 0.0436 37.9587 / 0.22)">
+    <div class="shadow-demo" style="box-shadow:0 16px 48px -8px oklch(0.2 0 0 / 0.22)">
       <strong>modal</strong>
-      <code>0 16px 48px -8px oklch(0.4015 0.0436 37.9587 / 0.22)</code>
+      <code>0 16px 48px -8px oklch(0.2 0 0 / 0.22)</code>
       <p>Modal, hoja lateral, toast — lo único que de verdad bloquea o interrumpe el flujo.</p>
     </div>
   </div>
@@ -489,7 +489,7 @@
       <p class="component-desc">Acción secundaria, con borde estructural en vez de fondo sólido.</p>
       <style>.ds-btn-secondary {
   background: #ffffff;
-  color: #5d4037;
+  color: #161616;
   font-family: 'Schibsted Grotesk', ui-sans-serif, system-ui, sans-serif;
   font-size: 14px;
   padding: 10px 16px;
@@ -498,7 +498,7 @@
   cursor: pointer;
   transition: background-color 120ms cubic-bezier(0.25, 1, 0.5, 1), border-color 120ms cubic-bezier(0.25, 1, 0.5, 1);
 }
-.ds-btn-secondary:hover { background: #fdf2f5; border-color: #5d4037; }
+.ds-btn-secondary:hover { background: #fdf2f5; border-color: #161616; }
 .ds-btn-secondary:focus-visible { outline: 2px solid #9f5f6d; outline-offset: 2px; }</style>
       <div class="component-stage"><button class="ds-btn-secondary">Cancelar</button></div>
     </section>
@@ -525,7 +525,7 @@
   padding: 11px 12px;
   font-family: 'Schibsted Grotesk', sans-serif;
   font-size: 14px;
-  color: #5d4037;
+  color: #161616;
   background: #fffcfd;
   border: 1.5px solid #a58a91;
   border-radius: 8px;
@@ -564,12 +564,12 @@
     <section class="component-block">
       <h3>Select cerrado/abierto</h3>
       <p class="component-desc">Disparador de select con caret Phosphor y menú de opciones (una resaltada, una seleccionada).</p>
-      <style>.ds-select { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 220px; background: #fffcfd; color: #5d4037; font-family: 'Schibsted Grotesk', sans-serif; font-size: 14px; padding: 9px 12px; border: 1px solid #a58a91; border-radius: 8px; cursor: pointer; }
+      <style>.ds-select { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 220px; background: #fffcfd; color: #161616; font-family: 'Schibsted Grotesk', sans-serif; font-size: 14px; padding: 9px 12px; border: 1px solid #a58a91; border-radius: 8px; cursor: pointer; }
 .ds-select:focus-visible { outline: none; border-color: #9f5f6d; box-shadow: 0 0 0 2px rgba(159,95,109,0.2); }
 .ds-select-menu { list-style: none; margin: 4px 0 0; padding: 4px; width: 220px; background: #ffffff; border: 1px solid #a58a91; border-radius: 8px; box-shadow: 0 8px 24px -6px rgba(93,64,55,0.18); font-family: 'Schibsted Grotesk', sans-serif; font-size: 14px; }
 .ds-select-option { padding: 8px 10px; border-radius: 6px; display: flex; align-items: center; justify-content: space-between; }
 .ds-select-option--highlighted { background: #f4eef1; }
-.ds-select-option--selected { background: #ffb7c5; color: #5d4037; }
+.ds-select-option--selected { background: #ffb7c5; color: #161616; }
 .ds-select-option--selected svg { flex-shrink: 0; }</style>
       <div class="component-stage"><button class="ds-select">
   <span>Rostro</span>
@@ -585,7 +585,7 @@
     <section class="component-block">
       <h3>Checkbox</h3>
       <p class="component-desc">Casilla con estado marcado y sin marcar.</p>
-      <style>.ds-checkbox { display: inline-flex; align-items: center; gap: 8px; font-family: 'Schibsted Grotesk', sans-serif; font-size: 14px; color: #5d4037; cursor: pointer; }
+      <style>.ds-checkbox { display: inline-flex; align-items: center; gap: 8px; font-family: 'Schibsted Grotesk', sans-serif; font-size: 14px; color: #161616; cursor: pointer; }
 .ds-checkbox input { position: absolute; opacity: 0; width: 18px; height: 18px; }
 .ds-checkbox-box { width: 18px; height: 18px; border: 1px solid #a58a91; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; background: #ffffff; }
 .ds-checkbox input:checked + .ds-checkbox-box { background: #9f5f6d; border-color: #9f5f6d; color: #ffffff; }
@@ -614,7 +614,7 @@
 .ds-nav-item { color: #785a63; text-decoration: none; padding: 8px 12px; border-radius: 6px; }
 .ds-nav-item:hover { background: #fdf2f5; }
 .ds-nav-item:focus-visible { outline: 2px solid #9f5f6d; outline-offset: 2px; }
-.ds-nav-item--active { background: #ffb7c5; color: #5d4037; }</style>
+.ds-nav-item--active { background: #ffb7c5; color: #161616; }</style>
       <div class="component-stage"><nav class="ds-nav">
   <a class="ds-nav-item" href="#">Productos</a>
   <a class="ds-nav-item ds-nav-item--active" href="#">Pedidos</a>
@@ -625,7 +625,7 @@
     <section class="component-block">
       <h3>Tabla</h3>
       <p class="component-desc">Encabezado en PT Mono y celdas de dato alineadas en columna.</p>
-      <style>.ds-table { width: 100%; border-collapse: collapse; font-family: 'Schibsted Grotesk', sans-serif; font-size: 14px; color: #5d4037; }
+      <style>.ds-table { width: 100%; border-collapse: collapse; font-family: 'Schibsted Grotesk', sans-serif; font-size: 14px; color: #161616; }
 .ds-table thead th { font-family: 'PT Mono', ui-monospace, monospace; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: #785a63; text-align: left; padding: 10px 12px; border-bottom: 1px solid #a58a91; }
 .ds-table tbody td { padding: 10px 12px; border-bottom: 1px solid #ffe1e9; font-family: 'PT Mono', ui-monospace, monospace; }
 .ds-table-num { text-align: right; font-variant-numeric: tabular-nums; }
@@ -644,12 +644,12 @@
     <section class="component-block">
       <h3>Destello (marca)</h3>
       <p class="component-desc">Activo decorativo de marca (Phosphor StarFour, no Sparkle) — remate junto al wordmark y flourish aislado en momentos de confirmación. Único elemento del sistema con color propio, fuera de contexto de UI funcional.</p>
-      <style>.ds-wordmark { display: inline-flex; align-items: center; gap: 6px; font-family: 'Schibsted Grotesk', sans-serif; font-size: 20px; font-weight: 600; color: #5d4037; }
+      <style>.ds-wordmark { display: inline-flex; align-items: center; gap: 6px; font-family: 'Schibsted Grotesk', sans-serif; font-size: 20px; font-weight: 600; color: #161616; }
 .ds-sparkle { fill: #816829; }
 .ds-sparkle--outline { width: 16px; height: 16px; }
 .ds-sparkle--fill { width: 28px; height: 28px; }
 .ds-sparkle-moment { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 8px 16px; }
-.ds-sparkle-moment p { margin: 0; font-family: 'Schibsted Grotesk', sans-serif; font-size: 14px; color: #5d4037; }</style>
+.ds-sparkle-moment p { margin: 0; font-family: 'Schibsted Grotesk', sans-serif; font-size: 14px; color: #161616; }</style>
       <div class="component-stage"><div class="ds-wordmark">
   <span>Esencia Glow</span>
   <svg class="ds-sparkle ds-sparkle--outline" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg"><path d="M229.5,113,166.06,89.94,143,26.5a16,16,0,0,0-30,0L89.94,89.94,26.5,113a16,16,0,0,0,0,30l63.44,23.07L113,229.5a16,16,0,0,0,30,0l23.07-63.44L229.5,143a16,16,0,0,0,0-30ZM157.08,152.3a8,8,0,0,0-4.78,4.78L128,223.9l-24.3-66.82a8,8,0,0,0-4.78-4.78L32.1,128l66.82-24.3a8,8,0,0,0,4.78-4.78L128,32.1l24.3,66.82a8,8,0,0,0,4.78,4.78L223.9,128Z"/></svg>

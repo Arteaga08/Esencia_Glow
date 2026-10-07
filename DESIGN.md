@@ -3,9 +3,9 @@ name: Esencia Glow — Dashboard
 description: Sistema de diseño del panel administrativo — preciso, confiable, editorial-suave.
 colors:
   background: "oklch(0.9873 0.0069 354.7893)"
-  foreground: "oklch(0.4015 0.0436 37.9587)"
+  foreground: "oklch(0.2 0 0)"
   surface: "oklch(1.0000 0 0)"
-  surface-foreground: "oklch(0.4015 0.0436 37.9587)"
+  surface-foreground: "oklch(0.2 0 0)"
   primary: "oklch(0.8502 0.0851 6.1876)"
   primary-action: "oklch(0.56 0.0851 6.1876)"
   primary-foreground: "oklch(1.0000 0 0)"
@@ -190,7 +190,7 @@ aparece salvo por los cuatro roles documentados abajo.
 - **Rosa Bitácora** (`oklch(0.8502 0.0851 6.1876)`, ≈ `#ffb7c5`): superficie suave — **fondo del
   botón primario**, chip de estado "activo", resaltado de fila seleccionada, fondo del ítem de
   navegación activo. Nunca lleva texto blanco encima (falla WCAG con 1.64:1 — ver Regla del Listón).
-  Con texto tinta (`foreground`) encima da 5.69:1, AA limpio, y así es como se usa siempre.
+  Con texto tinta (`foreground`) encima da 11.06:1, AAA, y así es como se usa siempre.
 - **Rosa Acción** (`oklch(0.56 0.0851 6.1876)`, ≈ `#9f5f6d`, token derivado `primary-action`):
   el rosa llevado a fuerza de trazo — anillo de foco, borde de input enfocado, texto de énfasis
   sobre fondo claro. Contra el fondo de página da 4.68:1, suficiente para leerse como anillo y como
@@ -212,8 +212,8 @@ aparece salvo por los cuatro roles documentados abajo.
 - **Fondo** (`oklch(0.9873 0.0069 354.7893)`, ≈ `#fff9fb`): lienzo de página.
 - **Superficie** (`oklch(1.0000 0 0)`): tarjetas, tabla, popover, modal — blanco puro, un paso más
   claro que el fondo para que la superficie se distinga sin sombra.
-- **Tinta** (`oklch(0.4015 0.0436 37.9587)`, ≈ `#5d4037`): texto principal. 8.96:1 sobre fondo,
-  9.32:1 sobre superficie.
+- **Tinta** (`oklch(0.2 0 0)`, ≈ `#161616`): texto principal. 17.41:1 sobre fondo,
+  18.10:1 sobre superficie.
 - **Tinta tenue** (`oklch(0.6265 0.0418 357.7265)`, ≈ `#9e7e88`, token `muted-foreground`): texto
   secundario de bajo compromiso — placeholder, texto deshabilitado, metadatos decorativos donde
   WCAG no exige contraste. Da 3.31–3.63:1 según la superficie: **no usar en texto de cuerpo que
@@ -294,10 +294,10 @@ usa la tinta del sistema a baja opacidad, nunca el rosa de marca (una sombra ros
 decoración, no como profundidad real).
 
 ### Shadow Vocabulary
-- **overlay** (`box-shadow: 0 8px 24px -6px oklch(0.4015 0.0436 37.9587 / 0.18)`): menú de select,
+- **overlay** (`box-shadow: 0 8px 24px -6px oklch(0.2 0 0 / 0.18)`): menú de select,
   dropdown, popover, tooltip. Sombra ajustada, borde de 1px `border-strong` incluido en la misma
   superficie.
-- **modal** (`box-shadow: 0 16px 48px -8px oklch(0.4015 0.0436 37.9587 / 0.22)`): diálogo modal,
+- **modal** (`box-shadow: 0 16px 48px -8px oklch(0.2 0 0 / 0.22)`): diálogo modal,
   hoja lateral (sheet), toast. La única sombra con alcance visual notorio del sistema — se reserva
   para lo que de verdad bloquea o interrumpe el flujo.
 
@@ -312,14 +312,14 @@ hover es un cambio de color, no una elevación — ver Components → Buttons.
 ### Buttons
 - **Forma:** esquinas suavizadas (`rounded.md`, 8px); nunca el `rounded.full` de 999px salvo en
   badges y avatares.
-- **Primario:** fondo `primary` (Rosa Bitácora, `#ffb7c5`), texto **tinta** (`foreground`, 5.69:1,
-  AA limpio), padding `10px 16px`, tipografía Cuerpo (Schibsted 400, 14px). El rosa suave es el que
+- **Primario:** fondo `primary` (Rosa Bitácora, `#ffb7c5`), texto **tinta** (`foreground`, 11.06:1,
+  AAA), padding `10px 16px`, tipografía Cuerpo (Schibsted 400, 14px). El rosa suave es el que
   identifica a la marca, así que es él —no su derivado oscuro— el que ocupa la acción primaria; lo
   único prohibido es vestirlo de texto blanco (1.64:1, ilegible), que es justo como venía del tema
-  original. *Hover:* rosa un paso más oscuro (`oklch(0.82 0.0851 6.1876)`, tinta a 5.15:1).
+  original. *Hover:* rosa un paso más oscuro (`oklch(0.82 0.0851 6.1876)`, tinta a 10.00:1).
   *Focus-visible:* anillo de 2px en `ring` (`primary-action`) con
   2px de offset — nunca `outline: none` sin reemplazo. *Active:* `oklch(0.79 0.0851 6.1876)` (tinta
-  a 4.64:1, el paso más oscuro que conserva margen sobre el 4.5:1 de AA),
+  a 9.02:1),
   sin desplazamiento de layout (nunca `transform: scale` que mueva el contenido vecino). *Loading:*
   el label se reemplaza por un spinner de 16px en el mismo tono de texto, el botón mantiene su
   ancho (se fija con `min-width` calculado en reposo) para que el layout no salte, y queda
