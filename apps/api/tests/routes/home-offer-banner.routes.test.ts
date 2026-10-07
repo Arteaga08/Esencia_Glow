@@ -126,6 +126,25 @@ describe("routes/admin-home — banner de oferta", () => {
     expect(badSlot.status).toBe(400);
   });
 
+  it("sube y borra la foto de la página de ofertas en su propio espacio", async () => {
+    const { agent } = await createAdminSession(app);
+    const version = await saveBanner(agent);
+
+    const uploaded = await agent
+      .put(`${PATH}/images/page`)
+      .field("version", String(version))
+      .attach("image", await pngBuffer(), "ofertas.png");
+    expect(uploaded.status).toBe(200);
+    expect(uploaded.body.data.images.page.url).toContain("o1.webp");
+    expect(uploaded.body.data.images.page.publicId).toBeUndefined();
+    expect(uploaded.body.data.images.desktop).toBeUndefined();
+
+    const removed = await agent.delete(`${PATH}/images/page?version=${uploaded.body.data.version}`);
+    expect(removed.status).toBe(200);
+    expect(removed.body.data.images.page).toBeUndefined();
+    expect(destroyMock).toHaveBeenCalledWith("secreto/o1");
+  });
+
   it("una subida con versión vieja responde 409 sin subir nada al proveedor", async () => {
     const { agent } = await createAdminSession(app);
     await saveBanner(agent);
@@ -177,5 +196,23 @@ describe("routes/home-public — banner de oferta", () => {
     const response = await request(app).get("/api/v1/home");
 
     expect(response.body.data.offerBanner).toBeUndefined();
+  });
+
+  it("la foto de la página de ofertas se publica aunque el banner del home esté apagado", async () => {
+    const { agent } = await createAdminSession(app);
+    const version = await saveBanner(agent, { isActive: false });
+
+    const before = (await request(app).get("/api/v1/home")).body.data;
+    expect(before.salePage).toBeUndefined();
+
+    await agent
+      .put(`${PATH}/images/page`)
+      .field("version", String(version))
+      .attach("image", await pngBuffer(), "ofertas.png");
+
+    const after = (await request(app).get("/api/v1/home")).body.data;
+    expect(after.offerBanner).toBeUndefined();
+    expect(after.salePage.image.url).toContain("o1.webp");
+    expect(JSON.stringify(after)).not.toContain("secreto");
   });
 });

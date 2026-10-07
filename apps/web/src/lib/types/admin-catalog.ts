@@ -44,6 +44,7 @@ interface AdminProduct {
   description: string;
   shortDescription?: string;
   brand?: string;
+  brandId: string | null;
   categoryId: string;
   badgeId: string | null;
   isBestseller: boolean;
@@ -76,6 +77,11 @@ interface AdminBadge {
   id: string;
   text: string;
   color: "neutral" | "primary" | "success" | "warning" | "danger" | "info";
+}
+
+interface AdminBrand {
+  id: string;
+  name: string;
 }
 
 type AdminBundleStatus = "draft" | "active" | "archived";
@@ -119,6 +125,7 @@ export type {
   AdminProduct,
   AdminCategory,
   AdminBadge,
+  AdminBrand,
   AdminBundleStatus,
   AdminBundleItem,
   AdminBundle,

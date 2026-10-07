@@ -1,10 +1,8 @@
 import type { AdminHomeOfferBanner } from "@esencia-glow/shared";
 import { apiRequest } from "@/lib/api";
-import type { HeroImageSlot } from "./hero-form-value";
-import { toFormValue, toPayload, type OfferBannerFormValue } from "./offer-banner-form-value";
+import { OFFER_BANNER_IMAGE_SLOTS, toFormValue, toPayload, type OfferBannerFormValue } from "./offer-banner-form-value";
 
 const PATH = "/api/v1/admin/home/offer-banner";
-const SLOTS: HeroImageSlot[] = ["desktop", "mobile"];
 
 interface SaveOfferBannerResult {
   section: AdminHomeOfferBanner;
@@ -30,9 +28,13 @@ async function saveOfferBanner(value: OfferBannerFormValue, version: number): Pr
     })
   ).data;
 
-  const images = { desktop: { ...value.images.desktop }, mobile: { ...value.images.mobile } };
+  const images = {
+    desktop: { ...value.images.desktop },
+    mobile: { ...value.images.mobile },
+    page: { ...value.images.page },
+  };
 
-  for (const slot of SLOTS) {
+  for (const slot of OFFER_BANNER_IMAGE_SLOTS) {
     const image = images[slot];
     const url = `${PATH}/images/${slot}`;
     try {

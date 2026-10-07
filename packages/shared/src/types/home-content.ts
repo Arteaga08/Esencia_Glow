@@ -103,7 +103,8 @@ interface AdminHomeOfferBanner extends HomeSectionMeta {
   text: string;
   ctaLabel: string;
   ctaHref: string;
-  images: Partial<HomeHeroSlideImages>;
+  /** `page` es la foto del encabezado de /ofertas: no se usa en el home. */
+  images: Partial<HomeHeroSlideImages> & { page?: PublicProductImage };
 }
 
 interface AdminHomeContent {
@@ -161,6 +162,8 @@ interface PublicHomeContent {
   newArrivals?: PublicHomeSpotlight;
   kits?: PublicHomeSpotlight;
   offerBanner?: PublicHomeOfferBanner;
+  /** Foto del encabezado de /ofertas. Se publica aunque el banner del home esté apagado. */
+  salePage?: { image: PublicProductImage };
 }
 
 export type {

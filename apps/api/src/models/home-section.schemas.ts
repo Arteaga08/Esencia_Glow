@@ -90,12 +90,16 @@ interface HomeSpotlightAttrs extends HomeSectionBaseAttrs {
   images?: { desktop?: HomeImageAttrs; mobile?: HomeImageAttrs };
 }
 
-/** Banner de oferta (bloque 8): frase de la cinta, botón con su enlace y dos fotos. */
+/**
+ * Banner de oferta (bloque 8): frase de la cinta, botón con su enlace y dos
+ * fotos. `images.page` es la foto del encabezado de /ofertas: vive aquí para
+ * editarse junto al banner, pero el home no la usa.
+ */
 interface HomeOfferBannerAttrs extends HomeSectionBaseAttrs {
   text?: string;
   ctaLabel?: string;
   ctaHref?: string;
-  images?: { desktop?: HomeImageAttrs; mobile?: HomeImageAttrs };
+  images?: { desktop?: HomeImageAttrs; mobile?: HomeImageAttrs; page?: HomeImageAttrs };
 }
 
 const baseFields = {
@@ -211,7 +215,10 @@ const offerBannerSchema = new Schema<HomeOfferBannerAttrs>(
     ctaLabel: { type: String, trim: true, maxlength: 40 },
     ctaHref: { type: String, trim: true, maxlength: 500 },
     images: {
-      type: new Schema({ desktop: { type: mediaImageSchema }, mobile: { type: mediaImageSchema } }, { _id: false }),
+      type: new Schema(
+        { desktop: { type: mediaImageSchema }, mobile: { type: mediaImageSchema }, page: { type: mediaImageSchema } },
+        { _id: false },
+      ),
     },
   },
   { _id: false },

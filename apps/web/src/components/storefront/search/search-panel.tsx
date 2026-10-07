@@ -68,8 +68,12 @@ function SearchPanel({ onClose }: { onClose: () => void }) {
           onSubmit={(event) => event.preventDefault()}
           className="shrink-0 border-b border-border transition-colors duration-[var(--duration-fast)] focus-within:border-foreground motion-reduce:transition-none"
         >
-          <div className="mx-auto flex h-16 max-w-shell items-center gap-3 px-4 md:px-8 xl:h-20 xl:px-12">
-            <MagnifyingGlass size={24} aria-hidden="true" className="shrink-0 text-muted-foreground-strong" />
+          {/* En móvil calca la barra: la X cae donde estaba el botón del menú y
+              la lupa se queda en su lugar, así se abre y se cierra del mismo lado. */}
+          <div className="mx-auto flex h-16 max-w-shell items-center gap-1 px-4 md:px-8 xl:h-20 xl:gap-3 xl:px-12">
+            <span className="flex size-11 shrink-0 items-center justify-center text-muted-foreground-strong xl:size-auto">
+              <MagnifyingGlass size={24} aria-hidden="true" />
+            </span>
             <label htmlFor={inputId} className="sr-only">
               Buscar por producto, marca o categoría
             </label>
@@ -89,7 +93,7 @@ function SearchPanel({ onClose }: { onClose: () => void }) {
               type="button"
               aria-label="Cerrar buscador"
               onClick={onClose}
-              className="inline-flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full text-foreground transition-colors duration-[var(--duration-fast)] hover:bg-foreground/8 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring motion-reduce:transition-none"
+              className="inline-flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full text-foreground transition-colors max-xl:order-first max-xl:-ml-2.5 duration-[var(--duration-fast)] hover:bg-foreground/8 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring motion-reduce:transition-none"
             >
               <X size={24} aria-hidden="true" />
             </button>

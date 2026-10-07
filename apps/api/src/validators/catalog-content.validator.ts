@@ -45,6 +45,11 @@ const badgeIdSchema = Joi.string().hex().length(24).allow(null).messages({
   "string.length": "La badge no es válida",
 });
 
+const brandIdSchema = Joi.string().hex().length(24).allow(null).messages({
+  "string.hex": "La marca no es válida",
+  "string.length": "La marca no es válida",
+});
+
 /** Precio de lista, centavos — SOLO presentación (el "antes" tachado). */
 const listPriceSchema = Joi.number().integer().min(0).allow(null).messages({
   "number.base": "El precio anterior debe ser un número",
@@ -79,6 +84,7 @@ export {
   contentListSchema,
   contentSchema,
   badgeIdSchema,
+  brandIdSchema,
   listPriceSchema,
   validateListPriceAboveSalePrice,
   listPriceMessages,

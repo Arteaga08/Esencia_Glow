@@ -10,7 +10,6 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/toast";
 import { ApiRequestError } from "@/lib/api";
 import { EditorSurface } from "./editor-surface";
-import type { HeroImageSlot as Slot } from "./hero-form-value";
 import { HeroImageSlot } from "./hero-image-slot";
 import { HeroSlideLinkField } from "./hero-slide-link-field";
 import { saveOfferBanner } from "./offer-banner-actions";
@@ -20,6 +19,7 @@ import {
   toFormValue,
   validate,
   type OfferBannerFormValue,
+  type OfferBannerImageSlot as Slot,
 } from "./offer-banner-form-value";
 
 function describe(error: unknown, fallback: string): string {
@@ -36,8 +36,9 @@ interface OfferBannerEditorProps {
 /**
  * Editor del banner de oferta (bloque 8 del home): la frase que corre en bucle
  * sobre la foto, el botón con el producto al que lleva (mismo buscador que el
- * hero) y dos fotos (escritorio y móvil), con un solo Guardar. Un 409
- * significa que otra persona editó el bloque: se avisa y no se pisa nada.
+ * hero) y dos fotos (escritorio y móvil), más la foto del encabezado de la
+ * página de Ofertas, con un solo Guardar. Un 409 significa que otra persona
+ * editó el bloque: se avisa y no se pisa nada.
  */
 function OfferBannerEditor({ section, onSaved, embedded = false, onDirtyChange }: OfferBannerEditorProps) {
   const { toast } = useToast();
@@ -174,6 +175,28 @@ function OfferBannerEditor({ section, onSaved, embedded = false, onDirtyChange }
         {!hasDesktopImage(value) ? (
           <FieldError message="Sin foto de escritorio este banner no se publica en la tienda." />
         ) : null}
+
+        <div className="flex flex-col gap-3 border-t border-border pt-6">
+          <div>
+            <p className="font-mono text-label uppercase tracking-[0.06em] text-muted-foreground-strong">
+              Página de Ofertas
+            </p>
+            <p className="mt-1 max-w-[70ch] text-body-sm text-muted-foreground">
+              Foto del encabezado de la página de Ofertas de la tienda. Se muestra aunque este bloque esté apagado; sin
+              foto, el encabezado queda en rosa liso.
+            </p>
+          </div>
+          <div className="max-w-xl">
+            <HeroImageSlot
+              label="Foto del encabezado"
+              dimensions="1920 × 640 px · horizontal"
+              aspectClassName="aspect-[3/1]"
+              draft={value.images.page}
+              onChange={(draft) => setImage("page", draft)}
+            />
+          </div>
+        </div>
+
         {formError ? <FieldError message={formError} /> : null}
 
         <div className="flex flex-wrap items-center gap-3">

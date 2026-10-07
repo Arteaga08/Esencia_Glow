@@ -1,4 +1,4 @@
-type StateKind = "not-found" | "error";
+type StateKind = "not-found" | "error" | "coming-soon";
 
 interface StateCopy {
   title: string;
@@ -13,6 +13,10 @@ const STATE_COPY: Record<StateKind, StateCopy> = {
   error: {
     title: "Algo salió mal de nuestro lado",
     text: "No pudimos cargar esta página. Intenta de nuevo; si sigue igual, vuelve en unos minutos.",
+  },
+  "coming-soon": {
+    title: "Estamos armando tu caja",
+    text: "La suscripción de Esencia Glow todavía no está disponible. La estamos preparando con mucho cuidado; vuelve pronto para conocerla.",
   },
 };
 

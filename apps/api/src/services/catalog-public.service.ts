@@ -36,6 +36,14 @@ interface ListPublicProductsInput extends ListQuery {
   maxPrice?: number;
   bestseller?: boolean;
   newArrival?: boolean;
+  onSale?: boolean;
+}
+
+/** Alcance de las facetas: el mismo recorte que usa la página que las pide. */
+interface PublicProductFacetsScope {
+  categorySlug?: string;
+  bestseller?: boolean;
+  onSale?: boolean;
 }
 
 async function resolveCategoryRef(categoryId: string): Promise<{ id: string; name: string; slug: string }> {
@@ -117,6 +125,7 @@ async function listPublicProducts(
     maxPrice: input.maxPrice,
     isBestseller: input.bestseller,
     isNewArrival: input.newArrival,
+    onSale: input.onSale,
   });
   const sort = resolveSort(input.sort, PUBLIC_PRODUCT_SORT_FIELDS, "createdAt");
 
@@ -141,9 +150,14 @@ async function listPublicProducts(
  * el listado: borradores, canal de suscripción y productos sin variante activa
  * no aportan marcas ni precios. Categoría desconocida -> facetas vacías.
  */
-async function getPublicProductFacets(categorySlug?: string, bestseller?: boolean): Promise<PublicProductFacets> {
-  const categoryIds = await resolveCategoryIdsBySlug(categorySlug);
-  const filter = buildProductFilter({ categoryIds, publicOnly: true, isBestseller: bestseller });
+async function getPublicProductFacets(scope: PublicProductFacetsScope = {}): Promise<PublicProductFacets> {
+  const categoryIds = await resolveCategoryIdsBySlug(scope.categorySlug);
+  const filter = buildProductFilter({
+    categoryIds,
+    publicOnly: true,
+    isBestseller: scope.bestseller,
+    onSale: scope.onSale,
+  });
 
   const [summary] = await Product.aggregate<{ brands: string[]; minPrice: number | null; maxPrice: number | null }>([
     { $match: filter },
@@ -226,4 +240,4 @@ export {
   getPublicCategoryTree,
   getPublicCategoryBySlug,
 };
-export type { ListPublicProductsInput };
+export type { ListPublicProductsInput, PublicProductFacetsScope };

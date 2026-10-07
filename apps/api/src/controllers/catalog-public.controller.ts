@@ -6,13 +6,14 @@ import * as catalogPublicService from "../services/catalog-public.service.js";
 
 const listProducts = asyncHandler(async (req: Request, res: Response) => {
   const query = parseListQuery(req.query);
-  const { category, brand, minPrice, maxPrice, bestseller, newArrival } = req.query as {
+  const { category, brand, minPrice, maxPrice, bestseller, newArrival, onSale } = req.query as {
     category?: string;
     brand?: string[];
     minPrice?: number;
     maxPrice?: number;
     bestseller?: boolean;
     newArrival?: boolean;
+    onSale?: boolean;
   };
   const { products, meta } = await catalogPublicService.listPublicProducts({
     ...query,
@@ -22,13 +23,14 @@ const listProducts = asyncHandler(async (req: Request, res: Response) => {
     maxPrice,
     bestseller,
     newArrival,
+    onSale,
   });
   sendResponse(res, 200, "Productos obtenidos.", products, meta);
 });
 
 const getProductFacets = asyncHandler(async (req: Request, res: Response) => {
-  const { category, bestseller } = req.query as { category?: string; bestseller?: boolean };
-  const facets = await catalogPublicService.getPublicProductFacets(category, bestseller);
+  const { category, bestseller, onSale } = req.query as { category?: string; bestseller?: boolean; onSale?: boolean };
+  const facets = await catalogPublicService.getPublicProductFacets({ categorySlug: category, bestseller, onSale });
   sendResponse(res, 200, "Facetas obtenidas.", facets);
 });
 

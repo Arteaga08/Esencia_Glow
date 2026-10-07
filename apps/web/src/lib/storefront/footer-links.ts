@@ -25,18 +25,10 @@ const SHOP_FIXED_LINKS: FooterLink[] = [
 
 const STATIC_COLUMNS: FooterColumn[] = [
   {
-    title: "Nosotras",
-    links: [
-      { label: "Nuestra historia", href: "/nosotras" },
-      { label: "Ingredientes", href: "/ingredientes" },
-    ],
-  },
-  {
     title: "Ayuda",
     links: [
       { label: "Envíos y entregas", href: "/envios" },
       { label: "Cambios y devoluciones", href: "/devoluciones" },
-      { label: "Preguntas frecuentes", href: "/preguntas-frecuentes" },
       { label: "Contacto", href: "/contacto" },
     ],
   },
@@ -67,7 +59,7 @@ function buildShopColumn(categories: PublicCategoryNode[]): FooterColumn {
   return { title: "Tienda", links: [...categoryLinks, ...SHOP_FIXED_LINKS] };
 }
 
-/** Las cinco columnas, en el orden en que se muestran. */
+/** Las cuatro columnas, en el orden en que se muestran. */
 function buildFooterColumns(categories: PublicCategoryNode[]): FooterColumn[] {
   return [buildShopColumn(categories), ...STATIC_COLUMNS];
 }

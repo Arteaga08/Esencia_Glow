@@ -9,6 +9,7 @@ interface SpotlightCoverProps {
 /**
  * Foto de portada: una imagen para escritorio y otra para móvil, solo una se
  * descarga según el breakpoint `lg`. El contenedor lo dimensiona quien la usa.
+ * En móvil el recorte se ancla arriba: la parte baja la tapan las tarjetas.
  */
 function SpotlightCover({ cover, className = "" }: SpotlightCoverProps) {
   return (
@@ -19,7 +20,7 @@ function SpotlightCover({ cover, className = "" }: SpotlightCoverProps) {
         alt=""
         fill
         sizes="(min-width: 1024px) 1px, 100vw"
-        className="object-cover lg:hidden"
+        className="object-cover object-top lg:hidden"
       />
     </div>
   );

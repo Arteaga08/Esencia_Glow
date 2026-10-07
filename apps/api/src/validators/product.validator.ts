@@ -3,6 +3,7 @@ import { ProductChannel } from "@esencia-glow/shared";
 import { SKU_PATTERN } from "../models/product-variant.schema.js";
 import {
   badgeIdSchema,
+  brandIdSchema,
   contentSchema,
   listPriceMessages,
   listPriceSchema,
@@ -118,9 +119,7 @@ const createProductSchema = Joi.object({
   shortDescription: Joi.string().trim().max(300).allow("").messages({
     "string.max": "La descripción corta no puede tener más de 300 caracteres",
   }),
-  brand: Joi.string().trim().max(80).allow("").messages({
-    "string.max": "La marca no puede tener más de 80 caracteres",
-  }),
+  brandId: brandIdSchema,
   categoryId: Joi.string().hex().length(24).required().messages({
     "string.hex": "La categoría no es válida",
     "string.length": "La categoría no es válida",
@@ -165,9 +164,7 @@ const updateProductSchema = Joi.object({
   shortDescription: Joi.string().trim().max(300).allow("").messages({
     "string.max": "La descripción corta no puede tener más de 300 caracteres",
   }),
-  brand: Joi.string().trim().max(80).allow("").messages({
-    "string.max": "La marca no puede tener más de 80 caracteres",
-  }),
+  brandId: brandIdSchema,
   categoryId: Joi.string().hex().length(24).messages({
     "string.hex": "La categoría no es válida",
     "string.length": "La categoría no es válida",

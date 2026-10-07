@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { apiRequest } from "@/lib/api";
-import type { AdminBadge, AdminCategory } from "@/lib/types/admin-catalog";
+import type { AdminBadge, AdminBrand, AdminCategory } from "@/lib/types/admin-catalog";
 
 interface CategoryOption {
   value: string;
@@ -10,7 +10,7 @@ interface CategoryOption {
 }
 
 /**
- * Categorías y badges: los usan tanto el listado (filtros) como el editor
+ * Categorías, marcas y badges: los usan tanto el listado (filtros) como el editor
  * (selects del formulario) — un solo fetch, un solo lugar que decide cómo
  * se indentan las subcategorías. Si falla, el resto de la pantalla sigue
  * funcionando sin nombres — nunca vale la pena tirarla por esto.
@@ -18,6 +18,7 @@ interface CategoryOption {
 function useCatalogFilters() {
   const [categories, setCategories] = useState<AdminCategory[]>([]);
   const [badges, setBadges] = useState<AdminBadge[]>([]);
+  const [brands, setBrands] = useState<AdminBrand[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -30,11 +31,16 @@ function useCatalogFilters() {
         authenticated: true,
         query: { limit: 100 },
       }),
+      apiRequest<AdminBrand[]>("/api/v1/admin/brands", {
+        authenticated: true,
+        query: { limit: 100 },
+      }),
     ])
-      .then(([categoriesRes, badgesRes]) => {
+      .then(([categoriesRes, badgesRes, brandsRes]) => {
         if (cancelled) return;
         setCategories(categoriesRes.data);
         setBadges(badgesRes.data);
+        setBrands(brandsRes.data);
       })
       .catch(() => {
         // Silencioso a propósito — ver comentario de arriba.
@@ -62,10 +68,15 @@ function useCatalogFilters() {
     [badges],
   );
 
+  const brandOptions = useMemo<CategoryOption[]>(
+    () => brands.map((b) => ({ value: b.id, label: b.name })),
+    [brands],
+  );
+
   const categoriesById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
   const badgesById = useMemo(() => new Map(badges.map((b) => [b.id, b])), [badges]);
 
-  return { categories, badges, categoryOptions, badgeOptions, categoriesById, badgesById };
+  return { categories, badges, brands, categoryOptions, badgeOptions, brandOptions, categoriesById, badgesById };
 }
 
 export { useCatalogFilters };

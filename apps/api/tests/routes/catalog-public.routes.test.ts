@@ -2,6 +2,7 @@ import request from "supertest";
 import { describe, expect, it } from "vitest";
 import { buildApp } from "../../src/app.js";
 import { Inventory } from "../../src/models/inventory.model.js";
+import { ensureBrand } from "../helpers/brand-fixtures.js";
 import { createAdminSession } from "../helpers/admin-session.js";
 
 const app = buildApp();
@@ -167,7 +168,7 @@ describe("routes/catalog-public — productos y categorías", () => {
         name: input.name,
         description: "Producto de prueba",
         categoryId,
-        ...(input.brand ? { brand: input.brand } : {}),
+        ...(input.brand ? { brandId: await ensureBrand(agent, input.brand) } : {}),
         ...(input.channel ? { channel: input.channel } : {}),
         variants: [sampleVariant({ sku: input.sku, price: input.price ?? 10000 })],
       });
@@ -263,7 +264,7 @@ describe("routes/catalog-public — productos y categorías", () => {
         name: "Borrador Marca",
         description: "Sin publicar",
         categoryId: rootId,
-        brand: "Marca Borrador",
+        brandId: await ensureBrand(agent, "Marca Borrador"),
         variants: [sampleVariant({ sku: "DRF-9" })],
       });
 
@@ -283,6 +284,89 @@ describe("routes/catalog-public — productos y categorías", () => {
     });
   });
 
+  describe("ofertas (onSale)", () => {
+    async function createSaleProduct(
+      agent: ReturnType<typeof request.agent>,
+      categoryId: string,
+      input: { name: string; brand: string; variants: Record<string, unknown>[] },
+    ) {
+      const created = await agent.post("/api/v1/admin/products").send({
+        name: input.name,
+        description: "Producto de prueba",
+        categoryId,
+        brandId: await ensureBrand(agent, input.brand),
+        variants: input.variants,
+      });
+      await agent.patch(`/api/v1/admin/products/${created.body.data.id}`).send({ status: "active" });
+    }
+
+    async function seedSales(agent: ReturnType<typeof request.agent>) {
+      const { rootId } = await seedCatalog(agent);
+      await createSaleProduct(agent, rootId, {
+        name: "Gel en Oferta",
+        brand: "Cosrx",
+        variants: [sampleVariant({ sku: "SALE-1", price: 20000, listPrice: 26000 })],
+      });
+      await createSaleProduct(agent, rootId, {
+        name: "Crema en Oferta",
+        brand: "Isntree",
+        variants: [sampleVariant({ sku: "SALE-2", price: 40000, listPrice: 50000 })],
+      });
+      await createSaleProduct(agent, rootId, {
+        name: "Tónico Precio Normal",
+        brand: "Anua",
+        variants: [sampleVariant({ sku: "FULL-1", price: 30000 })],
+      });
+      // La oferta vive en una variante apagada: la clienta no la puede comprar.
+      await createSaleProduct(agent, rootId, {
+        name: "Oferta Apagada",
+        brand: "Anua",
+        variants: [
+          sampleVariant({ sku: "OFF-A", price: 15000 }),
+          sampleVariant({ sku: "OFF-B", name: "100 ml", price: 25000, listPrice: 30000, isActive: false }),
+        ],
+      });
+    }
+
+    it("onSale solo devuelve productos con precio anterior en una variante activa", async () => {
+      const { agent } = await createAdminSession(app);
+      await seedSales(agent);
+
+      const response = await request(app).get("/api/v1/products").query({ onSale: true });
+      expect(response.status).toBe(200);
+      expect(response.body.data.map((p: { name: string }) => p.name).sort()).toEqual(["Crema en Oferta", "Gel en Oferta"]);
+      expect(response.body.meta.total).toBe(2);
+    });
+
+    it("onSale se combina con marca y rango de precio", async () => {
+      const { agent } = await createAdminSession(app);
+      await seedSales(agent);
+
+      const byBrand = await request(app).get("/api/v1/products").query({ onSale: true, brand: "Cosrx" });
+      expect(byBrand.body.data.map((p: { name: string }) => p.name)).toEqual(["Gel en Oferta"]);
+
+      const byPrice = await request(app).get("/api/v1/products").query({ onSale: true, minPrice: 30000 });
+      expect(byPrice.body.data.map((p: { name: string }) => p.name)).toEqual(["Crema en Oferta"]);
+    });
+
+    it("sin onSale el listado no cambia", async () => {
+      const { agent } = await createAdminSession(app);
+      await seedSales(agent);
+
+      const response = await request(app).get("/api/v1/products");
+      expect(response.body.meta.total).toBe(5);
+    });
+
+    it("facets con onSale solo cuenta marcas y precios de las ofertas", async () => {
+      const { agent } = await createAdminSession(app);
+      await seedSales(agent);
+
+      const response = await request(app).get("/api/v1/products/facets").query({ onSale: true });
+      expect(response.status).toBe(200);
+      expect(response.body.data).toEqual({ brands: ["Cosrx", "Isntree"], minPrice: 20000, maxPrice: 40000 });
+    });
+  });
+
   describe("búsqueda por nombre, marca o categoría", () => {
     async function createActiveProduct(
       agent: ReturnType<typeof request.agent>,
@@ -293,7 +377,7 @@ describe("routes/catalog-public — productos y categorías", () => {
         name: input.name,
         description: "Producto de prueba",
         categoryId,
-        ...(input.brand ? { brand: input.brand } : {}),
+        ...(input.brand ? { brandId: await ensureBrand(agent, input.brand) } : {}),
         variants: [sampleVariant({ sku: input.sku })],
       });
       await agent.patch(`/api/v1/admin/products/${created.body.data.id}`).send({ status: "active" });

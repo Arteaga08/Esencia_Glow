@@ -32,6 +32,9 @@ interface ProductFilterInput {
   /** Marcas de merchandising: `true` filtra, ausente no restringe. */
   isBestseller?: boolean;
   isNewArrival?: boolean;
+  /** Solo catálogo público ("Ofertas"): alguna variante activa con precio
+   * anterior (`listPrice`). `true` filtra, ausente no restringe. */
+  onSale?: boolean;
 }
 
 /**
@@ -78,6 +81,12 @@ function buildProductFilter(input: ProductFilterInput): FilterQuery<ProductAttrs
 
   if (input.isBestseller) filter.isBestseller = true;
   if (input.isNewArrival) filter.isNewArrival = true;
+
+  // Reemplaza el `$elemMatch` del match público: la MISMA variante debe estar
+  // activa y tener precio anterior (una oferta en una variante apagada no
+  // cuenta). `$gt: 0` descarta `null` y el campo ausente; que `listPrice` sea
+  // mayor que `price` ya lo garantiza la escritura (ver product-variant.schema.ts).
+  if (input.onSale) filter.variants = { $elemMatch: { isActive: true, listPrice: { $gt: 0 } } };
 
   if (input.search && input.publicOnly) {
     // Buscador de la tienda: nombre, marca o categoría. Sin slug ni SKU, que

@@ -34,6 +34,8 @@ import type { MediaAsset } from "./media-provider.js";
  */
 
 type HeroImageSlot = "desktop" | "mobile";
+/** El banner de oferta guarda además `page`, la foto del encabezado de /ofertas. */
+type OfferBannerImageSlot = HeroImageSlot | "page";
 
 function toImageSubdocument(asset: MediaAsset, alt?: string) {
   return {
@@ -138,20 +140,22 @@ async function removePromoImage(version: number): Promise<AdminHomeSubscriptionP
   return buildSubscriptionPromo(doc);
 }
 
-/** Secciones con un par de fotos `images.{desktop,mobile}` a nivel de sección. */
+/** Secciones con fotos `images.{slot}` a nivel de sección (`page` solo existe en el banner de oferta). */
 type SlotImageSection = HomeSpotlightKey | HomeSectionKey.OFFER_BANNER;
+type SectionSlotImages = Partial<Record<OfferBannerImageSlot, HomeImageAttrs>>;
 
 /** Sube la foto de un slot de la sección; la sección se crea con la primera foto si hace falta. */
 async function setSectionSlotImage(
   section: SlotImageSection,
-  slot: HeroImageSlot,
+  slot: OfferBannerImageSlot,
   buffer: Buffer,
   version: number,
   alt?: string,
 ): Promise<HomeContentAttrs> {
   const current = await readHomeContent();
   assertVersionMatches(current, section, version);
-  const previous: HomeImageAttrs | undefined = current?.[section]?.images?.[slot];
+  const images: SectionSlotImages | undefined = current?.[section]?.images;
+  const previous = images?.[slot];
 
   const doc = await uploadAndWrite(buffer, alt, section, version, (image) => ({
     set: { [`images.${slot}`]: image },
@@ -163,12 +167,13 @@ async function setSectionSlotImage(
 
 async function removeSectionSlotImage(
   section: SlotImageSection,
-  slot: HeroImageSlot,
+  slot: OfferBannerImageSlot,
   version: number,
 ): Promise<HomeContentAttrs> {
   const current = await readHomeContent();
   assertVersionMatches(current, section, version);
-  const previous = current?.[section]?.images?.[slot];
+  const images: SectionSlotImages | undefined = current?.[section]?.images;
+  const previous = images?.[slot];
   if (!previous) throw new AppError("Imagen no encontrada", 404);
 
   const doc = await writeSection(section, version, { unset: [`images.${slot}`] });
@@ -196,9 +201,9 @@ async function removeSpotlightImage(
   return buildSpotlight(await removeSectionSlotImage(section, slot, version), section);
 }
 
-/** Foto del banner de oferta (`desktop`/`mobile`). */
+/** Foto del banner de oferta (`desktop`/`mobile`) o del encabezado de /ofertas (`page`). */
 async function setOfferBannerImage(
-  slot: HeroImageSlot,
+  slot: OfferBannerImageSlot,
   buffer: Buffer,
   version: number,
   alt?: string,
@@ -206,7 +211,7 @@ async function setOfferBannerImage(
   return buildOfferBanner(await setSectionSlotImage(HomeSectionKey.OFFER_BANNER, slot, buffer, version, alt));
 }
 
-async function removeOfferBannerImage(slot: HeroImageSlot, version: number): Promise<AdminHomeOfferBanner> {
+async function removeOfferBannerImage(slot: OfferBannerImageSlot, version: number): Promise<AdminHomeOfferBanner> {
   return buildOfferBanner(await removeSectionSlotImage(HomeSectionKey.OFFER_BANNER, slot, version));
 }
 
@@ -220,4 +225,4 @@ export {
   setOfferBannerImage,
   removeOfferBannerImage,
 };
-export type { HeroImageSlot };
+export type { HeroImageSlot, OfferBannerImageSlot };

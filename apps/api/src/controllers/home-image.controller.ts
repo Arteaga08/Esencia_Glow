@@ -6,7 +6,7 @@ import { AppError } from "../utils/app-error.js";
 import { SPOTLIGHT_BY_SLUG } from "../utils/home-spotlight.js";
 import * as homeImageService from "../services/home-image.service.js";
 import { recordAudit } from "../services/audit.service.js";
-import type { HeroImageSlot } from "../services/home-image.service.js";
+import type { HeroImageSlot, OfferBannerImageSlot } from "../services/home-image.service.js";
 
 type HeroImageParams = { slideId: string; slot: HeroImageSlot };
 
@@ -25,7 +25,7 @@ function requireFile(req: Request): Express.Multer.File {
 }
 
 /** Cada operación de imagen es una escritura de sección: una entrada de auditoría con `change: "image"`. */
-async function auditImageChange(req: Request, section: HomeSectionKey, version: number, slot?: HeroImageSlot) {
+async function auditImageChange(req: Request, section: HomeSectionKey, version: number, slot?: OfferBannerImageSlot) {
   await recordAudit({
     action: ContentAction.HOME_SECTION_UPDATED,
     actorId: req.user!.id,
@@ -99,7 +99,7 @@ const removeSpotlightImage = asyncHandler(async (req: Request<SpotlightImagePara
   sendResponse(res, 200, "Foto del bloque eliminada.", result);
 });
 
-type SlotParams = { slot: HeroImageSlot };
+type SlotParams = { slot: OfferBannerImageSlot };
 
 const setOfferBannerImage = asyncHandler(async (req: Request<SlotParams>, res: Response) => {
   const file = requireFile(req);

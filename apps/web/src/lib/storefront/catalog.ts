@@ -35,10 +35,11 @@ function findCatalogCategory(tree: PublicCategoryNode[], slug: string): CatalogC
   return null;
 }
 
-/** Qué productos recorre el catálogo: los de una categoría o los marcados "Más vendido". */
+/** Qué productos recorre el catálogo: los de una categoría, los marcados "Más vendido" o los que están en oferta. */
 interface CatalogScope {
   category?: string;
   bestseller?: boolean;
+  onSale?: boolean;
 }
 
 interface CatalogPage {
@@ -50,6 +51,7 @@ function scopeToParams(scope: CatalogScope): Record<string, string> {
   return {
     ...(scope.category ? { category: scope.category } : {}),
     ...(scope.bestseller ? { bestseller: "true" } : {}),
+    ...(scope.onSale ? { onSale: "true" } : {}),
   };
 }
 

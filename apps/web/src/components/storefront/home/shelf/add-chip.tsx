@@ -27,7 +27,8 @@ interface AddChipProps {
  * Ficha de presentación que además agrega al carrito: elegir la variante y
  * agregarla es un solo clic (sin botón aparte). Si el carrito cambió abre el
  * panel lateral; si topó un límite lo dice en la propia ficha, sin abrirlo.
- * Estados: reposo, agregado (rosa + palomita) y tope (texto de aviso).
+ * Estados: reposo, hover (rosa pálido `accent`: insinúa, no compite con el
+ * botón de compra), agregado (rosa pleno + palomita) y tope (texto de aviso).
  */
 function AddChip({ item, label, priceCents, ariaLabel, stacked = false }: AddChipProps) {
   const [state, setState] = useState<ChipState>("idle");
@@ -74,7 +75,7 @@ function AddChip({ item, label, priceCents, ariaLabel, stacked = false }: AddChi
         className={`text-body-sm flex min-w-0 cursor-pointer rounded-md border px-2 py-1.5 text-foreground transition-[background-color,border-color,opacity] duration-[var(--duration-fast)] ease-out-quart focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${
           added
             ? "border-primary-action bg-primary"
-            : "border-border-strong bg-surface/70 hover:border-primary-action hover:bg-primary"
+            : "border-border-strong bg-surface/70 hover:border-primary-action hover:bg-accent"
         } ${stacked ? "flex-col items-center justify-center text-center leading-tight" : "items-center justify-between gap-3"}`}
       >
         {added ? (

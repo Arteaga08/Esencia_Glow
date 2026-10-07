@@ -11,7 +11,7 @@ import { sanitizeMultipart } from "../middlewares/sanitize-multipart.js";
 import {
   deleteImageQuerySchema,
   heroSlideImageParamsSchema,
-  imageSlotParamsSchema,
+  offerBannerImageSlotParamsSchema,
   imageVersionBodySchema,
   spotlightImageParamsSchema,
   spotlightParamsSchema,
@@ -117,7 +117,7 @@ router.delete(
 router.put(
   "/offer-banner/images/:slot",
   uploadRateLimiter,
-  validate(imageSlotParamsSchema, "params"),
+  validate(offerBannerImageSlotParamsSchema, "params"),
   uploadSingleImage("image"),
   sanitizeMultipart,
   validate(imageVersionBodySchema),
@@ -125,7 +125,7 @@ router.put(
 );
 router.delete(
   "/offer-banner/images/:slot",
-  validate(imageSlotParamsSchema, "params"),
+  validate(offerBannerImageSlotParamsSchema, "params"),
   validate(deleteImageQuerySchema, "query"),
   homeImageController.removeOfferBannerImage,
 );

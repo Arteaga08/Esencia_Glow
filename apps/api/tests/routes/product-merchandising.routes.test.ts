@@ -2,6 +2,7 @@ import request from "supertest";
 import { describe, expect, it } from "vitest";
 import { buildApp } from "../../src/app.js";
 import { Category } from "../../src/models/category.model.js";
+import { ensureBrand } from "../helpers/brand-fixtures.js";
 import { createAdminSession } from "../helpers/admin-session.js";
 
 const app = buildApp();
@@ -9,12 +10,14 @@ const app = buildApp();
 type Agent = ReturnType<typeof request.agent>;
 
 async function createProduct(agent: Agent, categoryId: string, name: string, sku: string, extra: Record<string, unknown> = {}) {
+  const { brand, ...rest } = extra;
   const created = await agent.post("/api/v1/admin/products").send({
     name,
     description: "Desc",
     categoryId,
     variants: [{ sku, name: "30 ml", price: 34900, weightGrams: 150 }],
-    ...extra,
+    ...(typeof brand === "string" ? { brandId: await ensureBrand(agent, brand) } : {}),
+    ...rest,
   });
   await agent.patch(`/api/v1/admin/products/${created.body.data.id}`).send({ status: "active" });
   return created;
@@ -84,7 +87,7 @@ describe("routes/products — marcas Más vendido y Novedad", () => {
     const created = await createProduct(agent, category.id, "Sérum A", "SER-A1", { brand: "Beauty of Joseon" });
     expect(created.body.data.brand).toBe("Beauty of Joseon");
 
-    const updated = await agent.patch(`/api/v1/admin/products/${created.body.data.id}`).send({ brand: "Anua" });
+    const updated = await agent.patch(`/api/v1/admin/products/${created.body.data.id}`).send({ brandId: await ensureBrand(agent, "Anua") });
     expect(updated.body.data.brand).toBe("Anua");
 
     const publicList = await request(app).get("/api/v1/products");
@@ -127,7 +130,7 @@ describe("routes/products — tope de 4 novedades", () => {
     const extra = await createProduct(agent, category.id, "Sérum extra", "EXT-1");
 
     const blocked = await agent.patch(`/api/v1/admin/products/${extra.body.data.id}`).send({ isNewArrival: true });
-    const resaved = await agent.patch(`/api/v1/admin/products/${first}`).send({ isNewArrival: true, brand: "Anua" });
+    const resaved = await agent.patch(`/api/v1/admin/products/${first}`).send({ isNewArrival: true, brandId: await ensureBrand(agent, "Anua") });
 
     expect(blocked.status).toBe(409);
     expect(resaved.status).toBe(200);
