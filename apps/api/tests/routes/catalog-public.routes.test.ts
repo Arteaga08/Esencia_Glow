@@ -283,6 +283,80 @@ describe("routes/catalog-public — productos y categorías", () => {
     });
   });
 
+  describe("búsqueda por nombre, marca o categoría", () => {
+    async function createActiveProduct(
+      agent: ReturnType<typeof request.agent>,
+      categoryId: string,
+      input: { name: string; sku: string; brand?: string },
+    ) {
+      const created = await agent.post("/api/v1/admin/products").send({
+        name: input.name,
+        description: "Producto de prueba",
+        categoryId,
+        ...(input.brand ? { brand: input.brand } : {}),
+        variants: [sampleVariant({ sku: input.sku })],
+      });
+      await agent.patch(`/api/v1/admin/products/${created.body.data.id}`).send({ status: "active" });
+    }
+
+    async function seedSearch(agent: ReturnType<typeof request.agent>) {
+      const root = await agent.post("/api/v1/admin/categories").send({ name: "Cuidado Facial" });
+      const rootId = root.body.data.id as string;
+      const child = await agent.post("/api/v1/admin/categories").send({ name: "Limpiadores", parentId: rootId });
+      const body = await agent.post("/api/v1/admin/categories").send({ name: "Cuerpo" });
+      await createActiveProduct(agent, rootId, { name: "Sérum de Niacinamida", sku: "SR-1", brand: "Cosrx" });
+      await createActiveProduct(agent, child.body.data.id, { name: "Espuma Suave", sku: "SR-2", brand: "Isntree" });
+      await createActiveProduct(agent, body.body.data.id, { name: "Loción Hidratante", sku: "SR-3", brand: "Beauty of Joseon" });
+    }
+
+    async function search(term: string): Promise<string[]> {
+      const response = await request(app).get("/api/v1/products").query({ search: term });
+      expect(response.status).toBe(200);
+      return response.body.data.map((p: { name: string }) => p.name).sort();
+    }
+
+    it("encuentra por nombre sin importar mayúsculas ni acentos", async () => {
+      const { agent } = await createAdminSession(app);
+      await seedSearch(agent);
+
+      expect(await search("serum")).toEqual(["Sérum de Niacinamida"]);
+      expect(await search("LOCION")).toEqual(["Loción Hidratante"]);
+      expect(await search("sérum")).toEqual(["Sérum de Niacinamida"]);
+    });
+
+    it("encuentra por marca", async () => {
+      const { agent } = await createAdminSession(app);
+      await seedSearch(agent);
+
+      expect(await search("cosrx")).toEqual(["Sérum de Niacinamida"]);
+      expect(await search("joseon")).toEqual(["Loción Hidratante"]);
+    });
+
+    it("encuentra por categoría, incluidas sus subcategorías", async () => {
+      const { agent } = await createAdminSession(app);
+      await seedSearch(agent);
+
+      expect(await search("facial")).toEqual(["Espuma Suave", "Sérum de Niacinamida"]);
+      expect(await search("limpiadores")).toEqual(["Espuma Suave"]);
+    });
+
+    it("no busca por SKU y trata los símbolos como texto", async () => {
+      const { agent } = await createAdminSession(app);
+      await seedSearch(agent);
+
+      expect(await search("SR-1")).toEqual([]);
+      expect(await search(".*")).toEqual([]);
+    });
+
+    it("nunca devuelve borradores aunque coincidan", async () => {
+      const { agent } = await createAdminSession(app);
+      await seedCatalog(agent);
+
+      expect(await search("borrador")).toEqual([]);
+      expect(await search("skincare")).toEqual(["Serum de Vitamina C"]);
+    });
+  });
+
   describe("GET /:slug/availability", () => {
     it("responde isAvailable: true cuando hay stock disponible, sin exponer onHand/reserved", async () => {
       const { agent } = await createAdminSession(app);
