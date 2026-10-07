@@ -1,7 +1,8 @@
 /**
- * Botón hamburguesa que se transforma en X. Solo anima `transform` y
- * `opacity` (nunca propiedades de layout): las barras de arriba y abajo
- * convergen al centro y giran, la del medio se desvanece.
+ * Botón de menú de dos líneas que se cruzan en X, con recorrido corto para
+ * que el cambio sea discreto. En Tailwind v4 `translate-*` y `rotate-*`
+ * escriben las propiedades `translate` y `rotate` (no `transform`), así que
+ * son esas las que se listan en la transición.
  */
 function MenuToggle({
   open,
@@ -13,7 +14,7 @@ function MenuToggle({
   onToggle: () => void;
 }) {
   const bar =
-    "absolute left-0 h-0.5 w-full rounded-full bg-current transition-[transform,opacity] duration-[var(--duration-slow)] ease-out-quart motion-reduce:transition-none";
+    "absolute left-0 top-1/2 h-[1.5px] w-full rounded-full bg-current transition-[translate,rotate] duration-[var(--duration-base)] ease-out-quart motion-reduce:transition-none";
 
   return (
     <button
@@ -22,12 +23,11 @@ function MenuToggle({
       aria-expanded={open}
       aria-controls={controls}
       aria-label={open ? "Cerrar menú" : "Abrir menú"}
-      className="inline-flex size-11 items-center justify-center rounded-full text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring xl:hidden"
+      className="inline-flex size-11 cursor-pointer items-center justify-center rounded-full text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring xl:hidden"
     >
       <span className="relative block h-4 w-6" aria-hidden="true">
-        <span className={`${bar} top-0 ${open ? "translate-y-[7px] rotate-45" : ""}`} />
-        <span className={`${bar} top-[7px] ${open ? "scale-x-0 opacity-0" : ""}`} />
-        <span className={`${bar} top-[14px] ${open ? "-translate-y-[7px] -rotate-45" : ""}`} />
+        <span className={`${bar} ${open ? "rotate-45" : "-translate-y-[3.5px]"}`} />
+        <span className={`${bar} ${open ? "-rotate-45" : "translate-y-[3.5px]"}`} />
       </span>
     </button>
   );

@@ -4,7 +4,7 @@ import type { PublicCategoryNode } from "@esencia-glow/shared";
 import { useCallback, useEffect, useId, useState } from "react";
 import { SearchPanel } from "../../search/search-panel";
 import { BrandLogo } from "./brand-logo";
-import { HeaderActions } from "./header-actions";
+import { HeaderActions, SearchButton } from "./header-actions";
 import { MainNav } from "./main-nav";
 import { MegaPanel } from "./mega-panel";
 import { MenuToggle } from "./menu-toggle";
@@ -14,11 +14,14 @@ import { useScrolled } from "./use-scrolled";
 /**
  * Estado y composición del header (como Etude). Tres estados:
  * - arriba de la página: transparente, sin borde ni desenfoque, sobre el hero;
- * - con scroll: rosa `blush` sólido con borde de 1px (plano, sin sombra),
- *   con un fundido lento (500 ms) para que el cambio no se sienta brusco;
- * - con panel o menú móvil abierto: rosa `blush` aunque no haya scroll, para
- *   que el texto del menú se lea sobre cualquier foto.
+ * - con scroll: esmerilado, `blush` al 70 % con desenfoque (la página se
+ *   adivina detrás, como en Etude) y borde de 1px, con un fundido lento
+ *   (500 ms) para que el cambio no se sienta brusco;
+ * - con panel o menú móvil abierto: `blush` sólido aunque no haya scroll,
+ *   para que el texto del menú se lea sobre cualquier foto.
  * La lupa abre el buscador, que se monta encima de la barra.
+ * En móvil la barra va en tres columnas: menú y lupa a la izquierda, logo al
+ * centro, cuenta y carrito a la derecha. En escritorio no cambia.
  */
 function HeaderShell({ categories }: { categories: PublicCategoryNode[] }) {
   const scrolled = useScrolled();
@@ -81,9 +84,17 @@ function HeaderShell({ categories }: { categories: PublicCategoryNode[] }) {
         onPointerLeave={(event) => {
           if (event.pointerType === "mouse") setActiveSlug(null);
         }}
-        className={`fixed inset-x-0 top-0 z-50 border-b transition-[background-color,border-color] duration-500 ease-out motion-reduce:transition-none ${scrolled || menuOpen ? "border-border bg-blush" : "border-transparent bg-transparent"}`}
+        className={`fixed inset-x-0 top-0 z-50 border-b transition-[background-color,border-color,backdrop-filter] duration-500 ease-out motion-reduce:transition-none ${menuOpen ? "border-border bg-blush" : scrolled ? "border-border/60 bg-blush/70 backdrop-blur-xl backdrop-saturate-150" : "border-transparent bg-transparent"}`}
       >
-        <div className="mx-auto flex h-16 max-w-shell items-center justify-between gap-6 px-4 md:px-8 xl:h-20 xl:px-12">
+        <div className="mx-auto grid h-16 max-w-shell grid-cols-[1fr_auto_1fr] items-center px-4 md:px-8 xl:flex xl:h-20 xl:justify-between xl:gap-6 xl:px-12">
+          <div className="-ml-2.5 flex items-center gap-1 xl:hidden">
+            <MenuToggle
+              open={mobileOpen}
+              controls={mobileId}
+              onToggle={() => setMobileOpen((value) => !value)}
+            />
+            <SearchButton onSearch={openSearch} />
+          </div>
           <div className="flex items-center gap-6 2xl:gap-10">
             <BrandLogo onNavigate={closeAll} />
             <MainNav
@@ -94,13 +105,8 @@ function HeaderShell({ categories }: { categories: PublicCategoryNode[] }) {
               onNavigate={closeAll}
             />
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center justify-end max-xl:-mr-2.5">
             <HeaderActions onNavigate={closeAll} onSearch={openSearch} />
-            <MenuToggle
-              open={mobileOpen}
-              controls={mobileId}
-              onToggle={() => setMobileOpen((value) => !value)}
-            />
           </div>
         </div>
         <MegaPanel id={panelId} category={shownCategory} open={panelOpen} onNavigate={closeAll} />

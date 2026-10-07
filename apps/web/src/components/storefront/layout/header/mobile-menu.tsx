@@ -1,9 +1,10 @@
 "use client";
 
-import { CaretDown, User } from "@phosphor-icons/react";
+import { CaretDown } from "@phosphor-icons/react";
 import type { PublicCategoryNode } from "@esencia-glow/shared";
 import Link from "next/link";
 import { useState } from "react";
+import { MobileMenuFooter } from "./mobile-menu-footer";
 
 const rowClass =
   "flex min-h-14 w-full items-center justify-between rounded-sm text-page-title text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
@@ -12,8 +13,9 @@ const subLinkClass =
 
 /**
  * Menú móvil a pantalla completa bajo la barra. Cada categoría con hijos
- * es un acordeón (una abierta a la vez); la cuenta y Ofertas cierran la
- * lista. Cerrado queda `inert` y fuera del flujo de tabulación.
+ * es un acordeón (una abierta a la vez) y Ofertas cierra la lista, que es
+ * lo único que se desplaza: el pie (WhatsApp y redes) queda
+ * fijo al fondo. Cerrado queda `inert` y fuera del flujo de tabulación.
  */
 function MobileMenu({
   id,
@@ -33,9 +35,9 @@ function MobileMenu({
       id={id}
       inert={!open}
       aria-hidden={!open}
-      className={`fixed inset-x-0 bottom-0 top-16 z-40 overflow-y-auto bg-blush px-4 pb-10 pt-4 transition-[opacity,visibility] duration-[var(--duration-slow)] ease-out-quart motion-reduce:transition-none xl:hidden ${open ? "visible opacity-100" : "invisible opacity-0"}`}
+      className={`fixed inset-x-0 bottom-0 top-16 z-40 flex flex-col bg-blush transition-[opacity,visibility] duration-[var(--duration-slow)] ease-out-quart motion-reduce:transition-none xl:hidden ${open ? "visible opacity-100" : "invisible opacity-0"}`}
     >
-      <nav aria-label="Principal móvil">
+      <nav aria-label="Principal móvil" className="flex-1 overflow-y-auto px-4 pb-8 pt-4">
         <ul className="flex flex-col divide-y divide-border">
           {categories.map((category) => {
             const isExpanded = expanded === category.slug;
@@ -104,14 +106,7 @@ function MobileMenu({
           </li>
         </ul>
       </nav>
-      <Link
-        href="/mi-cuenta"
-        onClick={onNavigate}
-        className="mt-8 inline-flex min-h-12 items-center gap-2 rounded-full border border-border-strong px-5 text-subtitle text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-      >
-        <User size={20} aria-hidden="true" />
-        Mi cuenta
-      </Link>
+      <MobileMenuFooter />
     </div>
   );
 }
