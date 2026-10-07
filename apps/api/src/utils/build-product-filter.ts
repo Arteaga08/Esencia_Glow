@@ -1,6 +1,7 @@
 import type { FilterQuery, Types } from "mongoose";
 import { ProductChannel, ProductStatus } from "@esencia-glow/shared";
 import { escapeRegex } from "./parse-list-query.js";
+import { buildSearchPattern } from "./build-search-pattern.js";
 import type { ProductAttrs } from "../models/product.model.js";
 
 /**
@@ -11,6 +12,9 @@ import type { ProductAttrs } from "../models/product.model.js";
  */
 interface ProductFilterInput {
   search?: string;
+  /** Solo catálogo público: categorías cuyo nombre coincide con `search`
+   * (con sus subcategorías). Sus productos también cuentan como resultado. */
+  searchCategoryIds?: Types.ObjectId[];
   categoryIds?: Types.ObjectId[];
   status?: ProductStatus;
   /** true en el catálogo público: fuerza status=active, alguna variante
@@ -75,7 +79,18 @@ function buildProductFilter(input: ProductFilterInput): FilterQuery<ProductAttrs
   if (input.isBestseller) filter.isBestseller = true;
   if (input.isNewArrival) filter.isNewArrival = true;
 
-  if (input.search) {
+  if (input.search && input.publicOnly) {
+    // Buscador de la tienda: nombre, marca o categoría. Sin slug ni SKU, que
+    // la clienta no conoce; con acentos opcionales (ver buildSearchPattern).
+    const pattern = buildSearchPattern(input.search);
+    filter.$or = [
+      { name: pattern },
+      { brand: pattern },
+      ...(input.searchCategoryIds && input.searchCategoryIds.length > 0
+        ? [{ categoryId: { $in: input.searchCategoryIds } }]
+        : []),
+    ];
+  } else if (input.search) {
     const pattern = new RegExp(escapeRegex(input.search), "i");
     filter.$or = [{ name: pattern }, { slug: pattern }, { "variants.sku": pattern }];
   }

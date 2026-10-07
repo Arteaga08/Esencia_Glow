@@ -16,6 +16,7 @@ import { AppError } from "../utils/app-error.js";
 import { buildMeta } from "../utils/parse-list-query.js";
 import { resolveSort } from "../utils/resolve-sort.js";
 import { buildProductFilter, buildPublicProductMatch } from "../utils/build-product-filter.js";
+import { buildSearchPattern } from "../utils/build-search-pattern.js";
 import { resolveCategoryIds } from "./product.service.js";
 import {
   buildPublicProduct,
@@ -85,13 +86,30 @@ async function resolveCategoryIdsBySlug(slug?: string): Promise<Types.ObjectId[]
   return category ? resolveCategoryIds(category._id.toString()) : [];
 }
 
+/**
+ * Categorías activas cuyo nombre coincide con lo buscado, más sus
+ * subcategorías: buscar "skincare" trae también lo que cuelga de ella.
+ */
+async function resolveSearchCategoryIds(search?: string): Promise<Types.ObjectId[] | undefined> {
+  if (!search) return undefined;
+  const matches = await Category.find({ isActive: true, name: buildSearchPattern(search) }).select("_id").lean();
+  if (matches.length === 0) return [];
+  const matchIds = matches.map((category) => category._id);
+  const children = await Category.find({ parentId: { $in: matchIds } }).select("_id").lean();
+  return [...matchIds, ...children.map((child) => child._id)];
+}
+
 async function listPublicProducts(
   input: ListPublicProductsInput,
 ): Promise<{ products: PublicProduct[]; meta: PaginationMeta }> {
-  const categoryIds = await resolveCategoryIdsBySlug(input.categorySlug);
+  const [categoryIds, searchCategoryIds] = await Promise.all([
+    resolveCategoryIdsBySlug(input.categorySlug),
+    resolveSearchCategoryIds(input.search),
+  ]);
 
   const filter = buildProductFilter({
     search: input.search,
+    searchCategoryIds,
     categoryIds,
     publicOnly: true,
     brands: input.brands,

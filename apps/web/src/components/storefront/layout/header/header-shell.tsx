@@ -2,6 +2,7 @@
 
 import type { PublicCategoryNode } from "@esencia-glow/shared";
 import { useCallback, useEffect, useId, useState } from "react";
+import { SearchPanel } from "../../search/search-panel";
 import { BrandLogo } from "./brand-logo";
 import { HeaderActions } from "./header-actions";
 import { MainNav } from "./main-nav";
@@ -17,6 +18,7 @@ import { useScrolled } from "./use-scrolled";
  *   con un fundido lento (500 ms) para que el cambio no se sienta brusco;
  * - con panel o menú móvil abierto: rosa `blush` aunque no haya scroll, para
  *   que el texto del menú se lea sobre cualquier foto.
+ * La lupa abre el buscador, que se monta encima de la barra.
  */
 function HeaderShell({ categories }: { categories: PublicCategoryNode[] }) {
   const scrolled = useScrolled();
@@ -24,13 +26,21 @@ function HeaderShell({ categories }: { categories: PublicCategoryNode[] }) {
   // Última categoría mostrada: su contenido se queda mientras el panel colapsa.
   const [shownSlug, setShownSlug] = useState<string | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const panelId = useId();
   const mobileId = useId();
 
   const closeAll = useCallback(() => {
     setActiveSlug(null);
     setMobileOpen(false);
+    setSearchOpen(false);
   }, []);
+
+  // El buscador cierra lo que el header tenga abierto (panel, menú móvil).
+  const openSearch = useCallback(() => {
+    closeAll();
+    setSearchOpen(true);
+  }, [closeAll]);
 
   const activate = useCallback((slug: string | null) => {
     setActiveSlug(slug);
@@ -42,13 +52,13 @@ function HeaderShell({ categories }: { categories: PublicCategoryNode[] }) {
   const menuOpen = panelOpen || mobileOpen;
 
   useEffect(() => {
-    if (!panelOpen && !mobileOpen) return;
+    if (!panelOpen && !mobileOpen && !searchOpen) return;
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") closeAll();
     }
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [panelOpen, mobileOpen, closeAll]);
+  }, [panelOpen, mobileOpen, searchOpen, closeAll]);
 
   // Con el menú móvil abierto la página de atrás no debe desplazarse.
   useEffect(() => {
@@ -85,7 +95,7 @@ function HeaderShell({ categories }: { categories: PublicCategoryNode[] }) {
             />
           </div>
           <div className="flex items-center gap-1">
-            <HeaderActions onNavigate={closeAll} />
+            <HeaderActions onNavigate={closeAll} onSearch={openSearch} />
             <MenuToggle
               open={mobileOpen}
               controls={mobileId}
@@ -96,6 +106,7 @@ function HeaderShell({ categories }: { categories: PublicCategoryNode[] }) {
         <MegaPanel id={panelId} category={shownCategory} open={panelOpen} onNavigate={closeAll} />
       </header>
       <MobileMenu id={mobileId} open={mobileOpen} categories={categories} onNavigate={closeAll} />
+      {searchOpen ? <SearchPanel onClose={closeAll} /> : null}
     </>
   );
 }

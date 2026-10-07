@@ -9,16 +9,22 @@ const actionClass =
  * Buscar, cuenta y carrito. La cuenta va siempre a `/mi-cuenta`: con sesión
  * entra directo y sin ella el guard de esa ruta manda a `/ingresar` y regresa
  * (así el header no lee cookies y el home y el catálogo siguen cacheables).
- * El carrito es un botón con contador que abre el panel lateral (3.4a); el
- * buscador sigue siendo un enlace sin lógica.
+ * El carrito es un botón con contador que abre el panel lateral (3.4a) y la
+ * lupa abre el buscador (lo monta el header; aquí solo se avisa).
  * En móvil la cuenta se oculta aquí: vive dentro del menú desplegable.
  */
-function HeaderActions({ onNavigate }: { onNavigate?: () => void }) {
+function HeaderActions({ onNavigate, onSearch }: { onNavigate?: () => void; onSearch: () => void }) {
   return (
     <div className="flex items-center gap-1">
-      <Link href="/buscar" onClick={onNavigate} aria-label="Buscar productos" className={actionClass}>
+      <button
+        type="button"
+        aria-label="Buscar productos"
+        aria-haspopup="dialog"
+        onClick={onSearch}
+        className={`cursor-pointer ${actionClass}`}
+      >
         <MagnifyingGlass size={24} aria-hidden="true" />
-      </Link>
+      </button>
       <Link
         href="/mi-cuenta"
         onClick={onNavigate}
