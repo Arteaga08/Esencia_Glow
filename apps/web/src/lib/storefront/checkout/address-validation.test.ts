@@ -4,7 +4,8 @@ import { validateAddress } from "./address-validation";
 
 const VALID: AddressFormValue = {
   ...EMPTY_ADDRESS_FORM,
-  fullName: "María López",
+  firstName: "María",
+  lastName: "López",
   phone: "3312345678",
   street: "Av. Vallarta",
   exteriorNumber: "1234",
@@ -21,9 +22,15 @@ describe("validateAddress", () => {
 
   it("dice qué falta, pegado a su campo", () => {
     const errors = validateAddress(EMPTY_ADDRESS_FORM);
-    expect(Object.keys(errors).sort()).toEqual(["city", "exteriorNumber", "fullName", "neighborhood", "phone", "postalCode", "state", "street"]);
+    expect(Object.keys(errors).sort()).toEqual(["city", "exteriorNumber", "firstName", "lastName", "neighborhood", "phone", "postalCode", "state", "street"]);
     expect(errors.phone).toMatch(/10 dígitos/);
     expect(errors.postalCode).toMatch(/5 dígitos/);
+  });
+
+  it("el nombre y los apellidos se piden por separado", () => {
+    expect(validateAddress({ ...VALID, lastName: "  " }).lastName).toMatch(/apellidos/i);
+    expect(validateAddress({ ...VALID, firstName: "" }).firstName).toMatch(/nombre/i);
+    expect(validateAddress({ ...VALID, lastName: "  " })).not.toHaveProperty("firstName");
   });
 
   it("la etiqueta solo se exige cuando se pasa (libreta sí, checkout no)", () => {

@@ -33,7 +33,8 @@ async function seedProduct() {
 }
 
 const destination = {
-  fullName: "Ana Pérez",
+  firstName: "Ana",
+  lastName: "Pérez",
   phone: "5512345678",
   street: "Av. Reforma",
   exteriorNumber: "100",
@@ -64,6 +65,32 @@ describe("routes/shipping — cotización", () => {
       expect(rate.providerRateId).toBeUndefined();
       expect(typeof rate.rateId).toBe("string");
     }
+  });
+
+  it("la cotización guarda el nombre completo derivado de nombre y apellidos", async () => {
+    const { variantId } = await seedProduct();
+    const { agent } = await createCustomerSession(app);
+
+    const res = await agent.post("/api/v1/shipping/quotes").send({
+      destination,
+      lines: [{ itemType: "product", itemId: variantId, quantity: 1 }],
+    });
+
+    expect(res.status).toBe(201);
+    const stored = await ShippingQuote.findById(res.body.data.id).lean();
+    expect(stored?.destination).toMatchObject({ firstName: "Ana", lastName: "Pérez", fullName: "Ana Pérez" });
+  });
+
+  it("un destino sin apellidos responde 400", async () => {
+    const { variantId } = await seedProduct();
+    const { agent } = await createCustomerSession(app);
+
+    const res = await agent.post("/api/v1/shipping/quotes").send({
+      destination: { ...destination, lastName: undefined },
+      lines: [{ itemType: "product", itemId: variantId, quantity: 1 }],
+    });
+
+    expect(res.status).toBe(400);
   });
 
   it("un código postal inválido responde 400", async () => {

@@ -121,6 +121,9 @@ describe("routes/admin-order — panel: summary, búsqueda, dirección, priorida
     const okRes = await agent.patch(`/api/v1/admin/orders/${order._id}/shipping-address`).send(NEW_ADDRESS);
     expect(okRes.status).toBe(200);
     expect(okRes.body.data.shippingAddress.fullName).toBe("Otro Nombre");
+    // El panel solo captura un nombre: el nombre y apellidos del pedido no se quedan desfasados.
+    expect(okRes.body.data.shippingAddress.firstName).toBeUndefined();
+    expect(okRes.body.data.shippingAddress.lastName).toBeUndefined();
 
     await Order.updateOne({ _id: order._id }, { $set: { status: OrderStatus.SHIPPED } });
     const blockedRes = await agent.patch(`/api/v1/admin/orders/${order._id}/shipping-address`).send(NEW_ADDRESS);

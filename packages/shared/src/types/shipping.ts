@@ -10,7 +10,11 @@ import type { MexicanState } from "../constants/mexican-states.js";
  * sea imposible por construcción.
  */
 interface PublicShippingAddress {
+  /** Nombre para mostrar. Si hay `firstName` y `lastName` es siempre su unión (la calcula el API). */
   fullName: string;
+  /** Solo las direcciones capturadas por una clienta los traen; el panel y las anteriores a este campo, no. */
+  firstName?: string;
+  lastName?: string;
   phone: string;
   street: string;
   exteriorNumber: string;

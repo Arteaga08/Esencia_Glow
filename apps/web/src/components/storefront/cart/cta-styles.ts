@@ -16,7 +16,10 @@ const CTA_DISABLED =
 
 const TEXT_LINK = `inline-flex min-h-11 cursor-pointer items-center text-body-sm text-foreground underline decoration-border-strong underline-offset-4 transition-colors duration-[var(--duration-fast)] hover:decoration-foreground ${FOCUS}`;
 
+/** Ancho del botón que avanza en un paso: a todo lo ancho en móvil, a su tamaño desde `sm`. */
+const CTA_WIDTH = "w-full sm:w-auto sm:self-start";
+
 /** Etiqueta de campo/grupo en la voz mono del sistema. */
 const LABEL = "font-mono text-label uppercase text-muted-foreground-strong";
 
-export { CTA_PRIMARY, CTA_PRIMARY_LARGE, CTA_SECONDARY, CTA_DISABLED, TEXT_LINK, LABEL, FOCUS };
+export { CTA_PRIMARY, CTA_PRIMARY_LARGE, CTA_SECONDARY, CTA_DISABLED, CTA_WIDTH, TEXT_LINK, LABEL, FOCUS };

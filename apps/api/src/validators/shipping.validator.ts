@@ -1,5 +1,6 @@
 import Joi from "joi";
 import { MAX_ORDER_LINES, MEXICAN_STATES } from "@esencia-glow/shared";
+import { joinRecipientName } from "../utils/recipient-name.js";
 
 /**
  * Valida el body de `POST /shipping/quotes`. `destination` es el mismo
@@ -33,6 +34,24 @@ const shippingAddressSchema = Joi.object({
   references: Joi.string().trim().max(300),
 });
 
+/**
+ * Dirección que captura la clienta (checkout y libreta): nombre y apellidos por
+ * separado. `fullName` no se acepta: se deriva de ambos para que el resto del
+ * sistema (correos, Stripe, panel) siga leyendo un solo nombre. Con la regla
+ * `and`, en una edición parcial van los dos juntos o ninguno.
+ */
+const customerShippingAddressSchema = shippingAddressSchema
+  .keys({
+    fullName: Joi.any().strip(),
+    firstName: Joi.string().trim().min(1).max(100).required(),
+    lastName: Joi.string().trim().min(1).max(100).required(),
+  })
+  .custom((value: { firstName?: string; lastName?: string }) =>
+    value.firstName !== undefined && value.lastName !== undefined
+      ? { ...value, fullName: joinRecipientName(value.firstName, value.lastName) }
+      : value,
+  );
+
 const cartLineSchema = Joi.object({
   itemType: Joi.string().valid("product", "bundle").required(),
   itemId: objectId.required(),
@@ -40,8 +59,8 @@ const cartLineSchema = Joi.object({
 });
 
 const createShippingQuoteSchema = Joi.object({
-  destination: shippingAddressSchema.required(),
+  destination: customerShippingAddressSchema.required(),
   lines: Joi.array().items(cartLineSchema).min(1).max(MAX_ORDER_LINES).required(),
 });
 
-export { createShippingQuoteSchema, shippingAddressSchema, cartLineSchema };
+export { createShippingQuoteSchema, shippingAddressSchema, customerShippingAddressSchema, cartLineSchema };

@@ -8,7 +8,8 @@ const app = buildApp();
 function address(label: string, overrides: Record<string, unknown> = {}) {
   return {
     label,
-    fullName: "María López",
+    firstName: "María",
+    lastName: "López",
     phone: "3312345678",
     street: "Av. Vallarta",
     exteriorNumber: "1234",
@@ -126,6 +127,31 @@ describe("routes/account/addresses — libreta de direcciones", () => {
     const results = await Promise.all([addAddress(agent, "A"), addAddress(agent, "B"), addAddress(agent, "C")]);
     expect(results.filter((r) => r.status === 201)).toHaveLength(1);
     expect(await list(agent)).toHaveLength(5);
+  });
+
+  it("guarda nombre y apellidos y devuelve el nombre completo derivado", async () => {
+    const { agent } = await createCustomerSession(app);
+    const res = await addAddress(agent, "Casa", { firstName: "María Fernanda", lastName: "López Hernández" });
+
+    expect(res.status).toBe(201);
+    expect(res.body.data).toMatchObject({ firstName: "María Fernanda", lastName: "López Hernández", fullName: "María Fernanda López Hernández" });
+  });
+
+  it("400 sin apellidos", async () => {
+    const { agent } = await createCustomerSession(app);
+    const res = await addAddress(agent, "Casa", { lastName: undefined });
+
+    expect(res.status).toBe(400);
+    expect(res.body.errors.lastName).toBeDefined();
+  });
+
+  it("PATCH con nombre y apellidos recalcula el nombre completo", async () => {
+    const { agent } = await createCustomerSession(app);
+    const created = await addAddress(agent, "Casa");
+    const res = await agent.patch(`/api/v1/account/addresses/${created.body.data.id}`).send({ firstName: "Ana", lastName: "Ruiz" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toMatchObject({ firstName: "Ana", lastName: "Ruiz", fullName: "Ana Ruiz" });
   });
 
   it("PATCH edita campos de la dirección", async () => {

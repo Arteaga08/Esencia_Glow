@@ -10,7 +10,7 @@ import { CheckboxField } from "@/components/storefront/account/shared/checkbox-f
 import { formatMoneyMXN } from "@/lib/format-money";
 import type { PreparedPayment } from "@/lib/storefront/checkout/prepare-payment";
 import { useCardElement } from "@/lib/storefront/checkout/use-card-element";
-import { CTA_DISABLED, CTA_PRIMARY, LABEL } from "../cart/cta-styles";
+import { CTA_DISABLED, CTA_PRIMARY, CTA_WIDTH, LABEL } from "../cart/cta-styles";
 
 interface PaymentStepProps {
   amountCents: number;
@@ -110,13 +110,13 @@ function PaymentStep({ amountCents, requireTerms, prepare }: PaymentStepProps) {
 
       {accepted && card.status === "ready" ? (
         // Mismo botón mientras paga (`aria-disabled`, no `disabled`): el foco no se pierde y el doble clic no hace nada.
-        <button type="button" onClick={handlePay} aria-disabled={paying} aria-busy={paying} className={`${paying ? CTA_DISABLED : CTA_PRIMARY} self-start`}>
+        <button type="button" onClick={handlePay} aria-disabled={paying} aria-busy={paying} className={`${paying ? CTA_DISABLED : CTA_PRIMARY} ${CTA_WIDTH}`}>
           {paying ? <SpinnerGap size={18} className="animate-spin motion-reduce:animate-none" aria-hidden="true" /> : null}
           {paying ? "Procesando el pago" : label}
         </button>
       ) : (
         <div className="flex flex-col items-start gap-2">
-          <span aria-disabled="true" className={CTA_DISABLED}>
+          <span aria-disabled="true" className={`${CTA_DISABLED} w-full sm:w-auto`}>
             {label}
           </span>
           {!accepted ? <p className="text-body-sm text-muted-foreground-strong">Acepta los términos para continuar.</p> : null}

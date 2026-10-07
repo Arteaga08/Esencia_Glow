@@ -108,6 +108,8 @@ function assertOxxoAmountInRange(totalCents: number): void {
 function toPlainShippingAddress(destination: ShippingAddressAttrs): ShippingAddressAttrs {
   return {
     fullName: destination.fullName,
+    firstName: destination.firstName,
+    lastName: destination.lastName,
     phone: destination.phone,
     street: destination.street,
     exteriorNumber: destination.exteriorNumber,

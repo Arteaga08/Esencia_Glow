@@ -2,8 +2,9 @@
 
 import { AddressFields } from "@/components/addresses/address-fields";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { MobileScreen } from "@/lib/storefront/checkout/checkout-machine";
 import type { useShippingSelection } from "@/lib/storefront/checkout/use-shipping-selection";
-import { CTA_DISABLED, CTA_PRIMARY, CTA_SECONDARY } from "../cart/cta-styles";
+import { CTA_DISABLED, CTA_PRIMARY, CTA_WIDTH } from "../cart/cta-styles";
 import { QuoteError, QuoteNotice, QuoteSkeleton } from "./quote-states";
 import { SavedAddressPicker } from "./saved-address-picker";
 import { ShippingRates } from "./shipping-rates";
@@ -14,6 +15,8 @@ interface ShippingStepProps {
   blocked: boolean;
   /** Aviso que llega de más adelante (cotización vencida al pagar, carrito cambiado). */
   notice: string | null;
+  /** Pantalla actual en móvil: dirección y paquetería son pantallas distintas; en escritorio van juntas. */
+  screen: MobileScreen;
 }
 
 /**
@@ -21,26 +24,36 @@ interface ShippingStepProps {
  * cotizadas en vivo. La cotización es una acción explícita ("Ver opciones de
  * envío"): cada llamada va a la paquetería. Caras: lista, cotizando (esqueleto
  * con la forma de las tarjetas), error con reintento, sin cobertura y vencida.
+ * En móvil se parte en dos pantallas (`screen`): la dirección y, ya cotizada, la paquetería.
  */
-function ShippingStep({ selection, blocked, notice }: ShippingStepProps) {
+function ShippingStep({ selection, blocked, notice, screen }: ShippingStepProps) {
   const { saved, addresses, choice, form, errors, quote, rate } = selection;
   const quoting = quote.status === "loading";
+  const destination = selection.destination;
 
   return (
     <div className="flex max-w-xl flex-col gap-8">
-      {notice ? <QuoteNotice message={notice} /> : null}
+      <div className={`flex flex-col gap-8 ${screen === "rates" ? "max-lg:hidden" : ""}`}>
+        {notice ? <QuoteNotice message={notice} /> : null}
 
-      {saved.status === "loading" ? (
-        <div aria-busy="true" className="flex flex-col gap-2">
-          <Skeleton className="h-20" />
-          <Skeleton className="h-20" />
-        </div>
-      ) : (
-        <>
-          {addresses.length > 0 ? <SavedAddressPicker addresses={addresses} choice={choice} onChooseSaved={selection.chooseSaved} onChooseNew={selection.chooseNew} /> : null}
-          {choice.kind === "new" ? <AddressFields value={form} onChange={selection.editForm} errors={errors} /> : null}
-        </>
-      )}
+        {saved.status === "loading" ? (
+          <div aria-busy="true" className="flex flex-col gap-2">
+            <Skeleton className="h-20" />
+            <Skeleton className="h-20" />
+          </div>
+        ) : (
+          <>
+            {addresses.length > 0 ? <SavedAddressPicker addresses={addresses} choice={choice} onChooseSaved={selection.chooseSaved} onChooseNew={selection.chooseNew} /> : null}
+            {choice.kind === "new" ? <AddressFields value={form} onChange={selection.editForm} errors={errors} splitName /> : null}
+          </>
+        )}
+      </div>
+
+      {screen === "rates" && destination ? (
+        <p className="text-body-sm text-muted-foreground-strong lg:hidden">
+          Enviamos a {destination.fullName}: {destination.street} {destination.exteriorNumber}, {destination.neighborhood}, {destination.city}, {destination.state}.
+        </p>
+      ) : null}
 
       <div aria-live="polite" className="flex flex-col gap-4">
         {quote.status === "loading" ? <QuoteSkeleton /> : null}
@@ -55,15 +68,15 @@ function ShippingStep({ selection, blocked, notice }: ShippingStepProps) {
       </div>
 
       {quote.status === "ready" && rate ? (
-        <button type="button" onClick={selection.confirm} className={`${CTA_PRIMARY} self-start`}>
+        <button type="button" onClick={selection.confirm} className={`${CTA_PRIMARY} ${CTA_WIDTH}`}>
           Continuar al pago
         </button>
       ) : blocked || quoting || saved.status === "loading" ? (
-        <span aria-disabled="true" className={`${CTA_DISABLED} self-start`}>
+        <span aria-disabled="true" className={`${CTA_DISABLED} ${CTA_WIDTH}`}>
           Ver opciones de envío
         </span>
       ) : (
-        <button type="button" onClick={selection.requestQuote} className={`${CTA_SECONDARY} self-start`}>
+        <button type="button" onClick={selection.requestQuote} className={`${CTA_PRIMARY} ${CTA_WIDTH}`}>
           Ver opciones de envío
         </button>
       )}
