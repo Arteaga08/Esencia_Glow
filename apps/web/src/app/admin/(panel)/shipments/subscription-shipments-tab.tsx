@@ -34,9 +34,10 @@ interface SubscriptionQueueSectionProps {
    * recargar (mismo motivo que `refreshSignal` en Tienda). */
   refreshSignal: number;
   onRowChanged: () => void;
+  defaultOpen: boolean;
 }
 
-function SubscriptionQueueSection({ queue, refreshSignal, onRowChanged }: SubscriptionQueueSectionProps) {
+function SubscriptionQueueSection({ queue, refreshSignal, onRowChanged, defaultOpen }: SubscriptionQueueSectionProps) {
   const { shipments, meta, setPage, loadError, retry } = useSubscriptionShipmentQueue(queue, refreshSignal);
 
   return (
@@ -50,6 +51,7 @@ function SubscriptionQueueSection({ queue, refreshSignal, onRowChanged }: Subscr
       emptyMessage={QUEUE_EMPTY_MESSAGE[queue]}
       onPageChange={setPage}
       itemLabel={{ singular: "caja", plural: "cajas" }}
+      defaultOpen={defaultOpen}
     >
       {(shipments ?? []).map((shipment) => (
         <SubscriptionShipmentRow key={shipment.id} shipment={shipment} onChanged={onRowChanged} />
@@ -62,15 +64,22 @@ function SubscriptionQueueSection({ queue, refreshSignal, onRowChanged }: Subscr
  * no acepta `search` (ver `subscription-shipment-panel.service.ts`) — sus
  * filtros son plan/ciclo/estatus/incidencia, no texto libre. Sin cola
  * "Canceladas": la cancelación es manual y rara, no una cola que vigilar a
- * diario (mismo criterio que el mockup aprobado). */
-function SubscriptionShipmentsTab() {
+ * diario (mismo criterio que el mockup aprobado). Todas las colas nacen
+ * cerradas salvo `openQueue` (la que pidió el enlace del Resumen). */
+function SubscriptionShipmentsTab({ openQueue }: { openQueue: string | null }) {
   const [refreshSignal, setRefreshSignal] = useState(0);
   const bumpRefresh = () => setRefreshSignal((value) => value + 1);
 
   return (
     <div className="flex flex-col gap-4">
       {QUEUES.map((queue) => (
-        <SubscriptionQueueSection key={queue} queue={queue} refreshSignal={refreshSignal} onRowChanged={bumpRefresh} />
+        <SubscriptionQueueSection
+          key={queue}
+          queue={queue}
+          refreshSignal={refreshSignal}
+          onRowChanged={bumpRefresh}
+          defaultOpen={queue === openQueue}
+        />
       ))}
     </div>
   );

@@ -13,27 +13,25 @@ interface ReservationQueueSectionProps {
   status: ReservationStatus;
   label: string;
   emptyMessage: string;
-  defaultOpen: boolean;
   refreshSignal: number;
   onChanged: () => void;
 }
 
 /**
  * Cola colapsable de apartados en un estado, mismo shell que
- * `category-inventory-section.tsx` y las colas de Envíos: encabezado con el
- * total, y dentro carga / error / vacío / lista + paginación como estados
+ * `category-inventory-section.tsx` y las colas de Envíos: nace cerrada,
+ * encabezado con el total, y dentro carga / error / vacío / lista + paginación como estados
  * distintos.
  */
 function ReservationQueueSection({
   status,
   label,
   emptyMessage,
-  defaultOpen,
   refreshSignal,
   onChanged,
 }: ReservationQueueSectionProps) {
   const { reservations, meta, setPage, loadError, retry } = useReservationQueue(status, refreshSignal);
-  const [open, setOpen] = useState(defaultOpen);
+  const [open, setOpen] = useState(false);
   const panelId = `reservations-${status}`;
 
   return (

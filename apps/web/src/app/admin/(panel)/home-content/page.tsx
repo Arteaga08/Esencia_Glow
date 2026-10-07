@@ -2,18 +2,15 @@
 
 import { ErrorState } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import { HeroEditor } from "@/components/home-content/hero-editor";
-import { OfferBannerEditor } from "@/components/home-content/offer-banner-editor";
-import { SpotlightEditor } from "@/components/home-content/spotlight-editor";
-import { KITS_META, NEW_ARRIVALS_META } from "@/components/home-content/spotlight-form-value";
+import { HomeBlocksAccordion } from "@/components/home-content/home-blocks-accordion";
 import { useHomeContent } from "@/components/home-content/use-home-content";
 
 /**
- * Contenido del home (Milestone 3.1). Lista de tarjetas de sección, una por
- * bloque del storefront; hoy el hero (3.1.2), las portadas de Novedades y Kits (3.1.5) y el banner de oferta (3.1.8). Sumar un bloque = un
- * componente nuevo que reciba su sección de `content` + una línea en la lista,
- * reportando su guardado con `applySection`. Cada sección tiene su `version`
- * (control optimista, 1.8).
+ * Contenido del home (Milestone 3.1). Un acordeón con un renglón por bloque
+ * del storefront, en el orden en que aparecen en la tienda; todos nacen
+ * cerrados. Sumar un bloque = un caso nuevo en `home-block-editor.tsx` y una
+ * entrada en `home-blocks.ts`. Cada sección tiene su `version` (control
+ * optimista, 1.8) y reporta su guardado con `applySection`.
  */
 export default function HomeContentPage() {
   const { content, loadError, refresh, applySection } = useHomeContent();
@@ -29,22 +26,8 @@ export default function HomeContentPage() {
   }
 
   return (
-    <div className="flex max-w-6xl flex-col gap-6">
-      <HeroEditor hero={content.hero} onSaved={(hero) => applySection("hero", hero)} />
-      <SpotlightEditor
-        meta={NEW_ARRIVALS_META}
-        section={content.newArrivals}
-        onSaved={(section) => applySection("newArrivals", section)}
-      />
-      <SpotlightEditor
-        meta={KITS_META}
-        section={content.kits}
-        onSaved={(section) => applySection("kits", section)}
-      />
-      <OfferBannerEditor
-        section={content.offerBanner}
-        onSaved={(section) => applySection("offerBanner", section)}
-      />
+    <div className="max-w-6xl">
+      <HomeBlocksAccordion content={content} applySection={applySection} />
     </div>
   );
 }

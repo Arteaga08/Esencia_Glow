@@ -33,9 +33,9 @@ export default function OrdersPage() {
   const [debouncedOrderNumber, setDebouncedOrderNumber] = useState("");
   const initialGroup = useInitialQueryParam("group");
 
-  // Llegada desde la tarjeta de Pedidos del Resumen (Milestone 2.9): las 4
-  // colas ya están abiertas por default, así que enfocar es desplazar hasta
-  // la cola pedida, nunca filtrar (Propuesta B siempre muestra las 4).
+  // Llegada desde la tarjeta de Pedidos del Resumen (Milestone 2.9): las
+  // colas nacen cerradas, salvo la pedida (`defaultOpen`), a la que además
+  // se desplaza la vista; nunca se filtra (Propuesta B siempre muestra las 4).
   useEffect(() => {
     if (!initialGroup) return;
     document.getElementById(`order-queue-${initialGroup}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -94,7 +94,13 @@ export default function OrdersPage() {
 
       <div className="flex flex-col gap-4">
         {GROUPS.map((group) => (
-          <OrderQueueSection key={group} group={group} filters={filters} isFiltered={isFiltered} />
+          <OrderQueueSection
+            key={group}
+            group={group}
+            filters={filters}
+            isFiltered={isFiltered}
+            defaultOpen={group === initialGroup}
+          />
         ))}
       </div>
     </div>

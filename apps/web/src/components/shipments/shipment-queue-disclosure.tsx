@@ -17,6 +17,8 @@ interface ShipmentQueueDisclosureProps {
   emptyMessage: string;
   onPageChange: (page: number) => void;
   itemLabel: { singular: string; plural: string };
+  /** Solo la cola a la que se llegó desde el Resumen nace abierta. */
+  defaultOpen?: boolean;
   children: ReactNode;
 }
 
@@ -24,7 +26,7 @@ interface ShipmentQueueDisclosureProps {
  * Cola colapsable genérica (Propuesta A, elegida por Manuel para calcar la
  * lógica visual de Pedidos): mismo shell que `order-queue-section.tsx`, sin
  * el fetch — cada canal (Tienda/Suscripción) trae su propio hook y decide
- * qué fila renderiza, este componente solo es el contenedor.
+ * qué fila renderiza, este componente solo es el contenedor. Nace cerrada.
  */
 function ShipmentQueueDisclosure({
   id,
@@ -36,9 +38,10 @@ function ShipmentQueueDisclosure({
   emptyMessage,
   onPageChange,
   itemLabel,
+  defaultOpen = false,
   children,
 }: ShipmentQueueDisclosureProps) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(!defaultOpen);
 
   return (
     <div id={id} className="overflow-hidden rounded-lg border border-border">

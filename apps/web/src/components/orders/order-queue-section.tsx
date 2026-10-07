@@ -27,16 +27,18 @@ interface OrderQueueSectionProps {
   group: OrderStatusGroup;
   filters: OrderGroupFilters;
   isFiltered: boolean;
+  /** Solo la cola a la que se llegó desde el Resumen nace abierta. */
+  defaultOpen?: boolean;
 }
 
 /**
- * Una cola de trabajo colapsable (Propuesta B, elegida por Manuel). El
- * conteo del encabezado es el `meta.total` de la propia sección — se
- * calcula aunque esté colapsada, para que el número nunca desaparezca al
- * cerrarla.
+ * Una cola de trabajo colapsable (Propuesta B, elegida por Manuel). Nace
+ * cerrada: la dueña abre a mano la que le interese. El conteo del
+ * encabezado es el `meta.total` de la propia sección — se calcula aunque
+ * esté colapsada, para que el número nunca desaparezca al cerrarla.
  */
-function OrderQueueSection({ group, filters, isFiltered }: OrderQueueSectionProps) {
-  const [collapsed, setCollapsed] = useState(false);
+function OrderQueueSection({ group, filters, isFiltered, defaultOpen = false }: OrderQueueSectionProps) {
+  const [collapsed, setCollapsed] = useState(!defaultOpen);
   const { orders, meta, setPage, loadError, retry } = useOrderGroup(group, filters);
 
   return (

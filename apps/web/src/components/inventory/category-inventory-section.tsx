@@ -10,7 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import type { AdminCategory } from "@/lib/types/admin-catalog";
 import { InventoryProductRow } from "./inventory-product-row";
 import { StockFiguresHeader } from "./stock-figures";
-import { STOCK_STATUS_BADGE, formatStatusCount, needsRestock } from "./stock-status";
+import { STOCK_STATUS_BADGE, formatStatusCount } from "./stock-status";
 import { useInventoryList, type InventoryListFilters } from "./use-inventory-list";
 
 const SECTION_PAGE_LIMIT = 10;
@@ -25,9 +25,9 @@ interface CategoryInventorySectionProps {
 
 /**
  * Un bloque por categoría raíz con su propia petición y paginación
- * (`categoryId` incluye a las subcategorías). Abre solo si hay algo que
- * surtir; con filtros activos abre si hay resultados. Una vez que Manuel lo
- * abre o lo cierra a mano, se respeta su elección.
+ * (`categoryId` incluye a las subcategorías). Nace cerrado: los badges de
+ * Agotado / Stock bajo del encabezado dicen dónde hay algo que surtir y la
+ * dueña abre a mano el que le interese.
  */
 function CategoryInventorySection({
   category,
@@ -40,10 +40,8 @@ function CategoryInventorySection({
     { ...filters, categoryId: category.id, limit: SECTION_PAGE_LIMIT },
     refreshSignal,
   );
-  const [manualOpen, setManualOpen] = useState<boolean | null>(null);
+  const [open, setOpen] = useState(false);
 
-  const autoOpen = meta === null ? true : isFiltered ? meta.total > 0 : statusCounts ? needsRestock(statusCounts) : true;
-  const open = manualOpen ?? autoOpen;
   const panelId = `category-${category.id}`;
 
   const attention = statusCounts
@@ -54,7 +52,7 @@ function CategoryInventorySection({
     <section className="overflow-hidden rounded-lg border border-border" aria-labelledby={`${panelId}-title`}>
       <button
         type="button"
-        onClick={() => setManualOpen(!open)}
+        onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
         aria-controls={panelId}
         className="flex w-full items-center justify-between gap-4 bg-muted/40 px-4 py-3 text-left hover:bg-muted/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring"

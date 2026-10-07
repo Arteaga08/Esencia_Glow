@@ -1,15 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { HOME_CONTENT_LIMITS, type AdminHomeOfferBanner } from "@esencia-glow/shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { FieldError } from "@/components/ui/field-error";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/toast";
 import { ApiRequestError } from "@/lib/api";
+import { EditorSurface } from "./editor-surface";
 import type { HeroImageSlot as Slot } from "./hero-form-value";
 import { HeroImageSlot } from "./hero-image-slot";
 import { HeroSlideLinkField } from "./hero-slide-link-field";
@@ -29,6 +29,8 @@ function describe(error: unknown, fallback: string): string {
 interface OfferBannerEditorProps {
   section: AdminHomeOfferBanner;
   onSaved: (section: AdminHomeOfferBanner) => void;
+  embedded?: boolean;
+  onDirtyChange?: (dirty: boolean) => void;
 }
 
 /**
@@ -37,7 +39,7 @@ interface OfferBannerEditorProps {
  * hero) y dos fotos (escritorio y móvil), con un solo Guardar. Un 409
  * significa que otra persona editó el bloque: se avisa y no se pisa nada.
  */
-function OfferBannerEditor({ section, onSaved }: OfferBannerEditorProps) {
+function OfferBannerEditor({ section, onSaved, embedded = false, onDirtyChange }: OfferBannerEditorProps) {
   const { toast } = useToast();
   const [saved, setSaved] = useState(section);
   const [value, setValue] = useState<OfferBannerFormValue>(() => toFormValue(section));
@@ -48,6 +50,10 @@ function OfferBannerEditor({ section, onSaved }: OfferBannerEditorProps) {
   const [saving, setSaving] = useState(false);
 
   const dirty = fingerprint(value) !== baseline;
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+  }, [dirty, onDirtyChange]);
+
   const formatErrors = useMemo(() => validate(value), [value]);
   const errors = { ...apiErrors, ...(showErrors ? formatErrors : {}) };
 
@@ -97,19 +103,21 @@ function OfferBannerEditor({ section, onSaved }: OfferBannerEditorProps) {
   }
 
   return (
-    <Card>
+    <EditorSurface embedded={embedded}>
       <form onSubmit={handleSubmit} className="flex flex-col gap-6" noValidate>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="font-mono text-label uppercase tracking-[0.06em] text-muted-foreground-strong">
-              Banner de oferta
-            </p>
-            <p className="mt-1 max-w-[70ch] text-body-sm text-muted-foreground">
-              Una foto a todo lo ancho con una frase que corre sin parar y un botón que lleva al producto en oferta.
-            </p>
+        {embedded ? null : (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="font-mono text-label uppercase tracking-[0.06em] text-muted-foreground-strong">
+                Banner de oferta
+              </p>
+              <p className="mt-1 max-w-[70ch] text-body-sm text-muted-foreground">
+                Una foto a todo lo ancho con una frase que corre sin parar y un botón que lleva al producto en oferta.
+              </p>
+            </div>
+            <Badge color={dirty ? "warning" : "success"}>{dirty ? "Cambios sin guardar" : "Guardado"}</Badge>
           </div>
-          <Badge color={dirty ? "warning" : "success"}>{dirty ? "Cambios sin guardar" : "Guardado"}</Badge>
-        </div>
+        )}
 
         <div className="flex items-center gap-3">
           <Switch
@@ -177,7 +185,7 @@ function OfferBannerEditor({ section, onSaved }: OfferBannerEditorProps) {
           </Button>
         </div>
       </form>
-    </Card>
+    </EditorSurface>
   );
 }
 

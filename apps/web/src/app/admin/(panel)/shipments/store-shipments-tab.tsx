@@ -38,9 +38,17 @@ interface StoreQueueSectionProps {
    * en ella. */
   refreshSignal: number;
   onRowRetried: () => void;
+  defaultOpen: boolean;
 }
 
-function StoreQueueSection({ queue, search, isFiltered, refreshSignal, onRowRetried }: StoreQueueSectionProps) {
+function StoreQueueSection({
+  queue,
+  search,
+  isFiltered,
+  refreshSignal,
+  onRowRetried,
+  defaultOpen,
+}: StoreQueueSectionProps) {
   const { shipments, meta, setPage, loadError, retry } = useShipmentQueue(queue, { search }, refreshSignal);
 
   return (
@@ -54,6 +62,7 @@ function StoreQueueSection({ queue, search, isFiltered, refreshSignal, onRowRetr
       emptyMessage={isFiltered ? "Ningún envío de esta cola coincide con la búsqueda." : QUEUE_EMPTY_MESSAGE[queue]}
       onPageChange={setPage}
       itemLabel={{ singular: "envío", plural: "envíos" }}
+      defaultOpen={defaultOpen}
     >
       {(shipments ?? []).map((shipment) => (
         <StoreShipmentRow key={shipment.id} shipment={shipment} onRetried={onRowRetried} />
@@ -65,8 +74,9 @@ function StoreQueueSection({ queue, search, isFiltered, refreshSignal, onRowRetr
 /** Envíos de compras de tienda (producto y paquetes) — las cajas de
  * suscripción son otro modelo y viven en la pestaña Suscripción de esta
  * misma pantalla. Propuesta A elegida por Manuel: misma lógica visual que
- * Pedidos (2.3), cinco colas apiladas y colapsables. */
-function StoreShipmentsTab() {
+ * Pedidos (2.3), cinco colas apiladas y colapsables, todas cerradas salvo
+ * `openQueue` (la que pidió el enlace del Resumen). */
+function StoreShipmentsTab({ openQueue }: { openQueue: string | null }) {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [refreshSignal, setRefreshSignal] = useState(0);
@@ -98,6 +108,7 @@ function StoreShipmentsTab() {
             isFiltered={isFiltered}
             refreshSignal={refreshSignal}
             onRowRetried={bumpRefresh}
+            defaultOpen={queue === openQueue}
           />
         ))}
       </div>
