@@ -12,7 +12,7 @@ interface ProductBaseFieldsValue {
   name: string;
   description: string;
   shortDescription: string;
-  brand: string;
+  brandId: string | null;
   categoryId: string | null;
   badgeId: string | null;
   isBestseller: boolean;
@@ -41,7 +41,7 @@ const CHANNEL_HELPERS: Record<AdminProductChannel, string> = {
 /** Datos base del producto — el cascarón. Variantes, fotos y contenido
  * editorial viven en sus propios bloques del editor, no aquí. */
 function ProductBaseFields({ value, onChange, errors }: ProductBaseFieldsProps) {
-  const { categoryOptions, badgeOptions } = useCatalogFilters();
+  const { categoryOptions, badgeOptions, brandOptions } = useCatalogFilters();
 
   return (
     <div className="flex flex-col gap-4">
@@ -52,12 +52,13 @@ function ProductBaseFields({ value, onChange, errors }: ProductBaseFieldsProps) 
         onChange={(e) => onChange({ name: e.target.value })}
         error={errors?.name}
       />
-      <Input
+      <Select
         label="Marca (opcional)"
-        placeholder="Beauty of Joseon"
-        value={value.brand}
-        onChange={(e) => onChange({ brand: e.target.value })}
-        error={errors?.brand}
+        value={value.brandId ?? ""}
+        onChange={(v) => onChange({ brandId: v === "" ? null : v })}
+        options={[{ value: "", label: "Sin marca" }, ...brandOptions]}
+        helper="Las marcas se administran en Catálogo → Marcas."
+        error={errors?.brandId}
       />
       <Input
         label="Descripción corta (opcional)"

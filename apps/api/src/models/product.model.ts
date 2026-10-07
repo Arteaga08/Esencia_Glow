@@ -30,6 +30,9 @@ interface ProductAttrs {
   shortDescription?: string;
   // Marca comercial (texto libre) que se muestra en las tarjetas del storefront.
   brand?: string;
+  // Marca del catálogo de marcas (CRUD admin). `brand` se mantiene como copia
+  // denormalizada del nombre: el storefront filtra y pinta por ese texto.
+  brandId?: Types.ObjectId | null;
   categoryId: Types.ObjectId;
   // A lo más una badge por producto: asignar otra reemplaza esta referencia,
   // nunca un arreglo (decisión 1.4.2, esencia-glow-decisiones).
@@ -71,6 +74,7 @@ const productSchema = new Schema<ProductAttrs, ProductModel>(
     description: { type: String, required: true, maxlength: 5000 },
     shortDescription: { type: String, trim: true, maxlength: 300 },
     brand: { type: String, trim: true, maxlength: 80 },
+    brandId: { type: Schema.Types.ObjectId, ref: "Brand", default: null },
     categoryId: { type: Schema.Types.ObjectId, ref: "Category", required: true },
     badgeId: { type: Schema.Types.ObjectId, ref: "Badge", default: null },
     status: {
@@ -102,6 +106,7 @@ productSchema.index({ "variants.sku": 1 }, { unique: true, sparse: true });
 productSchema.index({ status: 1, channel: 1, createdAt: -1 });
 productSchema.index({ status: 1, categoryId: 1, minPrice: 1 });
 productSchema.index({ status: 1, categoryId: 1, brand: 1 });
+productSchema.index({ brandId: 1 });
 productSchema.index({ status: 1, isBestseller: 1, createdAt: -1 });
 productSchema.index({ status: 1, isNewArrival: 1, createdAt: -1 });
 productSchema.index({ name: 1 });

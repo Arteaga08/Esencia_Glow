@@ -29,6 +29,8 @@ const listBadgesQuerySchema = listQueryBaseSchema.keys({
   color: Joi.string().valid(...Object.values(BadgeColor)),
 });
 
+const listBrandsQuerySchema = listQueryBaseSchema;
+
 const publicCategoryQuerySchema = Joi.object({});
 
 const MAX_BRANDS_PER_QUERY = 10;
@@ -56,20 +58,23 @@ const publicProductQuerySchema = listQueryBaseSchema.keys({
   brand: brandListSchema,
   bestseller: Joi.boolean(),
   newArrival: Joi.boolean(),
+  onSale: Joi.boolean(),
   minPrice: Joi.number().integer().min(0),
   maxPrice: Joi.number().integer().min(0),
 });
 
-/** Facetas del catálogo: categoría y/o "más vendidos"; marcas y precios los calcula el servidor. */
+/** Facetas del catálogo: categoría, "más vendidos" y/o "ofertas"; marcas y precios los calcula el servidor. */
 const publicProductFacetsQuerySchema = Joi.object({
   category: Joi.string().trim().lowercase().max(80),
   bestseller: Joi.boolean(),
+  onSale: Joi.boolean(),
 });
 
 export {
   listCategoriesQuerySchema,
   listProductsQuerySchema,
   listBadgesQuerySchema,
+  listBrandsQuerySchema,
   publicCategoryQuerySchema,
   publicProductQuerySchema,
   publicProductFacetsQuerySchema,

@@ -141,6 +141,20 @@ function buildPublicBadge(badge: LeanBadge): PublicBadge {
   return { text: badge.text, color: badge.color };
 }
 
+interface LeanBrand {
+  _id: Types.ObjectId;
+  name: string;
+}
+
+interface AdminBrand {
+  id: string;
+  name: string;
+}
+
+function buildAdminBrand(brand: LeanBrand): AdminBrand {
+  return { id: brand._id.toString(), name: brand.name };
+}
+
 interface LeanVariant extends Omit<ProductVariantAttrs, "attributes" | "dimensionsCm"> {
   _id: Types.ObjectId;
   // Mongoose omite un subdocumento embebido vacío al guardar (`minimize`),
@@ -158,6 +172,7 @@ interface LeanProduct {
   description: string;
   shortDescription?: string;
   brand?: string;
+  brandId?: Types.ObjectId | null;
   categoryId: Types.ObjectId;
   badgeId: Types.ObjectId | null;
   status: string;
@@ -181,6 +196,7 @@ interface AdminProduct {
   description: string;
   shortDescription?: string;
   brand?: string;
+  brandId: string | null;
   categoryId: string;
   badgeId: string | null;
   status: string;
@@ -253,6 +269,7 @@ function buildAdminProduct(product: LeanProduct): AdminProduct {
     description: product.description,
     ...(product.shortDescription ? { shortDescription: product.shortDescription } : {}),
     ...(product.brand ? { brand: product.brand } : {}),
+    brandId: product.brandId ? product.brandId.toString() : null,
     categoryId: product.categoryId.toString(),
     badgeId: product.badgeId ? product.badgeId.toString() : null,
     status: product.status,
@@ -297,6 +314,7 @@ export {
   buildPublicCategory,
   buildCategoryTree,
   buildAdminBadge,
+  buildAdminBrand,
   buildPublicBadge,
   buildAdminProduct,
   buildPublicProduct,
@@ -312,7 +330,9 @@ export type {
   LeanProduct,
   LeanVariant,
   LeanBadge,
+  LeanBrand,
   AdminCategory,
   AdminProduct,
   AdminBadge,
+  AdminBrand,
 };

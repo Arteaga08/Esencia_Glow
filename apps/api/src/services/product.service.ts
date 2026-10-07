@@ -11,6 +11,7 @@ import {
 import { Product, type ProductDocument } from "../models/product.model.js";
 import { Category } from "../models/category.model.js";
 import { Badge } from "../models/badge.model.js";
+import { Brand } from "../models/brand.model.js";
 import { Bundle } from "../models/bundle.model.js";
 import { SubscriptionEdition } from "../models/subscription-edition.model.js";
 import type { DimensionsCmAttrs, VariantAttributesAttrs } from "../models/product-variant.schema.js";
@@ -60,7 +61,7 @@ interface CreateProductInput {
   name: string;
   description: string;
   shortDescription?: string;
-  brand?: string;
+  brandId?: string | null;
   categoryId: string;
   badgeId?: string | null;
   isBestseller?: boolean;
@@ -74,7 +75,7 @@ interface UpdateProductInput {
   name?: string;
   description?: string;
   shortDescription?: string;
-  brand?: string;
+  brandId?: string | null;
   categoryId?: string;
   badgeId?: string | null;
   isBestseller?: boolean;
@@ -96,6 +97,13 @@ interface ListProductsInput extends ListQuery {
 async function assertCategoryExists(categoryId: string): Promise<void> {
   const exists = await Category.exists({ _id: categoryId });
   if (!exists) throw new AppError("La categoría no existe", 400);
+}
+
+/** Devuelve el nombre de la marca para denormalizarlo en `Product.brand`. */
+async function resolveBrandName(brandId: string): Promise<string> {
+  const brand = await Brand.findById(brandId).select("name").lean();
+  if (!brand) throw new AppError("La marca no existe", 400);
+  return brand.name;
 }
 
 async function assertBadgeExists(badgeId: string): Promise<void> {
@@ -153,6 +161,7 @@ function takesNewArrivalSlot(product: ProductDocument): boolean {
 async function createProduct(input: CreateProductInput): Promise<ProductDocument> {
   await assertCategoryExists(input.categoryId);
   if (input.badgeId) await assertBadgeExists(input.badgeId);
+  const brandName = input.brandId ? await resolveBrandName(input.brandId) : undefined;
   if (input.isNewArrival && input.channel !== ProductChannel.SUBSCRIPTION) await assertNewArrivalSlotFree();
 
   const stockBySku = new Map(
@@ -168,7 +177,8 @@ async function createProduct(input: CreateProductInput): Promise<ProductDocument
       slug: slugify(input.name),
       description: input.description,
       shortDescription: input.shortDescription,
-      brand: input.brand || undefined,
+      brand: brandName,
+      brandId: input.brandId ?? null,
       categoryId: input.categoryId,
       badgeId: input.badgeId ?? null,
       isBestseller: input.isBestseller,
@@ -256,7 +266,10 @@ async function updateProduct(id: string, input: UpdateProductInput): Promise<Pro
   if (input.isNewArrival !== undefined) product.isNewArrival = input.isNewArrival;
   if (input.description !== undefined) product.description = input.description;
   if (input.shortDescription !== undefined) product.shortDescription = input.shortDescription;
-  if (input.brand !== undefined) product.brand = input.brand;
+  if (input.brandId !== undefined) {
+    product.brand = input.brandId ? await resolveBrandName(input.brandId) : undefined;
+    product.brandId = input.brandId as unknown as ProductDocument["brandId"];
+  }
   if (input.status !== undefined) product.status = input.status;
   if (input.channel !== undefined) {
     await assertChannelChangeAllowed(product, input.channel);

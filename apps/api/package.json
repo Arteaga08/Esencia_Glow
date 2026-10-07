@@ -22,6 +22,8 @@
     "reset:subscriptions": "NODE_ENV=development DOTENV_CONFIG_PATH=.env.development.local tsx src/scripts/reset-subscriptions-dev.ts",
     "seed:subscriptions": "NODE_ENV=development DOTENV_CONFIG_PATH=.env.development.local tsx src/scripts/seed-subscriptions-demo.ts",
     "seed:overview": "NODE_ENV=development DOTENV_CONFIG_PATH=.env.development.local tsx src/scripts/seed-overview-demo.ts",
+    "migrate:product-brands": "node dist/scripts/migrate-product-brands.js",
+    "migrate:product-brands:dev": "NODE_ENV=development DOTENV_CONFIG_PATH=.env.development.local tsx src/scripts/migrate-product-brands.ts",
     "sync-indexes": "node dist/scripts/sync-indexes.js",
     "sync-indexes:dev": "NODE_ENV=development DOTENV_CONFIG_PATH=.env.development.local tsx src/scripts/sync-indexes.ts",
     "2fa:revoke-admins-without": "node dist/scripts/revoke-admins-without-2fa.js",
