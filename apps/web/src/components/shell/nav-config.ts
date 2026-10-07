@@ -10,6 +10,7 @@ import {
   SquaresFour,
   Stack,
   Tag,
+  Ticket,
   Truck,
   Users,
   UsersThree,
@@ -51,6 +52,7 @@ const NAV_GROUPS: NavGroup[] = [
       { label: "Categorías", href: ADMIN_ROUTES.categories, icon: FolderSimple },
       { label: "Paquetes", href: ADMIN_ROUTES.bundles, icon: Gift },
       { label: "Badges", href: ADMIN_ROUTES.badges, icon: SealCheck },
+      { label: "Cupones", href: ADMIN_ROUTES.coupons, icon: Ticket },
     ],
   },
   {

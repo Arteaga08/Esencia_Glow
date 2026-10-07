@@ -14,10 +14,12 @@ import { preparePayment, type PreparedPayment } from "@/lib/storefront/checkout/
 import { linesKeyOf, toOrderLines } from "@/lib/storefront/checkout/order-lines";
 import { summarizeOrder } from "@/lib/storefront/checkout/order-summary";
 import { placeOrder } from "@/lib/storefront/checkout/place-order";
+import { useCoupon } from "@/lib/storefront/checkout/use-coupon";
 import { useShippingSelection } from "@/lib/storefront/checkout/use-shipping-selection";
 import { TEXT_LINK } from "../cart/cta-styles";
 import { AccountStep } from "./account-step";
 import { CheckoutLayout } from "./checkout-layout";
+import { CouponField } from "./coupon-field";
 import { PaymentStep } from "./payment-step";
 import { ShippingStep } from "./shipping-step";
 import { StepSection } from "./step-section";
@@ -52,11 +54,15 @@ function CheckoutFlow({ customer, lines, onRetryCart, placed, onPlaced, onResume
   const orderLines = useMemo(() => toOrderLines(lines), [lines]);
   const selection = useShippingSelection({ enabled: customer !== null, lines: orderLines });
   const [shippingNotice, setShippingNotice] = useState<string | null>(null);
+  const coupon = useCoupon({ enabled: customer !== null && placed === null, lines: orderLines, onSessionLost });
 
   const statuses = stepStatuses({ signedIn: customer !== null, hasRate: placed !== null || selection.confirmed });
   const blocked = placed === null && lines.some((line) => !line.available);
 
-  const cartTotals = computeTotals(lines, selection.confirmed && selection.rate ? selection.rate.amountCents : null);
+  const cartTotals = {
+    ...computeTotals(lines, selection.confirmed && selection.rate ? selection.rate.amountCents : null, coupon.applied?.discountCents ?? 0),
+    ...(coupon.applied ? { couponCode: coupon.applied.code } : {}),
+  };
   const summary = placed ? summarizeOrder(placed.order) : { lines, totals: cartTotals };
   const amountCents = summary.totals.totalCents;
 
@@ -78,6 +84,7 @@ function CheckoutFlow({ customer, lines, onRetryCart, placed, onPlaced, onResume
       quoteId: quote.status === "ready" ? quote.quote.id : "",
       rateId: selection.rate?.rateId ?? "",
       lines: orderLines,
+      couponCode: coupon.applied?.code,
       shownTotalCents: amountCents,
       placeOrder,
       storage: browserKeyStorage(),
@@ -91,6 +98,7 @@ function CheckoutFlow({ customer, lines, onRetryCart, placed, onPlaced, onResume
       },
       onRetryCart,
       onSessionLost,
+      onCouponRejected: coupon.reject,
     });
   }
 
@@ -102,8 +110,14 @@ function CheckoutFlow({ customer, lines, onRetryCart, placed, onPlaced, onResume
     },
   };
 
+  // Con el pedido ya creado el cupón ya se canjeó: el campo no se ofrece, el descuento va en los totales.
+  const couponField =
+    customer && !placed ? (
+      <CouponField input={coupon.input} applied={coupon.applied} error={coupon.error} pending={coupon.pending} onInput={coupon.setInput} onApply={coupon.apply} onRemove={coupon.remove} />
+    ) : undefined;
+
   return (
-    <CheckoutLayout title="Finalizar compra" lines={summary.lines} totals={summary.totals}>
+    <CheckoutLayout title="Finalizar compra" lines={summary.lines} totals={summary.totals} coupon={couponField}>
       {blocked ? (
         <div className="mb-6 flex flex-col items-start gap-1">
           <FieldError message="Algo de tu carrito se agotó. Quítalo para continuar con tu compra." />

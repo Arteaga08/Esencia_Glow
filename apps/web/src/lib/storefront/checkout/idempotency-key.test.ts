@@ -24,6 +24,18 @@ describe("fingerprintOrder", () => {
     expect(fingerprintOrder({ lines: LINES, quoteId: "q2", rateId: "r" })).not.toBe(base);
     expect(fingerprintOrder({ lines: LINES, quoteId: "q", rateId: "r2" })).not.toBe(base);
   });
+
+  it("cambiar o quitar el cupón cambia la huella (otra petición, otra llave)", () => {
+    const base = fingerprintOrder({ lines: LINES, quoteId: "q", rateId: "r" });
+    const withCoupon = fingerprintOrder({ lines: LINES, quoteId: "q", rateId: "r", couponCode: "BIENVENIDA10" });
+    const other = fingerprintOrder({ lines: LINES, quoteId: "q", rateId: "r", couponCode: "GRACIAS15" });
+    expect(withCoupon).not.toBe(base);
+    expect(other).not.toBe(withCoupon);
+  });
+
+  it("sin cupón la huella conserva su forma de siempre", () => {
+    expect(fingerprintOrder({ lines: LINES, quoteId: "q", rateId: "r" })).toBe(fingerprintOrder({ lines: LINES, quoteId: "q", rateId: "r", couponCode: undefined }));
+  });
 });
 
 describe("resolveIdempotencyKey", () => {

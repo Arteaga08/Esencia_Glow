@@ -148,4 +148,38 @@ describe("services/order-totals", () => {
       expect(Number.isInteger(totals.taxCents)).toBe(true);
     }
   });
+  describe("con descuento de cupón", () => {
+    const base = {
+      lineTotalsCents: [100000],
+      chosenRateAmountCents: 12000,
+      cheapestRateAmountCents: 12000,
+      taxRateBps: 1600,
+      freeShippingThresholdCents: 0,
+    };
+
+    it("sin descuento sigue siendo 0 (compatibilidad)", () => {
+      expect(computeOrderTotals(base).discountCents).toBe(0);
+    });
+
+    it("resta el descuento del total y conserva la identidad total = subtotal - descuento + envío", () => {
+      const totals = computeOrderTotals({ ...base, discountCents: 15000 });
+      expect(totals.subtotalCents).toBe(100000);
+      expect(totals.discountCents).toBe(15000);
+      expect(totals.totalCents).toBe(100000 - 15000 + 12000);
+    });
+
+    it("el IVA se desglosa del total ya descontado (neto + IVA = total)", () => {
+      const totals = computeOrderTotals({ ...base, discountCents: 15000 });
+      const neto = totals.totalCents - totals.taxCents;
+      expect(neto + totals.taxCents).toBe(totals.totalCents);
+      expect(neto).toBe(Math.round((totals.totalCents * 10_000) / 11_600));
+    });
+
+    it("el envío gratis por umbral se decide con el subtotal ANTES del cupón", () => {
+      const totals = computeOrderTotals({ ...base, freeShippingThresholdCents: 99900, discountCents: 30000 });
+      expect(totals.freeShippingApplied).toBe(true);
+      expect(totals.shippingCents).toBe(0);
+      expect(totals.totalCents).toBe(70000);
+    });
+  });
 });

@@ -26,6 +26,8 @@ const ADMIN_ROUTES = {
   bundleNew: `${ADMIN_HOME_PATH}/bundles/new`,
   bundle: (id: string) => `${ADMIN_HOME_PATH}/bundles/${id}`,
   badges: `${ADMIN_HOME_PATH}/badges`,
+  coupons: `${ADMIN_HOME_PATH}/coupons`,
+  couponNew: `${ADMIN_HOME_PATH}/coupons/new`,
   plans: `${ADMIN_HOME_PATH}/subscriptions/plans`,
   planNew: `${ADMIN_HOME_PATH}/subscriptions/plans/new`,
   plan: (id: string) => `${ADMIN_HOME_PATH}/subscriptions/plans/${id}`,

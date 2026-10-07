@@ -193,6 +193,19 @@ const cartResolveRateLimiter = createRateLimiter({
 });
 
 /**
+ * `POST /coupons/validate` (Milestone 3.7): probar códigos es la forma de
+ * adivinar cupones, así que el tope es por USUARIA (va DESPUÉS de `protect`),
+ * no por IP: una red compartida no debe quitarle cuota a quien sí tiene su
+ * código, y un script con una sola cuenta no puede iterar códigos.
+ */
+const couponValidateRateLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  message: "Demasiados intentos con cupones, intenta de nuevo más tarde.",
+  keyGenerator: userKeyGenerator,
+});
+
+/**
  * `POST /orders`: crear una orden abre una transacción de 6 colecciones y
  * apalanca inventario real — más caro y más sensible a abuso que cotizar
  * (`quoteRateLimiter`, en `shipping.routes.ts`). El índice único de "un
@@ -329,6 +342,7 @@ export {
   uploadRateLimiter,
   catalogRateLimiter,
   cartResolveRateLimiter,
+  couponValidateRateLimiter,
   checkoutRateLimiter,
   paymentResumeRateLimiter,
   subscribeRateLimiter,

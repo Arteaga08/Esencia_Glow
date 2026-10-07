@@ -109,12 +109,18 @@ interface AdminOrderStatusHistoryEntry extends PublicOrderStatusHistoryEntry {
   reason?: string;
 }
 
+/** Cupón aplicado al pedido, congelado al crearlo. */
+interface PublicOrderCoupon {
+  code: string;
+}
+
 interface PublicOrder {
   id: string;
   orderNumber: string;
   status: OrderStatus;
   lines: PublicOrderLine[];
   totals: PublicOrderTotals;
+  coupon?: PublicOrderCoupon;
   payment: PublicOrderPayment;
   shippingAddress: PublicShippingAddress;
   shippingSelection: PublicShippingSelection;
@@ -246,6 +252,7 @@ export type {
   PublicOrderLineComponent,
   PublicOrderLine,
   PublicOrderTotals,
+  PublicOrderCoupon,
   PublicShippingSelection,
   PublicOrderPayment,
   AdminOrderPayment,

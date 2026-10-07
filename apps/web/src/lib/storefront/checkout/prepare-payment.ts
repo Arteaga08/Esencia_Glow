@@ -15,6 +15,8 @@ interface PreparePaymentDeps {
   quoteId: string;
   rateId: string;
   lines: CartLineInput[];
+  /** Cupón aplicado en pantalla (solo el código; el servidor calcula el descuento). */
+  couponCode?: string | undefined;
   /** Total que la clienta vio en pantalla; el del servidor puede diferir. */
   shownTotalCents: number;
   placeOrder: (input: PlaceOrderInput) => Promise<PlaceOrderResult>;
@@ -28,6 +30,8 @@ interface PreparePaymentDeps {
   onRequote: (message: string) => void;
   onRetryCart: () => void;
   onSessionLost: () => void;
+  /** El servidor rechazó el cupón: se quita y el mensaje va pegado a su campo. */
+  onCouponRejected: (message: string) => void;
 }
 
 /**
@@ -38,8 +42,14 @@ interface PreparePaymentDeps {
 async function preparePayment(deps: PreparePaymentDeps): Promise<PreparedPayment> {
   if (deps.placed) return { ok: true, clientSecret: deps.placed.clientSecret, orderId: deps.placed.orderId };
 
-  const idempotencyKey = resolveIdempotencyKey(deps.storage, fingerprintOrder({ lines: deps.lines, quoteId: deps.quoteId, rateId: deps.rateId }), deps.makeId);
-  const result = await deps.placeOrder({ lines: deps.lines, quoteId: deps.quoteId, rateId: deps.rateId, idempotencyKey });
+  const idempotencyKey = resolveIdempotencyKey(deps.storage, fingerprintOrder({ lines: deps.lines, quoteId: deps.quoteId, rateId: deps.rateId, couponCode: deps.couponCode }), deps.makeId);
+  const result = await deps.placeOrder({
+    lines: deps.lines,
+    quoteId: deps.quoteId,
+    rateId: deps.rateId,
+    idempotencyKey,
+    ...(deps.couponCode ? { couponCode: deps.couponCode } : {}),
+  });
 
   if (!result.ok) {
     if (result.unauthorized) {
@@ -52,6 +62,10 @@ async function preparePayment(deps: PreparePaymentDeps): Promise<PreparedPayment
 
     if (action === "requote") deps.onRequote(`${message} Consulta las tarifas otra vez.`);
     else if (action === "cart") deps.onRetryCart();
+    else if (action === "coupon") {
+      deps.onCouponRejected(message);
+      return { ok: false, message: "Quitamos el cupón de tu pedido. Revisa tu total y vuelve a pagar." };
+    }
     else if (action === "resume") {
       deps.onResume();
       return { ok: false, message: "Ya tienes un pedido pendiente. Lo abrimos para que termines de pagarlo." };

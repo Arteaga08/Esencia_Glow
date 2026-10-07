@@ -1,6 +1,7 @@
 import { Schema, model, type HydratedDocument, type Model, type Types } from "mongoose";
 import {
   CATALOG_CURRENCY,
+  CouponDiscountType,
   DisputeStatus,
   OrderPriority,
   OrderStatus,
@@ -141,6 +142,19 @@ interface OrderInternalNoteAttrs {
   at: Date;
 }
 
+/**
+ * Cupón aplicado al pedido (Milestone 3.7), congelado al crearlo: si el
+ * cupón se desactiva después, el pedido conserva lo que se canjeó. `couponId`
+ * es lo que usa `releaseCouponUse` al cancelar/expirar el pedido.
+ */
+interface OrderCouponAttrs {
+  couponId: Types.ObjectId;
+  code: string;
+  discountType: CouponDiscountType;
+  percentOff?: number;
+  amountOffCents?: number;
+}
+
 interface OrderAttrs {
   orderNumber: string;
   userId: Types.ObjectId;
@@ -148,6 +162,7 @@ interface OrderAttrs {
   lines: OrderLineAttrs[];
   subtotalCents: number;
   discountCents: number;
+  coupon?: OrderCouponAttrs;
   taxCents: number;
   taxRateBps: number;
   shippingCents: number;
@@ -204,6 +219,17 @@ const orderPaymentSchema = new Schema<OrderPaymentAttrs>(
     refundRequestedAt: { type: Date },
     failedAttempts: { type: Number, required: true, default: 0, min: 0, validate: integerValidator },
     failedEventIds: { type: [String], default: undefined },
+  },
+  { _id: false },
+);
+
+const orderCouponSchema = new Schema<OrderCouponAttrs>(
+  {
+    couponId: { type: Schema.Types.ObjectId, ref: "Coupon", required: true },
+    code: { type: String, required: true },
+    discountType: { type: String, required: true, enum: Object.values(CouponDiscountType) },
+    percentOff: { type: Number },
+    amountOffCents: { type: Number },
   },
   { _id: false },
 );
@@ -305,6 +331,7 @@ const orderSchema = new Schema<OrderAttrs, OrderModel>(
     },
     subtotalCents: { type: Number, required: true, min: 0, validate: integerValidator },
     discountCents: { type: Number, required: true, min: 0, default: 0, validate: integerValidator },
+    coupon: { type: orderCouponSchema },
     taxCents: { type: Number, required: true, min: 0, validate: integerValidator },
     taxRateBps: { type: Number, required: true, min: 0, validate: integerValidator },
     shippingCents: { type: Number, required: true, min: 0, validate: integerValidator },
@@ -393,6 +420,7 @@ export type {
   OrderAttrs,
   OrderDocument,
   OrderPaymentAttrs,
+  OrderCouponAttrs,
   OrderShippingSelectionAttrs,
   OrderProviderShippingAttrs,
   OrderLabelAttrs,

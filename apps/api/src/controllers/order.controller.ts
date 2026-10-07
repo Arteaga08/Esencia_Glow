@@ -27,6 +27,7 @@ const checkout = asyncHandler(async (req: Request, res: Response) => {
     paymentMethod: req.body.paymentMethod,
     termsAccepted: req.body.termsAccepted,
     idempotencyKey: req.idempotencyKey!,
+    ...(req.body.couponCode ? { couponCode: req.body.couponCode } : {}),
   });
 
   // El PaymentIntent se crea DESPUÉS del commit de la orden (nunca dentro

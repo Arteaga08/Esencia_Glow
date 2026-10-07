@@ -21,11 +21,12 @@ function deps(overrides: Partial<PreparePaymentDeps> = {}): PreparePaymentDeps {
     onRequote: vi.fn(),
     onRetryCart: vi.fn(),
     onSessionLost: vi.fn(),
+    onCouponRejected: vi.fn(),
     ...overrides,
   };
 }
 
-function failed(action: "requote" | "cart" | "resume" | "unavailable" | "message", extra: { unauthorized?: boolean; retryable?: boolean } = {}): PlaceOrderResult {
+function failed(action: "requote" | "cart" | "resume" | "unavailable" | "message" | "coupon", extra: { unauthorized?: boolean; retryable?: boolean } = {}): PlaceOrderResult {
   return { ok: false, unauthorized: extra.unauthorized ?? false, failure: { action, message: "mensaje del API", retryable: extra.retryable ?? false, orderId: "p1" } };
 }
 
@@ -90,5 +91,35 @@ describe("preparePayment", () => {
 
     await preparePayment(deps({ storage, placeOrder: vi.fn(async () => failed("message", { retryable: false })) }));
     expect(store.size).toBe(0);
+  });
+
+  describe("con cupón", () => {
+    it("manda el código al crear el pedido", async () => {
+      const d = deps({ couponCode: "BIENVENIDA10" });
+      await preparePayment(d);
+      expect(d.placeOrder).toHaveBeenCalledWith(expect.objectContaining({ couponCode: "BIENVENIDA10" }));
+    });
+
+    it("sin cupón no manda el campo", async () => {
+      const d = deps();
+      await preparePayment(d);
+      expect(d.placeOrder).toHaveBeenCalledWith(expect.not.objectContaining({ couponCode: expect.anything() }));
+    });
+
+    it("un rechazo de cupón lo quita en su campo, suelta la llave y NO crea nada ni toca el carrito", async () => {
+      const d = deps({ couponCode: "VENCIDO1", placeOrder: vi.fn(async () => failed("coupon")) });
+      const result = await preparePayment(d);
+      expect(d.onCouponRejected).toHaveBeenCalledWith("mensaje del API");
+      expect(d.onCartSpent).not.toHaveBeenCalled();
+      expect(d.onRetryCart).not.toHaveBeenCalled();
+      expect(result.ok).toBe(false);
+      expect(result.ok === false && result.message).toMatch(/quitamos el cupón/i);
+    });
+
+    it("el total con descuento que ve la clienta coincide con el del servidor: se cobra", async () => {
+      const discounted = { id: "o2", totals: { totalCents: 45000 } } as unknown as PublicOrder;
+      const d = deps({ couponCode: "BIENVENIDA10", shownTotalCents: 45000, placeOrder: vi.fn(async (): Promise<PlaceOrderResult> => ({ ok: true, order: discounted, clientSecret: "s2" })) });
+      expect(await preparePayment(d)).toEqual({ ok: true, clientSecret: "s2", orderId: "o2" });
+    });
   });
 });

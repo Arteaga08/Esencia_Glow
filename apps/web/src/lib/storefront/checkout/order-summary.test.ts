@@ -26,4 +26,9 @@ describe("summarizeOrder", () => {
   it("los totales salen del pedido ya cobrado, no se recalculan", () => {
     expect(summarizeOrder(ORDER).totals).toEqual({ itemCount: 3, subtotalCents: 119800, shippingCents: 14900, taxCents: 19174, totalCents: 134700 });
   });
+
+  it("con cupón, el resumen trae el descuento y el código aplicados", () => {
+    const withCoupon = { ...ORDER, coupon: { code: "BIENVENIDA10" }, totals: { ...ORDER.totals, discountCents: 11980, totalCents: 122720 } } as PublicOrder;
+    expect(summarizeOrder(withCoupon).totals).toMatchObject({ discountCents: 11980, couponCode: "BIENVENIDA10", totalCents: 122720 });
+  });
 });

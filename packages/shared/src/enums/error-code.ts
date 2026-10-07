@@ -19,6 +19,16 @@ enum ErrorCode {
   CART_CHANGED = "CART_CHANGED",
   /** 409 al crear un pedido: algo del carrito ya no se vende o se quedó sin stock. */
   ITEM_UNAVAILABLE = "ITEM_UNAVAILABLE",
+  /** 4xx con cupón: no existe, está inactivo, aún no vigente o es de otra clienta. */
+  COUPON_INVALID = "COUPON_INVALID",
+  /** 4xx con cupón: ya pasó su fecha de fin. */
+  COUPON_EXPIRED = "COUPON_EXPIRED",
+  /** 4xx con cupón: ya lo tomó el tope de clientas. */
+  COUPON_EXHAUSTED = "COUPON_EXHAUSTED",
+  /** 4xx con cupón: la clienta ya gastó sus usos. */
+  COUPON_ALREADY_USED = "COUPON_ALREADY_USED",
+  /** 4xx con cupón: el subtotal no alcanza el mínimo de compra, o el total quedaría imposible de cobrar. */
+  COUPON_MIN_NOT_MET = "COUPON_MIN_NOT_MET",
 }
 
 export { ErrorCode };

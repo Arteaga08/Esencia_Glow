@@ -1,5 +1,5 @@
 import { Types } from "mongoose";
-import { ErrorCode, InventoryAction, OrderAction, OrderStatus } from "@esencia-glow/shared";
+import { CouponAction, ErrorCode, InventoryAction, OrderAction, OrderStatus } from "@esencia-glow/shared";
 import { Order } from "../models/order.model.js";
 import { AppError } from "../utils/app-error.js";
 import { withTransaction } from "../utils/with-transaction.js";
@@ -36,6 +36,22 @@ const CHECKOUT_TRANSACTION_MAX_ATTEMPTS = 10;
  */
 const ORDER_NUMBER_OUTER_ATTEMPTS = 3;
 
+/**
+ * Replay por `Idempotency-Key`: devuelve el pedido ya creado con esa llave y
+ * el mismo payload, o `null` si no hay ninguno. La misma llave con otro
+ * payload es un 409 (no un replay).
+ */
+async function findReplayedOrder(input: CreateOrderInput, requestHash: string): Promise<CreateOrderResult | null> {
+  const existing = await Order.findOne({ userId: input.userId, idempotencyKey: input.idempotencyKey });
+  if (!existing) return null;
+  if (existing.requestHash === requestHash) return { order: existing, replay: true };
+  throw new AppError("Esa clave ya se usó para otro pedido.", 409);
+}
+
+function isCouponFailure(error: unknown): boolean {
+  return error instanceof AppError && typeof error.code === "string" && error.code.startsWith("COUPON_");
+}
+
 async function createOrder(input: CreateOrderInput): Promise<CreateOrderResult> {
   if (!input.termsAccepted) {
     throw new AppError("Debes aceptar los términos y condiciones.", 400);
@@ -44,6 +60,15 @@ async function createOrder(input: CreateOrderInput): Promise<CreateOrderResult> 
   const settings = await getSettings();
   const requestHash = computeRequestHash(input);
   const coreInput = { ...input, requestHash };
+
+  // Con cupón, el canje corre ANTES del índice único de idempotencia: un
+  // reenvío de la misma petición (doble clic, reintento por red) toparía con
+  // "ya usaste este cupón" en vez de devolver su pedido. Se resuelve el replay
+  // primero; el índice único sigue siendo la red de seguridad sin cupón.
+  if (input.couponCode) {
+    const replayed = await findReplayedOrder(input, requestHash);
+    if (replayed) return replayed;
+  }
 
   let lastOrderNumberConflict: unknown;
   for (let attempt = 0; attempt < ORDER_NUMBER_OUTER_ATTEMPTS; attempt++) {
@@ -70,6 +95,14 @@ async function createOrder(input: CreateOrderInput): Promise<CreateOrderResult> 
         actorId: input.userId,
         targetId: order.reservationId,
       });
+      if (order.coupon) {
+        await recordAudit({
+          action: CouponAction.COUPON_REDEEMED,
+          actorId: input.userId,
+          targetId: order.coupon.couponId,
+          metadata: { orderNumber: order.orderNumber, discountCents: order.discountCents },
+        });
+      }
       return { order, replay: false };
     } catch (error) {
       if (error instanceof OrderNumberConflictSignal) {
@@ -77,11 +110,16 @@ async function createOrder(input: CreateOrderInput): Promise<CreateOrderResult> 
         continue;
       }
       if (error instanceof IdempotencyConflictSignal) {
-        const existing = await Order.findOne({ userId: input.userId, idempotencyKey: input.idempotencyKey });
-        if (existing && existing.requestHash === requestHash) {
-          return { order: existing, replay: true };
-        }
+        const replayed = await findReplayedOrder(input, requestHash);
+        if (replayed) return replayed;
         throw new AppError("Esa clave ya se usó para otro pedido.", 409);
+      }
+      // Dos envíos simultáneos con cupón: el perdedor ve el uso del ganador
+      // ya tomado. Si el ganador ya hizo commit con la MISMA llave y payload,
+      // el perdedor es un replay, no un error de cupón.
+      if (input.couponCode && isCouponFailure(error)) {
+        const replayed = await findReplayedOrder(input, requestHash);
+        if (replayed) return replayed;
       }
       if (error instanceof PendingOrderExistsSignal) {
         const existing = await Order.findOne({ userId: input.userId, status: OrderStatus.PENDING });

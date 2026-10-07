@@ -20,14 +20,17 @@ interface OrderRequestShape {
   lines: CartLineInput[];
   quoteId: string;
   rateId: string;
+  /** Con otro cupón es otra petición: el API rechaza una llave vieja con un cuerpo distinto. */
+  couponCode?: string | undefined;
 }
 
-function fingerprintOrder({ lines, quoteId, rateId }: OrderRequestShape): string {
+function fingerprintOrder({ lines, quoteId, rateId, couponCode }: OrderRequestShape): string {
   const normalized = lines
     .map((line) => `${line.itemType}:${line.itemId}:${line.quantity}`)
     .sort()
     .join("|");
-  return `${quoteId}#${rateId}#${normalized}`;
+  // Sin cupón la huella conserva su forma de siempre (una llave guardada antes de 3.7 sigue valiendo).
+  return `${quoteId}#${rateId}#${normalized}${couponCode ? `#coupon:${couponCode}` : ""}`;
 }
 
 function readStored(storage: KeyStorage): { fingerprint: string; key: string } | null {

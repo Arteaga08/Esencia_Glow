@@ -9,10 +9,12 @@ import { TotalsList } from "../cart/totals-list";
 interface SummaryBodyProps {
   lines: readonly CartRowLine[];
   totals: CartTotals;
+  /** Campo de cupón (solo antes de crear el pedido); va entre las líneas y los totales. */
+  coupon?: ReactNode;
 }
 
 /** Lo que se compra y lo que se paga, de solo lectura: acompaña a los pasos del checkout. */
-function SummaryBody({ lines, totals }: SummaryBodyProps) {
+function SummaryBody({ lines, totals, coupon }: SummaryBodyProps) {
   return (
     <div className="flex flex-col gap-6">
       <ul className="flex flex-col gap-5">
@@ -22,6 +24,7 @@ function SummaryBody({ lines, totals }: SummaryBodyProps) {
             <CartLineRow key={`${line.name}-${index}`} line={line} size="sm" />
           ))}
       </ul>
+      {coupon}
       <TotalsList totals={totals} />
     </div>
   );

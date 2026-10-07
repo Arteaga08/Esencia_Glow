@@ -7,6 +7,8 @@ interface CheckoutLayoutProps {
   title: string;
   lines: readonly CartRowLine[];
   totals: CartTotals;
+  /** Campo de cupón del resumen; se muestra en el resumen de escritorio y en el plegable de móvil. */
+  coupon?: ReactNode;
   children: ReactNode;
 }
 
@@ -14,8 +16,8 @@ interface CheckoutLayoutProps {
  * Marco de la página única (propuesta A): pasos a la izquierda y resumen fijo a
  * la derecha; en móvil, el resumen se pliega arriba con el total a la vista.
  */
-function CheckoutLayout({ title, lines, totals, children }: CheckoutLayoutProps) {
-  const summary = <SummaryBody lines={lines} totals={totals} />;
+function CheckoutLayout({ title, lines, totals, coupon, children }: CheckoutLayoutProps) {
+  const summary = <SummaryBody lines={lines} totals={totals} coupon={coupon} />;
 
   return (
     <main className="pt-16 pb-32 xl:pt-20">
@@ -29,7 +31,7 @@ function CheckoutLayout({ title, lines, totals, children }: CheckoutLayoutProps)
           <div className="mt-8">{children}</div>
         </div>
 
-        <aside className="hidden rounded-md border border-border-strong bg-surface p-6 lg:sticky lg:top-28 lg:block lg:self-start">
+        <aside className="hidden rounded-md border border-border-strong bg-surface p-6 [--surface-bg:var(--color-surface)] lg:sticky lg:top-28 lg:block lg:self-start">
           <h2 className="mb-5 type-shop-card-title text-foreground">Tu pedido</h2>
           {summary}
         </aside>

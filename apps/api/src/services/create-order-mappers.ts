@@ -8,6 +8,7 @@ import { AppError } from "../utils/app-error.js";
 import { normalizeCartLines } from "./cart-fingerprint.js";
 import type { ResolvedLine } from "./cart-resolution.service.js";
 import type { OrderDocument } from "../models/order.model.js";
+import { normalizeCouponCode } from "./coupon-rules.js";
 
 /**
  * Helpers puros de `create-order.service.ts` — separados por el tope de
@@ -24,6 +25,8 @@ interface CreateOrderInput {
   paymentMethod: PaymentMethod;
   termsAccepted: boolean;
   idempotencyKey: string;
+  /** Código de cupón (Milestone 3.7). Nunca un monto: el descuento lo calcula el servidor. */
+  couponCode?: string;
 }
 
 interface CreateOrderResult {
@@ -37,6 +40,7 @@ interface CreateOrderHashInput {
   rateId: string;
   paymentMethod: PaymentMethod;
   termsAccepted: boolean;
+  couponCode?: string;
 }
 
 /**
@@ -82,6 +86,9 @@ function computeRequestHash(input: CreateOrderHashInput): string {
     rateId: input.rateId,
     paymentMethod: input.paymentMethod,
     termsAccepted: input.termsAccepted,
+    // Solo entra al hash cuando hay cupón: un pedido anterior a 3.7 (o sin
+    // cupón) conserva su hash y su replay sigue siendo válido.
+    ...(input.couponCode ? { couponCode: normalizeCouponCode(input.couponCode) } : {}),
   });
   return createHash("sha256").update(canonical).digest("hex");
 }

@@ -1,4 +1,4 @@
-import { MAX_STATUS_HISTORY, OrderAction, OrderStatus, PaymentMethod } from "@esencia-glow/shared";
+import { CouponAction, MAX_STATUS_HISTORY, OrderAction, OrderStatus, PaymentMethod } from "@esencia-glow/shared";
 import { Types, type FilterQuery } from "mongoose";
 import { Order, type OrderAttrs, type OrderDocument } from "../models/order.model.js";
 import { AppError } from "../utils/app-error.js";
@@ -6,6 +6,7 @@ import { withTransaction } from "../utils/with-transaction.js";
 import { assertTransition } from "./order-state.js";
 import { releaseReservationDetailed, auditReleaseMismatches } from "./stock-reservation.service.js";
 import { recordAudit } from "./audit.service.js";
+import { releaseOrderCoupon } from "./coupon-redemption.service.js";
 import { resolvePaymentProvider, type PaymentProvider } from "./payment-provider.js";
 import { settleCapturedPayment, type SettlementResult } from "./payment-settlement.service.js";
 
@@ -62,7 +63,7 @@ async function claimAndRelease(
   actorId: string | undefined,
   reason: string | undefined,
 ): Promise<CloseResult> {
-  const { order: claimed, releaseResult, alreadyClosed } = await withTransaction(async (session) => {
+  const { order: claimed, releaseResult, alreadyClosed, couponReleased } = await withTransaction(async (session) => {
     const now = new Date();
     const claimedOrder = await Order.findOneAndUpdate(
       { ...filter, status: OrderStatus.PENDING },
@@ -92,13 +93,23 @@ async function claimAndRelease(
       if (existing.status === OrderStatus.CANCELLED) {
         // Perdedora de una carrera de cierre (barrendero vs. cliente vs.
         // otro tick del cron): el trabajo ya está hecho, no es un error.
-        return { order: existing, releaseResult: { inconsistentVariants: [] }, alreadyClosed: true as const };
+        return {
+          order: existing,
+          releaseResult: { inconsistentVariants: [] },
+          alreadyClosed: true as const,
+          couponReleased: false,
+        };
       }
       throw new AppError(`No se puede cancelar un pedido en estado "${existing.status}".`, 409);
     }
 
     const release = await releaseReservationDetailed(claimedOrder.reservationId.toString(), session);
-    return { order: claimedOrder, releaseResult: release, alreadyClosed: false as const };
+    // El claim `pending -> cancelled` de arriba lo gana una sola llamada, así
+    // que solo ella devuelve el uso del cupón (cancelación de la clienta, del
+    // admin y barrendero de expiración pasan todas por aquí). Misma
+    // transacción: o se libera todo, o nada.
+    const couponReleased = await releaseOrderCoupon(claimedOrder, session);
+    return { order: claimedOrder, releaseResult: release, alreadyClosed: false as const, couponReleased };
   });
 
   if (alreadyClosed) {
@@ -117,6 +128,14 @@ async function claimAndRelease(
     targetId: claimed._id,
     metadata: { from: OrderStatus.PENDING, to: OrderStatus.CANCELLED },
   });
+  if (couponReleased && claimed.coupon) {
+    await recordAudit({
+      action: CouponAction.COUPON_RELEASED,
+      ...(actorId ? { actorId } : {}),
+      targetId: claimed.coupon.couponId,
+      metadata: { orderNumber: claimed.orderNumber },
+    });
+  }
 
   return { outcome: "closed", order: claimed, transitioned: true };
 }
