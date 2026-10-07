@@ -15,7 +15,7 @@ function SubscribeButton({ soldOut, className = "" }: SubscribeButtonProps) {
     "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
   const tone = soldOut
     ? "cursor-not-allowed border-border-strong bg-muted text-muted-foreground-strong"
-    : "cursor-pointer border-primary-action bg-primary text-foreground hover:bg-[oklch(0.82_0.0851_6.1876)]";
+    : "cursor-pointer border-primary-action bg-primary text-foreground hover:bg-primary-hover";
 
   return (
     <button type="button" disabled={soldOut} className={`${base} ${tone} ${className}`}>

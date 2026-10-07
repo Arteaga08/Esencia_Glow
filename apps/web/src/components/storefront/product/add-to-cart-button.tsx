@@ -57,7 +57,7 @@ function AddToCartButton({ item, quantity, totalCents, available, ariaLabel, onR
         disabled={!available}
         onClick={handleClick}
         className={`flex h-12 min-w-0 cursor-pointer items-center justify-center gap-2 rounded-md border px-6 type-shop-cta text-foreground transition-[background-color,border-color,opacity,transform] duration-[var(--duration-base)] ease-out-quart active:scale-[0.98] disabled:cursor-not-allowed disabled:border-border disabled:bg-muted disabled:text-muted-foreground-strong ${FOCUS} ${
-          added ? "border-primary-action bg-blush" : "border-primary-action bg-primary hover:bg-blush"
+          added ? "border-primary-action bg-blush" : "border-primary-action bg-primary hover:bg-primary-hover"
         } ${className}`}
       >
         {!available ? (

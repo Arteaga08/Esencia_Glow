@@ -2,28 +2,31 @@
 name: Esencia Glow — Dashboard
 description: Sistema de diseño del panel administrativo — preciso, confiable, editorial-suave.
 colors:
-  background: "oklch(0.9873 0.0069 354.7893)"
+  background: "oklch(0.9859 0.0076 48.6568)"
   foreground: "oklch(0.2 0 0)"
   surface: "oklch(1.0000 0 0)"
   surface-foreground: "oklch(0.2 0 0)"
-  primary: "oklch(0.8502 0.0851 6.1876)"
-  primary-action: "oklch(0.56 0.0851 6.1876)"
+  primary: "oklch(0.7508 0.1610 2.6024)"
+  primary-hover: "oklch(0.71 0.1610 2.6024)"
+  primary-active: "oklch(0.67 0.1610 2.6024)"
+  primary-action: "oklch(0.5367 0.1530 7.7575)"
   primary-foreground: "oklch(1.0000 0 0)"
-  secondary: "oklch(0.8747 0.0544 172.6283)"
-  secondary-foreground: "oklch(0.3821 0.0407 166.3004)"
-  muted: "oklch(0.9706 0.0124 358.7577)"
-  muted-foreground: "oklch(0.6265 0.0418 357.7265)"
-  muted-foreground-strong: "oklch(0.50 0.0418 357.7265)"
-  accent: "oklch(0.9557 0.0615 92.1287)"
-  accent-foreground: "oklch(0.5630 0.0874 87.6337)"
-  accent-foreground-strong: "oklch(0.53 0.0874 87.6337)"
-  destructive: "oklch(0.7653 0.1404 16.0328)"
-  destructive-action: "oklch(0.56 0.1404 16.0328)"
-  destructive-foreground: "oklch(1.0000 0 0)"
-  border: "oklch(0.9366 0.0345 359.8126)"
-  border-strong: "oklch(0.66 0.0345 359.8126)"
-  input: "oklch(0.9958 0.0025 345.2100)"
-  ring: "oklch(0.56 0.0851 6.1876)"
+  secondary: "oklch(0.9449 0.0110 54.4941)"
+  secondary-foreground: "oklch(0.2 0 0)"
+  muted: "oklch(0.9687 0.0086 44.8919)"
+  muted-foreground: "oklch(0.6608 0.0272 49.5764)"
+  muted-foreground-strong: "oklch(0.50 0.0272 49.5764)"
+  accent: "oklch(0.9239 0.0415 1.1045)"
+  accent-foreground: "oklch(0.5367 0.1530 7.7575)"
+  accent-foreground-strong: "oklch(0.50 0.1530 7.7575)"
+  destructive: "oklch(0.6256 0.1933 23.0261)"
+  destructive-action: "oklch(0.50 0.1933 23.0261)"
+  destructive-action-hover: "oklch(0.45 0.1933 23.0261)"
+  destructive-foreground: "oklch(0.9921 0.0017 325.5900)"
+  border: "oklch(0.9138 0.0146 50.7928)"
+  border-strong: "oklch(0.64 0.0146 50.7928)"
+  input: "oklch(1.0000 0 0)"
+  ring: "oklch(0.5367 0.1530 7.7575)"
 typography:
   display:
     fontFamily: "Schibsted Grotesk, ui-sans-serif, system-ui, sans-serif"
@@ -75,9 +78,9 @@ typography:
     letterSpacing: "normal"
 rounded:
   none: "0px"
-  sm: "6px"
-  md: "8px"
-  lg: "12px"
+  sm: "4px"
+  md: "6px"
+  lg: "8px"
   full: "999px"
 spacing:
   1: "4px"
@@ -99,7 +102,7 @@ components:
     rounded: "{rounded.md}"
     padding: "10px 16px"
   button-primary-hover:
-    backgroundColor: "oklch(0.51 0.0851 6.1876)"
+    backgroundColor: "{colors.primary-hover}"
   button-primary-disabled:
     backgroundColor: "{colors.muted}"
     textColor: "{colors.muted-foreground}"
@@ -165,11 +168,12 @@ heroicas, la rejilla de tarjetas idénticas, las franjas de color decorativas, l
 con degradado y el asistente de IA con esfera. Ninguna pantalla del panel se apoya en esos recursos
 para parecer "terminada" — se apoya en que el dato correcto esté donde se necesita.
 
-**Divergencia deliberada del starter de paleta.** Los valores de color que Manuel entregó (paleta
-OKLCH) son la fuente de verdad y no se tocan. El `--radius: 1.25rem` y las sombras rosas difusas de
-ese mismo archivo, en cambio, eran parte de un ejemplo de partida, no una decisión cerrada — el
-plan aprobado de esta sesión fija el radio en 8–12px y elimina la sombra decorativa a favor de
-bordes estructurales. Ver la Regla del Listón más abajo.
+**Paleta de la clienta (2026-10-07).** Los colores, radios y sombras vienen del tema que eligió la
+clienta (rosa sobre crema) y aplican a la tienda y al panel por igual. Dos decisiones de Manuel
+sobre ese tema: el texto principal es tinta negra (`oklch(0.2 0 0)`), no el café del archivo, y el
+fondo suave del storefront (`blush`: header, hero, secciones) usa su beige, no un rosa. Su tema trae
+un solo tono por rol; los tokens `*-hover`, `*-active`, `*-action` y `*-strong` son derivados
+(mismo croma y matiz, menos luminosidad) hasta pasar AA. La tipografía del tema no se adoptó.
 
 **Key Characteristics:**
 - Datos y etiquetas en PT Mono; conversación humana en Schibsted Grotesk. Nunca se mezclan roles.
@@ -182,53 +186,63 @@ bordes estructurales. Ver la Regla del Listón más abajo.
 
 ## 2. Colors
 
-La paleta es casi enteramente neutra — un rosa tibio, un verde menta y un amarillo mantequilla como
-los únicos acentos — sobre superficies casi blancas con un dejo cálido. Ningún color decorativo
-aparece salvo por los cuatro roles documentados abajo.
+La paleta es cálida y casi neutra — crema de fondo, beige de apoyo y tinta negra — con un rosa vivo
+como único color de marca y un rosa claro para la atención. Ningún color decorativo aparece salvo
+por los roles documentados abajo.
 
 ### Primary
-- **Rosa Bitácora** (`oklch(0.8502 0.0851 6.1876)`, ≈ `#ffb7c5`): superficie suave — **fondo del
-  botón primario**, chip de estado "activo", resaltado de fila seleccionada, fondo del ítem de
-  navegación activo. Nunca lleva texto blanco encima (falla WCAG con 1.64:1 — ver Regla del Listón).
-  Con texto tinta (`foreground`) encima da 11.06:1, AAA, y así es como se usa siempre.
-- **Rosa Acción** (`oklch(0.56 0.0851 6.1876)`, ≈ `#9f5f6d`, token derivado `primary-action`):
-  el rosa llevado a fuerza de trazo — anillo de foco, borde de input enfocado, texto de énfasis
-  sobre fondo claro. Contra el fondo de página da 4.68:1, suficiente para leerse como anillo y como
-  borde. No es fondo de botón: ese lugar es del Rosa Bitácora con tinta.
+- **Rosa de marca** (`oklch(0.7508 0.1610 2.6024)`, ≈ `#ff7ea5`): **fondo del botón primario**,
+  chip de estado "activo", resaltado de fila seleccionada, fondo del ítem de navegación activo.
+  Nunca lleva texto blanco encima (2.39:1 — ver Regla del Listón). Con texto tinta (`foreground`)
+  da 7.57:1, y así es como se usa siempre. Tampoco sirve como borde ni como texto sobre el fondo
+  (2.29:1): para eso está el Rosa Acción.
+- **Rosa Acción** (`oklch(0.5367 0.1530 7.7575)`, ≈ `#b33e5d`, token `primary-action`; es el
+  `accent-foreground` del tema): el rosa llevado a fuerza de trazo — anillo de foco, borde de input
+  enfocado, texto de énfasis sobre fondo claro. Contra el fondo de página da 5.35:1; con texto
+  blanco encima, 5.58:1.
 
 ### Secondary
-- **Menta** (`oklch(0.8747 0.0544 172.6283)`, ≈ `#b2e2d2`): reservado para el estado "pagado" /
-  "entregado" / confirmaciones positivas discretas. Su texto (`secondary-foreground`,
-  `oklch(0.3821 0.0407 166.3004)`) da 6.80:1, AA limpio sin derivar nada.
+- **Beige** (`oklch(0.9449 0.0110 54.4941)`, ≈ `#f3ebe6`): estado "pagado" / "entregado" /
+  confirmaciones positivas discretas, y fondo suave del storefront (`blush`). Su texto
+  (`secondary-foreground`) es la tinta, 15.37:1. **Ya no es un color propio de "éxito":** se
+  distingue del badge neutro (`muted`) solo por un paso de tono, así que un estado positivo debe
+  apoyarse en su texto o su ícono, nunca solo en el color.
 
 ### Tertiary
-- **Mantequilla** (`oklch(0.9557 0.0615 92.1287)`, ≈ `#fff0c2`): estado "pendiente" / "atención
-  requerida" (inventario bajo, ventana de inscripción por cerrar). Su texto normal
-  (`accent-foreground`, `oklch(0.5630 0.0874 87.6337)`) da 4.06:1 — pasa el umbral de 3:1 de texto
-  grande/etiqueta pero NO el de 4.5:1 de cuerpo. Para texto de cuerpo sobre este fondo usar
-  `accent-foreground-strong` (`oklch(0.53 0.0874 87.6337)`, ≈ `#816829`, 4.67:1, AA limpio).
+- **Rosa claro** (`oklch(0.9239 0.0415 1.1045)`, ≈ `#ffdbe4`): estado "pendiente" / "atención
+  requerida" (inventario bajo, ventana de inscripción por cerrar). El `accent-foreground` del tema
+  (`oklch(0.5367 0.1530 7.7575)`) da 4.38:1 sobre él — pasa para texto grande/etiqueta pero no para
+  cuerpo. Para texto de cuerpo usar `accent-foreground-strong` (`oklch(0.50 0.1530 7.7575)`,
+  ≈ `#a73253`, 5.13:1).
+
+### Destructive
+- **Rojo** (`oklch(0.6256 0.1933 23.0261)`, ≈ `#e5484d`): solo como fondo suave al 40 % de los
+  estados negativos. Con texto blanco da 3.91:1, por eso no es fondo de botón.
+- **Rojo Acción** (`oklch(0.50 0.1933 23.0261)`, ≈ `#b81228`, token derivado
+  `destructive-action`): fondo del botón destructivo (blanco a 6.65:1), texto y borde de error.
+  Está a solo 20° de matiz del rosa de marca: un error nunca se comunica solo con color, siempre
+  lleva su ícono `WarningCircle` y su mensaje.
 
 ### Neutral
-- **Fondo** (`oklch(0.9873 0.0069 354.7893)`, ≈ `#fff9fb`): lienzo de página.
-- **Superficie** (`oklch(1.0000 0 0)`): tarjetas, tabla, popover, modal — blanco puro, un paso más
-  claro que el fondo para que la superficie se distinga sin sombra.
-- **Tinta** (`oklch(0.2 0 0)`, ≈ `#161616`): texto principal. 17.41:1 sobre fondo,
+- **Fondo** (`oklch(0.9859 0.0076 48.6568)`, ≈ `#fff9f6`): lienzo de página, crema.
+- **Superficie** (`oklch(1.0000 0 0)`): tarjetas, tabla, popover, modal, relleno de input — blanco
+  puro, un paso más claro que el fondo para que la superficie se distinga sin sombra.
+- **Tinta** (`oklch(0.2 0 0)`, ≈ `#161616`): texto principal. 17.36:1 sobre fondo,
   18.10:1 sobre superficie.
-- **Tinta tenue** (`oklch(0.6265 0.0418 357.7265)`, ≈ `#9e7e88`, token `muted-foreground`): texto
+- **Tinta tenue** (`oklch(0.6608 0.0272 49.5764)`, ≈ `#a18e84`, token `muted-foreground`): texto
   secundario de bajo compromiso — placeholder, texto deshabilitado, metadatos decorativos donde
-  WCAG no exige contraste. Da 3.31–3.63:1 según la superficie: **no usar en texto de cuerpo que
+  WCAG no exige contraste. Da 3.00–3.13:1 según la superficie: **no usar en texto de cuerpo que
   deba leerse siempre**.
-- **Tinta tenue fuerte** (`oklch(0.50 0.0418 357.7265)`, ≈ `#785a63`, token derivado
+- **Tinta tenue fuerte** (`oklch(0.50 0.0272 49.5764)`, ≈ `#715f56`, token derivado
   `muted-foreground-strong`): la misma tinta tenue, oscurecida con margen de lectura cómoda (no
   solo el mínimo legal) para texto de cuerpo real — ayuda de campo, fecha secundaria, conteo,
-  cualquier descripción que alguien deba leer siempre. 5.90:1 sobre fondo, 6.14:1 sobre
-  superficie (ajustado el 2026-09-22 a pedido de Manuel: la versión anterior, al mínimo AA de
-  4.5:1, cansaba la vista en uso real).
-- **Borde susurro** (`oklch(0.9366 0.0345 359.8126)`, ≈ `#ffe1e9`, token `border`): 1.17–1.22:1
+  cualquier descripción que alguien deba leer siempre. 5.80:1 sobre fondo, 6.05:1 sobre
+  superficie, 5.14:1 sobre el beige.
+- **Borde susurro** (`oklch(0.9138 0.0146 50.7928)`, ≈ `#ebe0da`, token `border`): 1.24–1.30:1
   contra fondo/superficie — deliberadamente casi invisible. Solo para separar agrupaciones donde el
   espaciado ya comunica la división (grupos del sidebar, filas de tabla alternas).
-- **Borde estructural** (`oklch(0.66 0.0345 359.8126)`, ≈ `#a58a91`, token derivado
-  `border-strong`): 3.04–3.16:1 contra fondo/superficie, el mínimo AA para límites de control no
+- **Borde estructural** (`oklch(0.64 0.0146 50.7928)`, ≈ `#948a84`, token derivado
+  `border-strong`): 3.24–3.38:1 contra fondo/superficie, el mínimo AA para límites de control no
   textuales (input, tabla, botón secundario, tarjeta). Es el borde por default de cualquier
   contenedor que necesite leerse como contenedor.
 
@@ -294,12 +308,12 @@ usa la tinta del sistema a baja opacidad, nunca el rosa de marca (una sombra ros
 decoración, no como profundidad real).
 
 ### Shadow Vocabulary
-- **overlay** (`box-shadow: 0 8px 24px -6px oklch(0.2 0 0 / 0.18)`): menú de select,
-  dropdown, popover, tooltip. Sombra ajustada, borde de 1px `border-strong` incluido en la misma
+- **overlay** (`box-shadow: 0 2px 10px 0 oklch(0 0 0 / 0.03), 0 2px 4px -1px oklch(0 0 0 / 0.03)`):
+  menú de select, dropdown, popover, tooltip. Sombra apenas perceptible (la del tema de la clienta), borde de 1px `border-strong` incluido en la misma
   superficie.
-- **modal** (`box-shadow: 0 16px 48px -8px oklch(0.2 0 0 / 0.22)`): diálogo modal,
-  hoja lateral (sheet), toast. La única sombra con alcance visual notorio del sistema — se reserva
-  para lo que de verdad bloquea o interrumpe el flujo.
+- **modal** (`box-shadow: 0 2px 10px 0 oklch(0 0 0 / 0.03), 0 8px 10px -1px oklch(0 0 0 / 0.03)`):
+  diálogo modal, hoja lateral (sheet), toast. Igual de tenue: lo que separa a un modal de la página
+  es su borde `border-strong` y el scrim, no la sombra.
 
 ### Named Rules
 **La Regla de lo que Flota.** Si un elemento no se despega físicamente del documento (no es un
@@ -310,16 +324,14 @@ hover es un cambio de color, no una elevación — ver Components → Buttons.
 ## 5. Components
 
 ### Buttons
-- **Forma:** esquinas suavizadas (`rounded.md`, 8px); nunca el `rounded.full` de 999px salvo en
+- **Forma:** esquinas suavizadas (`rounded.md`, 6px); nunca el `rounded.full` de 999px salvo en
   badges y avatares.
-- **Primario:** fondo `primary` (Rosa Bitácora, `#ffb7c5`), texto **tinta** (`foreground`, 11.06:1,
-  AAA), padding `10px 16px`, tipografía Cuerpo (Schibsted 400, 14px). El rosa suave es el que
-  identifica a la marca, así que es él —no su derivado oscuro— el que ocupa la acción primaria; lo
-  único prohibido es vestirlo de texto blanco (1.64:1, ilegible), que es justo como venía del tema
-  original. *Hover:* rosa un paso más oscuro (`oklch(0.82 0.0851 6.1876)`, tinta a 10.00:1).
-  *Focus-visible:* anillo de 2px en `ring` (`primary-action`) con
-  2px de offset — nunca `outline: none` sin reemplazo. *Active:* `oklch(0.79 0.0851 6.1876)` (tinta
-  a 9.02:1),
+- **Primario:** fondo `primary` (Rosa de marca, `#ff7ea5`), texto **tinta** (`foreground`, 7.57:1),
+  padding `10px 16px`, tipografía Cuerpo (Schibsted 400, 14px). Lo único prohibido es vestirlo de
+  texto blanco (2.39:1, ilegible), que es justo como viene en el tema original. *Hover:* rosa un
+  paso más oscuro (`primary-hover`, tinta a 6.51:1). *Focus-visible:* anillo de 2px en `ring`
+  (`primary-action`) con 2px de offset — nunca `outline: none` sin reemplazo. *Active:*
+  `primary-active` (tinta a 5.58:1),
   sin desplazamiento de layout (nunca `transform: scale` que mueva el contenido vecino). *Loading:*
   el label se reemplaza por un spinner de 16px en el mismo tono de texto, el botón mantiene su
   ancho (se fija con `min-width` calculado en reposo) para que el layout no salte, y queda
@@ -331,7 +343,7 @@ hover es un cambio de color, no una elevación — ver Components → Buttons.
 - **Fantasma:** sin fondo ni borde en reposo, texto `foreground`. *Hover:* fondo `muted`. Se usa
   para acciones secundarias dentro de una fila de tabla o una barra de herramientas, nunca como
   botón primario de una pantalla.
-- **Destructivo:** fondo `destructive-action` (`#b84c58`), texto blanco. Misma anatomía de estados
+- **Destructivo:** fondo `destructive-action` (`#b81228`), texto blanco; *hover:* `destructive-action-hover`. Misma anatomía de estados
   que el primario. Siempre exige el paso de confirmación que manda `PRODUCT.md` — el botón
   destructivo nunca ejecuta la acción directamente, abre la confirmación.
 
@@ -360,10 +372,10 @@ pestaña de archivo sobre el borde de una tarjeta.
   `var(--surface-bg)` siempre tiene un valor sólido que copiar. La única disciplina que exige hacia
   adelante: **todo componente nuevo que introduzca una superficie debe declarar `--surface-bg`** —
   se agrega como regla en Do's and Don'ts para que no se olvide al construir `apps/web`.
-- **Focus:** el borde y la etiqueta cambian juntos a `primary-action` (4.68:1 contra el fondo,
+- **Focus:** el borde y la etiqueta cambian juntos a `primary-action` (5.35:1 contra el fondo,
   medido) — sin halo adicional, el color compartido entre borde y etiqueta ya comunica el estado.
   Transición de 120ms en `border-color`/`color`, `ease-out-quart`.
-- **Error:** borde y etiqueta en `destructive-action` (4.81:1 contra el fondo, medido), texto de
+- **Error:** borde y etiqueta en `destructive-action` (6.38:1 contra el fondo, medido), texto de
   ayuda debajo en el mismo tono (13px, Cuerpo pequeño), ícono Phosphor `WarningCircle` de 16px al
   inicio del mensaje.
 - **Disabled:** borde `border` (el susurro, no el estructural), etiqueta y fondo en `muted`/
@@ -379,7 +391,7 @@ pestaña de archivo sobre el borde de una tarjeta.
 - **Abierto:** el menú es un overlay (`shadow.overlay`, `rounded.md`, borde `border-strong`),
   ancla al ancho del control, máximo 320px de alto con scroll propio.
 - **Opción resaltada** (hover/teclado): fondo `muted`.
-- **Opción seleccionada:** fondo `primary` (el rosa suave de superficie) con un ícono Phosphor
+- **Opción seleccionada:** fondo `primary` (el rosa de marca) con un ícono Phosphor
   `Check` de 16px al final, texto `foreground` (nunca blanco sobre `primary` — ver Regla del
   Listón).
 - **Vacía:** cuando no hay resultados, el menú muestra un mensaje de Cuerpo pequeño en
@@ -481,8 +493,8 @@ es hoy el atajo visual universal de "función de IA" en cualquier producto — u
 cliché exacto que este sistema evita. El destello del sistema es `StarFour`, una sola estrella de
 cuatro puntas cóncavas — más cercana al isotipo real, sin la connotación de "magia de IA".
 
-- **Color:** `accent-foreground-strong` (el mismo tono mantequilla/dorado que ya usa el sistema para
-  atención — 5.10:1 contra fondo, 5.30:1 contra superficie, medido). Es la única excepción a "los
+- **Color:** `accent-foreground-strong` (el mismo rosa profundo que ya usa el sistema para
+  atención — 6.26:1 contra fondo, 6.53:1 contra superficie, medido). Es la única excepción a "los
   íconos nunca llevan color propio": el destello es un **activo de marca decorativo**, no un ícono
   funcional de UI, y no convive con controles interactivos.
 - **Peso:** `regular` (contorno) como remate discreto junto a un título o wordmark; `fill` (sólido)
@@ -515,7 +527,7 @@ paso extra para no verse apretado con Schibsted Grotesk 400).
 - **Do** reservar la sombra (`overlay`/`modal`) exclusivamente para lo que se despega del documento:
   menú, popover, modal, toast, tooltip. Todo lo demás es plano.
 - **Do** usar `primary-action` (no `primary`) en cualquier superficie sólida con texto blanco
-  encima — es el único par rosa/blanco del sistema que pasa AA (4.87:1, medido).
+  encima — es el único par rosa/blanco del sistema que pasa AA (5.58:1, medido).
 - **Do** declarar `--surface-bg` en la raíz de todo componente que defina una superficie (`body`,
   `Card`, `Modal`, `Popover`) con su color real — el `<label>` del input de muesca (y cualquier
   elemento futuro que necesite "saber" en qué superficie vive) depende de esa cascada para tapar
@@ -526,7 +538,7 @@ paso extra para no verse apretado con Schibsted Grotesk 400).
   para que la razón quede trazable entre los dos documentos.
 
 ### Don't:
-- **Don't** poner texto blanco sobre `primary` (el rosa de superficie suave) — mide 1.64:1, muy por
+- **Don't** poner texto blanco sobre `primary` (el rosa de marca) — mide 2.39:1, muy por
   debajo de AA. Usar `primary-action` o texto `foreground`.
 - **Don't** usar el ícono `Sparkle` de Phosphor (cuatro brillos con cruces pequeñas) en ningún lugar
   del sistema — es el atajo visual genérico de "función de IA" en el diseño de producto actual. El

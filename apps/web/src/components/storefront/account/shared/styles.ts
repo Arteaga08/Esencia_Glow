@@ -9,7 +9,7 @@ import { FOCUS } from "@/components/storefront/product/product-styles";
  */
 const BASE = `inline-flex min-w-0 cursor-pointer items-center justify-center gap-2 rounded-md border px-6 type-shop-cta text-foreground transition-[background-color,border-color,transform] duration-[var(--duration-base)] ease-out-quart active:scale-[0.98] motion-reduce:active:scale-100 ${FOCUS}`;
 
-const CTA_PRIMARY = `${BASE} h-12 border-primary-action bg-primary hover:bg-blush`;
+const CTA_PRIMARY = `${BASE} h-12 border-primary-action bg-primary hover:bg-primary-hover`;
 const CTA_SECONDARY = `${BASE} h-12 border-border-strong bg-surface hover:bg-muted`;
 const CTA_DISABLED =
   "inline-flex h-12 min-w-0 cursor-not-allowed items-center justify-center gap-2 rounded-md border border-border bg-muted px-6 type-shop-cta text-muted-foreground-strong";
