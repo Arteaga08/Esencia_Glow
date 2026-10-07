@@ -152,6 +152,16 @@ function buildOfferBanner(doc: HomeContentAttrs): PublicHomeOfferBanner | undefi
   };
 }
 
+/**
+ * Foto del encabezado de /ofertas. Se guarda en la sección del banner de
+ * oferta pero NO depende de su `isActive`: apagar el banner del home no debe
+ * dejar sin foto la página de ofertas.
+ */
+function buildSalePage(doc: HomeContentAttrs): PublicHomeContent["salePage"] {
+  const image = buildImageDto(doc.offerBanner?.images?.page);
+  return image ? { image } : undefined;
+}
+
 function buildBenefits(doc: HomeContentAttrs): PublicHomeContent["benefits"] {
   const section = doc.benefits;
   if (!section?.isActive) return undefined;
@@ -186,6 +196,7 @@ async function getPublicHomeContent(): Promise<PublicHomeContent> {
     newArrivals: buildSpotlight(doc, HomeSectionKey.NEW_ARRIVALS),
     kits: buildSpotlight(doc, HomeSectionKey.KITS),
     offerBanner: buildOfferBanner(doc),
+    salePage: buildSalePage(doc),
   };
 
   // Sin claves `undefined`: el JSON las omite igual, pero así el objeto

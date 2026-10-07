@@ -1,12 +1,16 @@
 import { HOME_CONTENT_LIMITS, type AdminHomeOfferBanner } from "@esencia-glow/shared";
 import { HREF_PATTERN, type HeroImageDraft, type HeroImageSlot } from "./hero-form-value";
 
+/** Las dos fotos del banner del home más `page`, la del encabezado de /ofertas. */
+type OfferBannerImageSlot = HeroImageSlot | "page";
+const OFFER_BANNER_IMAGE_SLOTS: OfferBannerImageSlot[] = ["desktop", "mobile", "page"];
+
 interface OfferBannerFormValue {
   isActive: boolean;
   text: string;
   ctaLabel: string;
   ctaHref: string;
-  images: Record<HeroImageSlot, HeroImageDraft>;
+  images: Record<OfferBannerImageSlot, HeroImageDraft>;
 }
 
 function toFormValue(section: AdminHomeOfferBanner): OfferBannerFormValue {
@@ -18,6 +22,7 @@ function toFormValue(section: AdminHomeOfferBanner): OfferBannerFormValue {
     images: {
       desktop: { existing: section.images.desktop, removed: false },
       mobile: { existing: section.images.mobile, removed: false },
+      page: { existing: section.images.page, removed: false },
     },
   };
 }
@@ -66,7 +71,7 @@ function fingerprint(value: OfferBannerFormValue): string {
     text: value.text,
     ctaLabel: value.ctaLabel,
     ctaHref: value.ctaHref,
-    images: (["desktop", "mobile"] as const).map((slot) => ({
+    images: OFFER_BANNER_IMAGE_SLOTS.map((slot) => ({
       file: value.images[slot].file
         ? `${value.images[slot].file!.name}:${value.images[slot].file!.size}`
         : null,
@@ -75,5 +80,5 @@ function fingerprint(value: OfferBannerFormValue): string {
   });
 }
 
-export { toFormValue, toPayload, validate, hasDesktopImage, fingerprint };
-export type { OfferBannerFormValue };
+export { OFFER_BANNER_IMAGE_SLOTS, toFormValue, toPayload, validate, hasDesktopImage, fingerprint };
+export type { OfferBannerFormValue, OfferBannerImageSlot };

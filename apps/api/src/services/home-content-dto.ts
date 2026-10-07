@@ -145,6 +145,7 @@ function buildOfferBanner(doc: HomeContentAttrs | null): AdminHomeOfferBanner {
     images: {
       ...(section?.images?.desktop ? { desktop: buildImageDto(section.images.desktop) } : {}),
       ...(section?.images?.mobile ? { mobile: buildImageDto(section.images.mobile) } : {}),
+      ...(section?.images?.page ? { page: buildImageDto(section.images.page) } : {}),
     },
   };
 }

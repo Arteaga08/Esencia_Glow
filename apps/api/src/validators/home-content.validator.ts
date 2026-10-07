@@ -120,8 +120,9 @@ const updateOfferBannerSchema = Joi.object({
   ctaHref: hrefField.required(),
 });
 
-const imageSlotParamsSchema = Joi.object({
-  slot: Joi.string().valid("desktop", "mobile").required(),
+/** Fotos del banner de oferta: las dos del home más `page`, la del encabezado de /ofertas. */
+const offerBannerImageSlotParamsSchema = Joi.object({
+  slot: Joi.string().valid("desktop", "mobile", "page").required(),
 });
 
 /** Segmento de URL de las secciones de Novedades y Kits. */
@@ -159,7 +160,7 @@ export {
   updateBenefitsSchema,
   updateSpotlightSchema,
   updateOfferBannerSchema,
-  imageSlotParamsSchema,
+  offerBannerImageSlotParamsSchema,
   spotlightParamsSchema,
   spotlightImageParamsSchema,
   heroSlideImageParamsSchema,
