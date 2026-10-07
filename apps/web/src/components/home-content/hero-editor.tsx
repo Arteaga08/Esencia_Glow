@@ -1,16 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { HOME_CONTENT_LIMITS, type AdminHomeHero } from "@esencia-glow/shared";
 import { Plus } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
 import { FieldError } from "@/components/ui/field-error";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/toast";
 import { ApiRequestError } from "@/lib/api";
+import { EditorSurface } from "./editor-surface";
 import { scopeErrors } from "@/lib/field-errors";
 import { saveHero } from "./hero-actions";
 import {
@@ -38,9 +38,13 @@ function describe(error: unknown, fallback: string): string {
 function HeroEditor({
   hero,
   onSaved,
+  embedded = false,
+  onDirtyChange,
 }: {
   hero: AdminHomeHero;
   onSaved: (hero: AdminHomeHero) => void;
+  embedded?: boolean;
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const { toast } = useToast();
   const [saved, setSaved] = useState(hero);
@@ -53,6 +57,10 @@ function HeroEditor({
   const [pendingRemoval, setPendingRemoval] = useState<string | null>(null);
 
   const dirty = fingerprint(value) !== baseline;
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+  }, [dirty, onDirtyChange]);
+
   const slideErrors = useMemo(() => value.slides.map(validateSlide), [value.slides]);
   const hasFormatErrors = slideErrors.some((errors) => Object.keys(errors).length > 0);
 
@@ -123,21 +131,23 @@ function HeroEditor({
   }
 
   return (
-    <Card>
+    <EditorSurface embedded={embedded}>
       <form onSubmit={handleSubmit} className="flex flex-col gap-6" noValidate>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="font-mono text-label uppercase tracking-[0.06em] text-muted-foreground-strong">
-              Hero del home
-            </p>
-            <p className="mt-1 text-body-sm text-muted-foreground">
-              La portada de la tienda. Hasta {MAX_SLIDES} slides que cambian solos cada 6 segundos.
-            </p>
+        {embedded ? null : (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="font-mono text-label uppercase tracking-[0.06em] text-muted-foreground-strong">
+                Hero del home
+              </p>
+              <p className="mt-1 text-body-sm text-muted-foreground">
+                La portada de la tienda. Hasta {MAX_SLIDES} slides que cambian solos cada 6 segundos.
+              </p>
+            </div>
+            <Badge color={dirty ? "warning" : "success"}>
+              {dirty ? "Cambios sin guardar" : "Guardado"}
+            </Badge>
           </div>
-          <Badge color={dirty ? "warning" : "success"}>
-            {dirty ? "Cambios sin guardar" : "Guardado"}
-          </Badge>
-        </div>
+        )}
 
         <div className="flex items-center gap-3">
           <Switch
@@ -209,7 +219,7 @@ function HeroEditor({
           Descartar.
         </p>
       </ConfirmModal>
-    </Card>
+    </EditorSurface>
   );
 }
 

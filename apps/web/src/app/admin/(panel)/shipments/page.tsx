@@ -30,13 +30,15 @@ export default function ShipmentsPage() {
   );
 
   // Llegada desde la tarjeta de Envíos del Resumen (Milestone 2.9): las
-  // colas ya están abiertas por default (mismo criterio que Pedidos), así
-  // que enfocar es desplazar hasta la cola pedida en el canal ya elegido.
+  // colas nacen cerradas (mismo criterio que Pedidos), salvo la pedida, que
+  // abre y a la que se desplaza la vista en el canal ya elegido.
   // SOLO al montar: `channelRef` deja leer el canal actual sin que el
   // efecto reviva cada vez que la clienta cambia de pestaña a mano — sin
   // esto, `delivered` (la única cola que existe en ambos canales) volvía a
   // hacer scroll cada vez que se cambiaba de Tienda a Suscripción o
   // viceversa (hallazgo de code review).
+  const [arrivalChannel] = useState(channel);
+  const openQueue = channel === arrivalChannel ? initialQueue : null;
   const channelRef = useRef(channel);
   useEffect(() => {
     channelRef.current = channel;
@@ -56,7 +58,11 @@ export default function ShipmentsPage() {
       <div className="mb-6">
         <Tabs items={CHANNEL_TABS} activeId={channel} onChange={setChannel} ariaLabel="Canal de envío" />
       </div>
-      {channel === "store" ? <StoreShipmentsTab /> : <SubscriptionShipmentsTab />}
+      {channel === "store" ? (
+        <StoreShipmentsTab openQueue={openQueue} />
+      ) : (
+        <SubscriptionShipmentsTab openQueue={openQueue} />
+      )}
     </div>
   );
 }

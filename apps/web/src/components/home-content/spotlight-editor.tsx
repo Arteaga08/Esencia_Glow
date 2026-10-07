@@ -1,15 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { AdminHomeSpotlight } from "@esencia-glow/shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { FieldError } from "@/components/ui/field-error";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/toast";
 import { ApiRequestError } from "@/lib/api";
+import { EditorSurface } from "./editor-surface";
 import type { HeroImageSlot as Slot } from "./hero-form-value";
 import { HeroImageSlot } from "./hero-image-slot";
 import { saveSpotlight } from "./spotlight-actions";
@@ -30,6 +30,8 @@ interface SpotlightEditorProps {
   meta: SpotlightMeta;
   section: AdminHomeSpotlight;
   onSaved: (section: AdminHomeSpotlight) => void;
+  embedded?: boolean;
+  onDirtyChange?: (dirty: boolean) => void;
 }
 
 /**
@@ -38,7 +40,7 @@ interface SpotlightEditorProps {
  * tarjetas no se editan aquí: salen del catálogo. Un 409 significa que otra
  * persona editó el bloque: se avisa y no se pisa nada.
  */
-function SpotlightEditor({ meta, section, onSaved }: SpotlightEditorProps) {
+function SpotlightEditor({ meta, section, onSaved, embedded = false, onDirtyChange }: SpotlightEditorProps) {
   const { toast } = useToast();
   const [saved, setSaved] = useState(section);
   const [value, setValue] = useState<SpotlightFormValue>(() => toFormValue(section, meta));
@@ -49,6 +51,10 @@ function SpotlightEditor({ meta, section, onSaved }: SpotlightEditorProps) {
   const [saving, setSaving] = useState(false);
 
   const dirty = fingerprint(value) !== baseline;
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+  }, [dirty, onDirtyChange]);
+
   const formatErrors = useMemo(() => validate(value), [value]);
   const errors = { ...apiErrors, ...(showErrors ? formatErrors : {}) };
 
@@ -98,17 +104,19 @@ function SpotlightEditor({ meta, section, onSaved }: SpotlightEditorProps) {
   }
 
   return (
-    <Card>
+    <EditorSurface embedded={embedded}>
       <form onSubmit={handleSubmit} className="flex flex-col gap-6" noValidate>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="font-mono text-label uppercase tracking-[0.06em] text-muted-foreground-strong">
-              {meta.label}
-            </p>
-            <p className="mt-1 max-w-[70ch] text-body-sm text-muted-foreground">{meta.cardsHint}</p>
+        {embedded ? null : (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="font-mono text-label uppercase tracking-[0.06em] text-muted-foreground-strong">
+                {meta.label}
+              </p>
+              <p className="mt-1 max-w-[70ch] text-body-sm text-muted-foreground">{meta.cardsHint}</p>
+            </div>
+            <Badge color={dirty ? "warning" : "success"}>{dirty ? "Cambios sin guardar" : "Guardado"}</Badge>
           </div>
-          <Badge color={dirty ? "warning" : "success"}>{dirty ? "Cambios sin guardar" : "Guardado"}</Badge>
-        </div>
+        )}
 
         <div className="flex items-center gap-3">
           <Switch
@@ -168,7 +176,7 @@ function SpotlightEditor({ meta, section, onSaved }: SpotlightEditorProps) {
           </Button>
         </div>
       </form>
-    </Card>
+    </EditorSurface>
   );
 }
 
