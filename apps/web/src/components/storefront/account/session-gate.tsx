@@ -64,8 +64,10 @@ function SessionGate({ bare = false }: { bare?: boolean }) {
   // `bare`: dentro de una página de Mi cuenta, que ya vive en el `<main>` del marco.
   if (bare) return skeleton;
 
+  // Alto de pantalla completa, igual que `AuthShell`: el esqueleto es corto y, sin
+  // esto, el footer sube pegado al navbar un instante antes de ir a /ingresar.
   return (
-    <main className="pt-16 pb-40 xl:pt-20" aria-busy="true">
+    <main className="min-h-[100dvh] pt-16 pb-40 xl:pt-20" aria-busy="true">
       <div className="mx-auto max-w-shell px-4 py-14 md:px-8 xl:px-12">{skeleton}</div>
     </main>
   );

@@ -7,9 +7,9 @@
  * mapeo a filtro de Mongo vive en `shipment-panel.service.ts`, del lado de
  * la API.
  */
-type ShipmentQueue = "problems" | "preparing" | "transit" | "delivered";
+type ShipmentQueue = "problems" | "paid" | "preparing" | "transit" | "delivered";
 
-const SHIPMENT_QUEUES: ShipmentQueue[] = ["problems", "preparing", "transit", "delivered"];
+const SHIPMENT_QUEUES: ShipmentQueue[] = ["problems", "paid", "preparing", "transit", "delivered"];
 
 export { SHIPMENT_QUEUES };
 export type { ShipmentQueue };

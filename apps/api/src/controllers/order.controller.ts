@@ -51,7 +51,9 @@ const resumePayment = asyncHandler(async (req: Request<{ id: string }>, res: Res
 });
 
 const listMine = asyncHandler(async (req: Request, res: Response) => {
-  const query = parseListQuery(req.query);
+  // Lo más reciente primero: la tienda pide `limit=1` para saber cuál es el último
+  // pedido (el pendiente por pagar en el checkout, el resumen de Mi cuenta).
+  const query = parseListQuery(req.query, "-createdAt");
   const { rows, meta } = await listMyOrders({ ...query, userId: req.user!.id });
   sendResponse(res, 200, "Pedidos.", rows.map(buildPublicOrder), meta);
 });

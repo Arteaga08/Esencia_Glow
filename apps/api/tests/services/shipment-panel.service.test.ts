@@ -7,7 +7,7 @@ import { seedPaidOrder } from "../helpers/paid-order-fixtures.js";
 
 /**
  * Read model de `/admin/shipments` (Milestone 2.4) — calcado de
- * `order-admin.service.ts`: cuatro colas DISJUNTAS por construcción sobre
+ * `order-admin.service.ts`: cinco colas DISJUNTAS por construcción sobre
  * `status`/`label.status`/`tracking.status`, nunca un tercer eje de
  * agrupación mezclado con `?group=` (ese sigue siendo exclusivo de Pedidos).
  */
@@ -36,17 +36,17 @@ describe("services/shipment-panel — colas", () => {
   });
 
 
-  it("una guía en needs_review cae en problems, no en preparing", async () => {
+  it("una guía en needs_review cae en problems, no en paid", async () => {
     const { orderId } = await seed({
       status: OrderStatus.PAID,
       label: { status: ShippingLabelStatus.NEEDS_REVIEW, attempts: 3 },
     });
 
     const problems = await listAdminShipments({ ...baseQuery, queue: "problems" });
-    const preparing = await listAdminShipments({ ...baseQuery, queue: "preparing" });
+    const paid = await listAdminShipments({ ...baseQuery, queue: "paid" });
 
     expect(problems.rows.map((r) => r.id)).toContain(orderId);
-    expect(preparing.rows.map((r) => r.id)).not.toContain(orderId);
+    expect(paid.rows.map((r) => r.id)).not.toContain(orderId);
   });
 
   it("un pedido shipped con rastreo en exception cae en problems, no en transit", async () => {
@@ -62,12 +62,15 @@ describe("services/shipment-panel — colas", () => {
     expect(transit.rows.map((r) => r.id)).not.toContain(orderId);
   });
 
-  it("una orden pagada sin guía cae en preparing", async () => {
-    const { orderId } = await seed({ status: OrderStatus.PAID });
+  it("una orden pagada cae en paid y una en preparación cae en preparing, sin mezclarse", async () => {
+    const { orderId: paidId } = await seed({ status: OrderStatus.PAID });
+    const { orderId: processingId } = await seed({ status: OrderStatus.PROCESSING });
 
-    const { rows } = await listAdminShipments({ ...baseQuery, queue: "preparing" });
+    const paid = await listAdminShipments({ ...baseQuery, queue: "paid" });
+    const preparing = await listAdminShipments({ ...baseQuery, queue: "preparing" });
 
-    expect(rows.map((r) => r.id)).toContain(orderId);
+    expect(paid.rows.map((r) => r.id)).toEqual([paidId]);
+    expect(preparing.rows.map((r) => r.id)).toEqual([processingId]);
   });
 
   it("shipped sin incidencias cae en transit; delivered sin incidencias cae en delivered", async () => {
@@ -92,7 +95,7 @@ describe("services/shipment-panel — colas", () => {
   it("una orden pending no aparece en ninguna cola", async () => {
     const { orderId } = await seed({ status: OrderStatus.PENDING });
 
-    for (const queue of ["problems", "preparing", "transit", "delivered"] as const) {
+    for (const queue of ["problems", "paid", "preparing", "transit", "delivered"] as const) {
       const { rows } = await listAdminShipments({ ...baseQuery, queue });
       expect(rows.map((r) => r.id)).not.toContain(orderId);
     }
@@ -118,7 +121,7 @@ describe("services/shipment-panel — colas", () => {
     const { orderId } = await seed({ status: OrderStatus.PAID });
     const order = await Order.findById(orderId).lean();
 
-    const { rows } = await listAdminShipments({ ...baseQuery, queue: "preparing", search: order!.orderNumber });
+    const { rows } = await listAdminShipments({ ...baseQuery, queue: "paid", search: order!.orderNumber });
 
     expect(rows.map((r) => r.id)).toEqual([orderId]);
   });
@@ -127,7 +130,7 @@ describe("services/shipment-panel — colas", () => {
     await seed({ status: OrderStatus.PAID });
     await seed({ status: OrderStatus.PAID });
 
-    const { meta } = await listAdminShipments({ ...baseQuery, queue: "preparing", limit: 1 });
+    const { meta } = await listAdminShipments({ ...baseQuery, queue: "paid", limit: 1 });
 
     expect(meta.total).toBe(2);
     expect(meta.pages).toBe(2);

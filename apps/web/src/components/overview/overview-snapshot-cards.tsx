@@ -25,7 +25,8 @@ function buildShipmentRows(snapshot: OverviewSnapshot): BreakdownRow[] {
       href: `${ADMIN_ROUTES.shipments}?channel=store&queue=problems`,
       tone: "critical",
     },
-    { key: "preparing", label: "Por despachar", value: snapshot.shipmentQueues.preparing, href: `${ADMIN_ROUTES.shipments}?channel=store&queue=preparing` },
+    { key: "paid", label: "Pagados, por preparar", value: snapshot.shipmentQueues.paid, href: `${ADMIN_ROUTES.shipments}?channel=store&queue=paid` },
+    { key: "preparing", label: "En preparación", value: snapshot.shipmentQueues.preparing, href: `${ADMIN_ROUTES.shipments}?channel=store&queue=preparing` },
     { key: "transit", label: "En camino", value: snapshot.shipmentQueues.transit, href: `${ADMIN_ROUTES.shipments}?channel=store&queue=transit` },
     { key: "delivered", label: "Entregadas", value: snapshot.shipmentQueues.delivered, href: `${ADMIN_ROUTES.shipments}?channel=store&queue=delivered`, tone: "good" },
     {
