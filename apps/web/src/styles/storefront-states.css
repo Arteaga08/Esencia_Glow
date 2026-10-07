@@ -1,0 +1,44 @@
+/*
+ * Estados de carga de la tienda. Los bloques `sk` llevan un brillo diagonal
+ * que los cruza, escalonado por `--sk-i` (la posición de la sección en la
+ * página: la que va más abajo arranca más tarde). Solo se anima `transform`.
+ */
+
+.sk {
+  position: relative;
+  overflow: hidden;
+  background-color: var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+/* Sobre una banda rosa o una foto, el bloque se aclara en vez de oscurecerse. */
+.sk[data-tone="blush"] {
+  background-color: color-mix(in oklab, var(--color-surface) 55%, transparent);
+}
+
+.sk::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    100deg,
+    transparent 25%,
+    color-mix(in oklab, var(--color-surface) 80%, transparent) 50%,
+    transparent 75%
+  );
+  animation: sk-sweep 1.8s cubic-bezier(0.25, 1, 0.5, 1) infinite;
+  animation-delay: calc(var(--sk-i, 0) * 140ms);
+}
+
+@keyframes sk-sweep {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sk::after {
+    animation: none;
+  }
+}
