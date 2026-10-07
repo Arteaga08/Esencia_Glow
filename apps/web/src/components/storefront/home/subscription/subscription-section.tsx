@@ -66,7 +66,7 @@ function SubscriptionSection({ name, highlights, periods, availability, photo }:
                 {note}
               </p>
             ) : null}
-            <SubscribeButton soldOut={soldOut} className="mt-6" />
+            <SubscribeButton className="mt-6" />
           </div>
         </div>
       </div>

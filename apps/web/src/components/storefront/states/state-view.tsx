@@ -12,14 +12,15 @@ interface StateViewProps {
 }
 
 /**
- * Página de estado (404 o error): una banda rosa con el mensaje y, debajo, la
- * tienda sigue ahí (el estante de más vendidos en el 404). En error no se
- * agrega nada: si el API falló, no se le pide más. La banda deja espacio para
+ * Página de estado (404, error o "próximamente"): una banda rosa con el mensaje
+ * y, debajo, la tienda sigue ahí (el estante de más vendidos en el 404). En
+ * error no se agrega nada: si el API falló, no se le pide más; "próximamente"
+ * tampoco lleva nada debajo. La banda deja espacio para
  * el header fijo, que es transparente arriba de la página.
  */
 function StateView({ kind, retry, digest, extra }: StateViewProps) {
   const copy = STATE_COPY[kind];
-  const tall = kind === "error" ? "flex min-h-[70svh] items-end" : "";
+  const tall = kind === "not-found" ? "" : "flex min-h-[70svh] items-end";
 
   return (
     <main>
