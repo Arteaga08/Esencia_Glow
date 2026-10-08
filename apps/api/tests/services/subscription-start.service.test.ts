@@ -424,12 +424,15 @@ describe("services/subscription-start — Stripe activa la suscripción de inmed
  */
 describe("services/subscription-start — alta anual (Milestone 2.7b)", () => {
   const ANCHOR_DAY = 15;
-  const SAFE_NOW = new Date("2026-09-20T12:00:00.000Z"); // día 20, después del ancla 15
-  const DANGER_NOW = new Date("2026-09-05T12:00:00.000Z"); // día 5, antes del ancla 15
+  const SAFE_NOW = new Date("2099-09-20T12:00:00.000Z"); // día 20, después del ancla 15
+  const DANGER_NOW = new Date("2099-09-05T12:00:00.000Z"); // día 5, antes del ancla 15
 
   // En todo el archivo el reloj falso cubre solo `Date`: mongoose necesita los
-  // timers reales, y con todos falsos una espera del driver nunca termina
-  // (timeouts esporádicos con la suite completa bajo carga).
+  // timers reales. Y las fechas congeladas van SIEMPRE en el futuro (2099): si
+  // un heartbeat de Mongo llega con el reloj congelado en una fecha ya pasada,
+  // mongoose lo compara contra el reloj real, da la conexión por caída y la
+  // siguiente operación muere con "buffering timed out" (pasaba solo con la
+  // suite completa, cuando el archivo tarda más de los 10 s entre heartbeats).
   it("usa el Price anual del plan y guarda billingInterval: year", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(SAFE_NOW);
@@ -525,8 +528,8 @@ describe("services/subscription-start — alta anual (Milestone 2.7b)", () => {
  */
 describe("services/subscription-start — alta trimestral (Milestone 3.1.7b)", () => {
   const ANCHOR_DAY = 15;
-  const SAFE_NOW = new Date("2026-11-20T12:00:00.000Z"); // día 20, después del ancla 15
-  const DANGER_NOW = new Date("2026-11-05T12:00:00.000Z"); // día 5, antes del ancla 15
+  const SAFE_NOW = new Date("2099-11-20T12:00:00.000Z"); // día 20, después del ancla 15
+  const DANGER_NOW = new Date("2099-11-05T12:00:00.000Z"); // día 5, antes del ancla 15
 
   it("usa el Price trimestral del plan, ancla a febrero y guarda billingInterval: quarter", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
