@@ -94,9 +94,10 @@ describe("routes/subscription — POST /subscriptions", () => {
     // del mes en curso. `pickSafeAnchorDay()` no puede evitarlo el día 1 (cae a
     // 28), así que el reloj se fija en un día 20 con ancla 15, igual que
     // `subscription-start.service.test.ts`. Solo `Date`: supertest y mongoose
-    // necesitan los timers reales.
+    // necesitan los timers reales. La fecha va en el futuro (2099) por lo mismo
+    // que en ese archivo: una fecha ya pasada tira la conexión de mongoose.
     vi.useFakeTimers({ toFake: ["Date"] });
-    vi.setSystemTime(new Date("2026-09-20T12:00:00.000Z"));
+    vi.setSystemTime(new Date("2099-09-20T12:00:00.000Z"));
     try {
       await updateSubscriptionSettings({ billingAnchorDay: 15 });
       await openEnrollment({});
@@ -117,7 +118,7 @@ describe("routes/subscription — POST /subscriptions", () => {
 
   it("billingInterval: 'quarter' crea la cuenta con ese intervalo (Milestone 3.1.7b)", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
-    vi.setSystemTime(new Date("2026-09-20T12:00:00.000Z"));
+    vi.setSystemTime(new Date("2099-09-20T12:00:00.000Z"));
     try {
       await updateSubscriptionSettings({ billingAnchorDay: 15 });
       await openEnrollment({});
