@@ -8,6 +8,7 @@ import type { ProductView } from "@/lib/storefront/product-view";
 import { AddToCartButton } from "./add-to-cart-button";
 import { BenefitTags } from "./benefit-tags";
 import { ProductHeading } from "./product-heading";
+import { PurchaseAssurances } from "./purchase-assurances";
 import { QuantityStepper } from "./quantity-stepper";
 import { SaveButton } from "./save-button";
 import { SkinTypes } from "./skin-types";
@@ -89,6 +90,7 @@ function PurchasePanel({ product }: { product: ProductView }) {
         <SaveButton productId={product.id} slug={product.slug} name={product.name} />
       </div>
       {limitNotice ? <FieldError message={limitNotice} /> : null}
+      <PurchaseAssurances />
     </div>
   );
 }
