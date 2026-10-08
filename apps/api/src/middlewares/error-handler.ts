@@ -59,7 +59,11 @@ function errorHandler(error: unknown, req: Request, res: Response, _next: NextFu
   const normalized = normalizeError(error);
 
   if (!isOperational) {
-    logger.error({ err: error, path: req.originalUrl }, "Error no operacional");
+    // Solo los 5xx son fallos nuestros y llegan a Sentry (vía el hook del
+    // logger). Un error de Mongoose/JWT normalizado a 4xx es entrada inválida
+    // del cliente: se registra como `warn` para no inundar Sentry de ruido.
+    const level = normalized.statusCode >= 500 ? "error" : "warn";
+    logger[level]({ err: error, path: req.originalUrl }, "Error no operacional");
   }
 
   const message =

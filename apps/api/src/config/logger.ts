@@ -1,5 +1,9 @@
 import pino from "pino";
 import { env } from "./env.js";
+import { reportLoggedError } from "./sentry.js";
+
+/** Nivel numérico de pino para `error` (`fatal` es 60). */
+const PINO_ERROR_LEVEL = 50;
 
 /**
  * Reglas de redacción, exportadas aparte del logger para que
@@ -36,6 +40,14 @@ const redact = {
 const logger = pino({
   level: env.isDevelopment ? "debug" : "info",
   redact,
+  // Todo `logger.error`/`fatal` (jobs, servicios, handler de errores) llega a
+  // Sentry desde este único punto; así no hay que instrumentar cada llamada.
+  hooks: {
+    logMethod(args, method, level) {
+      if (level >= PINO_ERROR_LEVEL) reportLoggedError(args);
+      method.apply(this, args);
+    },
+  },
   transport: env.isDevelopment
     ? { target: "pino-pretty", options: { colorize: true, translateTime: "SYS:HH:MM:ss" } }
     : undefined,
