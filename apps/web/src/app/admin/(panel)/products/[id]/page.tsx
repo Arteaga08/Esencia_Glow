@@ -302,16 +302,21 @@ export default function EditProductPage() {
 
   return (
     <div className="flex max-w-6xl flex-col gap-6">
-      <div className="flex items-center gap-3">
-        <p className="text-body text-muted-foreground-strong">Editando: {product.name}</p>
-        {product.status !== "archived" ? (
-          <Switch
-            checked={product.status === "active"}
-            onChange={handleTogglePublish}
-            label="Publicar producto"
-            disabled={togglingPublish}
-          />
-        ) : null}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <p className="text-body text-muted-foreground-strong">Editando: {product.name}</p>
+          {product.status !== "archived" ? (
+            <Switch
+              checked={product.status === "active"}
+              onChange={handleTogglePublish}
+              label="Publicar producto"
+              disabled={togglingPublish}
+            />
+          ) : null}
+        </div>
+        <Button type="submit" form="edit-product-form" variant="primary" loading={savingBase}>
+          Guardar cambios
+        </Button>
       </div>
 
       <form id="edit-product-form" onSubmit={handleSaveBase} className="flex flex-col gap-6">

@@ -53,7 +53,7 @@ export default function ProductsPage() {
   const [meta, setMeta] = useState<PaginationMeta | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const { categoryOptions, categoriesById, badgesById } = useCatalogFilters();
+  const { categoryOptions, categoriesById, badgesById, brandsById } = useCatalogFilters();
 
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [archiveTarget, setArchiveTarget] = useState<AdminProduct | null>(null);
@@ -262,6 +262,7 @@ export default function ProductsPage() {
                 key={product.id}
                 product={product}
                 category={categoriesById.get(product.categoryId)}
+                brand={product.brandId ? brandsById.get(product.brandId) : undefined}
                 badge={product.badgeId ? badgesById.get(product.badgeId) : undefined}
                 onTogglePublish={handleTogglePublish}
                 onArchive={setArchiveTarget}

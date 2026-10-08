@@ -75,8 +75,9 @@ function useCatalogFilters() {
 
   const categoriesById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
   const badgesById = useMemo(() => new Map(badges.map((b) => [b.id, b])), [badges]);
+  const brandsById = useMemo(() => new Map(brands.map((b) => [b.id, b])), [brands]);
 
-  return { categories, badges, brands, categoryOptions, badgeOptions, brandOptions, categoriesById, badgesById };
+  return { categories, badges, brands, categoryOptions, badgeOptions, brandOptions, categoriesById, badgesById, brandsById };
 }
 
 export { useCatalogFilters };

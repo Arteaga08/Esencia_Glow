@@ -5,13 +5,14 @@ import { Archive, PencilSimple, Trash } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { formatMoneyMXN } from "@/lib/format-money";
-import type { AdminBadge, AdminCategory, AdminProduct } from "@/lib/types/admin-catalog";
+import type { AdminBadge, AdminBrand, AdminCategory, AdminProduct } from "@/lib/types/admin-catalog";
 import { ADMIN_ROUTES } from "@/lib/admin-routes";
 
 interface ProductCardProps {
   product: AdminProduct;
   category?: AdminCategory;
   badge?: AdminBadge;
+  brand?: AdminBrand;
   onTogglePublish: (product: AdminProduct, nextActive: boolean) => void;
   onArchive: (product: AdminProduct) => void;
   togglingPublish: boolean;
@@ -29,6 +30,7 @@ function ProductCard({
   product,
   category,
   badge,
+  brand,
   onTogglePublish,
   onArchive,
   togglingPublish,
@@ -68,6 +70,11 @@ function ProductCard({
         ) : null}
       </div>
       <div className="p-3">
+        {brand ? (
+          <p className="truncate font-mono text-label uppercase tracking-[0.06em] text-muted-foreground-strong">
+            {brand.name}
+          </p>
+        ) : null}
         <p className="truncate text-body-sm font-medium text-foreground">{product.name}</p>
         <p className="mt-0.5 truncate text-body-sm text-muted-foreground-strong">
           {category?.name ?? "Sin categoría"}

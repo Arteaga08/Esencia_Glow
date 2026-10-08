@@ -188,7 +188,12 @@ export default function NewProductPage() {
 
   return (
     <form onSubmit={handleSubmit} className="flex max-w-6xl flex-col gap-6">
-      <p className="text-body text-muted-foreground-strong">Nuevo producto</p>
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-body text-muted-foreground-strong">Nuevo producto</p>
+        <Button type="submit" variant="primary" loading={submitting}>
+          Crear producto
+        </Button>
+      </div>
 
       <Card>
         <ProductBaseFields value={base} onChange={handleBaseChange} errors={fieldErrors} />
