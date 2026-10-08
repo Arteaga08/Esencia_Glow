@@ -50,6 +50,7 @@ export default function NewProductPage() {
     badgeId: null,
     isBestseller: false,
     isNewArrival: false,
+    skinTypes: [],
     channel: "store",
   });
   const [variants, setVariants] = useState<VariantDraft[]>([emptyVariantDraft(`${variantIdSeed}-0`)]);
@@ -119,6 +120,7 @@ export default function NewProductPage() {
           badgeId: base.badgeId,
           isBestseller: base.isBestseller,
           isNewArrival: base.isNewArrival,
+          skinTypes: base.skinTypes,
           channel: base.channel,
           content: {
             ingredients: content.ingredients,

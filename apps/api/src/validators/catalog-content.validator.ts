@@ -50,6 +50,27 @@ const brandIdSchema = Joi.string().hex().length(24).allow(null).messages({
   "string.length": "La marca no es válida",
 });
 
+/**
+ * Tipos de piel, texto libre. La comparación de repetidos ignora mayúsculas:
+ * "Seca" y "seca" son la misma etiqueta para quien captura.
+ */
+const skinTypesSchema = Joi.array()
+  .items(
+    Joi.string().trim().min(1).max(40).messages({
+      "string.base": "Cada tipo de piel debe ser texto",
+      "string.empty": "El tipo de piel no puede ir vacío",
+      "string.min": "El tipo de piel no puede ir vacío",
+      "string.max": "Cada tipo de piel puede tener hasta 40 caracteres",
+    }),
+  )
+  .max(10)
+  .unique((a: string, b: string) => a.toLowerCase() === b.toLowerCase())
+  .messages({
+    "array.base": "Los tipos de piel no son válidos",
+    "array.max": "Un producto puede tener hasta 10 tipos de piel",
+    "array.unique": "Hay tipos de piel repetidos",
+  });
+
 /** Precio de lista, centavos — SOLO presentación (el "antes" tachado). */
 const listPriceSchema = Joi.number().integer().min(0).allow(null).messages({
   "number.base": "El precio anterior debe ser un número",
@@ -85,6 +106,7 @@ export {
   contentSchema,
   badgeIdSchema,
   brandIdSchema,
+  skinTypesSchema,
   listPriceSchema,
   validateListPriceAboveSalePrice,
   listPriceMessages,

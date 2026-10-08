@@ -1,10 +1,13 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { FieldError } from "@/components/ui/field-error";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { TagInput } from "@/components/ui/tag-input";
+import { apiRequest } from "@/lib/api";
 import { useCatalogFilters } from "@/lib/hooks/use-catalog-filters";
 import type { AdminProductChannel } from "@/lib/types/admin-catalog";
 
@@ -17,6 +20,7 @@ interface ProductBaseFieldsValue {
   badgeId: string | null;
   isBestseller: boolean;
   isNewArrival: boolean;
+  skinTypes: string[];
   channel: AdminProductChannel;
 }
 
@@ -42,6 +46,7 @@ const CHANNEL_HELPERS: Record<AdminProductChannel, string> = {
  * editorial viven en sus propios bloques del editor, no aquí. */
 function ProductBaseFields({ value, onChange, errors }: ProductBaseFieldsProps) {
   const { categoryOptions, badgeOptions, brandOptions } = useCatalogFilters();
+  const skinTypeSuggestions = useSkinTypeSuggestions();
 
   return (
     <div className="flex flex-col gap-4">
@@ -73,6 +78,15 @@ function ProductBaseFields({ value, onChange, errors }: ProductBaseFieldsProps) 
         value={value.description}
         onChange={(e) => onChange({ description: e.target.value })}
         error={errors?.description}
+      />
+      <TagInput
+        label="Tipo de piel (opcional)"
+        placeholder="Seca, Mixta, Sensible…"
+        value={value.skinTypes}
+        onChange={(skinTypes) => onChange({ skinTypes })}
+        suggestions={skinTypeSuggestions}
+        helper="Escribe uno y presiona Enter o coma. Puedes poner varios; lo que escribas queda guardado para los siguientes productos."
+        error={errors?.skinTypes}
       />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Select
@@ -116,6 +130,28 @@ function ProductBaseFields({ value, onChange, errors }: ProductBaseFieldsProps) 
       </div>
     </div>
   );
+}
+
+/** Tipos de piel ya capturados en otros productos. Si falla, el campo sigue
+ * funcionando como texto libre, solo sin sugerencias. */
+function useSkinTypeSuggestions(): string[] {
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    apiRequest<string[]>("/api/v1/admin/products/skin-types", { authenticated: true })
+      .then((response) => {
+        if (!cancelled) setSuggestions(response.data);
+      })
+      .catch(() => {
+        // Silencioso a propósito — ver comentario de arriba.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return suggestions;
 }
 
 /** Interruptor con su texto a un lado: el `Switch` no lleva etiqueta visible. */

@@ -178,6 +178,8 @@ interface LeanProduct {
   status: string;
   isBestseller?: boolean;
   isNewArrival?: boolean;
+  // Sin backfill: un producto anterior a este campo no lo trae.
+  skinTypes?: string[];
   channel: ProductChannel;
   images: LeanMediaImage[];
   variants: LeanVariant[];
@@ -202,6 +204,7 @@ interface AdminProduct {
   status: string;
   isBestseller: boolean;
   isNewArrival: boolean;
+  skinTypes: string[];
   channel: ProductChannel;
   images: PublicProductImage[];
   variants: AdminVariant[];
@@ -275,6 +278,7 @@ function buildAdminProduct(product: LeanProduct): AdminProduct {
     status: product.status,
     isBestseller: product.isBestseller ?? false,
     isNewArrival: product.isNewArrival ?? false,
+    skinTypes: product.skinTypes ?? [],
     channel: product.channel,
     images: product.images.map((image) => buildImageDto(image)!),
     variants: product.variants.map(buildAdminVariant),
@@ -305,6 +309,7 @@ function buildPublicProduct(
     minPrice: product.minPrice,
     currency: CATALOG_CURRENCY,
     ...(badge ? { badge: buildPublicBadge(badge) } : {}),
+    ...(product.skinTypes?.length ? { skinTypes: product.skinTypes } : {}),
     ...(buildContentDto(product.content) ? { content: buildContentDto(product.content) } : {}),
   };
 }
