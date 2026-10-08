@@ -66,6 +66,7 @@ interface CreateProductInput {
   badgeId?: string | null;
   isBestseller?: boolean;
   isNewArrival?: boolean;
+  skinTypes?: string[];
   channel?: ProductChannel;
   content?: ProductContentInput;
   variants: CreateProductVariantInput[];
@@ -80,6 +81,7 @@ interface UpdateProductInput {
   badgeId?: string | null;
   isBestseller?: boolean;
   isNewArrival?: boolean;
+  skinTypes?: string[];
   status?: ProductStatus;
   channel?: ProductChannel;
   content?: ProductContentInput;
@@ -183,6 +185,7 @@ async function createProduct(input: CreateProductInput): Promise<ProductDocument
       badgeId: input.badgeId ?? null,
       isBestseller: input.isBestseller,
       isNewArrival: input.isNewArrival,
+      skinTypes: input.skinTypes,
       channel: input.channel,
       content: input.content,
       variants,
@@ -264,6 +267,7 @@ async function updateProduct(id: string, input: UpdateProductInput): Promise<Pro
   }
   if (input.isBestseller !== undefined) product.isBestseller = input.isBestseller;
   if (input.isNewArrival !== undefined) product.isNewArrival = input.isNewArrival;
+  if (input.skinTypes !== undefined) product.skinTypes = input.skinTypes;
   if (input.description !== undefined) product.description = input.description;
   if (input.shortDescription !== undefined) product.shortDescription = input.shortDescription;
   if (input.brandId !== undefined) {
@@ -325,6 +329,21 @@ async function getProductById(id: string): Promise<AdminProduct> {
   return buildAdminProduct(product);
 }
 
+/**
+ * Tipos de piel ya capturados en cualquier producto, para sugerirlos en el
+ * editor. Se juntan sin distinguir mayúsculas (gana la primera forma escrita)
+ * y salen en orden alfabético.
+ */
+async function listSkinTypes(): Promise<string[]> {
+  const values = await Product.distinct("skinTypes");
+  const byKey = new Map<string, string>();
+  for (const value of values) {
+    const key = value.toLowerCase();
+    if (!byKey.has(key)) byKey.set(key, value);
+  }
+  return [...byKey.values()].sort((a, b) => a.localeCompare(b, "es"));
+}
+
 export {
   createProduct,
   updateProduct,
@@ -333,6 +352,7 @@ export {
   getProductById,
   getProductDocument,
   resolveCategoryIds,
+  listSkinTypes,
 };
 export type {
   CreateProductInput,

@@ -45,6 +45,9 @@ interface ProductAttrs {
   // una propiedad reservada de los documentos de Mongoose.
   isBestseller: boolean;
   isNewArrival: boolean;
+  // Tipos de piel recomendados, texto libre ("Seca", "Mixta"…). No hay catálogo
+  // aparte: las sugerencias del panel salen de un `distinct` sobre este campo.
+  skinTypes: string[];
   // `Types.DocumentArray` (no un array plano) para que `.id()` y el
   // `.deleteOne()` de cada elemento (usados en catalog-image.service.ts y
   // product-variant.service.ts) queden tipados.
@@ -89,6 +92,7 @@ const productSchema = new Schema<ProductAttrs, ProductModel>(
     },
     isBestseller: { type: Boolean, default: false },
     isNewArrival: { type: Boolean, default: false },
+    skinTypes: { type: [{ type: String, trim: true, maxlength: 40 }], default: [] },
     images: { type: [mediaImageSchema], default: [] },
     variants: { type: [productVariantSchema], default: [] },
     minPrice: { type: Number, default: 0, min: 0 },

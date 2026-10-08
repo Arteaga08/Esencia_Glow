@@ -7,6 +7,7 @@ import {
   contentSchema,
   listPriceMessages,
   listPriceSchema,
+  skinTypesSchema,
   validateListPriceAboveSalePrice,
 } from "./catalog-content.validator.js";
 
@@ -132,6 +133,7 @@ const createProductSchema = Joi.object({
   isNewArrival: Joi.boolean().messages({
     "boolean.base": "Novedad debe ser verdadero o falso",
   }),
+  skinTypes: skinTypesSchema,
   channel: Joi.string()
     .valid(...Object.values(ProductChannel))
     .messages({
@@ -176,6 +178,7 @@ const updateProductSchema = Joi.object({
   isNewArrival: Joi.boolean().messages({
     "boolean.base": "Novedad debe ser verdadero o falso",
   }),
+  skinTypes: skinTypesSchema,
   status: Joi.string().valid("draft", "active", "archived").messages({
     "any.only": "El estado no es válido",
   }),

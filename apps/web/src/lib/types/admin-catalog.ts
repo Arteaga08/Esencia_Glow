@@ -49,6 +49,7 @@ interface AdminProduct {
   badgeId: string | null;
   isBestseller: boolean;
   isNewArrival: boolean;
+  skinTypes: string[];
   status: AdminProductStatus;
   channel: AdminProductChannel;
   images: AdminProductImage[];

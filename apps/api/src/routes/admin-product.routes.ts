@@ -34,6 +34,8 @@ router.use(protect, restrictTo(UserRole.ADMIN));
 
 router.get("/", validate(listProductsQuerySchema, "query"), productController.list);
 router.post("/", validate(createProductSchema), productController.create);
+// Antes de "/:id": si no, "skin-types" caería en la validación de ObjectId.
+router.get("/skin-types", productController.listSkinTypes);
 router.get("/:id", validate(objectIdParamSchema, "params"), productController.getOne);
 router.patch(
   "/:id",

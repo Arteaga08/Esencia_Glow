@@ -115,6 +115,7 @@ export default function EditProductPage() {
           badgeId: p.badgeId,
           isBestseller: p.isBestseller,
           isNewArrival: p.isNewArrival,
+          skinTypes: p.skinTypes,
           channel: p.channel,
         });
         setContent({
@@ -153,6 +154,7 @@ export default function EditProductPage() {
           badgeId: base.badgeId,
           isBestseller: base.isBestseller,
           isNewArrival: base.isNewArrival,
+          skinTypes: base.skinTypes,
           channel: base.channel,
           content,
         },

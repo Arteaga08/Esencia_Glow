@@ -28,6 +28,10 @@ const list = asyncHandler(async (req: Request, res: Response) => {
   sendResponse(res, 200, "Productos obtenidos.", products, meta);
 });
 
+const listSkinTypes = asyncHandler(async (_req: Request, res: Response) => {
+  sendResponse(res, 200, "Tipos de piel obtenidos.", await productService.listSkinTypes());
+});
+
 const create = asyncHandler(async (req: Request, res: Response) => {
   const product = await productService.createProduct(req.body);
   sendResponse(res, 201, "Producto creado.", await productService.getProductById(product.id));
@@ -67,4 +71,4 @@ const removeVariant = asyncHandler(
   },
 );
 
-export { list, create, getOne, update, archive, addVariant, updateVariant, removeVariant };
+export { list, listSkinTypes, create, getOne, update, archive, addVariant, updateVariant, removeVariant };

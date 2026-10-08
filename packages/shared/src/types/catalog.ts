@@ -84,6 +84,8 @@ interface PublicProduct {
   currency: Currency;
   /** A lo más una por producto (Product.badgeId). Ausente si no tiene. */
   badge?: PublicBadge;
+  /** Tipos de piel recomendados, texto libre. Ausente si no se capturó ninguno. */
+  skinTypes?: string[];
   content?: ProductContent;
 }
 

@@ -40,7 +40,7 @@ interface ProductView {
   images: ProductViewImage[];
   variants: ProductViewVariant[];
   sections: ProductViewSection[];
-  /** Tipo de piel recomendado. Todavía no existe en el API: solo lo llena el preview. */
+  /** Tipos de piel recomendados; vacío si no se capturó ninguno. */
   skinTypes: string[];
 }
 
@@ -64,7 +64,6 @@ function toSections(content: ProductContent | undefined): ProductViewSection[] {
 function toProductView(
   product: PublicProduct,
   availability: PublicVariantAvailability[],
-  skinTypes: string[] = [],
 ): ProductView {
   const unavailable = new Set(availability.filter((entry) => !entry.isAvailable).map((entry) => entry.variantId));
 
@@ -90,7 +89,7 @@ function toProductView(
       available: !unavailable.has(variant.id),
     })),
     sections: toSections(product.content),
-    skinTypes,
+    skinTypes: product.skinTypes ?? [],
   };
 }
 
