@@ -165,6 +165,9 @@ function buildEnv() {
     telegramBotToken: process.env.TELEGRAM_BOT_TOKEN,
     adminAlertEmail: process.env.ADMIN_ALERT_EMAIL,
     sentryDsn: process.env.SENTRY_DSN,
+    // Versión desplegada: Sentry la usa para decir qué deploy introdujo un
+    // error. Railway inyecta el SHA del commit; SENTRY_RELEASE lo sobreescribe.
+    sentryRelease: process.env.SENTRY_RELEASE ?? process.env.RAILWAY_GIT_COMMIT_SHA,
 
     // Solo leídas por src/scripts/seed-admin.ts, nunca por el server. Ausentes
     // en producción salvo que se ejecute el seed explícitamente ahí.

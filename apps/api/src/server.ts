@@ -3,9 +3,12 @@ import { buildApp } from "./app.js";
 import { connectDatabase, disconnectDatabase } from "./config/db.js";
 import { env } from "./config/env.js";
 import { logger } from "./config/logger.js";
+import { flushSentry, initSentry } from "./config/sentry.js";
 import { startCronJobs, stopCronJobs } from "./jobs/index.js";
 
 async function start(): Promise<void> {
+  // Antes de conectar a Mongo: un fallo de arranque también debe reportarse.
+  initSentry();
   await connectDatabase();
 
   const app = buildApp();
@@ -44,18 +47,20 @@ async function start(): Promise<void> {
   process.on("SIGINT", () => void shutdown("SIGINT"));
   process.on("SIGTERM", () => void shutdown("SIGTERM"));
 
+  // El `logger.error` ya manda el evento a Sentry; hay que vaciar su cola
+  // antes de `process.exit`, o el error fatal se pierde justo cuando importa.
   process.on("unhandledRejection", (reason) => {
     logger.error({ err: reason }, "Unhandled promise rejection");
-    process.exit(1);
+    void flushSentry().finally(() => process.exit(1));
   });
 
   process.on("uncaughtException", (error) => {
     logger.error({ err: error }, "Uncaught exception");
-    process.exit(1);
+    void flushSentry().finally(() => process.exit(1));
   });
 }
 
 start().catch((error: unknown) => {
   logger.error({ err: error }, "Fallo fatal al arrancar el servidor");
-  process.exit(1);
+  void flushSentry().finally(() => process.exit(1));
 });
