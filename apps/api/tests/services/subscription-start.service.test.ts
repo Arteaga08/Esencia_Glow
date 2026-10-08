@@ -427,8 +427,11 @@ describe("services/subscription-start — alta anual (Milestone 2.7b)", () => {
   const SAFE_NOW = new Date("2026-09-20T12:00:00.000Z"); // día 20, después del ancla 15
   const DANGER_NOW = new Date("2026-09-05T12:00:00.000Z"); // día 5, antes del ancla 15
 
+  // En todo el archivo el reloj falso cubre solo `Date`: mongoose necesita los
+  // timers reales, y con todos falsos una espera del driver nunca termina
+  // (timeouts esporádicos con la suite completa bajo carga).
   it("usa el Price anual del plan y guarda billingInterval: year", async () => {
-    vi.useFakeTimers();
+    vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(SAFE_NOW);
     try {
       await updateSubscriptionSettings({ billingAnchorDay: ANCHOR_DAY });
@@ -453,7 +456,7 @@ describe("services/subscription-start — alta anual (Milestone 2.7b)", () => {
   });
 
   it("plan sin providerAnnualPriceId + billingInterval year -> 409, sin tocar cupo", async () => {
-    vi.useFakeTimers();
+    vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(SAFE_NOW);
     try {
       await updateSubscriptionSettings({ billingAnchorDay: ANCHOR_DAY });
@@ -473,7 +476,7 @@ describe("services/subscription-start — alta anual (Milestone 2.7b)", () => {
   });
 
   it("alta anual ANTES del día-ancla del mes -> 409, sin tocar cupo", async () => {
-    vi.useFakeTimers();
+    vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(DANGER_NOW);
     try {
       await updateSubscriptionSettings({ billingAnchorDay: ANCHOR_DAY });
@@ -497,7 +500,7 @@ describe("services/subscription-start — alta anual (Milestone 2.7b)", () => {
   });
 
   it("replay con un billingInterval DISTINTO al del primer intento -> 409, nunca el clientSecret del intervalo viejo", async () => {
-    vi.useFakeTimers();
+    vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(SAFE_NOW);
     try {
       await updateSubscriptionSettings({ billingAnchorDay: ANCHOR_DAY });
@@ -526,7 +529,7 @@ describe("services/subscription-start — alta trimestral (Milestone 3.1.7b)", (
   const DANGER_NOW = new Date("2026-11-05T12:00:00.000Z"); // día 5, antes del ancla 15
 
   it("usa el Price trimestral del plan, ancla a febrero y guarda billingInterval: quarter", async () => {
-    vi.useFakeTimers();
+    vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(SAFE_NOW);
     try {
       await updateSubscriptionSettings({ billingAnchorDay: ANCHOR_DAY });
@@ -551,7 +554,7 @@ describe("services/subscription-start — alta trimestral (Milestone 3.1.7b)", (
   });
 
   it("plan sin providerQuarterlyPriceId + billingInterval quarter -> 409, sin tocar cupo", async () => {
-    vi.useFakeTimers();
+    vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(SAFE_NOW);
     try {
       await updateSubscriptionSettings({ billingAnchorDay: ANCHOR_DAY });
@@ -571,7 +574,7 @@ describe("services/subscription-start — alta trimestral (Milestone 3.1.7b)", (
   });
 
   it("alta trimestral ANTES del día-ancla del mes -> 409, sin tocar cupo", async () => {
-    vi.useFakeTimers();
+    vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(DANGER_NOW);
     try {
       await updateSubscriptionSettings({ billingAnchorDay: ANCHOR_DAY });
@@ -591,7 +594,7 @@ describe("services/subscription-start — alta trimestral (Milestone 3.1.7b)", (
   });
 
   it("replay con un billingInterval DISTINTO (mensual -> trimestral) -> 409", async () => {
-    vi.useFakeTimers();
+    vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(SAFE_NOW);
     try {
       await updateSubscriptionSettings({ billingAnchorDay: ANCHOR_DAY });
