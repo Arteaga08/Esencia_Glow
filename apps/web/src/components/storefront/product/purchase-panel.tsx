@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { CHECKOUT_MODE } from "@/lib/storefront/checkout/checkout-mode";
 import { FieldError } from "@/components/ui/field-error";
 import { describeAddOutcome } from "@/lib/storefront/cart/add-outcome-copy";
 import type { CartItemInput } from "@/lib/storefront/cart/cart-store";
 import type { ProductView } from "@/lib/storefront/product-view";
 import { AddToCartButton } from "./add-to-cart-button";
 import { BenefitTags } from "./benefit-tags";
+import { DeliveryInfo } from "./delivery-info";
 import { ProductHeading } from "./product-heading";
 import { PurchaseAssurances } from "./purchase-assurances";
 import { QuantityStepper } from "./quantity-stepper";
@@ -63,6 +65,7 @@ function PurchasePanel({ product }: { product: ProductView }) {
         <VariantPicker
           variants={product.variants}
           selectedId={variant.id}
+          compact
           onSelect={(id) => {
             setVariantId(id);
             setLimitNotice(null);
@@ -72,6 +75,7 @@ function PurchasePanel({ product }: { product: ProductView }) {
 
       <div className="flex gap-3">
         <QuantityStepper
+          size="lg"
           value={quantity}
           onChange={(next) => {
             setQuantity(next);
@@ -85,11 +89,13 @@ function PurchasePanel({ product }: { product: ProductView }) {
           totalCents={variant.priceCents * quantity}
           available={variant.available}
           ariaLabel={`Agregar ${quantity} ${product.name}, ${variant.label}`}
+          size="lg"
           className="flex-1"
         />
-        <SaveButton productId={product.id} slug={product.slug} name={product.name} />
+        <SaveButton size="lg" productId={product.id} slug={product.slug} name={product.name} />
       </div>
       {limitNotice ? <FieldError message={limitNotice} /> : null}
+      {CHECKOUT_MODE === "whatsapp" ? <DeliveryInfo /> : null}
       <PurchaseAssurances />
     </div>
   );

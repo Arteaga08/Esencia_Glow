@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { apiRequest } from "@/lib/api";
 import { useCart } from "@/lib/storefront/cart/use-cart";
 import { useResolvedCart } from "@/lib/storefront/cart/use-resolved-cart";
+import { CHECKOUT_MODE } from "@/lib/storefront/checkout/checkout-mode";
 import { linesKeyOf, toOrderLines } from "@/lib/storefront/checkout/order-lines";
 import { usePendingOrder } from "@/lib/storefront/checkout/use-pending-order";
 import { useSessionCheck } from "@/lib/storefront/checkout/use-session-check";
@@ -15,6 +16,7 @@ import { CartEmpty } from "../cart/cart-empty";
 import { TEXT_LINK } from "../cart/cta-styles";
 import { CheckoutFlow, type PlacedOrder } from "./checkout-flow";
 import { PendingOrderView } from "./pending-order-view";
+import { WhatsappCheckoutFlow } from "./whatsapp-checkout-flow";
 
 /** Lo que la página del servidor sabe de la sesión (nada de ella es secreto). */
 interface CheckoutSession {
@@ -51,7 +53,8 @@ function CheckoutView({ session }: { session: CheckoutSession | null }) {
 
   const customer = session?.isCustomer ? session : null;
   const [pendingVersion, setPendingVersion] = useState(0);
-  const pending = usePendingOrder(customer !== null, pendingVersion);
+  // En modo WhatsApp no existen pedidos pendientes de pago: no se consulta.
+  const pending = usePendingOrder(customer !== null && CHECKOUT_MODE === "stripe", pendingVersion);
   const [placed, setPlaced] = useState<PlacedOrder | null>(null);
   const [dismissed, setDismissed] = useState(false);
 
@@ -78,7 +81,11 @@ function CheckoutView({ session }: { session: CheckoutSession | null }) {
 
   if (!hydrated || !sessionKnown) return <CheckoutSkeleton />;
 
-  const flow = (key: string) => (
+  const whatsapp = CHECKOUT_MODE === "whatsapp";
+  const flow = (key: string) =>
+    whatsapp ? (
+      <WhatsappCheckoutFlow key={key} customer={customer} lines={resolved.lines} onSessionLost={() => router.refresh()} />
+    ) : (
     <CheckoutFlow
       key={key}
       customer={customer}
@@ -92,7 +99,7 @@ function CheckoutView({ session }: { session: CheckoutSession | null }) {
       }}
       onSessionLost={() => router.refresh()}
     />
-  );
+    );
 
   // Con un pedido recién creado la página sigue en el flujo (el campo de tarjeta ya tiene los datos).
   if (placed) return flow(placed.linesKey);

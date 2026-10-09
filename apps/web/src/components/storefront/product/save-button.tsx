@@ -14,6 +14,8 @@ interface SaveButtonProps {
   productId: string;
   slug: string;
   name: string;
+  /** `lg` acompaña al botón de agregar dominante (14). */
+  size?: "md" | "lg";
 }
 
 type SaveState = "unknown" | "unsaved" | "saved";
@@ -29,7 +31,7 @@ const QUIET = { redirectOnFailure: false } as const;
  * también falla se marca anónima y, al tocarla, manda a ingresar con
  * `?redirect=` de regreso a este producto.
  */
-function SaveButton({ productId, slug, name }: SaveButtonProps) {
+function SaveButton({ productId, slug, name, size = "md" }: SaveButtonProps) {
   const router = useRouter();
   const [state, setState] = useState<SaveState>("unknown");
   const [busy, setBusy] = useState(false);
@@ -100,7 +102,7 @@ function SaveButton({ productId, slug, name }: SaveButtonProps) {
         disabled={busy || state === "unknown"}
         aria-pressed={saved}
         aria-label={saved ? `Quitar ${name} de guardados` : `Guardar ${name}`}
-        className={`flex size-12 shrink-0 cursor-pointer items-center justify-center rounded-md border border-border-strong bg-surface text-foreground transition-[background-color,transform] duration-[var(--duration-base)] ease-out-quart hover:bg-muted active:scale-[0.96] disabled:cursor-wait disabled:opacity-60 motion-reduce:active:scale-100 ${FOCUS}`}
+        className={`flex ${size === "lg" ? "size-14" : "size-12"} shrink-0 cursor-pointer items-center justify-center rounded-md border border-border-strong bg-surface text-foreground transition-[background-color,transform] duration-[var(--duration-base)] ease-out-quart hover:bg-muted active:scale-[0.96] disabled:cursor-wait disabled:opacity-60 motion-reduce:active:scale-100 ${FOCUS}`}
       >
         <Star size={22} weight={saved ? "fill" : "regular"} aria-hidden="true" />
       </button>

@@ -1,5 +1,6 @@
 "use client";
 
+import { CART_SHIPPING_NOTE, CHECKOUT_CTA_LABEL } from "@/lib/storefront/checkout/checkout-mode";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
@@ -134,12 +135,12 @@ function CartDrawer() {
                 <span className="text-subtitle text-foreground">Subtotal</span>
                 <span className="font-mono text-subtitle tabular-nums text-foreground">{formatMoneyMXN(totals.subtotalCents)}</span>
               </div>
-              <p className="text-body-sm text-muted-foreground-strong">El envío se calcula en el siguiente paso. Los precios ya incluyen IVA.</p>
+              <p className="text-body-sm text-muted-foreground-strong">{CART_SHIPPING_NOTE}</p>
               <CartStatusNote status={status} onRetry={retry} />
               {blocked ? (
                 <>
                   <span aria-disabled="true" className={`${CTA_DISABLED} w-full`}>
-                    Continuar al pago
+                    {CHECKOUT_CTA_LABEL}
                   </span>
                   <p role="status" className="text-body-sm text-muted-foreground-strong">
                     Quita lo que se agotó para continuar.
@@ -147,7 +148,7 @@ function CartDrawer() {
                 </>
               ) : (
                 <Link href="/checkout" onClick={closeCartPanel} className={`${CTA_PRIMARY} w-full`}>
-                  Continuar al pago
+                  {CHECKOUT_CTA_LABEL}
                 </Link>
               )}
               <Link href="/carrito" onClick={closeCartPanel} className={`${TEXT_LINK} self-center`}>

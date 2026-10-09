@@ -1,4 +1,5 @@
 import { LockKey, SealCheck, ShieldCheck, Truck } from "@phosphor-icons/react";
+import { CHECKOUT_MODE } from "@/lib/storefront/checkout/checkout-mode";
 import { AccordionRows, type AccordionRow } from "./accordion-rows";
 import { CardBrands } from "./card-brands";
 
@@ -12,15 +13,21 @@ const TEXT = "flex max-w-[65ch] flex-col gap-2 text-body text-foreground/80";
 const ASSURANCES: AccordionRow[] = [
   {
     key: "payments",
-    label: "Pagos 100% seguros",
+    label: CHECKOUT_MODE === "whatsapp" ? "Pago acordado contigo" : "Pagos 100% seguros",
     icon: LockKey,
-    content: (
-      <div className={TEXT}>
-        <p>Paga con tarjeta de crédito o débito.</p>
-        <p>El cobro lo procesa Stripe: los datos de tu tarjeta viajan cifrados y nunca se guardan en nuestra tienda.</p>
-        <CardBrands />
-      </div>
-    ),
+    content:
+      CHECKOUT_MODE === "whatsapp" ? (
+        <div className={TEXT}>
+          <p>Armas tu pedido aquí y lo mandas por WhatsApp.</p>
+          <p>La forma de pago se acuerda directamente con nosotras por ahí. Nunca te pedimos datos de tu tarjeta en la tienda.</p>
+        </div>
+      ) : (
+        <div className={TEXT}>
+          <p>Paga con tarjeta de crédito o débito.</p>
+          <p>El cobro lo procesa Stripe: los datos de tu tarjeta viajan cifrados y nunca se guardan en nuestra tienda.</p>
+          <CardBrands />
+        </div>
+      ),
   },
   {
     key: "shipping",
@@ -56,8 +63,11 @@ const ASSURANCES: AccordionRow[] = [
   },
 ];
 
+// En modo WhatsApp el envío lo explican los botones de `DeliveryInfo`, no este renglón.
+const VISIBLE_ASSURANCES = ASSURANCES.filter((row) => row.key !== "shipping" || CHECKOUT_MODE === "stripe");
+
 function PurchaseAssurances() {
-  return <AccordionRows rows={ASSURANCES} compact />;
+  return <AccordionRows rows={VISIBLE_ASSURANCES} compact />;
 }
 
 export { PurchaseAssurances };

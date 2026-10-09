@@ -125,5 +125,5 @@ function useShippingSelection({ enabled, lines }: UseShippingSelectionOptions) {
   };
 }
 
-export { useShippingSelection };
+export { toDestination, useShippingSelection };
 export type { AddressChoice };

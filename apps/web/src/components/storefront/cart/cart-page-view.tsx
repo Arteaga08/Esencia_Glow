@@ -1,5 +1,6 @@
 "use client";
 
+import { CHECKOUT_CTA_LABEL } from "@/lib/storefront/checkout/checkout-mode";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
 import { maxQuantityFor } from "@/lib/storefront/cart/cart-store";
@@ -65,7 +66,7 @@ function CartPageView() {
               {blocked ? (
                 <>
                   <span aria-disabled="true" className={`${CTA_DISABLED} w-full`}>
-                    Continuar al pago
+                    {CHECKOUT_CTA_LABEL}
                   </span>
                   <p role="status" className="text-body-sm text-muted-foreground-strong">
                     Quita lo que se agotó para continuar.
@@ -73,7 +74,7 @@ function CartPageView() {
                 </>
               ) : (
                 <Link href="/checkout" className={`${CTA_PRIMARY} w-full`}>
-                  Continuar al pago
+                  {CHECKOUT_CTA_LABEL}
                 </Link>
               )}
               <Link href="/" className={`${TEXT_LINK} w-full justify-center`}>

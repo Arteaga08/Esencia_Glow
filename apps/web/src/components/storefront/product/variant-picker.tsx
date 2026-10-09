@@ -4,6 +4,8 @@ interface VariantPickerProps {
   variants: ProductViewVariant[];
   selectedId: string;
   onSelect: (id: string) => void;
+  /** Pastillas bajas, para cuando la presentación es secundaria frente al botón de agregar. */
+  compact?: boolean;
 }
 
 /**
@@ -11,7 +13,7 @@ interface VariantPickerProps {
  * control visible). Una agotada queda deshabilitada y lo dice con texto, no
  * solo con color.
  */
-function VariantPicker({ variants, selectedId, onSelect }: VariantPickerProps) {
+function VariantPicker({ variants, selectedId, onSelect, compact = false }: VariantPickerProps) {
   return (
     <fieldset>
       <legend className="mb-2 font-mono text-label uppercase text-muted-foreground-strong">Presentación</legend>
@@ -21,7 +23,7 @@ function VariantPicker({ variants, selectedId, onSelect }: VariantPickerProps) {
           return (
             <label
               key={variant.id}
-              className={`flex min-h-12 flex-col items-center justify-center rounded-md border px-3 py-2 text-center transition-colors duration-[var(--duration-base)] ease-out-quart has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ring ${
+              className={`flex ${compact ? "min-h-10" : "min-h-12"} flex-col items-center justify-center rounded-md border px-3 py-2 text-center transition-colors duration-[var(--duration-base)] ease-out-quart has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ring ${
                 !variant.available
                   ? "cursor-not-allowed border-border bg-muted text-muted-foreground-strong"
                   : selected

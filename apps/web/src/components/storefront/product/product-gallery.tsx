@@ -19,7 +19,7 @@ function ProductGallery({ images }: { images: ProductViewImage[] }) {
   return (
     <>
       <GallerySwipe images={images} className="lg:hidden" />
-      <div className="hidden gap-4 lg:flex">
+      <div className="hidden gap-4 lg:flex lg:self-start">
         {images.length > 1 ? (
           <ul className="flex w-20 shrink-0 flex-col gap-2">
             {images.map((image, index) => (

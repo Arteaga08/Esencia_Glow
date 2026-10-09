@@ -1,4 +1,5 @@
 import type { PublicShippingAddress, PublicShippingRate } from "@esencia-glow/shared";
+import { DELIVERY_LABELS, type DeliveryMethod } from "@/lib/storefront/delivery";
 import { rateSummary } from "@/lib/storefront/checkout/shipping-labels";
 import { TEXT_LINK } from "../cart/cta-styles";
 
@@ -54,4 +55,34 @@ function ShippingDone({ address, rate, onChange }: ShippingDoneProps) {
   );
 }
 
-export { AccountDone, ShippingDone };
+interface DeliveryDoneProps {
+  method: DeliveryMethod;
+  /** Ausente al recoger en tienda. */
+  address: PublicShippingAddress | null;
+  phone: string;
+  onChange: () => void;
+}
+
+/** La entrega ya elegida del checkout por WhatsApp: forma, a dónde va y a qué celular se escribe. */
+function DeliveryDone({ method, address, phone, onChange }: DeliveryDoneProps) {
+  const street = address ? [address.street, address.exteriorNumber, address.interiorNumber].filter(Boolean).join(" ") : "";
+
+  return (
+    <div className="flex items-start justify-between gap-4">
+      <div className="min-w-0">
+        <p className="text-subtitle text-foreground">{DELIVERY_LABELS[method]}</p>
+        {address ? (
+          <p className="text-body-sm text-muted-foreground-strong">
+            {address.fullName}: {street}, {address.neighborhood}. {address.city}, {address.state}, {address.postalCode}
+          </p>
+        ) : null}
+        <p className="text-body-sm text-muted-foreground-strong">Celular: {phone}</p>
+      </div>
+      <button type="button" onClick={onChange} className={TEXT_LINK}>
+        Cambiar
+      </button>
+    </div>
+  );
+}
+
+export { AccountDone, DeliveryDone, ShippingDone };

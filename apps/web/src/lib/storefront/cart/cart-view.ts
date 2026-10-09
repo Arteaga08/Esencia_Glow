@@ -29,6 +29,8 @@ interface CartTotals {
   subtotalCents: number;
   /** `null` mientras la clienta no ha elegido una tarifa de envío. */
   shippingCents: number | null;
+  /** Qué decir en el renglón de envío mientras `shippingCents` es `null` (por defecto, que se calcula al elegir envío). */
+  shippingNote?: string;
   /** Desglose del IVA ya incluido en el total, nunca un cargo extra. */
   taxCents: number;
   totalCents: number;

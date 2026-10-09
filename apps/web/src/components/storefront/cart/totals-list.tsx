@@ -14,7 +14,7 @@ interface TotalsListProps {
  * sabrá, no un cero que parezca "gratis".
  */
 function TotalsList({ totals, size = "lg", className = "" }: TotalsListProps) {
-  const { subtotalCents, shippingCents, taxCents, totalCents, discountCents, couponCode } = totals;
+  const { subtotalCents, shippingCents, shippingNote, taxCents, totalCents, discountCents, couponCode } = totals;
 
   return (
     <dl className={`flex flex-col gap-2 text-body ${className}`}>
@@ -34,7 +34,7 @@ function TotalsList({ totals, size = "lg", className = "" }: TotalsListProps) {
       <div className="flex justify-between gap-4">
         <dt className="text-foreground/80">Envío</dt>
         <dd className={shippingCents === null ? "text-body-sm text-muted-foreground-strong" : "font-mono tabular-nums"}>
-          {shippingCents === null ? "Se calcula al elegir envío" : shippingCents === 0 ? "Gratis" : formatMoneyMXN(shippingCents)}
+          {shippingCents === null ? (shippingNote ?? "Se calcula al elegir envío") : shippingCents === 0 ? "Gratis" : formatMoneyMXN(shippingCents)}
         </dd>
       </div>
       <div className="flex justify-between gap-4 text-body-sm text-muted-foreground-strong">
