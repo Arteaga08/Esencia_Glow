@@ -1,8 +1,10 @@
 import { Product, type ProductDocument } from "../models/product.model.js";
+import { getBrandDocument } from "./brand.service.js";
 import { getCategoryDocument } from "./category.service.js";
 import { uploadImage, destroyImage } from "./upload.service.js";
 import { AppError } from "../utils/app-error.js";
 import { logger } from "../config/logger.js";
+import type { BrandDocument } from "../models/brand.model.js";
 import type { CategoryDocument } from "../models/category.model.js";
 import type { MediaAsset } from "./media-provider.js";
 
@@ -127,10 +129,41 @@ async function removeCategoryImage(categoryId: string): Promise<CategoryDocument
   return category;
 }
 
+/** Logo de una marca: una sola imagen, el reemplazo borra la anterior. */
+async function setBrandLogo(brandId: string, buffer: Buffer, alt?: string): Promise<BrandDocument> {
+  const brand = await getBrandDocument(brandId);
+  const previousPublicId = brand.logo?.publicId;
+
+  const asset = await uploadImage({ buffer, folder: "brands" });
+  try {
+    brand.logo = toImageSubdocument(asset, alt ?? brand.name);
+    await brand.save();
+  } catch (error) {
+    await destroyBestEffort(asset.publicId);
+    throw error;
+  }
+
+  if (previousPublicId) await destroyBestEffort(previousPublicId);
+  return brand;
+}
+
+async function removeBrandLogo(brandId: string): Promise<BrandDocument> {
+  const brand = await getBrandDocument(brandId);
+  if (!brand.logo) throw new AppError("La marca no tiene logo", 404);
+
+  const publicId = brand.logo.publicId;
+  brand.logo = undefined;
+  await brand.save();
+  await destroyBestEffort(publicId);
+  return brand;
+}
+
 export {
   addProductImages,
   removeProductImage,
   reorderProductImages,
   setCategoryImage,
   removeCategoryImage,
+  setBrandLogo,
+  removeBrandLogo,
 };

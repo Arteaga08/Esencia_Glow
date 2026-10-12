@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, type TableColumn } from "@/components/ui/table";
 import { BrandFormModal, type BrandFormValues } from "@/components/brands/brand-form-modal";
@@ -22,8 +23,10 @@ const SEARCH_DEBOUNCE_MS = 300;
 type FormModalState = { mode: "create" } | { mode: "edit"; brand: AdminBrand };
 
 /**
- * Sección Marcas: catálogo de nombres que se eligen en el editor de
- * producto. Solo nombre (sin imagen); alta/edición por modal, igual que Badges.
+ * Sección Marcas: catálogo de marcas que se eligen en el editor de producto
+ * (ahí solo se busca y se elige; aquí se crean). Cada marca puede llevar logo y
+ * salir en la cinta del home. Alta/edición por modal, igual que Badges; el
+ * logo se sube después de guardar la marca, contra `PUT /:id/logo`.
  */
 export default function BrandsPage() {
   const { toast } = useToast();
@@ -87,24 +90,53 @@ export default function BrandsPage() {
     setFormSubmitting(true);
     setFormFieldErrors({});
     const isEdit = formModal !== null && formModal.mode === "edit";
+    const body = { name: values.name, showOnHome: values.showOnHome };
     try {
       const response =
         formModal !== null && formModal.mode === "edit"
           ? await apiRequest<AdminBrand>(`/api/v1/admin/brands/${formModal.brand.id}`, {
               method: "PATCH",
               authenticated: true,
-              body: values,
+              body,
             })
           : await apiRequest<AdminBrand>("/api/v1/admin/brands", {
               method: "POST",
               authenticated: true,
-              body: values,
+              body,
             });
+      const saved = response.data;
+      const hadLogo = formModal !== null && formModal.mode === "edit" && Boolean(formModal.brand.logo);
+
+      // La marca ya quedó guardada: si el logo falla se avisa aparte y el
+      // modal se cierra, para no duplicar la marca al reintentar el alta.
+      let logoError: string | null = null;
+      try {
+        if (values.logoFile) {
+          const formData = new FormData();
+          formData.append("image", values.logoFile);
+          await apiRequest<AdminBrand>(`/api/v1/admin/brands/${saved.id}/logo`, {
+            method: "PUT",
+            authenticated: true,
+            body: formData,
+          });
+        } else if (values.removeLogo && hadLogo) {
+          await apiRequest<AdminBrand>(`/api/v1/admin/brands/${saved.id}/logo`, {
+            method: "DELETE",
+            authenticated: true,
+          });
+        }
+      } catch (error) {
+        logoError = error instanceof ApiRequestError ? error.message : "Intenta de nuevo desde Editar.";
+      }
+
       toast({
         variant: "success",
         title: isEdit ? "Marca actualizada" : "Marca creada",
-        description: response.data.name,
+        description: saved.name,
       });
+      if (logoError) {
+        toast({ variant: "error", title: "No se pudo guardar el logo", description: logoError });
+      }
       setFormModal(null);
       setRetryKey((k) => k + 1);
     } catch (error) {
@@ -153,8 +185,25 @@ export default function BrandsPage() {
 
   const columns: TableColumn<AdminBrand>[] = [
     {
+      header: "Logo",
+      render: (brand) =>
+        brand.logo ? (
+          <span className="flex h-10 w-24 items-center justify-center rounded-sm bg-secondary p-1.5">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={brand.logo.url} alt={`Logo de ${brand.name}`} className="max-h-full max-w-full object-contain" />
+          </span>
+        ) : (
+          <span className="text-body-sm text-muted-foreground">Sin logo</span>
+        ),
+    },
+    {
       header: "Nombre",
       render: (brand) => <span className="text-body text-foreground">{brand.name}</span>,
+    },
+    {
+      header: "En el home",
+      render: (brand) =>
+        brand.showOnHome ? <Badge color="primary">Visible</Badge> : <span className="text-body-sm text-muted-foreground">No</span>,
     },
     {
       header: "Acciones",
@@ -186,7 +235,7 @@ export default function BrandsPage() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <p className="text-body text-muted-foreground-strong">
-          Marcas que puedes asignar a tus productos en el catálogo.
+          Marcas que asignas a tus productos y, si quieres, muestras en el home.
         </p>
         <Button variant="primary" onClick={() => setFormModal({ mode: "create" })}>
           <Plus size={16} weight="bold" aria-hidden="true" />
@@ -240,7 +289,7 @@ export default function BrandsPage() {
           key={formModal.mode === "edit" ? formModal.brand.id : "create"}
           open
           mode={formModal.mode}
-          initialValues={formModal.mode === "edit" ? formModal.brand : undefined}
+          initialBrand={formModal.mode === "edit" ? formModal.brand : undefined}
           onClose={() => setFormModal(null)}
           onSubmit={handleSubmitForm}
           fieldErrors={formFieldErrors}

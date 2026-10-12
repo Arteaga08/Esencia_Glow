@@ -4,6 +4,9 @@ import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
+import { Switch } from "@/components/ui/switch";
+import type { AdminBrand } from "@/lib/types/admin-catalog";
+import { BrandLogoField } from "./brand-logo-field";
 
 /** Mismo tope que `createBrandSchema` en el backend
  * (apps/api/src/validators/brand.validator.ts). */
@@ -11,12 +14,17 @@ const NAME_MAX_LENGTH = 80;
 
 interface BrandFormValues {
   name: string;
+  showOnHome: boolean;
+  /** Logo nuevo elegido en este modal; se sube después de guardar la marca. */
+  logoFile: File | null;
+  /** El logo guardado se quita al guardar (sin `logoFile` que lo reemplace). */
+  removeLogo: boolean;
 }
 
 interface BrandFormModalProps {
   open: boolean;
   mode: "create" | "edit";
-  initialValues?: BrandFormValues;
+  initialBrand?: AdminBrand;
   onClose: () => void;
   onSubmit: (values: BrandFormValues) => void;
   fieldErrors: Record<string, string>;
@@ -24,23 +32,27 @@ interface BrandFormModalProps {
 }
 
 /**
- * Crear y editar comparten el modal — una marca es un solo campo. Quien lo
- * monta le pasa `key` para que el estado arranque limpio en cada apertura.
+ * Crear y editar comparten el modal: nombre, logo y si la marca sale en la
+ * cinta del home. Quien lo monta le pasa `key` para que el estado arranque
+ * limpio en cada apertura.
  */
 function BrandFormModal({
   open,
   mode,
-  initialValues,
+  initialBrand,
   onClose,
   onSubmit,
   fieldErrors,
   submitting,
 }: BrandFormModalProps) {
-  const [name, setName] = useState(initialValues?.name ?? "");
+  const [name, setName] = useState(initialBrand?.name ?? "");
+  const [showOnHome, setShowOnHome] = useState(initialBrand?.showOnHome ?? false);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [removeLogo, setRemoveLogo] = useState(false);
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    onSubmit({ name: name.trim() });
+    onSubmit({ name: name.trim(), showOnHome, logoFile, removeLogo });
   }
 
   return (
@@ -75,6 +87,30 @@ function BrandFormModal({
                 : undefined
           }
         />
+        <BrandLogoField
+          currentUrl={initialBrand?.logo?.url}
+          file={logoFile}
+          removed={removeLogo}
+          onPick={(file) => {
+            setLogoFile(file);
+            setRemoveLogo(false);
+          }}
+          onRemove={() => {
+            setLogoFile(null);
+            setRemoveLogo(true);
+          }}
+        />
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-body text-foreground">Mostrar en el home</p>
+            <p className="text-body-sm text-muted-foreground-strong">
+              {showOnHome && !logoFile && (removeLogo || !initialBrand?.logo)
+                ? "Sin logo se mostrará solo el nombre de la marca."
+                : "Aparece en la cinta de marcas debajo de la portada."}
+            </p>
+          </div>
+          <Switch checked={showOnHome} onChange={setShowOnHome} label="Mostrar en el home" />
+        </div>
       </form>
     </Modal>
   );

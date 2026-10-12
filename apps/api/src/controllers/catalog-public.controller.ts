@@ -29,8 +29,18 @@ const listProducts = asyncHandler(async (req: Request, res: Response) => {
 });
 
 const getProductFacets = asyncHandler(async (req: Request, res: Response) => {
-  const { category, bestseller, onSale } = req.query as { category?: string; bestseller?: boolean; onSale?: boolean };
-  const facets = await catalogPublicService.getPublicProductFacets({ categorySlug: category, bestseller, onSale });
+  const { category, brand, bestseller, onSale } = req.query as {
+    category?: string;
+    brand?: string;
+    bestseller?: boolean;
+    onSale?: boolean;
+  };
+  const facets = await catalogPublicService.getPublicProductFacets({
+    categorySlug: category,
+    brands: brand ? [brand] : undefined,
+    bestseller,
+    onSale,
+  });
   sendResponse(res, 200, "Facetas obtenidas.", facets);
 });
 

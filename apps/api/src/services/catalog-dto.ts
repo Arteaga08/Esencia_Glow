@@ -4,6 +4,7 @@ import {
   type BadgeColor,
   type ProductChannel,
   type PublicBadge,
+  type PublicBrand,
   type PublicCategory,
   type PublicCategoryNode,
   type PublicProduct,
@@ -144,15 +145,37 @@ function buildPublicBadge(badge: LeanBadge): PublicBadge {
 interface LeanBrand {
   _id: Types.ObjectId;
   name: string;
+  slug?: string;
+  logo?: LeanMediaImage;
+  showOnHome?: boolean;
 }
 
 interface AdminBrand {
   id: string;
   name: string;
+  slug?: string;
+  logo?: PublicProductImage;
+  showOnHome: boolean;
 }
 
 function buildAdminBrand(brand: LeanBrand): AdminBrand {
-  return { id: brand._id.toString(), name: brand.name };
+  return {
+    id: brand._id.toString(),
+    name: brand.name,
+    ...(brand.slug ? { slug: brand.slug } : {}),
+    ...(brand.logo ? { logo: buildImageDto(brand.logo) } : {}),
+    showOnHome: brand.showOnHome ?? false,
+  };
+}
+
+/** Lo que ve el storefront de una marca: sin banderas internas. */
+function buildPublicBrand(brand: LeanBrand & { slug: string }): PublicBrand {
+  return {
+    id: brand._id.toString(),
+    name: brand.name,
+    slug: brand.slug,
+    ...(brand.logo ? { logo: buildImageDto(brand.logo) } : {}),
+  };
 }
 
 interface LeanVariant extends Omit<ProductVariantAttrs, "attributes" | "dimensionsCm"> {
@@ -320,6 +343,7 @@ export {
   buildCategoryTree,
   buildAdminBadge,
   buildAdminBrand,
+  buildPublicBrand,
   buildPublicBadge,
   buildAdminProduct,
   buildPublicProduct,

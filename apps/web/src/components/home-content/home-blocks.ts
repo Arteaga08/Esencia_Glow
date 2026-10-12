@@ -1,6 +1,6 @@
 import { HOME_CONTENT_LIMITS, type AdminHomeContent } from "@esencia-glow/shared";
 
-type HomeBlockId = "hero" | "newArrivals" | "kits" | "offerBanner" | "pageCovers";
+type HomeBlockId = "announcement" | "hero" | "newArrivals" | "kits" | "offerBanner" | "pageCovers";
 
 interface HomeBlockSummary {
   id: HomeBlockId;
@@ -19,7 +19,7 @@ interface HomeBlockSummary {
  * final va `pageCovers`, que no es un bloque del home sino las fotos de
  * encabezado de otras páginas.
  */
-const HOME_BLOCK_ORDER: HomeBlockId[] = ["hero", "newArrivals", "kits", "offerBanner", "pageCovers"];
+const HOME_BLOCK_ORDER: HomeBlockId[] = ["announcement", "hero", "newArrivals", "kits", "offerBanner", "pageCovers"];
 
 const NO_DESKTOP_IMAGE = "Sin foto de escritorio";
 
@@ -30,6 +30,15 @@ function describeHomeBlocks(content: AdminHomeContent): HomeBlockSummary[] {
   const coverCount = [covers.bestsellers, covers.kits].filter(Boolean).length;
 
   const byId: Record<HomeBlockId, HomeBlockSummary> = {
+    announcement: {
+      id: "announcement",
+      name: "Aviso",
+      description: "Cinta con una frase que corre arriba del menú en toda la tienda.",
+      isActive: content.announcement.isActive,
+      summary: content.announcement.text || "Sin frase todavía",
+      issue: content.announcement.text ? null : "Sin frase",
+      thumbnailUrl: null,
+    },
     hero: {
       id: "hero",
       name: "Hero",

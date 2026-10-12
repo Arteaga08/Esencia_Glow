@@ -35,9 +35,11 @@ function findCatalogCategory(tree: PublicCategoryNode[], slug: string): CatalogC
   return null;
 }
 
-/** Qué productos recorre el catálogo: los de una categoría, los marcados "Más vendido" o los que están en oferta. */
+/** Qué productos recorre el catálogo: los de una categoría o marca, los marcados "Más vendido" o los que están en oferta. */
 interface CatalogScope {
   category?: string;
+  /** Nombre de la marca (el mismo texto que `Product.brand`). */
+  brand?: string;
   bestseller?: boolean;
   onSale?: boolean;
 }
@@ -50,6 +52,7 @@ interface CatalogPage {
 function scopeToParams(scope: CatalogScope): Record<string, string> {
   return {
     ...(scope.category ? { category: scope.category } : {}),
+    ...(scope.brand ? { brand: scope.brand } : {}),
     ...(scope.bestseller ? { bestseller: "true" } : {}),
     ...(scope.onSale ? { onSale: "true" } : {}),
   };

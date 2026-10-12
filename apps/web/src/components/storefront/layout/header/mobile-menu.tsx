@@ -20,11 +20,14 @@ const subLinkClass =
 function MobileMenu({
   id,
   open,
+  top,
   categories,
   onNavigate,
 }: {
   id: string;
   open: boolean;
+  /** Distancia desde arriba en px; sin ella arranca bajo la barra (`top-16`). */
+  top?: number;
   categories: PublicCategoryNode[];
   onNavigate: () => void;
 }) {
@@ -35,6 +38,7 @@ function MobileMenu({
       id={id}
       inert={!open}
       aria-hidden={!open}
+      style={top === undefined ? undefined : { top }}
       className={`fixed inset-x-0 bottom-0 top-16 z-40 flex flex-col bg-blush transition-[opacity,visibility] duration-[var(--duration-slow)] ease-out-quart motion-reduce:transition-none xl:hidden ${open ? "visible opacity-100" : "invisible opacity-0"}`}
     >
       <nav aria-label="Principal móvil" className="flex-1 overflow-y-auto px-4 pb-8 pt-4">

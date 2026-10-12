@@ -98,6 +98,14 @@ interface PublicCategory {
   sortOrder: number;
 }
 
+/** Marca para el storefront: la cinta del home y la página `/marca/[slug]`. Sin logo se pinta el nombre. */
+interface PublicBrand {
+  id: string;
+  name: string;
+  slug: string;
+  logo?: PublicProductImage;
+}
+
 interface PublicCategoryNode extends PublicCategory {
   children: PublicCategory[];
 }
@@ -130,6 +138,7 @@ export type {
   ProductContent,
   PublicProduct,
   PublicCategory,
+  PublicBrand,
   PublicCategoryNode,
   PublicProductFacets,
   PublicVariantAvailability,

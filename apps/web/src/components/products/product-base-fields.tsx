@@ -62,7 +62,9 @@ function ProductBaseFields({ value, onChange, errors }: ProductBaseFieldsProps) 
         value={value.brandId ?? ""}
         onChange={(v) => onChange({ brandId: v === "" ? null : v })}
         options={[{ value: "", label: "Sin marca" }, ...brandOptions]}
-        helper="Las marcas se administran en Catálogo → Marcas."
+        searchable
+        searchPlaceholder="Busca una marca"
+        helper="Las marcas se crean en Catálogo → Marcas."
         error={errors?.brandId}
       />
       <Input
