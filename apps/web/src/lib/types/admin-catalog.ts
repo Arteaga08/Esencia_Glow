@@ -83,6 +83,10 @@ interface AdminBadge {
 interface AdminBrand {
   id: string;
   name: string;
+  /** Ausente en marcas anteriores al logo hasta que se editan. */
+  slug?: string;
+  logo?: AdminProductImage;
+  showOnHome: boolean;
 }
 
 type AdminBundleStatus = "draft" | "active" | "archived";

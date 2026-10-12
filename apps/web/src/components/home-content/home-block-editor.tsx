@@ -2,6 +2,7 @@
 
 import { useCallback } from "react";
 import type { AdminHomeContent } from "@esencia-glow/shared";
+import { AnnouncementEditor } from "./announcement-editor";
 import { HeroEditor } from "./hero-editor";
 import type { HomeBlockId } from "./home-blocks";
 import { OfferBannerEditor } from "./offer-banner-editor";
@@ -25,6 +26,15 @@ function HomeBlockEditor({ id, content, applySection, onDirtyChange }: HomeBlock
   const handleDirty = useCallback((dirty: boolean) => onDirtyChange(id, dirty), [id, onDirtyChange]);
 
   switch (id) {
+    case "announcement":
+      return (
+        <AnnouncementEditor
+          section={content.announcement}
+          onSaved={(section) => applySection("announcement", section)}
+          embedded
+          onDirtyChange={handleDirty}
+        />
+      );
     case "hero":
       return (
         <HeroEditor

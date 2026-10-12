@@ -128,6 +128,7 @@ export type {
   ProductContent,
   PublicProduct,
   PublicCategory,
+  PublicBrand,
   PublicCategoryNode,
   PublicProductFacets,
   PublicVariantAvailability,

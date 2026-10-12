@@ -1,6 +1,6 @@
 /**
  * Textos del catálogo que cambian según lo que se recorre (productos de una
- * categoría, "Más vendidos", ofertas o kits). Los valores por defecto son los de producto.
+ * categoría, "Más vendidos", ofertas, kits o una marca). Los valores por defecto son los de producto.
  */
 interface CatalogCopy {
   sectionLabel: string;
@@ -43,5 +43,11 @@ const KIT_COPY: CatalogCopy = {
   emptyDescription: "Vuelve pronto o explora el catálogo por categoría.",
 };
 
-export { PRODUCT_COPY, BESTSELLER_COPY, SALE_COPY, KIT_COPY };
+const BRAND_COPY: CatalogCopy = {
+  ...PRODUCT_COPY,
+  emptyTitle: "Aún no hay productos de esta marca",
+  emptyDescription: "Vuelve pronto o explora el catálogo por categoría.",
+};
+
+export { PRODUCT_COPY, BESTSELLER_COPY, SALE_COPY, KIT_COPY, BRAND_COPY };
 export type { CatalogCopy };

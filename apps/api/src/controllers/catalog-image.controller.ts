@@ -5,6 +5,7 @@ import { AppError } from "../utils/app-error.js";
 import * as catalogImageService from "../services/catalog-image.service.js";
 import * as productService from "../services/product.service.js";
 import * as categoryService from "../services/category.service.js";
+import * as brandService from "../services/brand.service.js";
 
 const addProductImages = asyncHandler(async (req: Request<{ id: string }>, res: Response) => {
   const files = (req.files as Express.Multer.File[] | undefined) ?? [];
@@ -47,10 +48,27 @@ const removeCategoryImage = asyncHandler(async (req: Request<{ id: string }>, re
   sendResponse(res, 200, "Imagen eliminada.", await categoryService.getCategoryById(req.params.id));
 });
 
+const setBrandLogo = asyncHandler(async (req: Request<{ id: string }>, res: Response) => {
+  const file = req.file as Express.Multer.File | undefined;
+  if (!file) {
+    throw new AppError("Debes adjuntar una imagen", 400);
+  }
+
+  await catalogImageService.setBrandLogo(req.params.id, file.buffer, req.body.alt as string | undefined);
+  sendResponse(res, 200, "Logo actualizado.", await brandService.getBrandById(req.params.id));
+});
+
+const removeBrandLogo = asyncHandler(async (req: Request<{ id: string }>, res: Response) => {
+  await catalogImageService.removeBrandLogo(req.params.id);
+  sendResponse(res, 200, "Logo eliminado.", await brandService.getBrandById(req.params.id));
+});
+
 export {
   addProductImages,
   reorderProductImages,
   removeProductImage,
   setCategoryImage,
   removeCategoryImage,
+  setBrandLogo,
+  removeBrandLogo,
 };

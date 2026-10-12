@@ -248,6 +248,15 @@ describe("routes/catalog-public — productos y categorías", () => {
       expect(response.body.data).toEqual({ brands: ["Cosrx", "Isntree"], minPrice: 20000, maxPrice: 45000 });
     });
 
+    it("facets con brand solo cuenta esa marca y su rango de precio", async () => {
+      const { agent } = await createAdminSession(app);
+      await seedBrands(agent);
+
+      const response = await request(app).get("/api/v1/products/facets").query({ brand: "Cosrx" });
+      expect(response.status).toBe(200);
+      expect(response.body.data.brands).toEqual(["Cosrx"]);
+    });
+
     it("facets sin categoría cubre todo el catálogo público", async () => {
       const { agent } = await createAdminSession(app);
       await seedBrands(agent);

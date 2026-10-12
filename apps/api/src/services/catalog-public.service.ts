@@ -42,6 +42,7 @@ interface ListPublicProductsInput extends ListQuery {
 /** Alcance de las facetas: el mismo recorte que usa la página que las pide. */
 interface PublicProductFacetsScope {
   categorySlug?: string;
+  brands?: string[];
   bestseller?: boolean;
   onSale?: boolean;
 }
@@ -154,6 +155,7 @@ async function getPublicProductFacets(scope: PublicProductFacetsScope = {}): Pro
   const categoryIds = await resolveCategoryIdsBySlug(scope.categorySlug);
   const filter = buildProductFilter({
     categoryIds,
+    brands: scope.brands,
     publicOnly: true,
     isBestseller: scope.bestseller,
     onSale: scope.onSale,

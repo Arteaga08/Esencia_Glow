@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { BrandMarqueeBlock } from "../../components/storefront/home/brands/brand-marquee-block";
 import { CategoryBlock } from "../../components/storefront/home/categories/category-block";
 import { HeroSection } from "../../components/storefront/home/hero/hero-section";
 import { OfferBannerBlock } from "../../components/storefront/home/offer/offer-banner-block";
@@ -15,13 +16,17 @@ import { SubscriptionSkeleton } from "../../components/storefront/states/subscri
 
 // Cada bloque que pide datos lleva su propio <Suspense>: los que ya cargaron se
 // pintan sin esperar a los demás, y el skeleton ocupa la misma caja que el
-// bloque real. Las redes (bloque 9) son estáticas y no necesitan skeleton.
+// bloque real. Las redes (bloque 9) son estáticas y no necesitan skeleton, y la
+// cinta de marcas no lleva fallback: sin marcas no se pinta y no debe dejar hueco.
 // Los siguientes bloques del home (3.1.6 en adelante) se montan debajo del estante.
 export default function HomePage() {
   return (
     <main>
       <Suspense fallback={<HeroSkeleton />}>
         <HeroSection />
+      </Suspense>
+      <Suspense fallback={null}>
+        <BrandMarqueeBlock />
       </Suspense>
       <Suspense fallback={<ShelfSkeleton />}>
         <ShelfBlock />

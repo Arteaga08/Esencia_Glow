@@ -2,6 +2,8 @@ import type { ListQuery, PaginationMeta } from "@esencia-glow/shared";
 import { Brand, type BrandDocument } from "../models/brand.model.js";
 import { Product } from "../models/product.model.js";
 import { AppError } from "../utils/app-error.js";
+import { slugify } from "../utils/slugify.js";
+import { destroyImageBestEffort } from "./upload.service.js";
 import { escapeRegex, buildMeta } from "../utils/parse-list-query.js";
 import { resolveSort } from "../utils/resolve-sort.js";
 import { buildAdminBrand, type AdminBrand, type LeanBrand } from "./catalog-dto.js";
@@ -11,6 +13,7 @@ const COLLATION = { locale: "es", strength: 1 } as const;
 
 interface BrandInput {
   name?: string;
+  showOnHome?: boolean;
 }
 
 type ListBrandsInput = ListQuery;
@@ -23,9 +26,27 @@ async function assertNameAvailable(name: string, excludeId?: string): Promise<vo
   }
 }
 
+/**
+ * Slug libre derivado del nombre; si dos nombres distintos dan el mismo slug
+ * ("Yuzu & Co." y "Yuzu Co") el segundo recibe un sufijo numérico. Nunca llega
+ * del cliente.
+ */
+async function resolveUniqueSlug(name: string, excludeId?: string): Promise<string> {
+  const base = slugify(name) || "marca";
+  for (let attempt = 1; ; attempt += 1) {
+    const candidate = attempt === 1 ? base : `${base}-${attempt}`;
+    const clash = await Brand.findOne({ slug: candidate }).select("_id").lean();
+    if (!clash || clash._id.toString() === excludeId) return candidate;
+  }
+}
+
 async function createBrand(input: BrandInput): Promise<BrandDocument> {
   await assertNameAvailable(input.name!);
-  const brand = new Brand({ name: input.name });
+  const brand = new Brand({
+    name: input.name,
+    slug: await resolveUniqueSlug(input.name!),
+    showOnHome: input.showOnHome ?? false,
+  });
   await brand.save();
   return brand;
 }
@@ -38,11 +59,19 @@ async function getBrandDocument(id: string): Promise<BrandDocument> {
 
 async function updateBrand(id: string, input: BrandInput): Promise<BrandDocument> {
   const brand = await getBrandDocument(id);
+  const renamed = input.name !== undefined && input.name !== brand.name;
 
-  if (input.name !== undefined && input.name !== brand.name) {
-    await assertNameAvailable(input.name, id);
-    brand.name = input.name;
-    await brand.save();
+  if (renamed) await assertNameAvailable(input.name!, id);
+
+  if (renamed) brand.name = input.name!;
+  if (input.showOnHome !== undefined) brand.showOnHome = input.showOnHome;
+  // Las marcas anteriores al slug lo reciben la primera vez que se editan;
+  // una vez asignado no cambia aunque se renombre la marca.
+  if (!brand.slug) brand.slug = await resolveUniqueSlug(brand.name, id);
+
+  if (brand.isModified()) await brand.save();
+
+  if (renamed) {
     // `Product.brand` es la copia denormalizada que lee el storefront: se
     // renombra junto con la marca para que filtros y tarjetas no queden con el
     // nombre viejo.
@@ -59,7 +88,8 @@ async function deleteBrand(id: string): Promise<void> {
   }
 
   // Borrado duro, igual que Badge: sin productos referenciándola no hay historial que preservar.
-  await Brand.findByIdAndDelete(id);
+  const brand = await Brand.findByIdAndDelete(id).lean();
+  if (brand?.logo) await destroyImageBestEffort(brand.logo.publicId);
 }
 
 async function listBrands(query: ListBrandsInput): Promise<{ brands: AdminBrand[]; meta: PaginationMeta }> {
