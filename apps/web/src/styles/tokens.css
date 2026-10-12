@@ -47,6 +47,7 @@
 
   /* --- Tipografía --- */
   --font-sans: var(--font-schibsted-grotesk), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-zen-maru-gothic), var(--font-schibsted-grotesk), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-pt-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
 
   --text-display: 36px;

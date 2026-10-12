@@ -5,11 +5,11 @@ import { SiteHeader } from "../../components/storefront/layout/header/site-heade
 
 export default function ShopLayout({ children }: { children: ReactNode }) {
   return (
-    <>
+    <div className="contents storefront-labels">
       <SiteHeader />
       {children}
       <SiteFooter />
       <CartDrawer />
-    </>
+    </div>
   );
 }

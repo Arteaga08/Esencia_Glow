@@ -38,41 +38,41 @@
 }
 
 /*
- * Voz de "etiqueta de frasco" del storefront: PT Mono en mayúsculas con
- * tracking abierto. Es la del bloque de Categorías, extendida a todo título de
- * sección, título de tarjeta y botón del home. Siempre peso 400: PT Mono no
- * tiene otro (DESIGN.md §3), por eso no se apoya en `text-section-title`,
- * que trae 600.
+ * Voz de títulos del storefront: Zen Maru Gothic (gótica redondeada) en
+ * mayúscula y minúscula. Las etiquetas, precios y botones siguen en mayúsculas
+ * con la fuente sans (ver `.storefront-labels`). Pesos 500/700: los únicos que
+ * se cargan.
  */
 @utility type-shop-section {
-  font-family: var(--font-mono);
-  font-weight: 400;
-  font-size: clamp(1.25rem, 1.125rem + 0.5vw, 1.5rem);
-  line-height: 1.25;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.5rem, 1.2rem + 1vw, 2rem);
+  line-height: 1.15;
 }
 
 @utility type-shop-card-title {
-  font-family: var(--font-mono);
-  font-weight: 400;
+  font-family: var(--font-display);
+  font-weight: 500;
   font-size: clamp(1.125rem, 1.05rem + 0.3vw, 1.25rem);
-  line-height: 1.3;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  line-height: 1.25;
+}
+
+/* Frase de la cinta del banner de oferta y título de los listados (Kits, Ofertas). */
+@utility type-shop-marquee {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(2.5rem, 1.5rem + 4vw, 4.5rem);
+  line-height: 1;
+  letter-spacing: -0.01em;
 }
 
 /*
- * Frase de la cinta del banner de oferta: la misma voz PT Mono en mayúsculas
- * (se escriba como se escriba en el panel), pero grande.
+ * El storefront usa `font-mono` para etiquetas, precios y botones; aquí esa
+ * variable apunta a la sans para que sigan alineados sin la monoespaciada.
+ * El panel (`/admin`) queda fuera y conserva PT Mono.
  */
-@utility type-shop-marquee {
-  font-family: var(--font-mono);
-  font-weight: 400;
-  font-size: clamp(2rem, 1.25rem + 3vw, 3.5rem);
-  line-height: 1.2;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+.storefront-labels {
+  --font-mono: var(--font-sans);
 }
 
 @utility type-shop-cta {
