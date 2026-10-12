@@ -16,10 +16,14 @@ enum HomeSectionKey {
   NEW_ARRIVALS = "newArrivals",
   KITS = "kits",
   OFFER_BANNER = "offerBanner",
+  PAGE_COVERS = "pageCovers",
 }
 
 /** Las dos secciones con forma de "portada + tarjetas del catálogo" (bloque 5 del home). */
 type HomeSpotlightKey = HomeSectionKey.NEW_ARRIVALS | HomeSectionKey.KITS;
 
+/** Páginas de listado de la tienda cuya foto de encabezado se carga en `pageCovers`. */
+type HomePageCoverKey = "kits" | "bestsellers";
+
 export { HomeSectionKey };
-export type { HomeSpotlightKey };
+export type { HomeSpotlightKey, HomePageCoverKey };

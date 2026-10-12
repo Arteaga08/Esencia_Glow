@@ -72,19 +72,26 @@ async function getPersonalized(categories: string[], brands: string[]): Promise<
     .map((entry) => entry.item);
 }
 
-/** Relleno cuando no hay historial: más vendidos; si ninguno está marcado, lo más nuevo. */
-async function getFallback(): Promise<SuggestionPayload["fallback"]> {
-  const bestsellers = await fetchProducts({ bestseller: "true" });
+/**
+ * Relleno cuando no hay historial: más vendidos; si ninguno está marcado (o la
+ * página ya es la de más vendidos, `skipBestsellers`), lo más nuevo.
+ */
+async function getFallback(skipBestsellers: boolean): Promise<SuggestionPayload["fallback"]> {
+  const bestsellers = skipBestsellers ? [] : await fetchProducts({ bestseller: "true" });
   if (bestsellers.length > 0) return { kind: "bestsellers", items: bestsellers };
   return { kind: "newest", items: await fetchProducts({}) };
 }
 
-async function getSuggestions(input: { categories: string[]; brands: string[] }): Promise<SuggestionPayload> {
+async function getSuggestions(input: {
+  categories: string[];
+  brands: string[];
+  skipBestsellers?: boolean;
+}): Promise<SuggestionPayload> {
   const known = await keepKnown(input.categories, input.brands);
   const hasSignals = known.categories.length > 0 || known.brands.length > 0;
   const [personalized, fallback] = await Promise.all([
     hasSignals ? getPersonalized(known.categories, known.brands) : Promise.resolve([]),
-    getFallback(),
+    getFallback(input.skipBestsellers ?? false),
   ]);
   return { personalized, fallback };
 }

@@ -206,7 +206,7 @@ export type {
 } from "./types/subscription-plan-public.js";
 export { ContentAction } from "./enums/content-action.js";
 export { HomeSectionKey } from "./enums/home-section.js";
-export type { HomeSpotlightKey } from "./enums/home-section.js";
+export type { HomeSpotlightKey, HomePageCoverKey } from "./enums/home-section.js";
 export { HomeBenefitIcon } from "./enums/home-benefit-icon.js";
 export { HOME_CONTENT_LIMITS } from "./constants/home-content.js";
 export type {
@@ -223,6 +223,7 @@ export type {
   AdminHomeBenefits,
   AdminHomeSpotlight,
   AdminHomeOfferBanner,
+  AdminHomePageCovers,
   AdminHomeContent,
   PublicHomeSpotlight,
   PublicHomeOfferBanner,

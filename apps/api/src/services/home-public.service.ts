@@ -1,10 +1,12 @@
 import type { Types } from "mongoose";
 import {
   HomeSectionKey,
+  type HomePageCoverKey,
   type HomeSpotlightKey,
   type PublicHomeContent,
   type PublicHomeHeroSlide,
   type PublicHomeOfferBanner,
+  type PublicProductImage,
   type PublicHomeSpotlight,
 } from "@esencia-glow/shared";
 import type { HomeContentAttrs } from "../models/home-content.model.js";
@@ -162,6 +164,12 @@ function buildSalePage(doc: HomeContentAttrs): PublicHomeContent["salePage"] {
   return image ? { image } : undefined;
 }
 
+/** Foto del encabezado de /kits o /mas-vendidos: se publica con solo existir. */
+function buildPageCover(doc: HomeContentAttrs, page: HomePageCoverKey): { image: PublicProductImage } | undefined {
+  const image = buildImageDto(doc.pageCovers?.images?.[page]);
+  return image ? { image } : undefined;
+}
+
 function buildBenefits(doc: HomeContentAttrs): PublicHomeContent["benefits"] {
   const section = doc.benefits;
   if (!section?.isActive) return undefined;
@@ -197,6 +205,8 @@ async function getPublicHomeContent(): Promise<PublicHomeContent> {
     kits: buildSpotlight(doc, HomeSectionKey.KITS),
     offerBanner: buildOfferBanner(doc),
     salePage: buildSalePage(doc),
+    kitsPage: buildPageCover(doc, "kits"),
+    bestsellersPage: buildPageCover(doc, "bestsellers"),
   };
 
   // Sin claves `undefined`: el JSON las omite igual, pero así el objeto

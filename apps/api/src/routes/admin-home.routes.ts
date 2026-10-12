@@ -12,6 +12,7 @@ import {
   deleteImageQuerySchema,
   heroSlideImageParamsSchema,
   offerBannerImageSlotParamsSchema,
+  pageCoverParamsSchema,
   imageVersionBodySchema,
   spotlightImageParamsSchema,
   spotlightParamsSchema,
@@ -128,6 +129,22 @@ router.delete(
   validate(offerBannerImageSlotParamsSchema, "params"),
   validate(deleteImageQuerySchema, "query"),
   homeImageController.removeOfferBannerImage,
+);
+
+router.put(
+  "/page-covers/:page/image",
+  uploadRateLimiter,
+  validate(pageCoverParamsSchema, "params"),
+  uploadSingleImage("image"),
+  sanitizeMultipart,
+  validate(imageVersionBodySchema),
+  homeImageController.setPageCoverImage,
+);
+router.delete(
+  "/page-covers/:page/image",
+  validate(pageCoverParamsSchema, "params"),
+  validate(deleteImageQuerySchema, "query"),
+  homeImageController.removePageCoverImage,
 );
 
 export { router as adminHomeRoutes };

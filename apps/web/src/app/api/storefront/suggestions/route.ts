@@ -16,6 +16,7 @@ function readList(value: string | null): string[] {
 /**
  * Sugerencias para el bloque "Sugeridos para ti". El navegador manda las
  * categorías y marcas que más ha visto la clienta (`?categorias=a,b&marcas=X,Y`)
+ * (y `&relleno=nuevos` si el relleno no debe ser los más vendidos)
  * y aquí, en el servidor, se piden los productos al API: así el navegador no
  * necesita permiso de CORS ni conoce la dirección del API. Entrada acotada
  * aquí y validada contra el catálogo real en `getSuggestions`.
@@ -25,6 +26,7 @@ export async function GET(request: NextRequest) {
   const payload = await getSuggestions({
     categories: readList(searchParams.get("categorias")).map((slug) => slug.toLowerCase()),
     brands: readList(searchParams.get("marcas")),
+    skipBestsellers: searchParams.get("relleno") === "nuevos",
   });
   // Depende del historial de cada clienta: que la guarde su navegador, no un caché compartido.
   return Response.json(payload, { headers: { "Cache-Control": "private, max-age=60" } });

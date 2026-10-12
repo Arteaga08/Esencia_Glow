@@ -3,14 +3,16 @@ import {
   HomeSectionKey,
   type AdminHomeHero,
   type AdminHomeOfferBanner,
+  type AdminHomePageCovers,
   type AdminHomeSpotlight,
   type AdminHomeSubscriptionPromo,
+  type HomePageCoverKey,
   type HomeSpotlightKey,
 } from "@esencia-glow/shared";
 import type { HomeContentAttrs } from "../models/home-content.model.js";
 import type { HomeHeroSlideAttrs, HomeImageAttrs } from "../models/home-section.schemas.js";
 import { AppError } from "../utils/app-error.js";
-import { buildHero, buildOfferBanner, buildSpotlight, buildSubscriptionPromo } from "./home-content-dto.js";
+import { buildHero, buildOfferBanner, buildPageCovers, buildSpotlight, buildSubscriptionPromo } from "./home-content-dto.js";
 import { assertVersionMatches, readHomeContent, writeSection, type SectionWrite } from "./home-content-store.js";
 import { destroyImageBestEffort, uploadImage } from "./upload.service.js";
 import type { MediaAsset } from "./media-provider.js";
@@ -18,7 +20,8 @@ import type { MediaAsset } from "./media-provider.js";
 /**
  * Imágenes del home (Milestone 1.8): sub-recursos de SU sección — la imagen
  * de cada slide del hero (`desktop`/`mobile`), la de la promo de suscripción
- * y el par de fotos de Novedades, Kits y el banner de oferta.
+ * el par de fotos de Novedades, Kits y el banner de oferta, y las fotos de
+ * encabezado de las páginas de Kits y Más vendidos.
  * Cada operación es una escritura de sección más: pide la `version` que el
  * editor leyó, la sube en +1 y deja su auditoría (la registra el controller).
  *
@@ -140,14 +143,18 @@ async function removePromoImage(version: number): Promise<AdminHomeSubscriptionP
   return buildSubscriptionPromo(doc);
 }
 
-/** Secciones con fotos `images.{slot}` a nivel de sección (`page` solo existe en el banner de oferta). */
-type SlotImageSection = HomeSpotlightKey | HomeSectionKey.OFFER_BANNER;
-type SectionSlotImages = Partial<Record<OfferBannerImageSlot, HomeImageAttrs>>;
+/**
+ * Secciones con fotos `images.{slot}` a nivel de sección. `page` solo existe en
+ * el banner de oferta; en `pageCovers` el slot es la página (`kits`/`bestsellers`).
+ */
+type SlotImageSection = HomeSpotlightKey | HomeSectionKey.OFFER_BANNER | HomeSectionKey.PAGE_COVERS;
+type SectionImageSlot = OfferBannerImageSlot | HomePageCoverKey;
+type SectionSlotImages = Partial<Record<SectionImageSlot, HomeImageAttrs>>;
 
 /** Sube la foto de un slot de la sección; la sección se crea con la primera foto si hace falta. */
 async function setSectionSlotImage(
   section: SlotImageSection,
-  slot: OfferBannerImageSlot,
+  slot: SectionImageSlot,
   buffer: Buffer,
   version: number,
   alt?: string,
@@ -167,7 +174,7 @@ async function setSectionSlotImage(
 
 async function removeSectionSlotImage(
   section: SlotImageSection,
-  slot: OfferBannerImageSlot,
+  slot: SectionImageSlot,
   version: number,
 ): Promise<HomeContentAttrs> {
   const current = await readHomeContent();
@@ -215,6 +222,20 @@ async function removeOfferBannerImage(slot: OfferBannerImageSlot, version: numbe
   return buildOfferBanner(await removeSectionSlotImage(HomeSectionKey.OFFER_BANNER, slot, version));
 }
 
+/** Foto del encabezado de /kits o /mas-vendidos. La sección nace con la primera foto. */
+async function setPageCoverImage(
+  page: HomePageCoverKey,
+  buffer: Buffer,
+  version: number,
+  alt?: string,
+): Promise<AdminHomePageCovers> {
+  return buildPageCovers(await setSectionSlotImage(HomeSectionKey.PAGE_COVERS, page, buffer, version, alt));
+}
+
+async function removePageCoverImage(page: HomePageCoverKey, version: number): Promise<AdminHomePageCovers> {
+  return buildPageCovers(await removeSectionSlotImage(HomeSectionKey.PAGE_COVERS, page, version));
+}
+
 export {
   setHeroSlideImage,
   removeHeroSlideImage,
@@ -224,5 +245,7 @@ export {
   removeSpotlightImage,
   setOfferBannerImage,
   removeOfferBannerImage,
+  setPageCoverImage,
+  removePageCoverImage,
 };
 export type { HeroImageSlot, OfferBannerImageSlot };

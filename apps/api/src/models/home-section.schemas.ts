@@ -1,5 +1,5 @@
 import { Schema, type Types } from "mongoose";
-import { HomeBenefitIcon } from "@esencia-glow/shared";
+import { HomeBenefitIcon, type HomePageCoverKey } from "@esencia-glow/shared";
 import { mediaImageSchema, type MediaImageAttrs } from "./media-image.schema.js";
 
 /**
@@ -100,6 +100,11 @@ interface HomeOfferBannerAttrs extends HomeSectionBaseAttrs {
   ctaLabel?: string;
   ctaHref?: string;
   images?: { desktop?: HomeImageAttrs; mobile?: HomeImageAttrs; page?: HomeImageAttrs };
+}
+
+/** Fotos del encabezado de /kits y /mas-vendidos: una por página, sin texto ni interruptor. */
+interface HomePageCoversAttrs extends HomeSectionBaseAttrs {
+  images?: Partial<Record<HomePageCoverKey, HomeImageAttrs>>;
 }
 
 const baseFields = {
@@ -224,10 +229,21 @@ const offerBannerSchema = new Schema<HomeOfferBannerAttrs>(
   { _id: false },
 );
 
+const pageCoversSchema = new Schema<HomePageCoversAttrs>(
+  {
+    ...baseFields,
+    images: {
+      type: new Schema({ kits: { type: mediaImageSchema }, bestsellers: { type: mediaImageSchema } }, { _id: false }),
+    },
+  },
+  { _id: false },
+);
+
 export {
   announcementSchema,
   spotlightSchema,
   offerBannerSchema,
+  pageCoversSchema,
   heroSchema,
   featuredProductsSchema,
   featuredCategoriesSchema,
@@ -250,4 +266,5 @@ export type {
   HomeBenefitsAttrs,
   HomeSpotlightAttrs,
   HomeOfferBannerAttrs,
+  HomePageCoversAttrs,
 };

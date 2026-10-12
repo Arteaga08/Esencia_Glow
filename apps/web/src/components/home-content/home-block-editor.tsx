@@ -5,6 +5,7 @@ import type { AdminHomeContent } from "@esencia-glow/shared";
 import { HeroEditor } from "./hero-editor";
 import type { HomeBlockId } from "./home-blocks";
 import { OfferBannerEditor } from "./offer-banner-editor";
+import { PageCoversEditor } from "./page-covers-editor";
 import { SpotlightEditor } from "./spotlight-editor";
 import { KITS_META, NEW_ARRIVALS_META } from "./spotlight-form-value";
 import type { useHomeContent } from "./use-home-content";
@@ -59,6 +60,15 @@ function HomeBlockEditor({ id, content, applySection, onDirtyChange }: HomeBlock
         <OfferBannerEditor
           section={content.offerBanner}
           onSaved={(section) => applySection("offerBanner", section)}
+          embedded
+          onDirtyChange={handleDirty}
+        />
+      );
+    case "pageCovers":
+      return (
+        <PageCoversEditor
+          section={content.pageCovers}
+          onSaved={(section) => applySection("pageCovers", section)}
           embedded
           onDirtyChange={handleDirty}
         />

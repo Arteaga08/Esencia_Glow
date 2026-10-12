@@ -125,6 +125,11 @@ const offerBannerImageSlotParamsSchema = Joi.object({
   slot: Joi.string().valid("desktop", "mobile", "page").required(),
 });
 
+/** Página cuya foto de encabezado se edita (`/page-covers/:page/image`). */
+const pageCoverParamsSchema = Joi.object({
+  page: Joi.string().valid("kits", "bestsellers").required(),
+});
+
 /** Segmento de URL de las secciones de Novedades y Kits. */
 const spotlightParamsSchema = Joi.object({
   section: Joi.string().valid("new-arrivals", "kits").required(),
@@ -161,6 +166,7 @@ export {
   updateSpotlightSchema,
   updateOfferBannerSchema,
   offerBannerImageSlotParamsSchema,
+  pageCoverParamsSchema,
   spotlightParamsSchema,
   spotlightImageParamsSchema,
   heroSlideImageParamsSchema,

@@ -1,4 +1,5 @@
 import type { HomeBenefitIcon } from "../enums/home-benefit-icon.js";
+import type { HomePageCoverKey } from "../enums/home-section.js";
 import type { PublicCategory, PublicProduct, PublicProductImage } from "./catalog.js";
 
 /**
@@ -107,6 +108,15 @@ interface AdminHomeOfferBanner extends HomeSectionMeta {
   images: Partial<HomeHeroSlideImages> & { page?: PublicProductImage };
 }
 
+/**
+ * Fotos del encabezado de las páginas de Kits (/kits) y Más vendidos
+ * (/mas-vendidos). No es un bloque del home: no tiene interruptor (`isActive`
+ * no se usa) y cada foto se publica con solo existir.
+ */
+interface AdminHomePageCovers extends HomeSectionMeta {
+  images: Partial<Record<HomePageCoverKey, PublicProductImage>>;
+}
+
 interface AdminHomeContent {
   announcement: AdminHomeAnnouncement;
   hero: AdminHomeHero;
@@ -118,6 +128,7 @@ interface AdminHomeContent {
   newArrivals: AdminHomeSpotlight;
   kits: AdminHomeSpotlight;
   offerBanner: AdminHomeOfferBanner;
+  pageCovers: AdminHomePageCovers;
 }
 
 interface PublicHomeHeroSlide {
@@ -164,6 +175,10 @@ interface PublicHomeContent {
   offerBanner?: PublicHomeOfferBanner;
   /** Foto del encabezado de /ofertas. Se publica aunque el banner del home esté apagado. */
   salePage?: { image: PublicProductImage };
+  /** Foto del encabezado de /kits. */
+  kitsPage?: { image: PublicProductImage };
+  /** Foto del encabezado de /mas-vendidos. */
+  bestsellersPage?: { image: PublicProductImage };
 }
 
 export type {
@@ -180,6 +195,7 @@ export type {
   AdminHomeBenefits,
   AdminHomeSpotlight,
   AdminHomeOfferBanner,
+  AdminHomePageCovers,
   AdminHomeContent,
   PublicHomeSpotlight,
   PublicHomeOfferBanner,
