@@ -7,6 +7,7 @@ import {
   type AdminHomeFeaturedProducts,
   type AdminHomeHero,
   type AdminHomeOfferBanner,
+  type AdminHomePageCovers,
   type AdminHomeSpotlight,
   type AdminHomeSubscriptionPromo,
   type AdminHomeTestimonials,
@@ -18,7 +19,7 @@ import type { HomeSectionBaseAttrs } from "../models/home-section.schemas.js";
 import { buildImageDto } from "./catalog-dto.js";
 
 /**
- * Vista admin del singleton: SIEMPRE las diez secciones. Una sección que
+ * Vista admin del singleton: SIEMPRE todas las secciones. Una sección que
  * nadie ha escrito sale como `{version: 0, isActive: false, ...vacío}` — los
  * defaults se completan aquí, AL LEER, nunca al escribir (mismo criterio que
  * `getSettings`). El `version: 0` es lo que el editor devuelve en su primera
@@ -150,6 +151,17 @@ function buildOfferBanner(doc: HomeContentAttrs | null): AdminHomeOfferBanner {
   };
 }
 
+function buildPageCovers(doc: HomeContentAttrs | null): AdminHomePageCovers {
+  const section = doc?.pageCovers;
+  return {
+    ...buildMeta(section),
+    images: {
+      ...(section?.images?.kits ? { kits: buildImageDto(section.images.kits) } : {}),
+      ...(section?.images?.bestsellers ? { bestsellers: buildImageDto(section.images.bestsellers) } : {}),
+    },
+  };
+}
+
 function buildAdminHomeContent(doc: HomeContentAttrs | null): AdminHomeContent {
   return {
     announcement: buildAnnouncement(doc),
@@ -162,6 +174,7 @@ function buildAdminHomeContent(doc: HomeContentAttrs | null): AdminHomeContent {
     newArrivals: buildSpotlight(doc, HomeSectionKey.NEW_ARRIVALS),
     kits: buildSpotlight(doc, HomeSectionKey.KITS),
     offerBanner: buildOfferBanner(doc),
+    pageCovers: buildPageCovers(doc),
   };
 }
 
@@ -176,4 +189,5 @@ export {
   buildBenefits,
   buildSpotlight,
   buildOfferBanner,
+  buildPageCovers,
 };

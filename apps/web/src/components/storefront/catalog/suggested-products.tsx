@@ -6,11 +6,14 @@ import { pickSuggestions, type PickedSuggestions, type SuggestionPayload } from 
 import { SuggestedSection } from "./suggested-section";
 
 interface SuggestedProductsProps {
-  categorySlug: string;
+  /** Categoría abierta; se omite en listados que no son una categoría (Kits, Más vendidos). */
+  categorySlug?: string;
   /** Marcas filtradas ahora mismo: filtrar por una marca cuenta como interés en ella. */
   activeBrands: string[];
   /** Productos ya visibles en la rejilla: no se sugieren de nuevo. */
   excludeIds: string[];
+  /** `"newest"`: el relleno es lo más nuevo aunque haya más vendidos (para la página de Más vendidos). */
+  fallback?: "newest";
 }
 
 const TITLES: Record<PickedSuggestions["kind"], string> = {
@@ -26,7 +29,7 @@ const TITLES: Record<PickedSuggestions["kind"], string> = {
  * ya hay tarjetas: está al final de la página, así que no mueve el contenido
  * que la clienta está viendo. Si la petición falla, simplemente no aparece.
  */
-function SuggestedProducts({ categorySlug, activeBrands, excludeIds }: SuggestedProductsProps) {
+function SuggestedProducts({ categorySlug, activeBrands, excludeIds, fallback }: SuggestedProductsProps) {
   const [picked, setPicked] = useState<PickedSuggestions | null>(null);
   const countedBrands = useRef(new Set<string>());
   const brandsKey = activeBrands.join(",");
@@ -34,7 +37,7 @@ function SuggestedProducts({ categorySlug, activeBrands, excludeIds }: Suggested
 
   // Una visita por categoría abierta (no por cada cambio de filtro o de página).
   useEffect(() => {
-    recordBrowsing({ category: categorySlug });
+    if (categorySlug) recordBrowsing({ category: categorySlug });
     countedBrands.current = new Set();
   }, [categorySlug]);
 
@@ -51,6 +54,7 @@ function SuggestedProducts({ categorySlug, activeBrands, excludeIds }: Suggested
     const query = new URLSearchParams();
     if (signals.categories.length > 0) query.set("categorias", signals.categories.join(","));
     if (signals.brands.length > 0) query.set("marcas", signals.brands.join(","));
+    if (fallback === "newest") query.set("relleno", "nuevos");
 
     fetch(`/api/storefront/suggestions?${query}`, { signal: controller.signal })
       .then((response) => (response.ok ? (response.json() as Promise<SuggestionPayload>) : null))
@@ -61,7 +65,7 @@ function SuggestedProducts({ categorySlug, activeBrands, excludeIds }: Suggested
         // Sin sugerencias el catálogo sigue completo; no hay nada que avisar.
       });
     return () => controller.abort();
-  }, [categorySlug, brandsKey, excludeKey]);
+  }, [categorySlug, brandsKey, excludeKey, fallback]);
 
   if (!picked || picked.items.length === 0) return null;
   return <SuggestedSection title={TITLES[picked.kind]} items={picked.items} />;

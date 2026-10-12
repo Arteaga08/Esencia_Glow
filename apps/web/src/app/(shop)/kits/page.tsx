@@ -3,8 +3,10 @@ import { redirect } from "next/navigation";
 import { CatalogBrowser } from "@/components/storefront/catalog/catalog-browser";
 import { KIT_COPY } from "@/components/storefront/catalog/catalog-copy";
 import { CatalogHeading } from "@/components/storefront/catalog/catalog-heading";
+import { SuggestedProducts } from "@/components/storefront/catalog/suggested-products";
 import { ErrorState } from "@/components/ui/error-state";
 import { catalogFiltersToQuery, parseCatalogFilters, parsePage, type RawSearchParams } from "@/lib/storefront/catalog-filters";
+import { getHomeContent } from "@/lib/storefront/home";
 import { getKitFacets, getKitsPage } from "@/lib/storefront/kit";
 
 const PATHNAME = "/kits";
@@ -21,14 +23,20 @@ interface KitsPageProps {
 /**
  * Listado de kits con la misma rejilla del catálogo. Solo filtra por precio y
  * ordena (un kit no tiene marca); el estado vive en la URL, igual que en la
- * categoría.
+ * categoría. La foto del encabezado se carga en el panel (Contenido del home →
+ * Portadas de páginas); sin ella queda el rosa liso. Debajo, productos
+ * sugeridos según lo que ha visto la clienta.
  */
 export default async function KitsPage({ searchParams }: KitsPageProps) {
   const rawSearchParams = await searchParams;
   const filters = parseCatalogFilters(rawSearchParams);
   const page = parsePage(rawSearchParams);
 
-  const [catalogPage, facets] = await Promise.all([getKitsPage(filters, page), getKitFacets()]);
+  const [catalogPage, facets, homeContent] = await Promise.all([
+    getKitsPage(filters, page),
+    getKitFacets(),
+    getHomeContent(),
+  ]);
 
   // Una página más allá de la última (filtros que dejaron menos resultados): volver a la primera.
   if (catalogPage && catalogPage.meta.pages > 0 && page > catalogPage.meta.pages) {
@@ -38,9 +46,17 @@ export default async function KitsPage({ searchParams }: KitsPageProps) {
 
   return (
     <main className="pt-16 xl:pt-20">
-      <CatalogHeading title="Kits" description="Rutinas completas en un solo paquete, con un precio pensado para el conjunto." />
+      <CatalogHeading
+        title="Kits"
+        description="Rutinas completas en un solo paquete, con un precio pensado para el conjunto."
+        image={homeContent?.kitsPage?.image}
+      />
       {catalogPage ? (
-        <CatalogBrowser pathname={PATHNAME} filters={filters} facets={facets} items={catalogPage.items} meta={catalogPage.meta} copy={KIT_COPY} />
+        <>
+          <CatalogBrowser pathname={PATHNAME} filters={filters} facets={facets} items={catalogPage.items} meta={catalogPage.meta} copy={KIT_COPY} />
+          {/* La rejilla es de kits y las sugerencias son productos: no hay nada que excluir. */}
+          <SuggestedProducts activeBrands={[]} excludeIds={[]} />
+        </>
       ) : (
         <div className="mx-auto max-w-shell px-4 py-10 pb-20 md:px-8 xl:px-12">
           <ErrorState title="No pudimos cargar los kits" description="Intenta de nuevo en unos minutos." />

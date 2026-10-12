@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { ContentAction, HomeSectionKey } from "@esencia-glow/shared";
+import { ContentAction, HomeSectionKey, type HomePageCoverKey } from "@esencia-glow/shared";
 import { asyncHandler } from "../utils/async-handler.js";
 import { sendResponse } from "../utils/send-response.js";
 import { AppError } from "../utils/app-error.js";
@@ -25,7 +25,12 @@ function requireFile(req: Request): Express.Multer.File {
 }
 
 /** Cada operación de imagen es una escritura de sección: una entrada de auditoría con `change: "image"`. */
-async function auditImageChange(req: Request, section: HomeSectionKey, version: number, slot?: OfferBannerImageSlot) {
+async function auditImageChange(
+  req: Request,
+  section: HomeSectionKey,
+  version: number,
+  slot?: OfferBannerImageSlot | HomePageCoverKey,
+) {
   await recordAudit({
     action: ContentAction.HOME_SECTION_UPDATED,
     actorId: req.user!.id,
@@ -118,6 +123,25 @@ const removeOfferBannerImage = asyncHandler(async (req: Request<SlotParams>, res
   sendResponse(res, 200, "Foto del banner eliminada.", result);
 });
 
+type PageCoverParams = { page: HomePageCoverKey };
+
+const setPageCoverImage = asyncHandler(async (req: Request<PageCoverParams>, res: Response) => {
+  const file = requireFile(req);
+  const { version, alt } = req.body as { version: number; alt?: string };
+
+  const result = await homeImageService.setPageCoverImage(req.params.page, file.buffer, version, alt);
+
+  await auditImageChange(req, HomeSectionKey.PAGE_COVERS, result.version, req.params.page);
+  sendResponse(res, 200, "Foto de la página actualizada.", result);
+});
+
+const removePageCoverImage = asyncHandler(async (req: Request<PageCoverParams>, res: Response) => {
+  const result = await homeImageService.removePageCoverImage(req.params.page, queryVersion(req));
+
+  await auditImageChange(req, HomeSectionKey.PAGE_COVERS, result.version, req.params.page);
+  sendResponse(res, 200, "Foto de la página eliminada.", result);
+});
+
 export {
   setOfferBannerImage,
   removeOfferBannerImage,
@@ -127,4 +151,6 @@ export {
   removePromoImage,
   setSpotlightImage,
   removeSpotlightImage,
+  setPageCoverImage,
+  removePageCoverImage,
 };

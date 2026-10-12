@@ -4,7 +4,7 @@ import { Breadcrumb } from "./breadcrumb";
 interface CatalogHeadingProps {
   title: string;
   description: string;
-  /** Foto opcional (Ofertas la carga desde el panel). */
+  /** Foto opcional: se carga en el panel, en Contenido del home. */
   image?: { url: string; alt?: string };
 }
 
