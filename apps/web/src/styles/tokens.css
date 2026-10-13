@@ -11,31 +11,31 @@
  */
 @theme {
   /* --- Colores (OKLCH) --- */
-  --color-background: oklch(0.9859 0.0076 48.6568);
+  --color-background: oklch(1 0 0);
   --color-foreground: oklch(0.2 0 0);
   --color-surface: oklch(1 0 0);
   --color-surface-foreground: oklch(0.2 0 0);
-  --color-primary: oklch(0.77 0.1 4);
-  --color-primary-hover: oklch(0.73 0.1 4);
-  --color-primary-active: oklch(0.69 0.1 4);
-  --color-primary-action: oklch(0.54 0.125 6);
+  --color-primary: oklch(0.77 0.1 355);
+  --color-primary-hover: oklch(0.73 0.1 355);
+  --color-primary-active: oklch(0.69 0.1 355);
+  --color-primary-action: oklch(0.54 0.115 355);
   --color-primary-foreground: oklch(1 0 0);
   --color-secondary: oklch(0.9449 0.011 54.4941);
   --color-secondary-foreground: oklch(0.2 0 0);
   --color-muted: oklch(0.9687 0.0086 44.8919);
-  --color-muted-foreground: oklch(0.6608 0.0272 49.5764);
+  --color-muted-foreground: oklch(0.56 0.0272 49.5764);
   --color-muted-foreground-strong: oklch(0.5 0.0272 49.5764);
-  --color-accent: oklch(0.9239 0.0415 1.1045);
-  --color-accent-foreground: oklch(0.54 0.125 6);
-  --color-accent-foreground-strong: oklch(0.5 0.125 6);
+  --color-accent: oklch(0.9239 0.0415 355);
+  --color-accent-foreground: oklch(0.52 0.115 355);
+  --color-accent-foreground-strong: oklch(0.48 0.115 355);
   --color-destructive: oklch(0.6256 0.1933 23.0261);
   --color-destructive-action: oklch(0.5 0.1933 23.0261);
   --color-destructive-action-hover: oklch(0.45 0.1933 23.0261);
   --color-destructive-foreground: oklch(0.9921 0.0017 325.59);
-  --color-border: oklch(0.9138 0.0146 50.7928);
+  --color-border: oklch(0.88 0.0146 50.7928);
   --color-border-strong: oklch(0.64 0.0146 50.7928);
   --color-input: oklch(1 0 0);
-  --color-ring: oklch(0.54 0.125 6);
+  --color-ring: oklch(0.54 0.115 355);
 
   /* Pares de los badges del catálogo, afinados al rosa empolvado sobre crema. */
   --color-badge-sage: oklch(0.91 0.04 150);

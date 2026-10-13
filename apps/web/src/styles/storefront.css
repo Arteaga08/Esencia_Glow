@@ -13,6 +13,12 @@
    * era rosa; desde la paleta de la clienta (2026-10-07) es su beige.
    */
   --color-blush: var(--color-secondary);
+  /*
+   * Rosa de las dos cintas (anuncio y marcas), elegido por la clienta. Solo
+   * fondo, con texto en tinta (7.5:1): contra blanco da 2.4:1, no sirve como
+   * borde ni texto. Su matiz (355) es el de toda la familia rosa de `tokens.css`.
+   */
+  --color-rose: oklch(0.74 0.09 355);
 
   /*
    * Título del hero: lo más grande de la portada (40px en móvil, 64px en
