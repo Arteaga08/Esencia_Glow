@@ -38,7 +38,7 @@ async function AnnouncementBar() {
   );
 
   return (
-    <div className="bg-foreground text-background">
+    <div className="bg-rose text-foreground">
       {announcement.href ? (
         <Link
           href={announcement.href}
