@@ -34,6 +34,11 @@ function buildCapturingApp(): { app: express.Express; lines: () => unknown[] } {
   app.use(httpLogger);
   app.get("/api/v1/health", (_req, res) => res.status(200).json({ status: "success" }));
   app.get("/api/v1/ruta-inexistente", (_req, res) => res.status(404).json({ status: "fail" }));
+  app.post("/api/v1/auth/login", (_req, res) => {
+    res.cookie("access_token", "super-secreto-de-acceso", { httpOnly: true });
+    res.cookie("refresh_token", "super-secreto-de-refresh", { httpOnly: true });
+    res.status(200).json({ status: "success" });
+  });
 
   return {
     app,
@@ -57,6 +62,19 @@ describe("config/http-logger — redacción", () => {
     expect(requestLine?.req.headers.cookie).toBe("[redacted]");
     expect(requestLine?.req.headers.authorization).toBe("[redacted]");
     expect(JSON.stringify(requestLine)).not.toContain("super-secreto");
+  });
+
+  it("no deja en claro las cookies que la respuesta pone (Set-Cookie con tokens de sesión)", async () => {
+    const { app, lines } = buildCapturingApp();
+
+    await request(app).post("/api/v1/auth/login");
+
+    const responseLine = lines().find((line) => "res" in line) as
+      | { res: { headers: Record<string, unknown> } }
+      | undefined;
+    expect(responseLine).toBeDefined();
+    expect(responseLine?.res.headers["set-cookie"]).toBe("[redacted]");
+    expect(JSON.stringify(responseLine)).not.toContain("super-secreto");
   });
 
   it("no loguea las rutas de /health (ruido de healthcheck de Railway)", async () => {
