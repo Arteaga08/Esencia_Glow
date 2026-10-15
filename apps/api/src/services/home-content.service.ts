@@ -1,6 +1,7 @@
 import { Types } from "mongoose";
 import {
   HomeSectionKey,
+  type AdminHomeAdvice,
   type AdminHomeAnnouncement,
   type AdminHomeBenefits,
   type AdminHomeContent,
@@ -20,6 +21,7 @@ import { AppError } from "../utils/app-error.js";
 import { assertVersionMatches, readHomeContent, writeSection, type SectionWrite } from "./home-content-store.js";
 import {
   buildAdminHomeContent,
+  buildAdvice,
   buildAnnouncement,
   buildBenefits,
   buildFeaturedCategories,
@@ -309,9 +311,31 @@ async function updateOfferBanner(input: OfferBannerInput): Promise<AdminHomeOffe
   return buildOfferBanner(doc);
 }
 
+interface AdviceInput extends SectionInput {
+  eyebrow?: string;
+  title: string;
+  body: string;
+  archWord?: string;
+  ctaLabel: string;
+}
+
+/** Bloque de asesoría: textos. La foto tiene su propio endpoint. */
+async function updateAdvice(input: AdviceInput): Promise<AdminHomeAdvice> {
+  const doc = await writeSection(
+    HomeSectionKey.ADVICE,
+    input.version,
+    contentWrite(
+      { isActive: input.isActive, title: input.title, body: input.body, ctaLabel: input.ctaLabel },
+      { eyebrow: input.eyebrow, archWord: input.archWord },
+    ),
+  );
+  return buildAdvice(doc);
+}
+
 export {
   updateSpotlight,
   updateOfferBanner,
+  updateAdvice,
   getAdminHomeContent,
   updateAnnouncement,
   updateHero,

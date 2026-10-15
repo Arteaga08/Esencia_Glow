@@ -15,6 +15,10 @@ const HOME_CONTENT_LIMITS = {
   announcementTextMax: 120,
   /** Frase de la cinta del banner de oferta (bloque 8): se lee de corrido mientras se desplaza. */
   offerTextMax: 80,
+  /** Bloque de asesoría: etiqueta sobre el título y palabra grande sobre el arco de la foto. */
+  adviceEyebrowMax: 40,
+  adviceTitleMax: 80,
+  adviceWordMax: 14,
   titleMax: 120,
   subtitleMax: 240,
   ctaLabelMax: 40,

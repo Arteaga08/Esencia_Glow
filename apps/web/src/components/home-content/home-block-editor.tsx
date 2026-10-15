@@ -2,10 +2,10 @@
 
 import { useCallback } from "react";
 import type { AdminHomeContent } from "@esencia-glow/shared";
+import { AdviceEditor } from "./advice-editor";
 import { AnnouncementEditor } from "./announcement-editor";
 import { HeroEditor } from "./hero-editor";
 import type { HomeBlockId } from "./home-blocks";
-import { OfferBannerEditor } from "./offer-banner-editor";
 import { PageCoversEditor } from "./page-covers-editor";
 import { SpotlightEditor } from "./spotlight-editor";
 import { KITS_META, NEW_ARRIVALS_META } from "./spotlight-form-value";
@@ -65,11 +65,11 @@ function HomeBlockEditor({ id, content, applySection, onDirtyChange }: HomeBlock
           onDirtyChange={handleDirty}
         />
       );
-    case "offerBanner":
+    case "advice":
       return (
-        <OfferBannerEditor
-          section={content.offerBanner}
-          onSaved={(section) => applySection("offerBanner", section)}
+        <AdviceEditor
+          section={content.advice}
+          onSaved={(section) => applySection("advice", section)}
           embedded
           onDirtyChange={handleDirty}
         />
@@ -79,6 +79,8 @@ function HomeBlockEditor({ id, content, applySection, onDirtyChange }: HomeBlock
         <PageCoversEditor
           section={content.pageCovers}
           onSaved={(section) => applySection("pageCovers", section)}
+          offerBanner={content.offerBanner}
+          onOfferBannerSaved={(section) => applySection("offerBanner", section)}
           embedded
           onDirtyChange={handleDirty}
         />

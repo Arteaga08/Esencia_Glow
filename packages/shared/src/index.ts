@@ -224,10 +224,12 @@ export type {
   AdminHomeBenefits,
   AdminHomeSpotlight,
   AdminHomeOfferBanner,
+  AdminHomeAdvice,
   AdminHomePageCovers,
   AdminHomeContent,
   PublicHomeSpotlight,
   PublicHomeOfferBanner,
+  PublicHomeAdvice,
   PublicHomeHeroSlide,
   PublicHomeContent,
 } from "./types/home-content.js";

@@ -109,6 +109,21 @@ interface AdminHomeOfferBanner extends HomeSectionMeta {
 }
 
 /**
+ * Bloque de asesoría (reemplaza al banner de oferta en el home): una foto
+ * vertical en arco con una palabra grande encima, y al lado etiqueta, título,
+ * texto y un botón. El botón siempre abre el WhatsApp de asesoría (constante
+ * de la tienda), por eso no guarda enlace.
+ */
+interface AdminHomeAdvice extends HomeSectionMeta {
+  eyebrow?: string;
+  title: string;
+  body: string;
+  archWord?: string;
+  ctaLabel: string;
+  image?: PublicProductImage;
+}
+
+/**
  * Fotos del encabezado de las páginas de Kits (/kits) y Más vendidos
  * (/mas-vendidos). No es un bloque del home: no tiene interruptor (`isActive`
  * no se usa) y cada foto se publica con solo existir.
@@ -128,6 +143,7 @@ interface AdminHomeContent {
   newArrivals: AdminHomeSpotlight;
   kits: AdminHomeSpotlight;
   offerBanner: AdminHomeOfferBanner;
+  advice: AdminHomeAdvice;
   pageCovers: AdminHomePageCovers;
 }
 
@@ -156,6 +172,16 @@ interface PublicHomeOfferBanner {
   images: HomeHeroSlideImages<PublicProductImage>;
 }
 
+/** Sin foto, título, texto o botón no se publica: esos cuatro siempre vienen. */
+interface PublicHomeAdvice {
+  eyebrow?: string;
+  title: string;
+  body: string;
+  archWord?: string;
+  ctaLabel: string;
+  image: PublicProductImage;
+}
+
 interface PublicHomeContent {
   announcement?: { text: string; href?: string };
   hero?: { slides: PublicHomeHeroSlide[] };
@@ -173,6 +199,7 @@ interface PublicHomeContent {
   newArrivals?: PublicHomeSpotlight;
   kits?: PublicHomeSpotlight;
   offerBanner?: PublicHomeOfferBanner;
+  advice?: PublicHomeAdvice;
   /** Foto del encabezado de /ofertas. Se publica aunque el banner del home esté apagado. */
   salePage?: { image: PublicProductImage };
   /** Foto del encabezado de /kits. */
@@ -195,10 +222,12 @@ export type {
   AdminHomeBenefits,
   AdminHomeSpotlight,
   AdminHomeOfferBanner,
+  AdminHomeAdvice,
   AdminHomePageCovers,
   AdminHomeContent,
   PublicHomeSpotlight,
   PublicHomeOfferBanner,
+  PublicHomeAdvice,
   PublicHomeHeroSlide,
   PublicHomeContent,
 };

@@ -1,5 +1,6 @@
 import {
   HomeSectionKey,
+  type AdminHomeAdvice,
   type AdminHomeAnnouncement,
   type AdminHomeBenefits,
   type AdminHomeContent,
@@ -151,6 +152,19 @@ function buildOfferBanner(doc: HomeContentAttrs | null): AdminHomeOfferBanner {
   };
 }
 
+function buildAdvice(doc: HomeContentAttrs | null): AdminHomeAdvice {
+  const section = doc?.advice;
+  return {
+    ...buildMeta(section),
+    ...(section?.eyebrow ? { eyebrow: section.eyebrow } : {}),
+    title: section?.title ?? "",
+    body: section?.body ?? "",
+    ...(section?.archWord ? { archWord: section.archWord } : {}),
+    ctaLabel: section?.ctaLabel ?? "",
+    ...(section?.image ? { image: buildImageDto(section.image) } : {}),
+  };
+}
+
 function buildPageCovers(doc: HomeContentAttrs | null): AdminHomePageCovers {
   const section = doc?.pageCovers;
   return {
@@ -174,6 +188,7 @@ function buildAdminHomeContent(doc: HomeContentAttrs | null): AdminHomeContent {
     newArrivals: buildSpotlight(doc, HomeSectionKey.NEW_ARRIVALS),
     kits: buildSpotlight(doc, HomeSectionKey.KITS),
     offerBanner: buildOfferBanner(doc),
+    advice: buildAdvice(doc),
     pageCovers: buildPageCovers(doc),
   };
 }
@@ -189,5 +204,6 @@ export {
   buildBenefits,
   buildSpotlight,
   buildOfferBanner,
+  buildAdvice,
   buildPageCovers,
 };

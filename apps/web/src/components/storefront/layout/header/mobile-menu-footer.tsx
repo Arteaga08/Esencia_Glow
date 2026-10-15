@@ -1,6 +1,6 @@
 import { ArrowUpRight, WhatsappLogo } from "@phosphor-icons/react";
 import { NetworkIcon } from "@/components/storefront/home/social/network-link";
-import { WHATSAPP_HREF } from "@/lib/storefront/contact";
+import { ADVICE_WHATSAPP_HREF } from "@/lib/storefront/contact";
 import { SOCIAL_NETWORKS } from "@/lib/storefront/social-feed";
 
 const focusRing = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
@@ -13,7 +13,7 @@ function MobileMenuFooter() {
   return (
     <div className="border-t border-border bg-blush px-4 pb-4 pt-4">
       <a
-        href={WHATSAPP_HREF}
+        href={ADVICE_WHATSAPP_HREF}
         target="_blank"
         rel="noopener noreferrer"
         className={`flex min-h-14 items-center gap-3 rounded-full bg-primary pl-5 pr-4 text-subtitle text-foreground transition-colors duration-[var(--duration-base)] ease-out-quart hover:bg-primary-hover active:bg-primary-active motion-reduce:transition-none ${focusRing}`}

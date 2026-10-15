@@ -1,6 +1,7 @@
 import { Types } from "mongoose";
 import {
   HomeSectionKey,
+  type AdminHomeAdvice,
   type AdminHomeHero,
   type AdminHomeOfferBanner,
   type AdminHomePageCovers,
@@ -12,7 +13,7 @@ import {
 import type { HomeContentAttrs } from "../models/home-content.model.js";
 import type { HomeHeroSlideAttrs, HomeImageAttrs } from "../models/home-section.schemas.js";
 import { AppError } from "../utils/app-error.js";
-import { buildHero, buildOfferBanner, buildPageCovers, buildSpotlight, buildSubscriptionPromo } from "./home-content-dto.js";
+import { buildAdvice, buildHero, buildOfferBanner, buildPageCovers, buildSpotlight, buildSubscriptionPromo } from "./home-content-dto.js";
 import { assertVersionMatches, readHomeContent, writeSection, type SectionWrite } from "./home-content-store.js";
 import { destroyImageBestEffort, uploadImage } from "./upload.service.js";
 import type { MediaAsset } from "./media-provider.js";
@@ -222,6 +223,30 @@ async function removeOfferBannerImage(slot: OfferBannerImageSlot, version: numbe
   return buildOfferBanner(await removeSectionSlotImage(HomeSectionKey.OFFER_BANNER, slot, version));
 }
 
+/** Foto del bloque de asesoría. Como en el banner, la sección puede nacer con la foto, antes que los textos. */
+async function setAdviceImage(buffer: Buffer, version: number, alt?: string): Promise<AdminHomeAdvice> {
+  const current = await readHomeContent();
+  assertVersionMatches(current, HomeSectionKey.ADVICE, version);
+  const previous = current?.advice?.image;
+
+  const doc = await uploadAndWrite(buffer, alt, HomeSectionKey.ADVICE, version, (image) => ({ set: { image } }));
+
+  if (previous) await destroyImageBestEffort(previous.publicId);
+  return buildAdvice(doc);
+}
+
+async function removeAdviceImage(version: number): Promise<AdminHomeAdvice> {
+  const current = await readHomeContent();
+  assertVersionMatches(current, HomeSectionKey.ADVICE, version);
+  const previous = current?.advice?.image;
+  if (!previous) throw new AppError("Imagen no encontrada", 404);
+
+  const doc = await writeSection(HomeSectionKey.ADVICE, version, { unset: ["image"] });
+
+  await destroyImageBestEffort(previous.publicId);
+  return buildAdvice(doc);
+}
+
 /** Foto del encabezado de /kits o /mas-vendidos. La sección nace con la primera foto. */
 async function setPageCoverImage(
   page: HomePageCoverKey,
@@ -245,6 +270,8 @@ export {
   removeSpotlightImage,
   setOfferBannerImage,
   removeOfferBannerImage,
+  setAdviceImage,
+  removeAdviceImage,
   setPageCoverImage,
   removePageCoverImage,
 };

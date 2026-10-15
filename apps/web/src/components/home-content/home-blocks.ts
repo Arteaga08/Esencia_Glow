@@ -1,6 +1,6 @@
 import { HOME_CONTENT_LIMITS, type AdminHomeContent } from "@esencia-glow/shared";
 
-type HomeBlockId = "announcement" | "hero" | "newArrivals" | "kits" | "offerBanner" | "pageCovers";
+type HomeBlockId = "announcement" | "hero" | "newArrivals" | "kits" | "advice" | "pageCovers";
 
 interface HomeBlockSummary {
   id: HomeBlockId;
@@ -19,15 +19,16 @@ interface HomeBlockSummary {
  * final va `pageCovers`, que no es un bloque del home sino las fotos de
  * encabezado de otras páginas.
  */
-const HOME_BLOCK_ORDER: HomeBlockId[] = ["announcement", "hero", "newArrivals", "kits", "offerBanner", "pageCovers"];
+const HOME_BLOCK_ORDER: HomeBlockId[] = ["announcement", "hero", "newArrivals", "kits", "advice", "pageCovers"];
 
 const NO_DESKTOP_IMAGE = "Sin foto de escritorio";
 
 function describeHomeBlocks(content: AdminHomeContent): HomeBlockSummary[] {
   const slides = content.hero.slides;
   const heroCount = slides.length;
-  const covers = content.pageCovers.images;
-  const coverCount = [covers.bestsellers, covers.kits].filter(Boolean).length;
+  const covers = { ...content.pageCovers.images, sale: content.offerBanner.images.page };
+  const coverCount = [covers.bestsellers, covers.kits, covers.sale].filter(Boolean).length;
+  const advice = content.advice;
 
   const byId: Record<HomeBlockId, HomeBlockSummary> = {
     announcement: {
@@ -66,24 +67,24 @@ function describeHomeBlocks(content: AdminHomeContent): HomeBlockSummary[] {
       issue: content.kits.images.desktop ? null : NO_DESKTOP_IMAGE,
       thumbnailUrl: content.kits.images.desktop?.url ?? null,
     },
-    offerBanner: {
-      id: "offerBanner",
-      name: "Banner de oferta",
-      description: "Foto a todo lo ancho con una frase que corre sin parar y un botón al producto en oferta.",
-      isActive: content.offerBanner.isActive,
-      summary: content.offerBanner.text || "Sin frase todavía",
-      issue: content.offerBanner.images.desktop ? null : NO_DESKTOP_IMAGE,
-      thumbnailUrl: content.offerBanner.images.desktop?.url ?? null,
+    advice: {
+      id: "advice",
+      name: "Asesoría",
+      description: "Foto en arco y texto con un botón que abre el WhatsApp de asesoría.",
+      isActive: advice.isActive,
+      summary: advice.title || "Sin título todavía",
+      issue: !advice.image ? "Sin foto" : !advice.title || !advice.body || !advice.ctaLabel ? "Faltan textos" : null,
+      thumbnailUrl: advice.image?.url ?? null,
     },
     pageCovers: {
       id: "pageCovers",
       name: "Portadas de páginas",
-      description: "Foto del encabezado de las páginas de Más vendidos y Kits.",
+      description: "Foto del encabezado de las páginas de Más vendidos, Kits y Ofertas.",
       // Sin interruptor: cuenta como visible en cuanto hay una foto cargada.
       isActive: coverCount > 0,
-      summary: coverCount === 0 ? "Sin fotos todavía" : `${coverCount} de 2 fotos · Más vendidos y Kits`,
+      summary: coverCount === 0 ? "Sin fotos todavía" : `${coverCount} de 3 fotos · Más vendidos, Kits y Ofertas`,
       issue: null,
-      thumbnailUrl: (covers.bestsellers ?? covers.kits)?.url ?? null,
+      thumbnailUrl: (covers.bestsellers ?? covers.kits ?? covers.sale)?.url ?? null,
     },
   };
 

@@ -16,6 +16,7 @@ import {
   imageVersionBodySchema,
   spotlightImageParamsSchema,
   spotlightParamsSchema,
+  updateAdviceSchema,
   updateAnnouncementSchema,
   updateBenefitsSchema,
   updateFeaturedCategoriesSchema,
@@ -69,6 +70,7 @@ router.put(
   homeContentController.updateSpotlight,
 );
 router.put("/offer-banner", validate(updateOfferBannerSchema), homeContentController.updateOfferBanner);
+router.put("/advice", validate(updateAdviceSchema), homeContentController.updateAdvice);
 
 router.put(
   "/hero/slides/:slideId/images/:slot",
@@ -130,6 +132,16 @@ router.delete(
   validate(deleteImageQuerySchema, "query"),
   homeImageController.removeOfferBannerImage,
 );
+
+router.put(
+  "/advice/image",
+  uploadRateLimiter,
+  uploadSingleImage("image"),
+  sanitizeMultipart,
+  validate(imageVersionBodySchema),
+  homeImageController.setAdviceImage,
+);
+router.delete("/advice/image", validate(deleteImageQuerySchema, "query"), homeImageController.removeAdviceImage);
 
 router.put(
   "/page-covers/:page/image",
