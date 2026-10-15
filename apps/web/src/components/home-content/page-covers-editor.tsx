@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { AdminHomePageCovers, HomePageCoverKey } from "@esencia-glow/shared";
+import type { AdminHomeOfferBanner, AdminHomePageCovers } from "@esencia-glow/shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FieldError } from "@/components/ui/field-error";
@@ -10,10 +10,16 @@ import { ApiRequestError } from "@/lib/api";
 import { EditorSurface } from "./editor-surface";
 import { HeroImageSlot } from "./hero-image-slot";
 import { savePageCovers } from "./page-covers-actions";
-import { PAGE_COVERS, fingerprint, toFormValue, type PageCoversFormValue } from "./page-covers-form-value";
+import {
+  PAGE_COVERS,
+  fingerprint,
+  toFormValue,
+  type PageCoverSlot,
+  type PageCoversFormValue,
+} from "./page-covers-form-value";
 
 const DESCRIPTION =
-  "Foto del encabezado de las páginas de Más vendidos y Kits de la tienda. Sin foto, el encabezado queda en rosa liso.";
+  "Foto del encabezado de las páginas de Más vendidos, Kits y Ofertas de la tienda. Sin foto, el encabezado queda en rosa liso.";
 
 function describe(error: unknown, fallback: string): string {
   return error instanceof ApiRequestError ? error.message : fallback;
@@ -22,21 +28,32 @@ function describe(error: unknown, fallback: string): string {
 interface PageCoversEditorProps {
   section: AdminHomePageCovers;
   onSaved: (section: AdminHomePageCovers) => void;
+  /** La foto de /ofertas vive en la sección del banner de oferta (ver page-covers-form-value). */
+  offerBanner: AdminHomeOfferBanner;
+  onOfferBannerSaved: (section: AdminHomeOfferBanner) => void;
   embedded?: boolean;
   onDirtyChange?: (dirty: boolean) => void;
 }
 
 /**
- * Editor de las fotos de encabezado de las páginas de Más vendidos y Kits:
+ * Editor de las fotos de encabezado de las páginas de Más vendidos, Kits y Ofertas:
  * una foto por página, con un solo Guardar. No es un bloque del home (no tiene
  * interruptor): la foto se publica con solo existir. Un 409 significa que otra
  * persona editó las fotos: se avisa y no se pisa nada.
  */
-function PageCoversEditor({ section, onSaved, embedded = false, onDirtyChange }: PageCoversEditorProps) {
+function PageCoversEditor({
+  section,
+  onSaved,
+  offerBanner,
+  onOfferBannerSaved,
+  embedded = false,
+  onDirtyChange,
+}: PageCoversEditorProps) {
   const { toast } = useToast();
   const [saved, setSaved] = useState(section);
-  const [value, setValue] = useState<PageCoversFormValue>(() => toFormValue(section));
-  const [baseline, setBaseline] = useState(() => fingerprint(toFormValue(section)));
+  const [savedOfferBanner, setSavedOfferBanner] = useState(offerBanner);
+  const [value, setValue] = useState<PageCoversFormValue>(() => toFormValue(section, offerBanner));
+  const [baseline, setBaseline] = useState(() => fingerprint(toFormValue(section, offerBanner)));
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -45,12 +62,12 @@ function PageCoversEditor({ section, onSaved, embedded = false, onDirtyChange }:
     onDirtyChange?.(dirty);
   }, [dirty, onDirtyChange]);
 
-  function setImage(key: HomePageCoverKey, draft: PageCoversFormValue[HomePageCoverKey]) {
+  function setImage(key: PageCoverSlot, draft: PageCoversFormValue[PageCoverSlot]) {
     setValue((current) => ({ ...current, [key]: draft }));
   }
 
   function handleDiscard() {
-    setValue(toFormValue(saved));
+    setValue(toFormValue(saved, savedOfferBanner));
     setFormError(null);
   }
 
@@ -58,10 +75,12 @@ function PageCoversEditor({ section, onSaved, embedded = false, onDirtyChange }:
     event.preventDefault();
     setSaving(true);
     setFormError(null);
-    const result = await savePageCovers(value, saved);
+    const result = await savePageCovers(value, saved, savedOfferBanner);
     setSaved(result.section);
+    setSavedOfferBanner(result.offerBanner);
     setValue(result.value);
     onSaved(result.section);
+    onOfferBannerSaved(result.offerBanner);
     if (!result.imageError) {
       setBaseline(fingerprint(result.value));
       toast({ variant: "success", title: "Fotos de encabezado guardadas" });
@@ -95,7 +114,7 @@ function PageCoversEditor({ section, onSaved, embedded = false, onDirtyChange }:
           </div>
         )}
 
-        <div className="grid gap-5 md:grid-cols-2">
+        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
           {PAGE_COVERS.map(({ key, label }) => (
             <HeroImageSlot
               key={key}

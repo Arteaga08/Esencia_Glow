@@ -120,6 +120,21 @@ const updateOfferBannerSchema = Joi.object({
   ctaHref: hrefField.required(),
 });
 
+/**
+ * Bloque de asesoría: título, texto y botón obligatorios; la etiqueta y la
+ * palabra del arco, opcionales (ausentes se quitan). Sin enlace: el botón abre
+ * el WhatsApp de asesoría.
+ */
+const updateAdviceSchema = Joi.object({
+  version: versionField,
+  isActive: Joi.boolean().required(),
+  eyebrow: Joi.string().trim().max(LIMITS.adviceEyebrowMax),
+  title: Joi.string().trim().min(1).max(LIMITS.adviceTitleMax).required(),
+  body: Joi.string().trim().min(1).max(LIMITS.subtitleMax).required(),
+  archWord: Joi.string().trim().max(LIMITS.adviceWordMax),
+  ctaLabel: Joi.string().trim().min(1).max(LIMITS.ctaLabelMax).required(),
+});
+
 /** Fotos del banner de oferta: las dos del home más `page`, la del encabezado de /ofertas. */
 const offerBannerImageSlotParamsSchema = Joi.object({
   slot: Joi.string().valid("desktop", "mobile", "page").required(),
@@ -165,6 +180,7 @@ export {
   updateBenefitsSchema,
   updateSpotlightSchema,
   updateOfferBannerSchema,
+  updateAdviceSchema,
   offerBannerImageSlotParamsSchema,
   pageCoverParamsSchema,
   spotlightParamsSchema,

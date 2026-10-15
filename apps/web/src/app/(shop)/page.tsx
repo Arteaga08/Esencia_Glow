@@ -1,15 +1,15 @@
 import { Suspense } from "react";
+import { AdviceBlock } from "../../components/storefront/home/advice/advice-block";
 import { BrandMarqueeBlock } from "../../components/storefront/home/brands/brand-marquee-block";
 import { CategoryBlock } from "../../components/storefront/home/categories/category-block";
 import { HeroSection } from "../../components/storefront/home/hero/hero-section";
-import { OfferBannerBlock } from "../../components/storefront/home/offer/offer-banner-block";
 import { ShelfBlock } from "../../components/storefront/home/shelf/shelf-block";
 import { SocialSection } from "../../components/storefront/home/social/social-section";
 import { SubscriptionBlock } from "../../components/storefront/home/subscription/subscription-block";
 import { SpotlightBlock } from "../../components/storefront/home/spotlight/spotlight-block";
+import { AdviceSkeleton } from "../../components/storefront/states/advice-skeleton";
 import { CategorySkeleton } from "../../components/storefront/states/category-skeleton";
 import { HeroSkeleton } from "../../components/storefront/states/hero-skeleton";
-import { OfferSkeleton } from "../../components/storefront/states/offer-skeleton";
 import { ShelfSkeleton } from "../../components/storefront/states/shelf-skeleton";
 import { SpotlightPairSkeleton } from "../../components/storefront/states/spotlight-skeleton";
 import { SubscriptionSkeleton } from "../../components/storefront/states/subscription-skeleton";
@@ -40,8 +40,8 @@ export default function HomePage() {
       <Suspense fallback={<SubscriptionSkeleton />}>
         <SubscriptionBlock />
       </Suspense>
-      <Suspense fallback={<OfferSkeleton />}>
-        <OfferBannerBlock />
+      <Suspense fallback={<AdviceSkeleton />}>
+        <AdviceBlock />
       </Suspense>
       <SocialSection />
     </main>

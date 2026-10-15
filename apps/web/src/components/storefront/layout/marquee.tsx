@@ -8,7 +8,7 @@ interface MarqueeProps {
 }
 
 /**
- * Cinta infinita solo con CSS (misma técnica que `OfferMarquee`): dos grupos
+ * Cinta infinita solo con CSS: dos grupos
  * idénticos, cada uno al menos del ancho de la pantalla, se desplazan juntos un
  * ancho de grupo y la animación reinicia sin corte. El segundo grupo es una
  * copia: va `inert` y `aria-hidden` para que lectores y teclado no la

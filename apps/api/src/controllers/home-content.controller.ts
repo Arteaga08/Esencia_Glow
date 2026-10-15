@@ -96,6 +96,12 @@ const updateOfferBanner = sectionUpdateHandler(
   homeContentService.updateOfferBanner,
 );
 
+const updateAdvice = sectionUpdateHandler(
+  HomeSectionKey.ADVICE,
+  "Bloque de asesoría actualizado.",
+  homeContentService.updateAdvice,
+);
+
 /**
  * Novedades y Kits comparten ruta (`/spotlights/:section`): la sección sale del
  * segmento de URL, ya validado por Joi. Misma auditoría que el resto.
@@ -116,6 +122,7 @@ const updateSpotlight = asyncHandler(async (req: Request<{ section: string }>, r
 export {
   updateSpotlight,
   updateOfferBanner,
+  updateAdvice,
   get,
   updateAnnouncement,
   updateHero,

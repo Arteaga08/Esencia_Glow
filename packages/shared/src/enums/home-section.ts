@@ -16,6 +16,7 @@ enum HomeSectionKey {
   NEW_ARRIVALS = "newArrivals",
   KITS = "kits",
   OFFER_BANNER = "offerBanner",
+  ADVICE = "advice",
   PAGE_COVERS = "pageCovers",
 }
 

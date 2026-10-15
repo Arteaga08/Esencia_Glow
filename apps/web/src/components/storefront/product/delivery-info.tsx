@@ -3,7 +3,7 @@
 import { useId, useState } from "react";
 import { Storefront, Truck, WhatsappLogo } from "@phosphor-icons/react";
 import { formatMoneyMXN } from "@/lib/format-money";
-import { WHATSAPP_HREF } from "@/lib/storefront/contact";
+import { STORE_WHATSAPP_HREF } from "@/lib/storefront/contact";
 import { LOCAL_DELIVERY_FEE_CENTS } from "@/lib/storefront/delivery";
 import { FOCUS } from "./product-styles";
 
@@ -53,7 +53,7 @@ function DeliveryInfo() {
               <>
                 <p className="text-body-sm text-foreground">Enviamos a todo México.</p>
                 <p className="mt-1 text-body-sm text-muted-foreground-strong">El costo y la paquetería se acuerdan contigo por WhatsApp al confirmar tu pedido.</p>
-                <a href={WHATSAPP_HREF} target="_blank" rel="noopener noreferrer" className={`mt-3 inline-flex min-h-11 cursor-pointer items-center gap-2 text-body-sm text-foreground underline decoration-border-strong underline-offset-4 hover:decoration-foreground ${FOCUS}`}>
+                <a href={STORE_WHATSAPP_HREF} target="_blank" rel="noopener noreferrer" className={`mt-3 inline-flex min-h-11 cursor-pointer items-center gap-2 text-body-sm text-foreground underline decoration-border-strong underline-offset-4 hover:decoration-foreground ${FOCUS}`}>
                   <WhatsappLogo size={18} weight="fill" aria-hidden="true" />
                   Preguntar por WhatsApp
                 </a>

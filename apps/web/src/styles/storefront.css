@@ -30,7 +30,7 @@
   --text-hero--font-weight: 600;
 
   /*
-   * Cinta del banner de oferta: dos copias del mismo grupo se desplazan un
+   * Cintas infinitas (aviso y marcas): dos copias del mismo grupo se desplazan un
    * ancho completo y vuelven al inicio sin salto. Lineal: es un movimiento
    * continuo, no una transición.
    */
@@ -63,7 +63,7 @@
   line-height: 1.25;
 }
 
-/* Frase de la cinta del banner de oferta y título de los listados (Kits, Ofertas). */
+/* Título de los listados (Kits, Ofertas, categorías). */
 @utility type-shop-marquee {
   font-family: var(--font-display);
   font-weight: 700;

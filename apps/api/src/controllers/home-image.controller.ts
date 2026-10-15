@@ -123,6 +123,23 @@ const removeOfferBannerImage = asyncHandler(async (req: Request<SlotParams>, res
   sendResponse(res, 200, "Foto del banner eliminada.", result);
 });
 
+const setAdviceImage = asyncHandler(async (req: Request, res: Response) => {
+  const file = requireFile(req);
+  const { version, alt } = req.body as { version: number; alt?: string };
+
+  const result = await homeImageService.setAdviceImage(file.buffer, version, alt);
+
+  await auditImageChange(req, HomeSectionKey.ADVICE, result.version);
+  sendResponse(res, 200, "Foto de la asesoría actualizada.", result);
+});
+
+const removeAdviceImage = asyncHandler(async (req: Request, res: Response) => {
+  const result = await homeImageService.removeAdviceImage(queryVersion(req));
+
+  await auditImageChange(req, HomeSectionKey.ADVICE, result.version);
+  sendResponse(res, 200, "Foto de la asesoría eliminada.", result);
+});
+
 type PageCoverParams = { page: HomePageCoverKey };
 
 const setPageCoverImage = asyncHandler(async (req: Request<PageCoverParams>, res: Response) => {
@@ -145,6 +162,8 @@ const removePageCoverImage = asyncHandler(async (req: Request<PageCoverParams>, 
 export {
   setOfferBannerImage,
   removeOfferBannerImage,
+  setAdviceImage,
+  removeAdviceImage,
   setHeroSlideImage,
   removeHeroSlideImage,
   setPromoImage,

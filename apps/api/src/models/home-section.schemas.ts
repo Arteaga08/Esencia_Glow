@@ -102,6 +102,16 @@ interface HomeOfferBannerAttrs extends HomeSectionBaseAttrs {
   images?: { desktop?: HomeImageAttrs; mobile?: HomeImageAttrs; page?: HomeImageAttrs };
 }
 
+/** Bloque de asesoría: textos y una foto vertical. El botón abre el WhatsApp de asesoría, sin enlace guardado. */
+interface HomeAdviceAttrs extends HomeSectionBaseAttrs {
+  eyebrow?: string;
+  title?: string;
+  body?: string;
+  archWord?: string;
+  ctaLabel?: string;
+  image?: HomeImageAttrs;
+}
+
 /** Fotos del encabezado de /kits y /mas-vendidos: una por página, sin texto ni interruptor. */
 interface HomePageCoversAttrs extends HomeSectionBaseAttrs {
   images?: Partial<Record<HomePageCoverKey, HomeImageAttrs>>;
@@ -229,6 +239,19 @@ const offerBannerSchema = new Schema<HomeOfferBannerAttrs>(
   { _id: false },
 );
 
+const adviceSchema = new Schema<HomeAdviceAttrs>(
+  {
+    ...baseFields,
+    eyebrow: { type: String, trim: true, maxlength: 40 },
+    title: { type: String, trim: true, maxlength: 80 },
+    body: { type: String, trim: true, maxlength: 240 },
+    archWord: { type: String, trim: true, maxlength: 14 },
+    ctaLabel: { type: String, trim: true, maxlength: 40 },
+    image: { type: mediaImageSchema },
+  },
+  { _id: false },
+);
+
 const pageCoversSchema = new Schema<HomePageCoversAttrs>(
   {
     ...baseFields,
@@ -243,6 +266,7 @@ export {
   announcementSchema,
   spotlightSchema,
   offerBannerSchema,
+  adviceSchema,
   pageCoversSchema,
   heroSchema,
   featuredProductsSchema,
@@ -266,5 +290,6 @@ export type {
   HomeBenefitsAttrs,
   HomeSpotlightAttrs,
   HomeOfferBannerAttrs,
+  HomeAdviceAttrs,
   HomePageCoversAttrs,
 };

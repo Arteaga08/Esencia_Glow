@@ -1,5 +1,6 @@
 import { Schema, model, type HydratedDocument, type Model } from "mongoose";
 import {
+  adviceSchema,
   announcementSchema,
   benefitsSchema,
   featuredCategoriesSchema,
@@ -10,6 +11,7 @@ import {
   spotlightSchema,
   subscriptionPromoSchema,
   testimonialsSchema,
+  type HomeAdviceAttrs,
   type HomeAnnouncementAttrs,
   type HomeBenefitsAttrs,
   type HomeFeaturedCategoriesAttrs,
@@ -46,6 +48,7 @@ interface HomeContentAttrs {
   newArrivals?: HomeSpotlightAttrs;
   kits?: HomeSpotlightAttrs;
   offerBanner?: HomeOfferBannerAttrs;
+  advice?: HomeAdviceAttrs;
   pageCovers?: HomePageCoversAttrs;
 }
 
@@ -65,6 +68,7 @@ const homeContentSchema = new Schema<HomeContentAttrs, HomeContentModel>(
     newArrivals: { type: spotlightSchema },
     kits: { type: spotlightSchema },
     offerBanner: { type: offerBannerSchema },
+    advice: { type: adviceSchema },
     pageCovers: { type: pageCoversSchema },
   },
   { timestamps: true },

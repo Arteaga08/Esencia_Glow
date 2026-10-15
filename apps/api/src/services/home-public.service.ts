@@ -5,6 +5,7 @@ import {
   type HomeSpotlightKey,
   type PublicHomeContent,
   type PublicHomeHeroSlide,
+  type PublicHomeAdvice,
   type PublicHomeOfferBanner,
   type PublicProductImage,
   type PublicHomeSpotlight,
@@ -154,6 +155,21 @@ function buildOfferBanner(doc: HomeContentAttrs): PublicHomeOfferBanner | undefi
   };
 }
 
+/** Bloque de asesoría: sin foto, título, texto o botón no se publica. */
+function buildAdvice(doc: HomeContentAttrs): PublicHomeAdvice | undefined {
+  const section = doc.advice;
+  const image = buildImageDto(section?.image);
+  if (!section?.isActive || !section.title || !section.body || !section.ctaLabel || !image) return undefined;
+  return {
+    ...(section.eyebrow ? { eyebrow: section.eyebrow } : {}),
+    title: section.title,
+    body: section.body,
+    ...(section.archWord ? { archWord: section.archWord } : {}),
+    ctaLabel: section.ctaLabel,
+    image,
+  };
+}
+
 /**
  * Foto del encabezado de /ofertas. Se guarda en la sección del banner de
  * oferta pero NO depende de su `isActive`: apagar el banner del home no debe
@@ -204,6 +220,7 @@ async function getPublicHomeContent(): Promise<PublicHomeContent> {
     newArrivals: buildSpotlight(doc, HomeSectionKey.NEW_ARRIVALS),
     kits: buildSpotlight(doc, HomeSectionKey.KITS),
     offerBanner: buildOfferBanner(doc),
+    advice: buildAdvice(doc),
     salePage: buildSalePage(doc),
     kitsPage: buildPageCover(doc, "kits"),
     bestsellersPage: buildPageCover(doc, "bestsellers"),
