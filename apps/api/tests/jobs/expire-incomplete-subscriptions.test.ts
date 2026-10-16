@@ -14,7 +14,9 @@ import { updateSubscriptionSettings } from "../../src/services/settings.service.
 import { __setSubscriptionProviderForTests } from "../../src/services/subscription-provider.js";
 import { buildFakeSubscriptionProvider } from "../helpers/fake-subscription-provider.js";
 import { AppError } from "../../src/utils/app-error.js";
-import { seedPlanWithStripeRefs, seedSubscribedAccount } from "../helpers/subscription-fixtures.js";
+import { invoicePaidEvent, seedPlanWithStripeRefs, seedSubscribedAccount } from "../helpers/subscription-fixtures.js";
+import { processPaymentWebhook } from "../../src/services/payment-webhook.service.js";
+import { buildFakePaymentProvider } from "../helpers/fake-payment-provider.js";
 
 /** Un día-ancla que garantiza que la PRÓXIMA ocurrencia caiga el mes que
  * viene — mismo calco que `subscription-start.service.test.ts`, para que
@@ -269,5 +271,75 @@ describe("jobs/expire-incomplete-subscriptions — altas abandonadas (factura ma
     await expect(expireIncompleteSubscriptions(new Date(), 30)).resolves.toBeDefined();
     const reloaded = await SubscriptionAccount.findById(account._id);
     expect(reloaded?.status).toBe(SubscriptionStatus.INCOMPLETE); // no se tocó
+  });
+});
+
+describe("jobs/expire-incomplete-subscriptions — factura de alta YA pagada (auditoría run-2, hallazgo 9)", () => {
+  async function seedStaleStart(fake: ReturnType<typeof buildFakeSubscriptionProvider>) {
+    __setSubscriptionProviderForTests(fake);
+    await openEnrollmentSafely();
+    const plan = await seedPlanWithStripeRefs({ maxActiveSeats: 5 });
+    const userId = await seedUser();
+    await startSubscriptionForUser({ userId, planId: plan._id.toString() });
+    const account = await SubscriptionAccount.findOne({ userId });
+    await SubscriptionAccount.updateOne(
+      { _id: account!._id },
+      { $set: { seatHeldAt: new Date(Date.now() - 60 * 60_000) } },
+    );
+    return { plan, account: account! };
+  }
+
+  it("no da de baja la cuenta: sigue INCOMPLETE con su cupo, marca signupPaidDetectedAt y audita una sola vez", async () => {
+    const fake = buildFakeSubscriptionProvider({
+      abandonSubscriptionStart: vi.fn().mockResolvedValue({ outcome: "already_paid" }),
+    });
+    const { plan, account } = await seedStaleStart(fake);
+
+    const summary = await expireIncompleteSubscriptions(new Date(), 30);
+
+    expect(summary.expired).toBe(0);
+    expect(summary.failed).toBe(0);
+    const reloaded = await SubscriptionAccount.findById(account._id);
+    expect(reloaded?.status).toBe(SubscriptionStatus.INCOMPLETE);
+    expect(reloaded?.signupPaidDetectedAt).toBeInstanceOf(Date);
+    const refreshedPlan = await SubscriptionPlan.findById(plan._id);
+    expect(refreshedPlan?.seatsTaken).toBe(1);
+    expect(
+      await AuditLog.countDocuments({ action: "subscription_start_paid_awaiting_webhook", targetId: account._id }),
+    ).toBe(1);
+  });
+
+  it("el siguiente tick ya no le pregunta a Stripe por esa cuenta ni vuelve a auditar", async () => {
+    const abandon = vi.fn().mockResolvedValue({ outcome: "already_paid" });
+    const fake = buildFakeSubscriptionProvider({ abandonSubscriptionStart: abandon });
+    const { account } = await seedStaleStart(fake);
+
+    await expireIncompleteSubscriptions(new Date(), 30);
+    await expireIncompleteSubscriptions(new Date(), 30);
+
+    expect(abandon).toHaveBeenCalledTimes(1);
+    expect(
+      await AuditLog.countDocuments({ action: "subscription_start_paid_awaiting_webhook", targetId: account._id }),
+    ).toBe(1);
+  });
+
+  it("el invoice.paid que llega después activa la cuenta por el camino normal", async () => {
+    const fake = buildFakeSubscriptionProvider({
+      abandonSubscriptionStart: vi.fn().mockResolvedValue({ outcome: "already_paid" }),
+    });
+    const { account } = await seedStaleStart(fake);
+    await expireIncompleteSubscriptions(new Date(), 30);
+
+    await processPaymentWebhook(
+      invoicePaidEvent({
+        subscriptionRef: account.providerSubscriptionId!,
+        invoiceRef: account.latestInvoiceId!,
+        billingReason: "subscription_create",
+      }),
+      buildFakePaymentProvider(),
+    );
+
+    const reloaded = await SubscriptionAccount.findById(account._id);
+    expect(reloaded?.status).toBe(SubscriptionStatus.ACTIVE);
   });
 });

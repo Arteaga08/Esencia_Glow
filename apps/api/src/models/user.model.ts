@@ -31,6 +31,12 @@ interface TwoFactorSubdocument {
   lastUsedStep?: number;
 }
 
+/** Rechazos de tarjeta de la cuenta en la ventana actual (ver `card-decline-guard.service.ts`). */
+interface CardDeclineWindowSubdocument {
+  count: number;
+  startedAt: Date;
+}
+
 interface BillingInfoAttrs {
   rfc: string;
   legalName: string;
@@ -61,6 +67,7 @@ interface UserAttrs {
   addresses: SavedAddressAttrs[];
   billingInfo?: BillingInfoAttrs;
   wishlist: WishlistEntryAttrs[];
+  cardDeclineWindow?: CardDeclineWindowSubdocument;
 }
 
 interface UserMethods {
@@ -79,6 +86,15 @@ const twoFactorSchema = new Schema<TwoFactorSubdocument>(
     failureWindowStart: { type: Date },
     lockedUntil: { type: Date },
     lastUsedStep: { type: Number },
+  },
+  { _id: false },
+);
+
+// `select: false`: es estado interno anti-fraude, nunca viaja en un perfil.
+const cardDeclineWindowSchema = new Schema<CardDeclineWindowSubdocument>(
+  {
+    count: { type: Number, required: true, min: 0 },
+    startedAt: { type: Date, required: true },
   },
   { _id: false },
 );
@@ -137,6 +153,7 @@ const userSchema = new Schema<UserAttrs, UserModel, UserMethods>(
     addresses: { type: [savedAddressSchema], default: [] },
     billingInfo: { type: billingInfoSchema },
     wishlist: { type: [wishlistEntrySchema], default: [] },
+    cardDeclineWindow: { type: cardDeclineWindowSchema, select: false },
   },
   { timestamps: true },
 );

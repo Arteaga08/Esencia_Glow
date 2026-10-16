@@ -223,6 +223,34 @@ describe("services/subscription-start — compensación", () => {
   });
 });
 
+describe("services/subscription-start — compensación con la factura de alta ya pagada (code review de la auditoría run-2)", () => {
+  it("abandonSubscriptionStart dice already_paid -> igual cancela la Subscription en Stripe para que no siga cobrando", async () => {
+    await openEnrollmentSafely();
+    const plan = await seedPlanWithStripeRefs({ maxActiveSeats: 5 });
+    const userId = await seedUser();
+
+    const fake = buildFakeSubscriptionProvider({
+      startSubscription: vi.fn().mockResolvedValue({
+        subscriptionRef: "sub_orphan_paid",
+        latestChargeRef: "in_orphan_paid",
+        status: "incomplete",
+        collectionPaused: false,
+        cancelAtPeriodEnd: false,
+      }),
+      abandonSubscriptionStart: vi.fn().mockResolvedValue({ outcome: "already_paid" }),
+    });
+    __setSubscriptionProviderForTests(fake);
+
+    await expect(startSubscriptionForUser({ userId, planId: plan._id.toString() })).rejects.toMatchObject({
+      statusCode: 502,
+    });
+
+    expect(fake.cancelNow).toHaveBeenCalledWith(expect.objectContaining({ subscriptionRef: "sub_orphan_paid" }));
+    const account = await SubscriptionAccount.findOne({ userId });
+    expect(account?.status).toBe(SubscriptionStatus.CANCELED);
+  });
+});
+
 describe("services/subscription-start — guardas de negocio, cupo intacto", () => {
   it("ventana de inscripciones cerrada -> 409, sin tocar cupo ni Stripe", async () => {
     await closeEnrollment();

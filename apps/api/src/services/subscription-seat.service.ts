@@ -179,6 +179,11 @@ async function startSubscription(
           // la pausa ni un cambio de plan a medias de la anterior.
           pausedAt: 1,
           pendingPlanChange: 1,
+          // Tope de rechazos y aviso de "ya pagada" (auditoría run-2,
+          // hallazgos 8 y 9) son de la factura de alta VIEJA.
+          signupFailedAttempts: 1,
+          signupFailedEventIds: 1,
+          signupPaidDetectedAt: 1,
           ...(input.billingInterval ? {} : { billingInterval: 1 }),
         },
         $push: { statusHistory: { $each: [historyEntry], $slice: -MAX_SUBSCRIPTION_STATUS_HISTORY } },

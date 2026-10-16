@@ -113,6 +113,7 @@ function buildFakeSubscriptionProvider(overrides: Partial<SubscriptionProvider> 
     }),
     abandonSubscriptionStart: vi.fn().mockImplementation(async ({ subscriptionRef }: { subscriptionRef: string }) => {
       mutate(subscriptionRef, { status: "canceled" });
+      return { outcome: "abandoned" as const };
     }),
     pauseCollection: vi.fn().mockImplementation(async ({ subscriptionRef }: { subscriptionRef: string }) =>
       mutate(subscriptionRef, { collectionPaused: true }),

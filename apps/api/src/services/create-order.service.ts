@@ -13,6 +13,7 @@ import {
 } from "./create-order-mappers.js";
 import type { CreateOrderInput, CreateOrderResult } from "./create-order-mappers.js";
 import { createOrderCore } from "./create-order-core.js";
+import { assertCardPaymentsAllowed } from "./card-decline-guard.service.js";
 
 /**
  * `createOrder` — punto de entrada público del checkout (ver plan de 1.5
@@ -56,6 +57,8 @@ async function createOrder(input: CreateOrderInput): Promise<CreateOrderResult> 
   if (!input.termsAccepted) {
     throw new AppError("Debes aceptar los términos y condiciones.", 400);
   }
+  // Tope por cuenta (auditoría run-2, hallazgo 7): antes de reservar stock.
+  await assertCardPaymentsAllowed(input.userId);
 
   const settings = await getSettings();
   const requestHash = computeRequestHash(input);

@@ -3,6 +3,7 @@ import { SubscriptionAccount } from "../models/subscription-account.model.js";
 import { applyStatusTransition } from "../services/subscription-seat.service.js";
 import { recordAudit } from "../services/audit.service.js";
 import { resolveSubscriptionProvider } from "../services/subscription-provider.js";
+import { abandonSignupStart } from "../services/subscription-signup-guard.service.js";
 import { AppError } from "../utils/app-error.js";
 import { logger } from "../config/logger.js";
 
@@ -101,6 +102,10 @@ async function expireOrphanedAccounts(threshold: Date, batchSize: number): Promi
  * una clienta que abandona el checkout dejaría una Subscription viva en
  * Stripe para siempre, sin cobrar nada.
  *
+ * Antes de dar de baja se consulta la factura en Stripe: si ya está pagada (el
+ * `invoice.paid` se retrasó o no llegó), la cuenta se queda como está y la
+ * activa ese webhook (auditoría run-2, hallazgo 9; ver `abandonSignupStart`).
+ *
  * Sin proveedor configurado (dev sin credenciales de Stripe), esta pasada se
  * salta entera — no hay nada que cancelar en un Stripe que no existe, y
  * lanzar aquí tumbaría el resto del tick de cron.
@@ -113,6 +118,9 @@ async function expireAbandonedInvoices(threshold: Date, batchSize: number): Prom
     status: SubscriptionStatus.INCOMPLETE,
     providerSubscriptionId: { $exists: true },
     latestInvoiceId: { $exists: true },
+    // Ya se vio pagada (auditoría run-2, hallazgo 9): espera el `invoice.paid`,
+    // no se le vuelve a preguntar a Stripe en cada tick.
+    signupPaidDetectedAt: { $exists: false },
     seatHeldAt: { $lt: threshold },
   })
     .select("_id")
@@ -134,13 +142,10 @@ async function expireAbandonedInvoices(threshold: Date, batchSize: number): Prom
         continue;
       }
 
-      await provider.abandonSubscriptionStart({
-        subscriptionRef: account.providerSubscriptionId,
-        invoiceRef: account.latestInvoiceId,
-      });
-      await applyStatusTransition(account, SubscriptionStatus.CANCELED, "system");
-      await recordAudit({ action: SubscriptionAction.SUBSCRIPTION_INCOMPLETE_EXPIRED, targetId: _id });
-      expired += 1;
+      // Una factura ya pagada NO se da de baja (hallazgo 9): no cuenta como
+      // expirada ni como falla.
+      const outcome = await abandonSignupStart(account, provider, SubscriptionAction.SUBSCRIPTION_INCOMPLETE_EXPIRED);
+      if (outcome === "abandoned") expired += 1;
     } catch (error) {
       if (error instanceof AppError && error.statusCode === 409) {
         try {

@@ -29,6 +29,8 @@ enum ErrorCode {
   COUPON_ALREADY_USED = "COUPON_ALREADY_USED",
   /** 4xx con cupón: el subtotal no alcanza el mínimo de compra, o el total quedaría imposible de cobrar. */
   COUPON_MIN_NOT_MET = "COUPON_MIN_NOT_MET",
+  /** 429 al pagar con tarjeta: la cuenta llegó al tope de rechazos y espera a que venza la ventana. */
+  CARD_PAYMENTS_LOCKED = "CARD_PAYMENTS_LOCKED",
 }
 
 export { ErrorCode };
