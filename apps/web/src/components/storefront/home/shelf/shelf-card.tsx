@@ -34,7 +34,7 @@ function ShelfCard({ item, priority = false, compact = false }: { item: ShelfIte
               alt=""
               fill
               sizes={IMAGE_SIZES}
-              className="object-cover opacity-0 transition-opacity duration-[var(--duration-slow)] ease-out-quart group-hover:opacity-100"
+              className="object-cover opacity-0 [@media(hover:none)]:hidden transition-opacity duration-[var(--duration-slow)] ease-out-quart group-hover:opacity-100"
             />
           ) : null}
         </Link>

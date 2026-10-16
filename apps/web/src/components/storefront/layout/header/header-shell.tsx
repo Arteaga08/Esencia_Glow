@@ -1,8 +1,8 @@
 "use client";
 
 import type { PublicCategoryNode } from "@esencia-glow/shared";
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import { SearchPanel } from "../../search/search-panel";
 import { BrandLogo } from "./brand-logo";
 import { HeaderActions, SearchButton } from "./header-actions";
 import { MainNav } from "./main-nav";
@@ -10,6 +10,9 @@ import { MegaPanel } from "./mega-panel";
 import { MenuToggle } from "./menu-toggle";
 import { MobileMenu } from "./mobile-menu";
 import { useScrolled } from "./use-scrolled";
+
+// El buscador solo se monta al tocar la lupa: su código se descarga entonces, no con la página.
+const SearchPanel = dynamic(() => import("../../search/search-panel").then((module) => module.SearchPanel));
 
 /**
  * Estado y composición del header (como Etude). Tres estados:
