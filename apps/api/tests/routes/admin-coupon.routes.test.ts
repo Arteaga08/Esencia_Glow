@@ -9,8 +9,9 @@ import { __setMailProviderForTests } from "../../src/services/mail-provider.js";
 import { createAdminSession, createCustomerSession } from "../helpers/admin-session.js";
 import { buildFakeMailProvider, type FakeMailProvider } from "../helpers/fake-mail-provider.js";
 import { resetCouponFixtureCounter, seedCoupon } from "../helpers/coupon-fixtures.js";
+import { serveAppForFile } from "../helpers/serve-app.js";
 
-const app = buildApp();
+const app = await serveAppForFile(buildApp());
 
 const FUTURE = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
 

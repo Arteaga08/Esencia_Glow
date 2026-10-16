@@ -4,8 +4,9 @@ import { buildApp } from "../../src/app.js";
 import { Category } from "../../src/models/category.model.js";
 import { ensureBrand } from "../helpers/brand-fixtures.js";
 import { createAdminSession } from "../helpers/admin-session.js";
+import { serveAppForFile } from "../helpers/serve-app.js";
 
-const app = buildApp();
+const app = await serveAppForFile(buildApp());
 
 type Agent = ReturnType<typeof request.agent>;
 

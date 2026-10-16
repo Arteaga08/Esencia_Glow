@@ -2,6 +2,7 @@ import { MongoMemoryReplSet } from "mongodb-memory-server";
 import mongoose from "mongoose";
 import { afterAll, afterEach, beforeAll, beforeEach } from "vitest";
 import { models } from "../src/models/index.js";
+import { closeFileServers } from "./helpers/serve-app.js";
 
 /**
  * Mongo real en memoria (no mocks del ODM) compartido por toda la suite.
@@ -82,6 +83,9 @@ afterEach(async () => {
 });
 
 afterAll(async () => {
+  // Servidores por archivo de `serveAppForFile`: vitest reutiliza el proceso
+  // entre archivos, así que se cierran aquí y no dependen de cada test.
+  await closeFileServers();
   await mongoose.disconnect();
   await mongoServer.stop();
 });

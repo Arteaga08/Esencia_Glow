@@ -7,8 +7,9 @@ import { Category } from "../../src/models/category.model.js";
 import { Inventory } from "../../src/models/inventory.model.js";
 import { Product } from "../../src/models/product.model.js";
 import { createAdminSession, createCustomerSession } from "../helpers/admin-session.js";
+import { serveAppForFile } from "../helpers/serve-app.js";
 
-const app = buildApp();
+const app = await serveAppForFile(buildApp());
 
 async function seedProduct(sku = "SKU-ROUTE") {
   const category = await Category.create({ name: `Cat ${Date.now()}-${Math.random()}`, slug: `cat-${Date.now()}-${Math.random()}` });

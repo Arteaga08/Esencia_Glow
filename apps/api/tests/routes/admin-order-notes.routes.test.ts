@@ -4,8 +4,9 @@ import { buildApp } from "../../src/app.js";
 import { User } from "../../src/models/user.model.js";
 import { createAdminSession, createCustomerSession } from "../helpers/admin-session.js";
 import { seedPendingOrder } from "../helpers/paid-order-fixtures.js";
+import { serveAppForFile } from "../helpers/serve-app.js";
 
-const app = buildApp();
+const app = await serveAppForFile(buildApp());
 
 /**
  * `GET /:id/notes` (Milestone 2.3b): a diferencia de `internalNotesCount`

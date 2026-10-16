@@ -4,6 +4,7 @@ import { buildApp } from "../../src/app.js";
 import { Settings } from "../../src/models/settings.model.js";
 import { SubscriptionPlan } from "../../src/models/subscription-plan.model.js";
 import { seedManaged, seedPlanWithStripeRefs } from "../helpers/subscription-fixtures.js";
+import { serveAppForFile } from "../helpers/serve-app.js";
 
 /**
  * Catálogo público de planes (Milestone 1.7.3). Sin sesión: es lo que el
@@ -13,7 +14,7 @@ import { seedManaged, seedPlanWithStripeRefs } from "../helpers/subscription-fix
  * una señal (`soldOut`), jamás el número.
  */
 
-const app = buildApp();
+const app = await serveAppForFile(buildApp());
 const BASE = "/api/v1/subscription-plans";
 
 async function setEnrollment(fields: { enrollmentOpen: boolean; enrollmentClosesAt?: Date }): Promise<void> {

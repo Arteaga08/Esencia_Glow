@@ -6,8 +6,9 @@ import { buildApp } from "../../src/app.js";
 import { AuditLog } from "../../src/models/audit-log.model.js";
 import { HomeContent } from "../../src/models/home-content.model.js";
 import { createAdminSession, createCustomerSession } from "../helpers/admin-session.js";
+import { serveAppForFile } from "../helpers/serve-app.js";
 
-const app = buildApp();
+const app = await serveAppForFile(buildApp());
 const BASE = "/api/v1/admin/home";
 
 type Agent = ReturnType<typeof request.agent>;

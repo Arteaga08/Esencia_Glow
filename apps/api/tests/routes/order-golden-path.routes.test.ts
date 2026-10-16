@@ -18,8 +18,9 @@ import {
   buildStripeEvent,
   signPayload,
 } from "../helpers/stripe-webhook-fixtures.js";
+import { serveAppForFile } from "../helpers/serve-app.js";
 
-const app = buildApp();
+const app = await serveAppForFile(buildApp());
 
 /**
  * Golden path de checkout (verificación de cierre de 1.5, extendido en

@@ -14,8 +14,9 @@ import { __setPaymentProviderForTests } from "../../src/services/payment-provide
 import { buildFakePaymentProvider } from "../helpers/fake-payment-provider.js";
 import { createAdminSession, createCustomerSession } from "../helpers/admin-session.js";
 import { buildCreateOrderInput, randomUserId, resetCheckoutFixtureCounter } from "../helpers/checkout-fixtures.js";
+import { serveAppForFile } from "../helpers/serve-app.js";
 
-const app = buildApp();
+const app = await serveAppForFile(buildApp());
 
 let seedCounter = 0;
 

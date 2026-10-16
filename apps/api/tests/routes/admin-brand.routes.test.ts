@@ -2,8 +2,9 @@ import { describe, expect, it } from "vitest";
 import request from "supertest";
 import { buildApp } from "../../src/app.js";
 import { createAdminSession, createCustomerSession } from "../helpers/admin-session.js";
+import { serveAppForFile } from "../helpers/serve-app.js";
 
-const app = buildApp();
+const app = await serveAppForFile(buildApp());
 
 describe("routes/admin-brand — CRUD y aplicación a producto", () => {
   it("sin cookie responde 401", async () => {

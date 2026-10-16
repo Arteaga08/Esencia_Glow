@@ -2,6 +2,7 @@ import request from "supertest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ContentAction } from "@esencia-glow/shared";
 import { pngBuffer } from "../helpers/image-fixtures.js";
+import { serveAppForFile } from "../helpers/serve-app.js";
 
 const uploadMock = vi.fn();
 const destroyMock = vi.fn();
@@ -15,7 +16,7 @@ const { buildApp } = await import("../../src/app.js");
 const { AuditLog } = await import("../../src/models/audit-log.model.js");
 const { createAdminSession } = await import("../helpers/admin-session.js");
 
-const app = buildApp();
+const app = await serveAppForFile(buildApp());
 const BASE = "/api/v1/admin/home";
 
 type Agent = Awaited<ReturnType<typeof createAdminSession>>["agent"];

@@ -13,6 +13,7 @@ import {
   seedSubscribedAccount,
   seedSubscriptionVariantWithStock,
 } from "../helpers/subscription-fixtures.js";
+import { serveAppForFile } from "../helpers/serve-app.js";
 
 /**
  * Panel de envíos de suscripción (Milestone 1.7.2b, Fase 4). Las guardas de
@@ -20,7 +21,7 @@ import {
  * contrato HTTP — autorización, validación del body y forma de la respuesta.
  */
 
-const app = buildApp();
+const app = await serveAppForFile(buildApp());
 const PERIOD_START = new Date("2026-09-15T12:00:00Z");
 
 async function seedShipment() {

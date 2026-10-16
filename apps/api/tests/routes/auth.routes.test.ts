@@ -9,8 +9,9 @@ import { SubscriptionAccount } from "../../src/models/subscription-account.model
 import { hashToken } from "../../src/utils/crypto.js";
 import * as emailService from "../../src/services/email.service.js";
 import { totpAtOffset } from "../helpers/totp.js";
+import { serveAppForFile } from "../helpers/serve-app.js";
 
-const app = buildApp();
+const app = await serveAppForFile(buildApp());
 
 async function registerAndVerify(overrides: Partial<{ email: string }> = {}) {
   const email = overrides.email ?? `user-${Date.now()}-${Math.random()}@example.com`;

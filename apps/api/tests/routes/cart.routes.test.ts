@@ -4,8 +4,9 @@ import request from "supertest";
 import { beforeEach, describe, expect, it } from "vitest";
 import { buildApp } from "../../src/app.js";
 import { resetCheckoutFixtureCounter, seedBundleWithStock, seedVariantWithStock } from "../helpers/checkout-fixtures.js";
+import { serveAppForFile } from "../helpers/serve-app.js";
 
-const app = buildApp();
+const app = await serveAppForFile(buildApp());
 const objectId = () => new mongoose.Types.ObjectId().toString();
 
 describe("POST /api/v1/cart/resolve", () => {

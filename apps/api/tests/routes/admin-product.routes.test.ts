@@ -3,8 +3,9 @@ import { describe, expect, it } from "vitest";
 import { buildApp } from "../../src/app.js";
 import { Inventory } from "../../src/models/inventory.model.js";
 import { createAdminSession, createCustomerSession } from "../helpers/admin-session.js";
+import { serveAppForFile } from "../helpers/serve-app.js";
 
-const app = buildApp();
+const app = await serveAppForFile(buildApp());
 
 async function createCategory(agent: ReturnType<typeof request.agent>) {
   const response = await agent.post("/api/v1/admin/categories").send({ name: "Skincare Coreano" });

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
 import { pngBuffer } from "../helpers/image-fixtures.js";
+import { serveAppForFile } from "../helpers/serve-app.js";
 
 const uploadMock = vi.fn();
 const destroyMock = vi.fn();
@@ -14,7 +15,7 @@ const { buildApp } = await import("../../src/app.js");
 const { Brand } = await import("../../src/models/brand.model.js");
 const { createAdminSession, createCustomerSession } = await import("../helpers/admin-session.js");
 
-const app = buildApp();
+const app = await serveAppForFile(buildApp());
 
 describe("routes/admin-brand — logo, showOnHome y slug", () => {
   beforeEach(() => {

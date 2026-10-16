@@ -7,8 +7,9 @@ import { Product } from "../../src/models/product.model.js";
 import { ShippingQuote } from "../../src/models/shipping-quote.model.js";
 import { __setShippingProviderForTests } from "../../src/services/shipping-provider.js";
 import { createCustomerSession } from "../helpers/admin-session.js";
+import { serveAppForFile } from "../helpers/serve-app.js";
 
-const app = buildApp();
+const app = await serveAppForFile(buildApp());
 
 async function seedProduct() {
   const category = await Category.create({ name: "Cat Ship", slug: "cat-ship" });

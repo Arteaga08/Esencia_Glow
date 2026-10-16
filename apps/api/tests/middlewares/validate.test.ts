@@ -1,9 +1,13 @@
 import express from "express";
 import Joi from "joi";
-import request from "supertest";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { mongoSanitize } from "../../src/middlewares/mongo-sanitize.js";
 import { validate } from "../../src/middlewares/validate.js";
+import { closeServedApps, serveApp } from "../helpers/serve-app.js";
+
+// Servidor en 127.0.0.1 explícito (ver `serveApp`): supertest con la app
+// directa escucha en el comodín y en macOS otro proceso puede quedarse con la petición.
+afterEach(closeServedApps);
 
 /**
  * Express 5 vuelve a parsear `req.query` en cada acceso, así que estas
@@ -30,13 +34,15 @@ function buildTestApp() {
 
 describe("middlewares/validate — source query en Express 5", () => {
   it('entrega "false" como boolean false al handler', async () => {
-    const response = await request(buildTestApp()).get("/probe?incident=false");
+    const api = await serveApp(buildTestApp());
+    const response = await api.get("/probe?incident=false");
     expect(response.body.incidentType).toBe("boolean");
     expect(response.body.query.incident).toBe(false);
   });
 
   it("aplica trim, lowercase y defaults de Joi", async () => {
-    const response = await request(buildTestApp()).get("/probe?category=%20Rostro%20");
+    const api = await serveApp(buildTestApp());
+    const response = await api.get("/probe?category=%20Rostro%20");
     expect(response.body.query.category).toBe("rostro");
     expect(response.body.query.page).toBe(1);
   });
@@ -46,7 +52,8 @@ describe("middlewares/validate — source query en Express 5", () => {
     app.get("/probe", mongoSanitize, (req, res) => {
       res.json({ query: req.query });
     });
-    const response = await request(app).get("/probe?%24where=x&ok=1");
+    const api = await serveApp(app);
+    const response = await api.get("/probe?%24where=x&ok=1");
     expect(response.body.query).toEqual({ ok: "1" });
   });
 });

@@ -1,4 +1,3 @@
-import type { Express } from "express";
 import { authenticator } from "otplib";
 import request from "supertest";
 import { User } from "../../src/models/user.model.js";
@@ -7,7 +6,8 @@ import { encryptSecret } from "../../src/utils/crypto.js";
 /**
  * Crea un admin ya verificado y devuelve un agente de supertest con la
  * cookie de sesión ya puesta — evita repetir el flujo de registro/login en
- * cada test de ruta admin del catálogo.
+ * cada test de ruta admin del catálogo. `app` es la URL base que devuelve
+ * `serveAppForFile` (supertest acepta una URL igual que una app).
  *
  * Un admin sin 2FA ya no recibe sesión directa de `/login` (Milestone 2.1,
  * enrolamiento obligatorio) — `login()` solo deja un pending token de
@@ -17,7 +17,7 @@ import { encryptSecret } from "../../src/utils/crypto.js";
  * tests de rutas admin ejerciten sesiones que de verdad pasarían por
  * `protect` (que ahora rechaza a un admin con `twoFactor.enabled: false`).
  */
-async function createAdminSession(app: Express) {
+async function createAdminSession(app: string) {
   const email = `admin-${Date.now()}-${Math.random()}@example.com`;
   const password = "Contrasena1";
 
@@ -74,7 +74,7 @@ async function enableAdminTwoFactor(adminId: string): Promise<string> {
 }
 
 /** Crea un customer regular ya verificado, con sesión — para probar 403 en rutas admin. */
-async function createCustomerSession(app: Express) {
+async function createCustomerSession(app: string) {
   const email = `customer-${Date.now()}-${Math.random()}@example.com`;
   const password = "Contrasena1";
 

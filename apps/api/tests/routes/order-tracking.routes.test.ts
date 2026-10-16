@@ -7,8 +7,9 @@ import { ShipmentTrackingEvent } from "../../src/models/shipment-tracking-event.
 import { createAdminSession, createCustomerSession } from "../helpers/admin-session.js";
 import { resetCheckoutFixtureCounter } from "../helpers/checkout-fixtures.js";
 import { seedPaidOrder } from "../helpers/paid-order-fixtures.js";
+import { serveAppForFile } from "../helpers/serve-app.js";
 
-const app = buildApp();
+const app = await serveAppForFile(buildApp());
 const at = (minutes: number) => new Date(Date.UTC(2026, 8, 21, 10, minutes));
 
 describe("routes — rastreo del pedido", () => {
