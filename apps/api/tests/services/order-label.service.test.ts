@@ -465,6 +465,20 @@ describe("services/order-label — processOrderLabel", () => {
       expect(allowed.outcome).toBe("ready");
     });
 
+    it("con contracargo PERDIDO la guía pendiente no se compra sola (hallazgo 18); retirado sí", async () => {
+      const { orderId } = await seedPaidOrder();
+      await Order.updateOne({ _id: orderId }, { $set: { disputeStatus: DisputeStatus.LOST } });
+      const provider = buildFakeShippingProvider({ purchaseLabel: vi.fn().mockResolvedValue(readyResult(orderId)) });
+
+      const blocked = await processOrderLabel(orderId, { provider });
+      expect(blocked.outcome).toBe("skipped_not_claimable");
+      expect(provider.purchaseLabel).not.toHaveBeenCalled();
+
+      await Order.updateOne({ _id: orderId }, { $set: { disputeStatus: DisputeStatus.WITHDRAWN } });
+      const allowed = await processOrderLabel(orderId, { provider });
+      expect(allowed.outcome).toBe("ready");
+    });
+
     it("una orden inexistente no revienta: skipped_not_claimable", async () => {
       const provider = buildFakeShippingProvider();
       const result = await processOrderLabel("64b7f0c2a1b2c3d4e5f60718", { provider });

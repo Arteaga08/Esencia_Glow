@@ -1,4 +1,4 @@
-import { DisputeStatus, OrderAction, OrderStatus } from "@esencia-glow/shared";
+import { OrderAction, OrderStatus, isFulfilmentHoldDispute } from "@esencia-glow/shared";
 import { Order } from "../models/order.model.js";
 import { AppError } from "../utils/app-error.js";
 import { recordAudit } from "./audit.service.js";
@@ -50,10 +50,10 @@ async function applySystemOrderTransition(
   if (!current) throw new AppError("Pedido no encontrado.", 404);
   if (current.status !== input.from) return { outcome: "skipped_state" };
 
-  // Un contracargo abierto bloquea DESPACHAR mercancía (`disputeClaimFilter`
+  // Un contracargo abierto o perdido bloquea DESPACHAR mercancía (`disputeClaimFilter`
   // lo exige también dentro del claim, así que no hay ventana de carrera); el
   // sistema simplemente no avanza y deja la orden donde está para el admin.
-  if (isDisputeBlockedTransition(input.from, input.to) && current.disputeStatus === DisputeStatus.OPEN) {
+  if (isDisputeBlockedTransition(input.from, input.to) && isFulfilmentHoldDispute(current.disputeStatus)) {
     return { outcome: "skipped_dispute" };
   }
 
@@ -70,7 +70,7 @@ async function applySystemOrderTransition(
     // El claim perdió: o se movió el estado, o se abrió un contracargo justo
     // en la ventana. Se relee para clasificar correctamente.
     const reread = await Order.findById(input.orderId).select("status disputeStatus").lean();
-    if (reread && reread.status === input.from && reread.disputeStatus === DisputeStatus.OPEN) {
+    if (reread && reread.status === input.from && isFulfilmentHoldDispute(reread.disputeStatus)) {
       return { outcome: "skipped_dispute" };
     }
     return { outcome: "skipped_state" };

@@ -132,6 +132,16 @@ describe("services/order-system-transition", () => {
     expect((await Order.findById(orderId).lean())!.status).toBe(OrderStatus.PAID);
   });
 
+  it("con contracargo PERDIDO, paid -> processing se OMITE igual que con uno abierto (hallazgo 18)", async () => {
+    const { orderId } = await seedPaidOrder();
+    await Order.updateOne({ _id: orderId }, { $set: { disputeStatus: DisputeStatus.LOST } });
+
+    const result = await applySystemOrderTransition({ orderId, from: OrderStatus.PAID, to: OrderStatus.PROCESSING });
+
+    expect(result.outcome).toBe("skipped_dispute");
+    expect((await Order.findById(orderId).lean())!.status).toBe(OrderStatus.PAID);
+  });
+
   it("con contracargo abierto, processing -> shipped también se omite", async () => {
     const { orderId } = await seedPaidOrder();
     await applySystemOrderTransition({ orderId, from: OrderStatus.PAID, to: OrderStatus.PROCESSING });

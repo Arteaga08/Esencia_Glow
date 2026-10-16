@@ -72,6 +72,7 @@ export {
   SHIPMENT_TRACKING_STATUS_LABELS,
   SHIPPING_CARRIER_LABELS,
 } from "./constants/shipping-labels.js";
+export { FULFILMENT_HOLD_DISPUTE_STATUSES, isFulfilmentHoldDispute } from "./constants/dispute-hold.js";
 export {
   PAYMENT_STATE_LABELS,
   PAYMENT_METHOD_LABELS,

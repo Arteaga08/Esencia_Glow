@@ -14,6 +14,10 @@
 interface BuildStripeInvoiceEventOptions {
   subscriptionId?: string | null;
   accountIdMetadata?: string;
+  /** `subscription_details.metadata.planId` del snapshot de la factura. */
+  planIdMetadata?: string;
+  /** Precio (`pricing.price_details.price`) de la línea de suscripción por defecto. */
+  priceId?: string;
   amountPaid?: number;
   currency?: string;
   billingReason?: string;
@@ -27,7 +31,12 @@ interface BuildStripeInvoiceEventOptions {
    * ver `startSubscription` en stripe-subscription-provider.ts). Sin esto,
    * se genera una única línea `subscription_item_details` con
    * `periodStart`/`periodEnd`. */
-  lines?: Array<{ start: number; end: number; parentType: "subscription_item_details" | "invoice_item_details" }>;
+  lines?: Array<{
+    start: number;
+    end: number;
+    parentType: "subscription_item_details" | "invoice_item_details";
+    priceId?: string;
+  }>;
   /** `status_transitions.paid_at` — instante real del cobro según Stripe
    * (Milestone 2.9, `SubscriptionInvoice.paidAt`). `null` para probar el
    * fallback a la hora de proceso. */
@@ -68,7 +77,10 @@ function buildStripeInvoiceEvent(
               quote_details: null,
               subscription_details: {
                 subscription: subscriptionId,
-                metadata: options.accountIdMetadata ? { accountId: options.accountIdMetadata } : {},
+                metadata: {
+                  ...(options.accountIdMetadata ? { accountId: options.accountIdMetadata } : {}),
+                  ...(options.planIdMetadata ? { planId: options.planIdMetadata } : {}),
+                },
               },
             }
           : null,
@@ -80,11 +92,13 @@ function buildStripeInvoiceEvent(
                 start: options.periodStart ?? now,
                 end: options.periodEnd ?? now + 30 * 24 * 60 * 60,
                 parentType: "subscription_item_details" as const,
+                ...(options.priceId ? { priceId: options.priceId } : {}),
               },
             ]
           ).map((line) => ({
             period: { start: line.start, end: line.end },
             parent: { type: line.parentType },
+            ...(line.priceId ? { pricing: { price_details: { price: line.priceId, product: "prod_x" } } } : {}),
           })),
         },
       },

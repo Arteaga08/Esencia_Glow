@@ -136,4 +136,39 @@ describe("services/order-dispute", () => {
     const order = await Order.findById(orderId).lean();
     expect(order!.status).toBe(OrderStatus.PROCESSING);
   });
+  it("disputa perdida (lost) mantiene retenido paid -> processing con 409 (hallazgo 18)", async () => {
+    const { orderId, adminId } = await seedPaidOrder();
+    await openDispute(orderId);
+    await closeDispute(orderId, DisputeStatus.LOST);
+
+    await expect(
+      changeOrderStatus({ orderId, targetStatus: OrderStatus.PROCESSING, adminId }),
+    ).rejects.toMatchObject({ statusCode: 409, message: expect.stringContaining("perdido") });
+
+    expect((await Order.findById(orderId).lean())!.status).toBe(OrderStatus.PAID);
+  });
+
+  it("disputa perdida (lost) retiene también processing -> shipped con 409", async () => {
+    const { orderId, adminId } = await seedPaidOrder();
+    await changeOrderStatus({ orderId, targetStatus: OrderStatus.PROCESSING, adminId });
+    await openDispute(orderId);
+    await closeDispute(orderId, DisputeStatus.LOST);
+
+    await expect(
+      changeOrderStatus({
+        orderId,
+        targetStatus: OrderStatus.SHIPPED,
+        adminId,
+        shipment: { carrier: ShippingCarrier.FEDEX, trackingNumber: "TRACK2" },
+      }),
+    ).rejects.toMatchObject({ statusCode: 409 });
+  });
+
+  it("disputa retirada (withdrawn) desbloquea la transición", async () => {
+    const { orderId, adminId } = await seedPaidOrder();
+    await openDispute(orderId);
+    await closeDispute(orderId, DisputeStatus.WITHDRAWN);
+
+    await expect(changeOrderStatus({ orderId, targetStatus: OrderStatus.PROCESSING, adminId })).resolves.toBeDefined();
+  });
 });

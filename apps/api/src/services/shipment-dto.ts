@@ -1,6 +1,7 @@
 import type { Types } from "mongoose";
 import type {
   AdminOrderCustomer,
+  DisputeStatus,
   OrderPriority,
   OrderStatus,
   ShipmentTrackingStatus,
@@ -24,6 +25,7 @@ interface LeanOrderForShipment {
   userId: Types.ObjectId;
   status: OrderStatus;
   priority: OrderPriority;
+  disputeStatus?: DisputeStatus;
   shippingAddress: { fullName: string; city: string; state: string };
   label?: OrderAttrs["label"];
   tracking?: OrderAttrs["tracking"];
@@ -43,6 +45,8 @@ interface AdminShipmentRow {
   fallbackName: string;
   destinationCity: string;
   destinationState: string;
+  /** Presente solo si el pedido tuvo contracargo (`open`/`lost` lo retienen). */
+  disputeStatus?: DisputeStatus;
   labelStatus?: ShippingLabelStatus;
   labelAttempts: number;
   labelUrl?: string;
@@ -79,6 +83,7 @@ function buildAdminShipmentRow(order: LeanOrderForShipment, customer: AdminOrder
     fallbackName: order.shippingAddress.fullName,
     destinationCity: order.shippingAddress.city,
     destinationState: order.shippingAddress.state,
+    ...(order.disputeStatus ? { disputeStatus: order.disputeStatus } : {}),
     ...(order.label ? { labelStatus: order.label.status } : {}),
     labelAttempts: order.label?.attempts ?? 0,
     ...(order.label?.labelUrl ? { labelUrl: order.label.labelUrl } : {}),

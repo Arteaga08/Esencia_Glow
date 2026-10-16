@@ -10,6 +10,7 @@ import { resolveSubscriptionProvider } from "./subscription-provider.js";
 import { claimSeat, releaseSeat } from "./subscription-seat.service.js";
 import { SEAT_HOLDING_STATUSES } from "./subscription-state.js";
 import { isPrepaidInterval } from "./subscription-billing-interval.js";
+import { isWithinRenewalCutoff } from "./subscription-renewal-cutoff.js";
 
 /**
  * Cambio de plan inmediato y sin prorrateo (Milestone 1.7.3): el cupo se
@@ -43,7 +44,7 @@ import { isPrepaidInterval } from "./subscription-billing-interval.js";
 
 type PlanChangeOutcome = "finalized" | "aborted" | "noop";
 
-function assertCanChangePlan(account: Awaited<ReturnType<typeof loadOwnAccount>>): void {
+function assertCanChangePlan(account: Awaited<ReturnType<typeof loadOwnAccount>>, now: Date): void {
   // Milestones 2.7b/3.1.7b: cambiar de plan reinicia el ancla de Stripe
   // (`billing_cycle_anchor: "unchanged"` deja de aplicar entre intervalos
   // distintos), y el periodo (trimestre o año) ya se cobró completo — no hay forma de aplicar un
@@ -66,12 +67,19 @@ function assertCanChangePlan(account: Awaited<ReturnType<typeof loadOwnAccount>>
   if (account.pendingPlanChange) {
     throw new AppError("Ya tienes un cambio de plan en curso, inténtalo de nuevo en unos minutos.", 409);
   }
+  // Misma ventana que la pausa: la factura de la renovación puede estar ya
+  // generada con el precio del plan viejo, y la caja debe corresponder al plan
+  // que se cobró (auditoría run-2, hallazgo 12). Si el cobro ya venció y aún no
+  // se registra, también se rechaza hasta que llegue su `invoice.paid`.
+  if (isWithinRenewalCutoff(account.currentPeriodEnd, now)) {
+    throw new AppError("No puedes cambiar de plan en las 48 horas previas a tu siguiente cobro.", 409);
+  }
 }
 
 async function changePlan(userId: string, newPlanId: string): Promise<void> {
   const provider = resolveSubscriptionProvider()!;
   const account = await loadOwnAccount(userId);
-  assertCanChangePlan(account);
+  assertCanChangePlan(account, new Date());
   const subscriptionRef = requireProviderRef(account);
   const oldPlanId = account.planId.toString();
 

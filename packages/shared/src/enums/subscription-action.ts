@@ -28,6 +28,10 @@ enum SubscriptionAction {
    * ventana de inscripciones y generación de la caja del ciclo. */
   SUBSCRIPTION_RENEWED = "subscription_renewed",
   SUBSCRIPTION_PROVIDER_MISMATCH = "subscription_provider_mismatch",
+  /** Auditoría run-2, hallazgo 12: la factura pagada corresponde a un plan
+   * distinto del que la cuenta tiene al procesar el webhook (cambio de plan
+   * con la renovación pendiente), o su precio no se pudo ubicar. */
+  SUBSCRIPTION_INVOICE_PLAN_MISMATCH = "subscription_invoice_plan_mismatch",
   SUBSCRIPTION_DUPLICATE_CYCLE_INVOICE = "subscription_duplicate_cycle_invoice",
   SUBSCRIPTION_ENROLLMENT_OPENED = "subscription_enrollment_opened",
   SUBSCRIPTION_ENROLLMENT_CLOSED = "subscription_enrollment_closed",

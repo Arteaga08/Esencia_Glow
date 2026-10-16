@@ -68,6 +68,49 @@ describe("subscription-plan-change — changePlan", () => {
     expect(audit?.metadata).toMatchObject({ from: seed.planId, to: newPlan._id.toString() });
   });
 
+  it("a menos de 48 h del siguiente cobro: 409 y Stripe nunca se toca (hallazgo 12)", async () => {
+    const seed = await seedManaged();
+    const newPlan = await seedPlanWithStripeRefs({ maxActiveSeats: 5 });
+    await SubscriptionAccount.updateOne(
+      { _id: seed.accountId },
+      { $set: { currentPeriodEnd: new Date(Date.now() + 24 * 60 * 60 * 1000) } },
+    );
+
+    await expect(changePlan(seed.userId, newPlan._id.toString())).rejects.toMatchObject({
+      statusCode: 409,
+      message: expect.stringContaining("48 horas"),
+    });
+
+    expect(provider.changePrice).not.toHaveBeenCalled();
+    expect((await reload(seed.accountId))?.planId.toString()).toBe(seed.planId);
+    expect(await seats(newPlan._id.toString())).toBe(0);
+  });
+
+  it("con el cobro vencido y aún sin registrar (currentPeriodEnd en el pasado) también se rechaza", async () => {
+    const seed = await seedManaged();
+    const newPlan = await seedPlanWithStripeRefs({ maxActiveSeats: 5 });
+    await SubscriptionAccount.updateOne(
+      { _id: seed.accountId },
+      { $set: { currentPeriodEnd: new Date(Date.now() - 60 * 60 * 1000) } },
+    );
+
+    await expect(changePlan(seed.userId, newPlan._id.toString())).rejects.toMatchObject({ statusCode: 409 });
+    expect(provider.changePrice).not.toHaveBeenCalled();
+  });
+
+  it("con el cobro a más de 48 h el cambio procede", async () => {
+    const seed = await seedManaged();
+    const newPlan = await seedPlanWithStripeRefs({ maxActiveSeats: 5 });
+    await SubscriptionAccount.updateOne(
+      { _id: seed.accountId },
+      { $set: { currentPeriodEnd: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000) } },
+    );
+
+    await changePlan(seed.userId, newPlan._id.toString());
+
+    expect((await reload(seed.accountId))?.planId.toString()).toBe(newPlan._id.toString());
+  });
+
   it("plan nuevo LLENO: 409, sin marcador, cupos intactos y Stripe nunca se toca", async () => {
     const seed = await seedManaged();
     const fullPlan = await seedPlanWithStripeRefs({ maxActiveSeats: 1 });

@@ -1,5 +1,5 @@
 import {
-  DisputeStatus,
+  FULFILMENT_HOLD_DISPUTE_STATUSES,
   LABEL_PROCESSING_MAX_HOURS,
   LABEL_PURCHASE_TIMEOUT_MS,
   LABEL_REQUEST_LEASE_MINUTES,
@@ -29,7 +29,8 @@ import { runWithDeadline } from "../utils/run-with-deadline.js";
  *
  * 4. Transiciones de orden que quedaron a medias: un rastreo que va más
  *    adelante que la orden (el proceso murió a media transición, o un
- *    contracargo la dejó en pausa y ya se resolvió). Reintenta la misma
+ *    contracargo la dejó en pausa y ya se resolvió ganado o retirado; uno
+ *    PERDIDO la mantiene retenida, hallazgo 18 de la auditoría run-2). Reintenta la misma
  *    transición idempotente. Una guía `ready` sobre una orden `paid` NO se
  *    toca: el paso a `processing` es manual.
  *
@@ -67,9 +68,9 @@ async function dispatchDueLabels(now: Date, batchSize: number, provider: Shippin
     "label.status": { $in: [ShippingLabelStatus.PENDING, ShippingLabelStatus.FAILED] },
     "label.nextAttemptAt": { $lte: now },
     status: { $in: [OrderStatus.PAID, OrderStatus.PROCESSING] },
-    // Con contracargo abierto el claim la rechazaría siempre: excluirla aquí
+    // Con contracargo abierto o perdido el claim la rechazaría siempre: excluirla aquí
     // evita que esas órdenes acaparen el lote y dejen sin turno a las demás.
-    disputeStatus: { $ne: DisputeStatus.OPEN },
+    disputeStatus: { $nin: FULFILMENT_HOLD_DISPUTE_STATUSES },
   })
     .sort({ "label.nextAttemptAt": 1 })
     .limit(batchSize)
@@ -170,7 +171,7 @@ async function reconcileStuckOrders(batchSize: number, summary: ShippingLabelsSu
         },
         // Sin guía lista no hay de dónde armar el envío: no tiene caso reintentar.
         "label.trackingNumber": { $exists: true },
-        disputeStatus: { $ne: DisputeStatus.OPEN },
+        disputeStatus: { $nin: FULFILMENT_HOLD_DISPUTE_STATUSES },
       },
       { status: OrderStatus.SHIPPED, "tracking.status": ShipmentTrackingStatus.DELIVERED },
     ],

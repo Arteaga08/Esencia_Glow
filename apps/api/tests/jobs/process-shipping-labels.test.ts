@@ -113,6 +113,19 @@ describe("jobs/processShippingLabels", () => {
       expect((await Order.findById(disputed.orderId).lean())!.label!.status).toBe(ShippingLabelStatus.PENDING);
     });
 
+    it("una orden con contracargo PERDIDO no acapara el lote ni se compra sola (hallazgo 18)", async () => {
+      const lost = await seedPaidOrder();
+      const normal = await seedPaidOrder();
+      await Order.updateOne({ _id: lost.orderId }, { $set: { disputeStatus: DisputeStatus.LOST } });
+      const provider = buildFakeShippingProvider();
+
+      const summary = await processShippingLabels(new Date(), 1, provider);
+
+      expect(summary.dispatched).toBe(1);
+      expect((await Order.findById(normal.orderId).lean())!.label!.status).toBe(ShippingLabelStatus.READY);
+      expect((await Order.findById(lost.orderId).lean())!.label!.status).toBe(ShippingLabelStatus.PENDING);
+    });
+
     it("no compra para órdenes ya enviadas o canceladas aunque tengan una guía pendiente", async () => {
       const shipped = await seedPaidOrder();
       const cancelled = await seedPaidOrder();
@@ -246,6 +259,19 @@ describe("jobs/processShippingLabels", () => {
       const allowed = await processShippingLabels(new Date(), 100, buildFakeShippingProvider());
       expect(allowed.reconciled).toBe(1);
       expect((await Order.findById(orderId).lean())!.status).toBe(OrderStatus.SHIPPED);
+    });
+
+    it("un rastreo que va adelante NO arrastra la orden si el contracargo se perdió (hallazgo 18)", async () => {
+      const { orderId } = await seedReadyLabelOnPaidOrder();
+      await Order.updateOne(
+        { _id: orderId },
+        { $set: { disputeStatus: DisputeStatus.LOST, tracking: { status: "in_transit", lastEventAt: new Date() } } },
+      );
+
+      const summary = await processShippingLabels(new Date(), 100, buildFakeShippingProvider());
+
+      expect(summary.reconciled).toBe(0);
+      expect((await Order.findById(orderId).lean())!.status).toBe(OrderStatus.PAID);
     });
 
     it("un rastreo delivered sobre una orden que se quedó en shipped (entrega bloqueada por disputa) la cierra al resolverse", async () => {

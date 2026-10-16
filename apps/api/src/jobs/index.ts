@@ -1,16 +1,6 @@
 import cron, { type ScheduledTask } from "node-cron";
-import { releaseExpiredReservations } from "./release-expired-reservations.js";
-import { refreshBundleStockCaches } from "./refresh-bundle-stock-cache.js";
-import { cancelExpiredOrders } from "./cancel-expired-orders.js";
-import { reconcilePendingPayments } from "./reconcile-pending-payments.js";
-import { expireIncompleteSubscriptions } from "./expire-incomplete-subscriptions.js";
-import { alertMissingEdition } from "./alert-missing-edition.js";
-import { reconcilePendingPlanChanges } from "./reconcile-pending-plan-changes.js";
-import { createPrepaidCycleShipments } from "./create-prepaid-cycle-shipments.js";
-import { sendRenewalReminders } from "./send-renewal-reminders.js";
+import { readSettingsOrSkip, runMinuteTick, runSweep } from "./minute-tick.js";
 import { processShippingLabels } from "./process-shipping-labels.js";
-import { getSettings } from "../services/settings.service.js";
-import { env } from "../config/env.js";
 import { logger } from "../config/logger.js";
 
 /**
@@ -71,79 +61,10 @@ let labelsTask: ScheduledTask | undefined;
 function startCronJobs(): void {
   if (task || labelsTask) return;
 
-  task = cron.schedule(
-    "* * * * *",
-    async () => {
-      const settings = await getSettings();
-      // Independiente de los barridos de reserva/orden de abajo (una
-      // orden colgada no depende de que además haya vencido su reserva):
-      // arranca en paralelo con el refresco de bundles, no encadenada
-      // detrás de la cadena reserva->orden, para no sumar una llamada de
-      // red a Stripe por pedido al tiempo secuencial de cada tick.
-      const bundleSummaryPromise = refreshBundleStockCaches(settings.inventory.sweepBatchSize);
-      const reconcileSummaryPromise = reconcilePendingPayments(
-        new Date(),
-        settings.inventory.sweepBatchSize,
-        undefined,
-        env.paymentReconcileAfterMinutes,
-      );
-      const expireSubscriptionsSummaryPromise = expireIncompleteSubscriptions(
-        new Date(),
-        env.subscriptionIncompleteExpireMinutes,
-        settings.inventory.sweepBatchSize,
-      );
-      const missingEditionSummaryPromise = alertMissingEdition(
-        new Date(),
-        settings.subscriptions.billingAnchorDay,
-        env.subscriptionEditionAlertDays,
-        settings.inventory.sweepBatchSize,
-      );
-      const planChangeSummaryPromise = reconcilePendingPlanChanges(
-        new Date(),
-        undefined,
-        settings.inventory.sweepBatchSize,
-      );
-      const prepaidShipmentsSummaryPromise = createPrepaidCycleShipments(new Date(), settings.inventory.sweepBatchSize);
-      const renewalReminderSummaryPromise = sendRenewalReminders(new Date(), settings.inventory.sweepBatchSize);
-      const reservationSummary = await releaseExpiredReservations(new Date(), settings.inventory.sweepBatchSize);
-      const orderSummary = await cancelExpiredOrders(new Date(), settings.inventory.sweepBatchSize);
-      const bundleSummary = await bundleSummaryPromise;
-      const reconcileSummary = await reconcileSummaryPromise;
-      const expireSubscriptionsSummary = await expireSubscriptionsSummaryPromise;
-      const missingEditionSummary = await missingEditionSummaryPromise;
-      const planChangeSummary = await planChangeSummaryPromise;
-      const prepaidShipmentsSummary = await prepaidShipmentsSummaryPromise;
-      const renewalReminderSummary = await renewalReminderSummaryPromise;
-      if (reservationSummary.released > 0 || reservationSummary.failed > 0) {
-        logger.info(reservationSummary, "Barrido de reservas vencidas");
-      }
-      if (orderSummary.cancelled > 0 || orderSummary.failed > 0) {
-        logger.info(orderSummary, "Barrido de pedidos pending vencidos");
-      }
-      if (reconcileSummary.reconciled > 0 || reconcileSummary.failed > 0) {
-        logger.info(reconcileSummary, "Reconciliación de pagos pendientes");
-      }
-      if (bundleSummary.updated > 0 || bundleSummary.failed > 0) {
-        logger.info(bundleSummary, "Refresco de stockCache de bundles");
-      }
-      if (expireSubscriptionsSummary.expired > 0 || expireSubscriptionsSummary.failed > 0) {
-        logger.info(expireSubscriptionsSummary, "Barrido de suscripciones incompletas vencidas");
-      }
-      if (missingEditionSummary.alerted > 0 || missingEditionSummary.failed > 0) {
-        logger.info(missingEditionSummary, "Aviso preventivo de ediciones faltantes");
-      }
-      if (planChangeSummary.finalized > 0 || planChangeSummary.aborted > 0 || planChangeSummary.failed > 0) {
-        logger.info(planChangeSummary, "Reconciliación de cambios de plan a medias");
-      }
-      if (prepaidShipmentsSummary.created > 0 || prepaidShipmentsSummary.failed > 0) {
-        logger.info(prepaidShipmentsSummary, "Cajas prepagadas de ciclos intermedios anuales");
-      }
-      if (renewalReminderSummary.sent > 0 || renewalReminderSummary.failed > 0) {
-        logger.info(renewalReminderSummary, "Avisos de renovación de ciclos prepagados");
-      }
-    },
-    { noOverlap: true, name: "release-expired-reservations" },
-  );
+  task = cron.schedule("* * * * *", runMinuteTick, {
+    noOverlap: true,
+    name: "release-expired-reservations",
+  });
 
   // Cron PROPIO (1.9): el barrido de guías hace llamadas secuenciales a un
   // tercero de hasta 30 s cada una. Dentro del tick de arriba, un Skydropx
@@ -153,8 +74,13 @@ function startCronJobs(): void {
   labelsTask = cron.schedule(
     "* * * * *",
     async () => {
-      const settings = await getSettings();
-      const labelSummary = await processShippingLabels(new Date(), settings.inventory.sweepBatchSize);
+      const settings = await readSettingsOrSkip("process-shipping-labels");
+      if (!settings) return;
+      const labelSummary = await runSweep(
+        "process-shipping-labels",
+        () => processShippingLabels(new Date(), settings.inventory.sweepBatchSize),
+        { dispatched: 0, refreshed: 0, reviewed: 0, reconciled: 0, failed: 0 },
+      );
       if (
         labelSummary.dispatched > 0 ||
         labelSummary.refreshed > 0 ||

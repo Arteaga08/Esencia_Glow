@@ -1,4 +1,10 @@
-import { DisputeStatus, OrderAction, type OrderStatus } from "@esencia-glow/shared";
+import {
+  DisputeStatus,
+  FULFILMENT_HOLD_DISPUTE_STATUSES,
+  OrderAction,
+  isFulfilmentHoldDispute,
+  type OrderStatus,
+} from "@esencia-glow/shared";
 import { Order } from "../models/order.model.js";
 import { AppError } from "../utils/app-error.js";
 import { recordAudit } from "./audit.service.js";
@@ -48,8 +54,9 @@ async function closeDispute(orderId: string, outcome: DisputeStatus): Promise<vo
   await recordAudit({ action: OrderAction.ORDER_DISPUTE_CLOSED, targetId: orderId, metadata: { outcome } });
 }
 
-/** Transiciones que un contracargo abierto bloquea (§6 del plan): no
- * despachar mercancía bajo disputa. `paid -> refunded`/`processing ->
+/** Transiciones que un contracargo abierto O PERDIDO bloquea (§6 del plan y
+ * auditoría run-2, hallazgo 18): no despachar mercancía bajo disputa ni cuyo
+ * pago ya se revirtió. `paid -> refunded`/`processing ->
  * refunded` NO están aquí a propósito — un reembolso decidido por un admin
  * humano (que ya vio la disputa en el panel) no debe quedar atrapado por
  * este guard. */
@@ -66,17 +73,31 @@ function isDisputeBlockedTransition(from: OrderStatus, to: OrderStatus): boolean
  * lectura y esa escritura igual queda bloqueada, solo que con el mensaje
  * genérico de conflicto de concurrencia en vez de este. */
 function assertNoOpenDispute(disputeStatus: DisputeStatus | undefined, from: OrderStatus, to: OrderStatus): void {
-  if (isDisputeBlockedTransition(from, to) && disputeStatus === DisputeStatus.OPEN) {
-    throw new AppError("El pedido tiene un contracargo abierto.", 409);
+  if (isDisputeBlockedTransition(from, to) && isFulfilmentHoldDispute(disputeStatus)) {
+    throw new AppError(disputeHoldMessage(disputeStatus), 409);
   }
+}
+
+/** Mensaje 409 según el contracargo que retiene el pedido. */
+function disputeHoldMessage(disputeStatus: DisputeStatus | undefined): string {
+  return disputeStatus === DisputeStatus.LOST
+    ? "El pedido tiene un contracargo perdido; no se puede despachar."
+    : "El pedido tiene un contracargo abierto.";
 }
 
 /** Fragmento de filtro para el `findOneAndUpdate` que hace el claim de la
  * transición: en las dos transiciones que el guard bloquea, exige además
- * que no haya un contracargo abierto — así el claim mismo es la barrera
+ * que no haya un contracargo abierto ni perdido — así el claim mismo es la barrera
  * atómica, no solo la lectura previa. */
 function disputeClaimFilter(from: OrderStatus, to: OrderStatus): Record<string, unknown> {
-  return isDisputeBlockedTransition(from, to) ? { disputeStatus: { $ne: DisputeStatus.OPEN } } : {};
+  return isDisputeBlockedTransition(from, to) ? { disputeStatus: { $nin: FULFILMENT_HOLD_DISPUTE_STATUSES } } : {};
 }
 
-export { openDispute, closeDispute, assertNoOpenDispute, disputeClaimFilter, isDisputeBlockedTransition };
+export {
+  openDispute,
+  closeDispute,
+  assertNoOpenDispute,
+  disputeClaimFilter,
+  disputeHoldMessage,
+  isDisputeBlockedTransition,
+};
