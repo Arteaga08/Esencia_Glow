@@ -102,6 +102,14 @@ interface AbandonSubscriptionStartInput {
 }
 
 /**
+ * `already_paid` (auditoría run-2, hallazgo 9): la factura de alta YA se cobró,
+ * así que no se anuló ni se canceló nada. Quien llama no debe dar de baja la
+ * cuenta: el `invoice.paid` la activa. Antes esto no se distinguía y el
+ * barrendero dejaba a la clienta cobrada y sin suscripción.
+ */
+type AbandonSubscriptionStartResult = { outcome: "abandoned" } | { outcome: "already_paid" };
+
+/**
  * Snapshot YA traducido de una suscripción de Billing — lo que el endpoint
  * de alta necesita para el DTO de la clienta (`clientSecret`,
  * `firstChargeCents`, `currency`, `nextChargeAt`) y lo que el orquestador
@@ -279,7 +287,7 @@ interface SubscriptionProvider {
   startSubscription(input: StartProviderSubscriptionInput): Promise<ProviderSubscription>;
   getSubscription(subscriptionRef: string): Promise<ProviderSubscription>;
   getSubscriptionStart(input: GetSubscriptionStartInput): Promise<ProviderSubscription>;
-  abandonSubscriptionStart(input: AbandonSubscriptionStartInput): Promise<void>;
+  abandonSubscriptionStart(input: AbandonSubscriptionStartInput): Promise<AbandonSubscriptionStartResult>;
   // --- autoservicio de la suscriptora (Milestone 1.7.3) ---
   pauseCollection(input: PauseCollectionInput): Promise<ProviderSubscription>;
   resumeCollection(input: PauseCollectionInput): Promise<ProviderSubscription>;
@@ -326,6 +334,7 @@ export type {
   StartProviderSubscriptionInput,
   GetSubscriptionStartInput,
   AbandonSubscriptionStartInput,
+  AbandonSubscriptionStartResult,
   ProviderSubscription,
   PauseCollectionInput,
   SetCancelAtPeriodEndInput,

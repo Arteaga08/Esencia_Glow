@@ -37,6 +37,13 @@ enum SubscriptionAction {
    * `jobs/expire-incomplete-subscriptions.ts` libera el cupo de una cuenta
    * `INCOMPLETE` cuyo 3DS/checkout nunca se completó. */
   SUBSCRIPTION_INCOMPLETE_EXPIRED = "subscription_incomplete_expired",
+  /** Auditoría run-2, hallazgo 8: el alta se abandonó al llegar al tope de
+   * rechazos de tarjeta sobre su factura de alta. */
+  SUBSCRIPTION_SIGNUP_DECLINES_EXCEEDED = "subscription_signup_declines_exceeded",
+  /** Auditoría run-2, hallazgo 9: el barrendero encontró la factura de alta
+   * YA pagada y no dio de baja la cuenta; espera el `invoice.paid`. Si la
+   * cuenta sigue `INCOMPLETE` horas después, el webhook no está llegando. */
+  SUBSCRIPTION_START_PAID_AWAITING_WEBHOOK = "subscription_start_paid_awaiting_webhook",
   /** Conectada en 1.7.2b: el panel mueve el envío del ciclo por su máquina de
    * estados. UNA sola acción con `metadata.from/to`, nunca una por estado —
    * mismo criterio que las transiciones de pedido (y el hallazgo de code

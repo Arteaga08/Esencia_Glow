@@ -566,13 +566,14 @@ describe("services/stripe-subscription-provider — abandonSubscriptionStart (ba
     });
     const provider = createStripeSubscriptionProvider(client);
 
-    await provider.abandonSubscriptionStart({ subscriptionRef: "sub_1", invoiceRef: "in_manual_1" });
+    const result = await provider.abandonSubscriptionStart({ subscriptionRef: "sub_1", invoiceRef: "in_manual_1" });
 
+    expect(result).toEqual({ outcome: "abandoned" });
     expect(voidInvoice).toHaveBeenCalledWith("in_manual_1");
     expect(subscriptionsCancel).toHaveBeenCalledWith("sub_1");
   });
 
-  it("si la factura ya no está open (pagada mientras el barrendero corría), no intenta anularla igual cancela la Subscription", async () => {
+  it("factura ya pagada (auditoría run-2, hallazgo 9): ni la anula ni cancela la Subscription, y avisa already_paid", async () => {
     const invoicesRetrieve = vi.fn().mockResolvedValue(buildFakeFinalizedInvoice({ status: "paid" }));
     const voidInvoice = vi.fn();
     const subscriptionsCancel = vi.fn().mockResolvedValue({});
@@ -582,8 +583,90 @@ describe("services/stripe-subscription-provider — abandonSubscriptionStart (ba
     });
     const provider = createStripeSubscriptionProvider(client);
 
-    await provider.abandonSubscriptionStart({ subscriptionRef: "sub_1", invoiceRef: "in_manual_1" });
+    const result = await provider.abandonSubscriptionStart({ subscriptionRef: "sub_1", invoiceRef: "in_manual_1" });
 
+    expect(result).toEqual({ outcome: "already_paid" });
+    expect(voidInvoice).not.toHaveBeenCalled();
+    expect(subscriptionsCancel).not.toHaveBeenCalled();
+  });
+
+  it("🔀 la clienta paga entre la lectura y el void: el void falla, la relectura dice paid -> already_paid sin cancelar", async () => {
+    const invoicesRetrieve = vi
+      .fn()
+      .mockResolvedValueOnce(buildFakeFinalizedInvoice())
+      .mockResolvedValueOnce(buildFakeFinalizedInvoice({ status: "paid" }));
+    const voidInvoice = vi.fn().mockRejectedValue({ type: "StripeInvalidRequestError", code: "invoice_not_editable" });
+    const subscriptionsCancel = vi.fn().mockResolvedValue({});
+    const client = buildFakeClient({
+      invoices: { create: vi.fn(), finalizeInvoice: vi.fn(), voidInvoice, retrieve: invoicesRetrieve, pay: vi.fn() },
+      subscriptions: { create: vi.fn(), retrieve: vi.fn(), update: vi.fn(), cancel: subscriptionsCancel },
+    });
+    const provider = createStripeSubscriptionProvider(client);
+
+    const result = await provider.abandonSubscriptionStart({ subscriptionRef: "sub_1", invoiceRef: "in_manual_1" });
+
+    expect(result).toEqual({ outcome: "already_paid" });
+    expect(subscriptionsCancel).not.toHaveBeenCalled();
+  });
+
+  it("🔀 otro proceso anuló la factura entre la lectura y el void: la relectura dice void -> sigue y cancela la Subscription", async () => {
+    const invoicesRetrieve = vi
+      .fn()
+      .mockResolvedValueOnce(buildFakeFinalizedInvoice())
+      .mockResolvedValueOnce(buildFakeFinalizedInvoice({ status: "void" }));
+    const voidInvoice = vi.fn().mockRejectedValue({ type: "StripeInvalidRequestError", code: "invoice_not_editable" });
+    const subscriptionsCancel = vi.fn().mockResolvedValue({});
+    const client = buildFakeClient({
+      invoices: { create: vi.fn(), finalizeInvoice: vi.fn(), voidInvoice, retrieve: invoicesRetrieve, pay: vi.fn() },
+      subscriptions: { create: vi.fn(), retrieve: vi.fn(), update: vi.fn(), cancel: subscriptionsCancel },
+    });
+    const provider = createStripeSubscriptionProvider(client);
+
+    const result = await provider.abandonSubscriptionStart({ subscriptionRef: "sub_1", invoiceRef: "in_manual_1" });
+
+    expect(result).toEqual({ outcome: "abandoned" });
+    expect(subscriptionsCancel).toHaveBeenCalledWith("sub_1");
+  });
+
+  it("el void falla y la factura sigue open -> 502, sin cancelar la Subscription", async () => {
+    const voidInvoice = vi.fn().mockRejectedValue({ type: "StripeAPIError" });
+    const subscriptionsCancel = vi.fn().mockResolvedValue({});
+    const client = buildFakeClient({
+      invoices: {
+        create: vi.fn(),
+        finalizeInvoice: vi.fn(),
+        voidInvoice,
+        retrieve: vi.fn().mockResolvedValue(buildFakeFinalizedInvoice()),
+        pay: vi.fn(),
+      },
+      subscriptions: { create: vi.fn(), retrieve: vi.fn(), update: vi.fn(), cancel: subscriptionsCancel },
+    });
+    const provider = createStripeSubscriptionProvider(client);
+
+    await expect(
+      provider.abandonSubscriptionStart({ subscriptionRef: "sub_1", invoiceRef: "in_manual_1" }),
+    ).rejects.toMatchObject({ statusCode: 502 });
+    expect(subscriptionsCancel).not.toHaveBeenCalled();
+  });
+
+  it("factura void o uncollectible: no la toca y sí cancela la Subscription", async () => {
+    const voidInvoice = vi.fn();
+    const subscriptionsCancel = vi.fn().mockResolvedValue({});
+    const client = buildFakeClient({
+      invoices: {
+        create: vi.fn(),
+        finalizeInvoice: vi.fn(),
+        voidInvoice,
+        retrieve: vi.fn().mockResolvedValue(buildFakeFinalizedInvoice({ status: "void" })),
+        pay: vi.fn(),
+      },
+      subscriptions: { create: vi.fn(), retrieve: vi.fn(), update: vi.fn(), cancel: subscriptionsCancel },
+    });
+    const provider = createStripeSubscriptionProvider(client);
+
+    const result = await provider.abandonSubscriptionStart({ subscriptionRef: "sub_1", invoiceRef: "in_manual_1" });
+
+    expect(result).toEqual({ outcome: "abandoned" });
     expect(voidInvoice).not.toHaveBeenCalled();
     expect(subscriptionsCancel).toHaveBeenCalledWith("sub_1");
   });
@@ -608,7 +691,7 @@ describe("services/stripe-subscription-provider — abandonSubscriptionStart (ba
 
     await expect(
       provider.abandonSubscriptionStart({ subscriptionRef: "sub_1", invoiceRef: "in_manual_1" }),
-    ).resolves.toBeUndefined();
+    ).resolves.toEqual({ outcome: "abandoned" });
   });
 
   it("un StripeInvalidRequestError genuino al cancelar (la Subscription releída NO está canceled) sí relanza a 502", async () => {

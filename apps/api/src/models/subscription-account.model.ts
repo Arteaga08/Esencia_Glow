@@ -70,6 +70,15 @@ interface SubscriptionAccountAttrs {
    * ciclo), así que la guarda monotónica del contador solo tiene sentido
    * dentro de la misma factura. Se limpia al cobrar. */
   dunningInvoiceId?: string;
+  /** Rechazos de tarjeta sobre la factura de alta en curso (auditoría run-2,
+   * hallazgo 8): al llegar a `MAX_CARD_FAILED_ATTEMPTS` el alta se abandona.
+   * `signupFailedEventIds` es el dedupe propio por evento, calco de
+   * `payment.failedEventIds` del pedido. Ambos se limpian en cada re-alta. */
+  signupFailedAttempts?: number;
+  signupFailedEventIds?: string[];
+  /** El barrendero vio la factura de alta YA pagada (hallazgo 9): no se da de
+   * baja y no se vuelve a consultar a Stripe; la activa el `invoice.paid`. */
+  signupPaidDetectedAt?: Date;
   pausedAt?: Date;
   /** Intervalo de cobro elegido al suscribirse (Milestone 2.7b). Sin
    * `default` ni `required` a propósito, mismo precedente que
@@ -148,6 +157,9 @@ const subscriptionAccountSchema = new Schema<SubscriptionAccountAttrs, Subscript
     pastDueSince: { type: Date },
     dunningAttempts: { type: Number, required: true, default: 0, min: 0, validate: integerValidator },
     dunningInvoiceId: { type: String, trim: true },
+    signupFailedAttempts: { type: Number, min: 0, validate: integerValidator },
+    signupFailedEventIds: { type: [String], default: undefined },
+    signupPaidDetectedAt: { type: Date },
     pausedAt: { type: Date },
     billingInterval: { type: String, enum: ["month", "quarter", "year"] },
     renewalReminderSentFor: { type: Date },

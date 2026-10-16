@@ -1,6 +1,6 @@
 import { Types } from "mongoose";
-import { describe, expect, it } from "vitest";
-import { SubscriptionStatus } from "@esencia-glow/shared";
+import { describe, expect, it, vi } from "vitest";
+import { MAX_CARD_FAILED_ATTEMPTS, SubscriptionStatus } from "@esencia-glow/shared";
 import { AuditLog } from "../../src/models/audit-log.model.js";
 import { Inventory } from "../../src/models/inventory.model.js";
 import { PaymentEvent } from "../../src/models/payment-event.model.js";
@@ -13,6 +13,9 @@ import { processPaymentWebhook } from "../../src/services/payment-webhook.servic
 import { __setMailProviderForTests } from "../../src/services/mail-provider.js";
 import { buildFakePaymentProvider } from "../helpers/fake-payment-provider.js";
 import { buildFakeMailProvider } from "../helpers/fake-mail-provider.js";
+import { buildFakeSubscriptionProvider } from "../helpers/fake-subscription-provider.js";
+import { __setSubscriptionProviderForTests } from "../../src/services/subscription-provider.js";
+import { applyStatusTransition, startSubscription } from "../../src/services/subscription-seat.service.js";
 import {
   invoicePaidEvent,
   paymentFailedEvent,
@@ -794,5 +797,137 @@ describe("subscription-webhook-handlers — cancelAtPeriodEnd al cancelar", () =
     const reloaded = await SubscriptionAccount.findById(account._id);
     expect(reloaded?.status).toBe(SubscriptionStatus.CANCELED);
     expect(reloaded?.cancelAtPeriodEnd).toBe(false);
+  });
+});
+
+describe("subscription-webhook-handlers — rechazos de la factura de alta (auditoría run-2, hallazgo 8)", () => {
+  async function seedSignupAwaitingCard() {
+    const plan = await seedPlanWithStripeRefs();
+    const subscriptionRef = `sub_${new Types.ObjectId().toString()}`;
+    const invoiceRef = `in_${new Types.ObjectId().toString()}`;
+    const account = await seedSubscribedAccount({
+      planId: plan._id.toString(),
+      status: SubscriptionStatus.INCOMPLETE,
+      providerSubscriptionId: subscriptionRef,
+    });
+    await SubscriptionAccount.updateOne({ _id: account._id }, { $set: { latestInvoiceId: invoiceRef } });
+    await User.create({
+      _id: account.userId,
+      email: `${account.userId.toString()}@example.com`,
+      password: "P4ssword!!",
+      firstName: "Ana",
+      lastName: "Pérez",
+      emailVerified: true,
+    });
+    return { plan, account, subscriptionRef, invoiceRef };
+  }
+
+  it(`al ${MAX_CARD_FAILED_ATTEMPTS}.º rechazo distinto se abandona el alta: Stripe la da de baja, la cuenta queda CANCELED y se audita`, async () => {
+    const fake = buildFakeSubscriptionProvider();
+    __setSubscriptionProviderForTests(fake);
+    const { plan, account, subscriptionRef, invoiceRef } = await seedSignupAwaitingCard();
+
+    for (let i = 0; i < MAX_CARD_FAILED_ATTEMPTS - 1; i += 1) {
+      await processPaymentWebhook(paymentFailedEvent({ subscriptionRef, invoiceRef, attemptCount: i + 1 }), provider);
+    }
+    const midway = await SubscriptionAccount.findById(account._id);
+    expect(midway?.status).toBe(SubscriptionStatus.INCOMPLETE);
+    expect(midway?.signupFailedAttempts).toBe(MAX_CARD_FAILED_ATTEMPTS - 1);
+    expect(fake.abandonSubscriptionStart).not.toHaveBeenCalled();
+
+    const last = paymentFailedEvent({ subscriptionRef, invoiceRef, attemptCount: MAX_CARD_FAILED_ATTEMPTS });
+    await processPaymentWebhook(last, provider);
+
+    expect(fake.abandonSubscriptionStart).toHaveBeenCalledWith({ subscriptionRef, invoiceRef });
+    const reloaded = await SubscriptionAccount.findById(account._id);
+    expect(reloaded?.status).toBe(SubscriptionStatus.CANCELED);
+    expect((await SubscriptionPlan.findById(plan._id))?.seatsTaken).toBe(0);
+    expect((await PaymentEvent.findOne({ eventId: last.eventId }))?.status).toBe("processed");
+    expect(
+      await AuditLog.countDocuments({ action: "subscription_signup_declines_exceeded", targetId: account._id }),
+    ).toBe(1);
+  });
+
+  it("el mismo eventId reprocesado no cuenta dos veces", async () => {
+    const { account, subscriptionRef, invoiceRef } = await seedSignupAwaitingCard();
+    const event = paymentFailedEvent({ subscriptionRef, invoiceRef });
+
+    for (let i = 0; i < 3; i += 1) {
+      await processPaymentWebhook(event, provider);
+    }
+
+    const reloaded = await SubscriptionAccount.findById(account._id);
+    expect(reloaded?.signupFailedAttempts).toBe(1);
+  });
+
+  it("un rechazo de OTRA factura sobre la cuenta INCOMPLETE sigue en ignored", async () => {
+    const { account, subscriptionRef } = await seedSignupAwaitingCard();
+    const event = paymentFailedEvent({ subscriptionRef, invoiceRef: "in_otra_factura" });
+
+    await processPaymentWebhook(event, provider);
+
+    expect((await PaymentEvent.findOne({ eventId: event.eventId }))?.status).toBe("ignored");
+    expect((await SubscriptionAccount.findById(account._id))?.signupFailedAttempts).toBeUndefined();
+  });
+
+  it("cada rechazo del alta suma al tope por cuenta de la usuaria (contador compartido con los pedidos)", async () => {
+    const { account, subscriptionRef, invoiceRef } = await seedSignupAwaitingCard();
+
+    await processPaymentWebhook(paymentFailedEvent({ subscriptionRef, invoiceRef }), provider);
+    await processPaymentWebhook(paymentFailedEvent({ subscriptionRef, invoiceRef }), provider);
+
+    const user = await User.findById(account.userId).select("+cardDeclineWindow").lean();
+    expect(user?.cardDeclineWindow?.count).toBe(2);
+  });
+
+  it("una re-alta arranca su factura nueva con el contador en cero", async () => {
+    const { plan, account, subscriptionRef, invoiceRef } = await seedSignupAwaitingCard();
+    await processPaymentWebhook(paymentFailedEvent({ subscriptionRef, invoiceRef }), provider);
+    await applyStatusTransition(
+      (await SubscriptionAccount.findById(account._id))!,
+      SubscriptionStatus.CANCELED,
+      "system",
+    );
+
+    const restarted = await startSubscription({ userId: account.userId.toString(), planId: plan._id.toString() });
+
+    expect(restarted.signupFailedAttempts).toBeUndefined();
+    expect(restarted.signupFailedEventIds ?? []).toHaveLength(0);
+  });
+
+  it("🔀 el 5.º y el 6.º rechazo llegan juntos: el alta se abandona una vez y ningún evento queda fallido", async () => {
+    const { account, subscriptionRef, invoiceRef } = await seedSignupAwaitingCard();
+    for (let i = 0; i < MAX_CARD_FAILED_ATTEMPTS - 1; i += 1) {
+      await processPaymentWebhook(paymentFailedEvent({ subscriptionRef, invoiceRef }), provider);
+    }
+
+    const racing = [paymentFailedEvent({ subscriptionRef, invoiceRef }), paymentFailedEvent({ subscriptionRef, invoiceRef })];
+    await Promise.allSettled(racing.map((event) => processPaymentWebhook(event, provider)));
+
+    expect((await SubscriptionAccount.findById(account._id))?.status).toBe(SubscriptionStatus.CANCELED);
+    const statuses = await PaymentEvent.find({ eventId: { $in: racing.map((event) => event.eventId) } }).distinct("status");
+    expect(statuses).toEqual(["processed"]);
+    expect(
+      await AuditLog.countDocuments({ action: "subscription_signup_declines_exceeded", targetId: account._id }),
+    ).toBe(1);
+  });
+
+  it("si al llegar al tope la factura ya está pagada, la cuenta sigue INCOMPLETE esperando el invoice.paid", async () => {
+    const fake = buildFakeSubscriptionProvider({
+      abandonSubscriptionStart: vi.fn().mockResolvedValue({ outcome: "already_paid" }),
+    });
+    __setSubscriptionProviderForTests(fake);
+    const { account, subscriptionRef, invoiceRef } = await seedSignupAwaitingCard();
+
+    let last = paymentFailedEvent({ subscriptionRef, invoiceRef });
+    for (let i = 0; i < MAX_CARD_FAILED_ATTEMPTS; i += 1) {
+      last = paymentFailedEvent({ subscriptionRef, invoiceRef });
+      await processPaymentWebhook(last, provider);
+    }
+
+    const reloaded = await SubscriptionAccount.findById(account._id);
+    expect(reloaded?.status).toBe(SubscriptionStatus.INCOMPLETE);
+    expect(reloaded?.signupPaidDetectedAt).toBeInstanceOf(Date);
+    expect((await PaymentEvent.findOne({ eventId: last.eventId }))?.status).toBe("processed");
   });
 });

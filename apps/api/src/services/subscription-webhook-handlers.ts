@@ -12,6 +12,8 @@ import {
 import { createCycleShipment } from "./subscription-shipment.service.js";
 import { sendSubscriptionPaymentConfirmedEmail, sendSubscriptionDunningEmail } from "./subscription-email.service.js";
 import { canActorTransition } from "./subscription-state.js";
+import { recordSignupCardFailure } from "./subscription-signup-guard.service.js";
+import { resolveSubscriptionProvider } from "./subscription-provider.js";
 import type { HandlerOutcome } from "./payment-event-handlers.js";
 import type { ProviderSubscriptionStatus, SubscriptionWebhookEvent } from "./subscription-provider.js";
 
@@ -207,16 +209,28 @@ async function handleInvoicePaid(event: InvoicePaidEvent): Promise<HandlerOutcom
 
 /**
  * `invoice.payment_failed` — `INCOMPLETE -> PAST_DUE` no existe en la tabla
- * de transiciones (Stripe expira sola la suscripción incompleta y esa
- * expiración llega por `customer.subscription.deleted`, nunca por un fallo
- * de cobro): cae en `ignored`, nunca lanza. `CANCELED`/`PAUSED` tampoco
- * tienen nada que degradar. `PAST_DUE` sigue sumando `dunningAttempts`
- * aunque `applySystemStatus` sea un no-op (ya está en el destino): el campo
- * es "intentos de la FACTURA en curso", no solo el primer fallo.
+ * de transiciones: un rechazo sobre una cuenta `INCOMPLETE` nunca degrada su
+ * estado. Si el rechazo es de su factura de alta en curso, cuenta para el tope
+ * anti card-testing del alta (auditoría run-2, hallazgo 8; ver
+ * `recordSignupCardFailure`) y se responde `processed`; cualquier otra factura
+ * cae en `ignored`, nunca lanza. `CANCELED`/`PAUSED` tampoco tienen nada que
+ * degradar. `PAST_DUE` sigue sumando `dunningAttempts` aunque
+ * `applySystemStatus` sea un no-op (ya está en el destino): el campo es
+ * "intentos de la FACTURA en curso", no solo el primer fallo.
  */
 async function handlePaymentFailed(event: PaymentFailedEvent): Promise<HandlerOutcome> {
   const account = await locateAccountForEvent(event.subscriptionRef, event.accountIdHint);
   if (!account) return { status: "rejected", reason: "account_not_found" };
+
+  if (account.status === SubscriptionStatus.INCOMPLETE && account.latestInvoiceId === event.invoiceRef) {
+    await recordSignupCardFailure({
+      account,
+      eventId: event.eventId,
+      invoiceRef: event.invoiceRef,
+      provider: resolveSubscriptionProvider(),
+    });
+    return { status: "processed", accountId: account._id.toString() };
+  }
 
   if (account.status !== SubscriptionStatus.ACTIVE && account.status !== SubscriptionStatus.PAST_DUE) {
     return { status: "ignored" };

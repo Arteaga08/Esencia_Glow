@@ -8,6 +8,7 @@ import { getSettings } from "./settings.service.js";
 import { computeOrderExpiresAt, computeReservationExpiresAt } from "./payment-deadlines.js";
 import { resolvePaymentProvider, type PaymentAuthorization, type PaymentProvider } from "./payment-provider.js";
 import { sendOxxoVoucherEmail } from "./order-email.service.js";
+import { assertCardPaymentsAllowed } from "./card-decline-guard.service.js";
 
 /**
  * `ensurePaymentIntent` — gancho de checkout de 1.6 (§B del plan): crea el
@@ -139,6 +140,9 @@ async function ensurePaymentIntent(
   if (order.status !== OrderStatus.PENDING) {
     throw new AppError(`No se puede pagar un pedido en estado "${order.status}".`, 409);
   }
+  // Tope por cuenta (auditoría run-2, hallazgo 7): ni un PI nuevo ni el
+  // `client_secret` de uno existente mientras la cuenta esté bloqueada.
+  await assertCardPaymentsAllowed(userId);
 
   if (order.payment.intentId) {
     const authorization = await provider.getAuthorization(order.payment.intentId);

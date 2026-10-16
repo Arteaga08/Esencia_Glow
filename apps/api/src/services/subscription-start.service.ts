@@ -15,6 +15,7 @@ import {
   type SubscriptionProvider,
 } from "./subscription-provider.js";
 import { recordAudit } from "./audit.service.js";
+import { assertCardPaymentsAllowed } from "./card-decline-guard.service.js";
 
 /** Orquestación del endpoint de alta (Fase 4 de 1.7.2a, §E del plan). */
 interface StartSubscriptionInput {
@@ -148,10 +149,25 @@ async function compensateFailedStart(
 ): Promise<void> {
   if (subscription?.subscriptionRef && subscription.latestChargeRef) {
     try {
-      await provider.abandonSubscriptionStart({
+      const result = await provider.abandonSubscriptionStart({
         subscriptionRef: subscription.subscriptionRef,
         invoiceRef: subscription.latestChargeRef,
       });
+      // Recién creada, no debería poder estar pagada. Si lo está, la baja
+      // local de abajo igual corre, así que la Subscription se cancela de todos
+      // modos (si no, seguiría cobrando cada ciclo contra una cuenta
+      // cancelada) y queda rastro para reembolsar a mano.
+      if (result.outcome === "already_paid") {
+        logger.error(
+          { accountId: account._id.toString(), invoiceRef: subscription.latestChargeRef },
+          "Alta interrumpida con la factura de alta ya pagada: se cancela en Stripe, reembolsar a mano",
+        );
+        await provider.cancelNow({
+          subscriptionRef: subscription.subscriptionRef,
+          comment: "Alta interrumpida con la factura de alta ya pagada.",
+          idempotencyKey: `account:${account._id.toString()}:start-compensation-cancel:${subscription.subscriptionRef}`,
+        });
+      }
     } catch (abandonError) {
       logger.error(
         { err: abandonError, accountId: account._id.toString() },
@@ -176,6 +192,11 @@ async function compensateFailedStart(
  */
 async function startSubscriptionForUser(input: StartSubscriptionInput): Promise<StartSubscriptionResult> {
   const provider = resolveSubscriptionProvider()!;
+
+  // Tope por cuenta (auditoría run-2, hallazgos 7 y 8): va antes de la rama
+  // replay para que una cuenta bloqueada tampoco recupere el `clientSecret`
+  // de un alta en curso.
+  await assertCardPaymentsAllowed(input.userId);
 
   // `isEnrollmentOpen` (módulo puro) pide `Date`, no el `string` ISO del
   // contrato público de `getSettings()` — se lee el subdocumento CRUDO del

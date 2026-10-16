@@ -1,6 +1,7 @@
 import { MAX_CARD_FAILED_ATTEMPTS, OrderAction, OrderStatus, PaymentMethod, PaymentState } from "@esencia-glow/shared";
 import { Order } from "../models/order.model.js";
 import { recordAudit } from "./audit.service.js";
+import { recordAccountCardDecline } from "./card-decline-guard.service.js";
 import { closePendingOrder } from "./order-closing.service.js";
 import type { PaymentProvider } from "./payment-provider.js";
 
@@ -45,6 +46,11 @@ async function recordCardPaymentFailure(input: RecordCardPaymentFailureInput): P
   );
 
   if (updated) {
+    // Solo cuando este evento se contó por primera vez (`updated` no es
+    // `null`): una reentrega no suma doble al tope por cuenta. Va justo
+    // después del claim y antes de la auditoría: si algo posterior falla, la
+    // reentrega ya no entra aquí y el rechazo se perdería para el tope.
+    await recordAccountCardDecline(updated.userId);
     await recordAudit({
       action: OrderAction.ORDER_PAYMENT_FAILED,
       targetId: input.orderId,

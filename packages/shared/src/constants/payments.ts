@@ -25,8 +25,20 @@ const PAYMENT_EVENT_RETENTION_DAYS = 60;
 const RESERVATION_SAFETY_MARGIN_MINUTES = 15;
 
 /** Tope anti card-testing: al 5.º rechazo de tarjeta en el mismo pedido se
- * cancela el intento de pago y el pedido (decisión 10 del plan de 1.6). */
+ * cancela el intento de pago y el pedido (decisión 10 del plan de 1.6). El
+ * mismo número topa los rechazos de una factura de alta de suscripción. Como
+ * cada pedido nuevo arranca en 0, el tope entre pedidos lo da
+ * `MAX_ACCOUNT_CARD_DECLINES`. */
 const MAX_CARD_FAILED_ATTEMPTS = 5;
+
+/** Tope anti card-testing POR CUENTA (auditoría run-2, hallazgo 7): rechazos de
+ * tarjeta sumando todos sus pedidos y altas de suscripción dentro de una
+ * ventana fija de `ACCOUNT_CARD_DECLINE_WINDOW_HOURS` que arranca con el primer
+ * rechazo. Al llegar, la cuenta no puede abrir pedidos, reanudar pagos ni dar
+ * de alta una suscripción hasta que la ventana venza. 10 = dos pedidos enteros
+ * fallidos: una clienta real casi nunca llega ahí. */
+const MAX_ACCOUNT_CARD_DECLINES = 10;
+const ACCOUNT_CARD_DECLINE_WINDOW_HOURS = 24;
 
 /** Ventana del lease de `PaymentEvent.lockedAt` (Milestone 1.6.2): una
  * entrega reclamada como `processing` que no termina en este tiempo (caída
@@ -53,6 +65,8 @@ export {
   PAYMENT_EVENT_RETENTION_DAYS,
   RESERVATION_SAFETY_MARGIN_MINUTES,
   MAX_CARD_FAILED_ATTEMPTS,
+  MAX_ACCOUNT_CARD_DECLINES,
+  ACCOUNT_CARD_DECLINE_WINDOW_HOURS,
   PAYMENT_EVENT_LEASE_MINUTES,
   REFUND_REQUEST_LEASE_MINUTES,
 };

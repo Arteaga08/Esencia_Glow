@@ -4,6 +4,7 @@ import { AppError } from "../utils/app-error.js";
 import { translateStripeError } from "./stripe-payment-provider.js";
 import type {
   AbandonSubscriptionStartInput,
+  AbandonSubscriptionStartResult,
   CancelNowInput,
   ChangePriceInput,
   CreatePlanProductInput,
@@ -483,17 +484,31 @@ function createStripeSubscriptionProvider(client: StripeBillingClientLike): Subs
     },
 
     /**
-     * Barrendero de altas abandonadas (jobs/expire-incomplete-subscriptions.ts):
-     * anula la factura de alta (si sigue `open`; si ya no lo está, alguien más
-     * la resolvió — no es un error) y cancela la Subscription. Tolera que la
-     * Subscription ya esté cancelada (carrera con otra corrida del barrendero
-     * o con Stripe mismo): no relanza en ese caso, cualquier otro fallo sí.
+     * Barrendero de altas abandonadas (jobs/expire-incomplete-subscriptions.ts)
+     * y tope de rechazos del alta: anula la factura de alta si sigue `open` y
+     * cancela la Subscription. Si la factura YA está pagada no toca nada y
+     * devuelve `already_paid` (auditoría run-2, hallazgo 9): cancelar ahí
+     * dejaba a la clienta cobrada sin suscripción. `void`/`uncollectible` ya
+     * están resueltas y solo falta cancelar. Tolera que la Subscription ya
+     * esté cancelada (carrera con otra corrida del barrendero o con Stripe
+     * mismo): no relanza en ese caso, cualquier otro fallo sí.
      */
-    async abandonSubscriptionStart(input: AbandonSubscriptionStartInput): Promise<void> {
+    async abandonSubscriptionStart(input: AbandonSubscriptionStartInput): Promise<AbandonSubscriptionStartResult> {
       try {
         const invoice = await client.invoices.retrieve(input.invoiceRef);
+        if (invoice.status === "paid") return { outcome: "already_paid" };
         if (invoice.status === "open") {
-          await client.invoices.voidInvoice(input.invoiceRef);
+          try {
+            await client.invoices.voidInvoice(input.invoiceRef);
+          } catch (voidError) {
+            // La clienta pudo pagar entre la lectura y el void (Stripe rechaza
+            // anular una factura pagada), u otro proceso ya la anuló. Se relee
+            // antes de decidir; si sigue `open`, el error original es el que
+            // se traduce.
+            const current = await client.invoices.retrieve(input.invoiceRef).catch(() => undefined);
+            if (current?.status === "paid") return { outcome: "already_paid" };
+            if (current?.status !== "void" && current?.status !== "uncollectible") throw voidError;
+          }
         }
       } catch (error) {
         translateStripeError(error);
@@ -511,10 +526,11 @@ function createStripeSubscriptionProvider(client: StripeBillingClientLike): Subs
         const shape = readErrorShape(error);
         if (shape.type === "StripeInvalidRequestError") {
           const current = await client.subscriptions.retrieve(input.subscriptionRef).catch(() => undefined);
-          if (current?.status === "canceled") return;
+          if (current?.status === "canceled") return { outcome: "abandoned" };
         }
         translateStripeError(error);
       }
+      return { outcome: "abandoned" };
     },
 
     async getSubscription(subscriptionRef: string): Promise<ProviderSubscription> {
