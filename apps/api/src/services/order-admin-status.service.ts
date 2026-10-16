@@ -1,10 +1,10 @@
 import type { Types, ClientSession } from "mongoose";
-import { DisputeStatus, OrderAction, OrderStatus, type ShippingCarrier } from "@esencia-glow/shared";
+import { OrderAction, OrderStatus, isFulfilmentHoldDispute, type ShippingCarrier } from "@esencia-glow/shared";
 import { Order } from "../models/order.model.js";
 import { AppError } from "../utils/app-error.js";
 import { withTransaction } from "../utils/with-transaction.js";
 import { assertTransition, getTransitionInventoryEffect } from "./order-state.js";
-import { assertNoOpenDispute } from "./order-dispute.service.js";
+import { assertNoOpenDispute, disputeHoldMessage } from "./order-dispute.service.js";
 import { claimStatusTransition, type ShipmentInput } from "./order-status-claim.js";
 import { releaseReservationDetailed, auditReleaseMismatches } from "./stock-reservation.service.js";
 import { recordAudit } from "./audit.service.js";
@@ -75,8 +75,8 @@ async function changeOrderStatusCore(
     // justo en esa ventana (el guard de `assertNoOpenDispute` de arriba ya
     // no la vio). Se relee para dar el mensaje correcto en vez del genérico.
     const reread = await Order.findById(input.orderId).session(session);
-    if (reread && reread.status === current.status && reread.disputeStatus === DisputeStatus.OPEN) {
-      throw new AppError("El pedido tiene un contracargo abierto.", 409);
+    if (reread && reread.status === current.status && isFulfilmentHoldDispute(reread.disputeStatus)) {
+      throw new AppError(disputeHoldMessage(reread.disputeStatus), 409);
     }
     throw new AppError("El pedido cambió de estado antes de poder aplicar esta transición, intenta de nuevo.", 409);
   }

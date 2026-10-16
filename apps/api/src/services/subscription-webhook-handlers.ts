@@ -14,6 +14,7 @@ import { sendSubscriptionPaymentConfirmedEmail, sendSubscriptionDunningEmail } f
 import { canActorTransition } from "./subscription-state.js";
 import { recordSignupCardFailure } from "./subscription-signup-guard.service.js";
 import { resolveSubscriptionProvider } from "./subscription-provider.js";
+import { resolveChargedPlan } from "./subscription-invoice-plan.service.js";
 import type { HandlerOutcome } from "./payment-event-handlers.js";
 import type { ProviderSubscriptionStatus, SubscriptionWebhookEvent } from "./subscription-provider.js";
 
@@ -159,6 +160,24 @@ async function handleInvoicePaid(event: InvoicePaidEvent): Promise<HandlerOutcom
     periodEnd: event.servicePeriodEnd,
   });
 
+  // La caja y el ingreso siguen al plan COBRADO, no al `planId` de la cuenta al
+  // procesar el webhook: un cambio de plan con la renovación ya facturada no
+  // debe darle la caja del plan caro por el precio del barato (hallazgo 12).
+  const charged = await resolveChargedPlan(event, account);
+  if (charged.mismatch) {
+    await recordAudit({
+      action: SubscriptionAction.SUBSCRIPTION_INVOICE_PLAN_MISMATCH,
+      targetId: account._id,
+      metadata: {
+        invoiceRef: event.invoiceRef,
+        chargedPlanId: charged.planId.toString(),
+        accountPlanId: account.planId.toString(),
+        source: charged.source,
+        amountPaidCents: event.amountPaidCents,
+      },
+    });
+  }
+
   // Registro de ingresos para el Resumen del panel (Milestone 2.9) — solo en
   // el camino `processed`, nunca en `rejected`/`ignored` de arriba, que no
   // representan dinero cobrado de verdad.
@@ -166,7 +185,7 @@ async function handleInvoicePaid(event: InvoicePaidEvent): Promise<HandlerOutcom
     invoiceRef: event.invoiceRef,
     accountId: account._id,
     userId: account.userId,
-    planId: account.planId,
+    planId: charged.planId,
     billingInterval: account.billingInterval,
     amountPaidCents: event.amountPaidCents,
     currency: event.currency,
@@ -176,7 +195,7 @@ async function handleInvoicePaid(event: InvoicePaidEvent): Promise<HandlerOutcom
   const shipment = await createCycleShipment({
     accountId: account._id,
     userId: account.userId,
-    planId: account.planId,
+    planId: charged.planId,
     invoiceRef: event.invoiceRef,
     servicePeriodStart: event.servicePeriodStart,
   });

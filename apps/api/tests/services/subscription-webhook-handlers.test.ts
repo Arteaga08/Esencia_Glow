@@ -351,6 +351,112 @@ describe("subscription-webhook-handlers — invoice.paid", () => {
   });
 });
 
+/**
+ * Auditoría run-2, hallazgo 12: la renovación se cobró al precio del plan A, pero
+ * la clienta cambió a B antes de que llegara `invoice.paid`. La caja y el
+ * registro de ingresos deben seguir al plan COBRADO, no al `planId` que la cuenta
+ * tiene al procesar el webhook.
+ */
+describe("subscription-webhook-handlers — invoice.paid con cambio de plan en medio (hallazgo 12)", () => {
+  async function seedTwoPlansWithEditions() {
+    const planA = await seedPlanWithStripeRefs({ priceCents: 59900 });
+    const planB = await seedPlanWithStripeRefs({ priceCents: 99900 });
+    const itemsA = await seedSubscriptionVariantWithStock({ onHand: 10 });
+    const itemsB = await seedSubscriptionVariantWithStock({ onHand: 10 });
+    for (const [plan, items] of [
+      [planA, itemsA],
+      [planB, itemsB],
+    ] as const) {
+      await seedPublishedEdition({
+        planId: plan._id.toString(),
+        cycleYear: 2026,
+        cycleMonth: 10,
+        items: [{ productId: items.product._id.toString(), variantId: items.variantId.toString(), quantity: 1 }],
+      });
+    }
+    const subscriptionRef = `sub_${new Types.ObjectId().toString()}`;
+    const account = await seedSubscribedAccount({
+      planId: planA._id.toString(),
+      status: SubscriptionStatus.ACTIVE,
+      providerSubscriptionId: subscriptionRef,
+    });
+    // `finalizePlanChange` ya movió la cuenta al plan B cuando llega el cobro de A.
+    await SubscriptionAccount.updateOne({ _id: account._id }, { $set: { planId: planB._id } });
+    return { planA, planB, itemsA, itemsB, account, subscriptionRef };
+  }
+
+  it("la caja y el ingreso salen del plan COBRADO (A), no del actual (B), y se audita la discrepancia", async () => {
+    const { planA, planB, itemsA, itemsB, account, subscriptionRef } = await seedTwoPlansWithEditions();
+
+    const event = invoicePaidEvent({
+      subscriptionRef,
+      billingReason: "subscription_cycle",
+      servicePeriodStart: OCTOBER_UTC,
+      servicePeriodEnd: OCTOBER_UTC,
+      amountPaidCents: 59900,
+      priceRef: planA.providerPriceId!,
+    });
+    await processPaymentWebhook(event, provider);
+
+    expect((await PaymentEvent.findOne({ eventId: event.eventId }))?.status).toBe("processed");
+    const shipment = await SubscriptionShipment.findOne({ accountId: account._id });
+    expect(shipment?.planId.toString()).toBe(planA._id.toString());
+    const invoice = await SubscriptionInvoice.findOne({ invoiceRef: event.invoiceRef });
+    expect(invoice?.planId.toString()).toBe(planA._id.toString());
+    expect(invoice?.amountPaidCents).toBe(59900);
+    expect((await Inventory.findOne({ variantId: itemsB.variantId }))?.reserved).toBe(0);
+    expect((await Inventory.findOne({ variantId: itemsA.variantId }))?.reserved).toBe(1);
+
+    const audit = await AuditLog.findOne({ action: "subscription_invoice_plan_mismatch", targetId: account._id });
+    expect(audit?.metadata).toMatchObject({
+      invoiceRef: event.invoiceRef,
+      chargedPlanId: planA._id.toString(),
+      accountPlanId: planB._id.toString(),
+    });
+  });
+
+  it("sin cambio de plan no hay discrepancia: se usa el plan de la cuenta y no se audita nada", async () => {
+    const { planA, account, subscriptionRef } = await seedTwoPlansWithEditions();
+    await SubscriptionAccount.updateOne({ _id: account._id }, { $set: { planId: planA._id } });
+
+    await processPaymentWebhook(
+      invoicePaidEvent({
+        subscriptionRef,
+        billingReason: "subscription_cycle",
+        servicePeriodStart: OCTOBER_UTC,
+        servicePeriodEnd: OCTOBER_UTC,
+        priceRef: planA.providerPriceId!,
+      }),
+      provider,
+    );
+
+    expect((await SubscriptionShipment.findOne({ accountId: account._id }))?.planId.toString()).toBe(
+      planA._id.toString(),
+    );
+    expect(await AuditLog.countDocuments({ action: "subscription_invoice_plan_mismatch" })).toBe(0);
+  });
+
+  it("un precio que no corresponde a ningún plan cae al plan de la cuenta, pero se audita para revisión", async () => {
+    const { planB, account, subscriptionRef } = await seedTwoPlansWithEditions();
+
+    await processPaymentWebhook(
+      invoicePaidEvent({
+        subscriptionRef,
+        billingReason: "subscription_cycle",
+        servicePeriodStart: OCTOBER_UTC,
+        servicePeriodEnd: OCTOBER_UTC,
+        priceRef: "price_desconocido",
+      }),
+      provider,
+    );
+
+    expect((await SubscriptionShipment.findOne({ accountId: account._id }))?.planId.toString()).toBe(
+      planB._id.toString(),
+    );
+    expect(await AuditLog.countDocuments({ action: "subscription_invoice_plan_mismatch" })).toBe(1);
+  });
+});
+
 describe("subscription-webhook-handlers — invoice.payment_failed", () => {
   it("sobre INCOMPLETE -> ignored, no toca la cuenta", async () => {
     const plan = await seedPlanWithStripeRefs();

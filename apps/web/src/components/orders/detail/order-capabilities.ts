@@ -4,6 +4,7 @@ import {
   OrderStatus,
   PaymentMethod,
   REFUND_REQUEST_LEASE_MINUTES,
+  isFulfilmentHoldDispute,
   ShippingLabelStatus,
   type AdminOrder,
 } from "@esencia-glow/shared";
@@ -90,9 +91,12 @@ function getOrderCapabilities(order: AdminOrder): OrderCapabilities {
   const disputeOpen = order.disputeStatus === DisputeStatus.OPEN;
 
   // `shipped -> delivered` NO está bloqueada por contracargo
-  // (order-dispute.service.ts) — solo las dos transiciones de despacho.
+  // (order-dispute.service.ts) — solo las dos transiciones de despacho. Un
+  // contracargo PERDIDO las retiene igual que uno abierto (hallazgo 18); el
+  // reembolso, en cambio, solo se bloquea con la disputa abierta.
   const nextStatusBlockedByDispute =
-    disputeOpen && (order.status === OrderStatus.PAID || order.status === OrderStatus.PROCESSING);
+    isFulfilmentHoldDispute(order.disputeStatus) &&
+    (order.status === OrderStatus.PAID || order.status === OrderStatus.PROCESSING);
 
   const remainingRefundCents = order.totals.totalCents - (order.payment.refundedAmountCents ?? 0);
 
@@ -130,7 +134,11 @@ function getOrderCapabilities(order: AdminOrder): OrderCapabilities {
     nextStatus,
     nextStatusLabel: nextStatus ? (NEXT_STATUS_LABEL[order.status] ?? null) : null,
     requiresShipmentForNextStatus: nextStatus === OrderStatus.SHIPPED,
-    nextStatusBlockedReason: nextStatusBlockedByDispute ? "El pedido tiene un contracargo abierto." : null,
+    nextStatusBlockedReason: nextStatusBlockedByDispute
+      ? disputeOpen
+        ? "El pedido tiene un contracargo abierto."
+        : "El pedido tiene un contracargo perdido; no se puede despachar."
+      : null,
 
     canCancel: order.status === OrderStatus.PENDING,
     cancelWarning: order.adminAlertedAt

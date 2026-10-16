@@ -13,6 +13,7 @@ import {
 import { applyStatusTransition } from "./subscription-seat.service.js";
 import { CANCEL_SCHEDULABLE_STATUSES, canUndoCancel } from "./subscription-state.js";
 import { isPrepaidInterval, type PrepaidInterval } from "./subscription-billing-interval.js";
+import { isWithinRenewalCutoff } from "./subscription-renewal-cutoff.js";
 
 /**
  * Autoservicio de la suscriptora (Milestone 1.7.3): pausar, reanudar,
@@ -35,12 +36,6 @@ import { isPrepaidInterval, type PrepaidInterval } from "./subscription-billing-
  * escriben directo los campos que NO son estado (`cancelAtPeriodEnd` y su
  * motivo), con un CAS sobre el estado esperado.
  */
-
-/** No se puede pausar a menos de 48 h del siguiente cobro: Stripe no
- * garantiza detener una factura que ya se generó o finalizó justo antes del
- * ancla, y un cobro sobre una cuenta pausada es una caja no enviada (el
- * webhook lo rechaza como `paused_account_charged`). */
-const PAUSE_CUTOFF_MS = 48 * 60 * 60 * 1000;
 
 const PREPAID_PAUSE_MESSAGE: Record<PrepaidInterval, string> = {
   quarter: "Las suscripciones trimestrales no se pueden pausar: ya están cobradas por todo el trimestre.",
@@ -70,7 +65,8 @@ function assertCanPause(account: SubscriptionAccountDocument, now: Date): void {
   if (account.pendingPlanChange) {
     throw new AppError("Tienes un cambio de plan en curso, inténtalo de nuevo en unos minutos.", 409);
   }
-  if (account.currentPeriodEnd && account.currentPeriodEnd.getTime() - now.getTime() < PAUSE_CUTOFF_MS) {
+  // A menos de 48 h del siguiente cobro (ver `subscription-renewal-cutoff.ts`).
+  if (isWithinRenewalCutoff(account.currentPeriodEnd, now)) {
     throw new AppError("No puedes pausar en las 48 horas previas a tu siguiente cobro.", 409);
   }
 }

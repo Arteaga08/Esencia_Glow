@@ -1,5 +1,5 @@
 import {
-  DisputeStatus,
+  FULFILMENT_HOLD_DISPUTE_STATUSES,
   LABEL_BACKOFF_BASE_MINUTES,
   LABEL_MAX_ATTEMPTS,
   LABEL_PURCHASE_TIMEOUT_MS,
@@ -67,9 +67,9 @@ const MISSING_RATE_REASON = "El pedido no tiene la tarifa del proveedor de enví
 const PREPARE_ERROR_REASON = "Error interno al preparar la compra de la guía; se reintentará.";
 const UNEXPECTED_ERROR_REASON = "Error inesperado al comprar la guía; no se sabe si el proveedor la cobró.";
 
-/** Claim atómico. Excluye contracargos abiertos: no se gastan créditos en
- * mercancía que no se debe despachar (al cerrarse la disputa, el job la
- * retoma). */
+/** Claim atómico. Excluye contracargos abiertos y PERDIDOS: no se gastan
+ * créditos en mercancía que no se debe despachar. Al cerrarse ganada o
+ * retirada el job la retoma; perdida queda retenida (hallazgo 18). */
 async function claimLabel(orderId: string, now: Date): Promise<LeanOrder | null> {
   return Order.findOneAndUpdate(
     {
@@ -77,7 +77,7 @@ async function claimLabel(orderId: string, now: Date): Promise<LeanOrder | null>
       status: { $in: [OrderStatus.PAID, OrderStatus.PROCESSING] },
       "label.status": { $in: [ShippingLabelStatus.PENDING, ShippingLabelStatus.FAILED] },
       "label.nextAttemptAt": { $lte: now },
-      disputeStatus: { $ne: DisputeStatus.OPEN },
+      disputeStatus: { $nin: FULFILMENT_HOLD_DISPUTE_STATUSES },
     },
     { $set: { "label.status": ShippingLabelStatus.REQUESTED, "label.requestedAt": now }, $inc: { "label.attempts": 1 } },
     { new: true },

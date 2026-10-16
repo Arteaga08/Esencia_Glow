@@ -81,6 +81,34 @@ describe("services/stripe-webhook-translator — eventos de suscripción", () =>
     expect((result as { servicePeriodEnd: Date }).servicePeriodEnd).toEqual(new Date(1_702_592_000 * 1000));
   });
 
+  it("invoice.paid expone el precio cobrado (línea de suscripción) y el planId del snapshot (hallazgo 12)", () => {
+    const payload = buildStripeInvoiceEvent("invoice.paid", "in_price", {
+      subscriptionId: "sub_price",
+      planIdMetadata: "64b7f0c2a1b2c3d4e5f60718",
+      lines: [
+        { start: 1_000, end: 2_000, parentType: "invoice_item_details", priceId: "price_setup" },
+        { start: 1_700_000_000, end: 1_702_592_000, parentType: "subscription_item_details", priceId: "price_plan_a" },
+      ],
+    });
+
+    const result = translateStripeEvent(JSON.parse(payload));
+
+    expect(result).toMatchObject({
+      kind: "subscription.invoice_paid",
+      priceRef: "price_plan_a",
+      planIdHint: "64b7f0c2a1b2c3d4e5f60718",
+    });
+  });
+
+  it("invoice.paid sin precio ni planId en la factura no inventa priceRef ni planIdHint", () => {
+    const payload = buildStripeInvoiceEvent("invoice.paid", "in_noprice", { subscriptionId: "sub_noprice" });
+
+    const result = translateStripeEvent(JSON.parse(payload)) as Record<string, unknown>;
+
+    expect(result).not.toHaveProperty("priceRef");
+    expect(result).not.toHaveProperty("planIdHint");
+  });
+
   it("invoice.paid con billing_reason distinto de create/cycle/manual -> billingReason 'other'", () => {
     const payload = buildStripeInvoiceEvent("invoice.paid", "in_2", { billingReason: "quote_accept" });
     const event = JSON.parse(payload);

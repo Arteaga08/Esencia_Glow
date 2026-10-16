@@ -31,6 +31,7 @@ function OrderDetailHeader({ order }: { order: AdminOrder }) {
             </Badge>
           ) : null}
           {order.disputeStatus === DisputeStatus.OPEN ? <Badge color="danger">Contracargo abierto</Badge> : null}
+          {order.disputeStatus === DisputeStatus.LOST ? <Badge color="danger">Contracargo perdido</Badge> : null}
         </div>
         <div className="flex flex-col items-end">
           <span className="font-mono text-section-title tabular-nums text-foreground">

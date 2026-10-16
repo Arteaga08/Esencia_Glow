@@ -236,6 +236,13 @@ type SubscriptionWebhookEvent =
       servicePeriodStart: Date;
       servicePeriodEnd: Date;
       billingReason: "subscription_create" | "subscription_cycle" | "other";
+      /** Precio de Stripe de la línea de suscripción cobrada: es QUÉ plan se
+       * cobró, no el que la cuenta tenga al procesar el evento (auditoría
+       * run-2, hallazgo 12). Ausente en la factura manual de alta. */
+      priceRef?: string;
+      /** `metadata.planId` del snapshot de la suscripción en la factura;
+       * respaldo de `priceRef`. */
+      planIdHint?: string;
       /** Instante real del cobro (`status_transitions.paid_at`), para el
        * registro de ingresos del Resumen (Milestone 2.9,
        * `SubscriptionInvoice.paidAt`). Cae a la hora de proceso si Stripe no

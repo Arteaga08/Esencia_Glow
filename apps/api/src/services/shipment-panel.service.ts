@@ -117,7 +117,7 @@ async function listAdminShipments(
 
   const [orders, total] = await Promise.all([
     Order.find(filter)
-      .select("orderNumber userId status priority shippingAddress label tracking shipment createdAt")
+      .select("orderNumber userId status priority disputeStatus shippingAddress label tracking shipment createdAt")
       .sort(resolveSort(input.sort, ADMIN_SHIPMENT_SORT_FIELDS, "createdAt"))
       .skip((input.page - 1) * input.limit)
       .limit(input.limit)

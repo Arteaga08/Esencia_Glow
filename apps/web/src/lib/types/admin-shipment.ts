@@ -1,5 +1,6 @@
 import type {
   AdminOrderCustomer,
+  DisputeStatus,
   OrderPriority,
   OrderStatus,
   ShipmentTrackingStatus,
@@ -23,6 +24,8 @@ interface AdminShipmentRow {
   fallbackName: string;
   destinationCity: string;
   destinationState: string;
+  /** Presente solo si el pedido tuvo contracargo; `open`/`lost` lo retienen. */
+  disputeStatus?: DisputeStatus;
   labelStatus?: ShippingLabelStatus;
   labelAttempts: number;
   labelUrl?: string;

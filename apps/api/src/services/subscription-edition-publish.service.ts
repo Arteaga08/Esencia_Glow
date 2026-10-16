@@ -47,7 +47,7 @@ async function assertPublishable(edition: SubscriptionEditionDocument): Promise<
  * Claim atómico, nunca read-then-write: la condición `status: DRAFT` y la
  * escritura viajan en el mismo `findOneAndUpdate`. Dos publicaciones
  * concurrentes de la MISMA edición: una gana, la otra recibe 409 sin pisar
- * `publishedAt`.
+ * `publishedAt`. Además queda atado a la versión validada (ver abajo).
  */
 async function publishEdition(id: string, adminId: string): Promise<SubscriptionEditionDocument> {
   const edition = await getEditionDocument(id);
@@ -56,14 +56,21 @@ async function publishEdition(id: string, adminId: string): Promise<Subscription
   }
   await assertPublishable(edition);
 
+  // El claim va atado a la versión (`__v`) que se validó arriba: si otro
+  // `PATCH` de ítems aterrizó entre la lectura y este claim (la edición sigue
+  // en DRAFT, así que ese PATCH procede), la versión ya no coincide y NO se
+  // publica algo que no pasó `assertPublishable`.
   const claimed = await SubscriptionEdition.findOneAndUpdate(
-    { _id: id, status: EditionStatus.DRAFT },
+    { _id: id, status: EditionStatus.DRAFT, __v: edition.__v },
     { $set: { status: EditionStatus.PUBLISHED, publishedAt: new Date(), publishedBy: adminId } },
     { new: true },
   );
   if (claimed) return claimed;
 
-  await getEditionDocument(id); // 404 si desapareció entre la lectura y el claim
+  const current = await getEditionDocument(id); // 404 si desapareció entre la lectura y el claim
+  if (current.status === EditionStatus.DRAFT) {
+    throw new AppError("La edición cambió mientras la publicabas; revísala y vuelve a intentarlo.", 409);
+  }
   throw new AppError("Esta edición ya está publicada.", 409);
 }
 

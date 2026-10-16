@@ -33,6 +33,20 @@ function extractInvoiceAccountIdHint(invoice: Stripe.Invoice): string | undefine
   return typeof value === "string" && value.length > 0 ? value : undefined;
 }
 
+function extractInvoicePlanIdHint(invoice: Stripe.Invoice): string | undefined {
+  const value = invoice.parent?.subscription_details?.metadata?.planId;
+  return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
+/** Precio de la línea de SUSCRIPCIÓN (nunca la del `invoice_item_details`
+ * de alta): `pricing.price_details.price` es string o `Price` expandido. */
+function extractChargedPriceRef(invoice: Stripe.Invoice): string | undefined {
+  const line = (invoice.lines?.data ?? []).find((l) => l.parent?.type === "subscription_item_details");
+  const price = line?.pricing?.price_details?.price;
+  if (!price) return undefined;
+  return typeof price === "string" ? price : (price as { id?: string }).id;
+}
+
 function extractSubscriptionAccountIdHint(subscription: Stripe.Subscription): string | undefined {
   const value = subscription.metadata?.accountId;
   return typeof value === "string" && value.length > 0 ? value : undefined;
@@ -86,6 +100,8 @@ function translateInvoicePaidEvent(
   if (!subscriptionRef || !period) return undefined;
 
   const accountIdHint = extractInvoiceAccountIdHint(invoice);
+  const priceRef = extractChargedPriceRef(invoice);
+  const planIdHint = extractInvoicePlanIdHint(invoice);
   const paidAtSeconds = invoice.status_transitions?.paid_at;
   return {
     kind: "subscription.invoice_paid",
@@ -99,6 +115,8 @@ function translateInvoicePaidEvent(
     servicePeriodStart: period.start,
     servicePeriodEnd: period.end,
     billingReason: mapBillingReason(invoice.billing_reason),
+    ...(priceRef ? { priceRef } : {}),
+    ...(planIdHint ? { planIdHint } : {}),
     // Fallback a la hora de proceso: Stripe no garantiza que venga poblado
     // en todas las versiones de la API, y no vale la pena rechazar el
     // evento por un campo que solo alimenta una gráfica.

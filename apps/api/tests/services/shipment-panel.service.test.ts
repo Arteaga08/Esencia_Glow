@@ -1,4 +1,4 @@
-import { OrderStatus, ShipmentTrackingStatus, ShippingCarrier, ShippingLabelStatus } from "@esencia-glow/shared";
+import { DisputeStatus, OrderStatus, ShipmentTrackingStatus, ShippingCarrier, ShippingLabelStatus } from "@esencia-glow/shared";
 import { beforeEach, describe, expect, it } from "vitest";
 import { Order } from "../../src/models/order.model.js";
 import { listAdminShipments } from "../../src/services/shipment-panel.service.js";
@@ -60,6 +60,15 @@ describe("services/shipment-panel — colas", () => {
 
     expect(problems.rows.map((r) => r.id)).toContain(orderId);
     expect(transit.rows.map((r) => r.id)).not.toContain(orderId);
+  });
+
+  it("la fila de un pedido con contracargo perdido expone disputeStatus (hallazgo 18)", async () => {
+    const { orderId } = await seed({ status: OrderStatus.PAID });
+    await Order.updateOne({ _id: orderId }, { $set: { disputeStatus: DisputeStatus.LOST } });
+
+    const paid = await listAdminShipments({ ...baseQuery, queue: "paid" });
+
+    expect(paid.rows.find((r) => r.id === orderId)?.disputeStatus).toBe(DisputeStatus.LOST);
   });
 
   it("una orden pagada cae en paid y una en preparación cae en preparing, sin mezclarse", async () => {

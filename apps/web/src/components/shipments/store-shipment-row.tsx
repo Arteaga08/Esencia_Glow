@@ -3,6 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import {
+  DISPUTE_STATUS_LABELS,
+  DisputeStatus,
   ORDER_PRIORITY_LABELS,
   OrderPriority,
   SHIPMENT_TRACKING_STATUS_LABELS,
@@ -86,6 +88,9 @@ function StoreShipmentRow({ shipment, onRetried }: StoreShipmentRowProps) {
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-mono text-body-sm tabular-nums text-foreground">{shipment.orderNumber}</span>
             <span className="truncate text-body text-foreground">{customerName}</span>
+            {shipment.disputeStatus === DisputeStatus.OPEN || shipment.disputeStatus === DisputeStatus.LOST ? (
+              <Badge color="danger">{DISPUTE_STATUS_LABELS[shipment.disputeStatus]}</Badge>
+            ) : null}
             {shipment.priority !== OrderPriority.NORMAL ? (
               <Badge color={shipment.priority === OrderPriority.URGENT ? "danger" : "warning"}>
                 {ORDER_PRIORITY_LABELS[shipment.priority]}

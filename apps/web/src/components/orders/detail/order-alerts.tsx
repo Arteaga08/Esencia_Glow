@@ -25,6 +25,9 @@ function buildAlerts(order: AdminOrder): Alert[] {
   if (order.disputeStatus === DisputeStatus.OPEN) {
     alerts.push({ id: "dispute", tone: "danger", message: "El pedido tiene un contracargo abierto — algunas acciones están bloqueadas hasta que se resuelva." });
   }
+  if (order.disputeStatus === DisputeStatus.LOST) {
+    alerts.push({ id: "dispute-lost", tone: "danger", message: "El contracargo se perdió: el dinero ya se revirtió. El pedido queda retenido, no se compra la guía ni se puede despachar. Reembólsalo o cancélalo." });
+  }
   if (order.label?.status === ShippingLabelStatus.NEEDS_REVIEW) {
     alerts.push({ id: "label-review", tone: "warning", message: "La guía de envío quedó en revisión — confirma en el panel del proveedor antes de reintentar." });
   }

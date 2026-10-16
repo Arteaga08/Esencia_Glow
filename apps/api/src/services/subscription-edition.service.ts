@@ -172,7 +172,11 @@ async function updateEdition(
 
     const updated = await SubscriptionEdition.findOneAndUpdate(
       { _id: id, status: EditionStatus.DRAFT },
-      { $set: setFields },
+      // `$inc: __v` marca cada reescritura de ítems: `publishEdition` reclama
+      // con la versión que validó, así un PATCH que cae entre su lectura y su
+      // claim hace que la publicación responda 409 en vez de publicar ítems
+      // que nunca pasaron `assertPublishable` (auditoría run-2, hallazgo 19).
+      { $set: setFields, $inc: { __v: 1 } },
       { new: true, runValidators: true },
     );
     if (updated) return updated;
