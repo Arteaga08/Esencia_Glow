@@ -56,6 +56,19 @@ describe("límite por correo (acciones que mandan un email)", () => {
     // Otro correo no se ve afectado.
     expect((await request(app).post("/x").send({ email: "otra@example.com" })).status).toBe(200);
   });
+
+  it("un correo rellenado con espacios (más de 254 caracteres crudos) cuenta en la misma cubeta, no cae a la IP", async () => {
+    const { emailActionRateLimiter } = await importRateLimitInProduction();
+    const app = express();
+    app.use(express.json());
+    app.post("/x", emailActionRateLimiter, (_req, res) => res.sendStatus(200));
+
+    const padded = `${" ".repeat(300)}ana@example.com`;
+    for (let i = 0; i < 3; i += 1) {
+      expect((await request(app).post("/x").send({ email: padded })).status).toBe(200);
+    }
+    expect((await request(app).post("/x").send({ email: "ana@example.com" })).status).toBe(429);
+  });
 });
 
 describe("límite de login por cuenta", () => {

@@ -14,9 +14,10 @@ const createOrderSchema = Joi.object({
   lines: Joi.array().items(cartLineSchema).min(1).max(MAX_ORDER_LINES).required(),
   quoteId: Joi.string().hex().length(24).required(),
   rateId: Joi.string().trim().min(1).required(),
-  paymentMethod: Joi.string()
-    .valid(...Object.values(PaymentMethod))
-    .required(),
+  // Solo tarjeta: la tienda no ofrece OXXO. El backend de OXXO sigue intacto,
+  // pero si se aceptara aquí, un pedido sin pagar retendría stock varios días
+  // sin poder cancelarse (auditoría run-2).
+  paymentMethod: Joi.string().valid(PaymentMethod.CARD).required(),
   // Solo el CÓDIGO, nunca un monto ni un porcentaje: el descuento lo calcula
   // el servidor desde el cupón guardado. Sin patrón estricto a propósito: un
   // código mal escrito debe llegar al servicio y responder COUPON_INVALID, el

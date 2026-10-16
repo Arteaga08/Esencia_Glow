@@ -76,10 +76,12 @@ const loginRateLimiter = createRateLimiter({
 
 /** Clave por correo del body (normalizado), con la IP como respaldo si no viene uno usable. */
 function emailKeyGenerator(req: Request): string {
-  const email = (req.body as { email?: unknown } | undefined)?.email;
-  if (typeof email === "string" && email.length > 0 && email.length <= 254) {
-    return `email:${email.trim().toLowerCase()}`;
-  }
+  const raw = (req.body as { email?: unknown } | undefined)?.email;
+  // Normalizar ANTES de medir: el validador de Joi recorta antes de su max(254),
+  // así que un correo rellenado con espacios llega limpio al handler; si aquí se
+  // midiera el valor crudo, caería a la IP y rodearía el límite por cuenta.
+  const email = typeof raw === "string" ? raw.trim().toLowerCase() : "";
+  if (email.length > 0 && email.length <= 254) return `email:${email}`;
   return req.ip ?? "unknown";
 }
 

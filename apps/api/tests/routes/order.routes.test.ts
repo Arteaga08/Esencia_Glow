@@ -115,6 +115,22 @@ describe("routes/order — checkout, lectura y cancelación del cliente", () => 
     expect(res.status).toBe(400);
   });
 
+  it("paymentMethod oxxo responde 400 y no crea orden ni reserva (la tienda solo ofrece tarjeta)", async () => {
+    const { variantId } = await seedProduct();
+    const { agent } = await createCustomerSession(app);
+    const payload = await checkoutPayload(agent, variantId);
+
+    const res = await agent
+      .post("/api/v1/orders")
+      .set("Idempotency-Key", randomUUID())
+      .send({ ...payload, paymentMethod: "oxxo" });
+
+    expect(res.status).toBe(400);
+    expect(await Order.countDocuments()).toBe(0);
+    const inventory = await Inventory.findOne({ variantId });
+    expect(inventory?.reserved).toBe(0);
+  });
+
   it("un rateId vencido/ajeno se rechaza con 409", async () => {
     const { variantId } = await seedProduct();
     const { agent } = await createCustomerSession(app);
