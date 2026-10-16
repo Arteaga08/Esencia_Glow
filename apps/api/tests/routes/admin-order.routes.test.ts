@@ -137,7 +137,7 @@ describe("routes/admin-order — transiciones y guía", () => {
     expect(res.body.data.shipment.trackingNumber).toBe("TRACK-CORRECTED");
   });
 
-  it("trackingUrl con esquema javascript:/data: se rechaza con 400 en status(shipped) y en shipment", async () => {
+  it("trackingUrl con esquema javascript:/data:/http se rechaza con 400 en status(shipped) y en shipment", async () => {
     const { order } = await seedPendingOrder();
     await markOrderPaid({ orderId: order._id.toString() });
     const { agent } = await createAdminSession(app);
@@ -163,6 +163,16 @@ describe("routes/admin-order — transiciones y guía", () => {
       .patch(`/api/v1/admin/orders/${order._id}/shipment`)
       .send({ trackingUrl: "data:text/html,<script>alert(1)</script>" });
     expect(shipmentRes.status).toBe(400);
+
+    const httpRes = await agent
+      .patch(`/api/v1/admin/orders/${order._id}/shipment`)
+      .send({ trackingUrl: "http://www.fedex.com/rastreo/TRACK1" });
+    expect(httpRes.status).toBe(400);
+
+    const httpsRes = await agent
+      .patch(`/api/v1/admin/orders/${order._id}/shipment`)
+      .send({ trackingUrl: "https://www.fedex.com/rastreo/TRACK1" });
+    expect(httpsRes.status).toBe(200);
   });
 
   it("corregir la guía sin que exista una previa responde 409", async () => {

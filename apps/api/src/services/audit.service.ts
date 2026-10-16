@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHmac } from "node:crypto";
 import type { Types } from "mongoose";
 import type {
   AuthAction,
@@ -9,6 +9,7 @@ import type {
   SubscriptionAction,
 } from "@esencia-glow/shared";
 import { AuditLog } from "../models/audit-log.model.js";
+import { env } from "../config/env.js";
 import { logger } from "../config/logger.js";
 
 /**
@@ -29,8 +30,9 @@ interface RecordAuditInput {
   metadata?: Record<string, string | number | boolean>;
 }
 
+/** HMAC y no SHA-256 a secas: sin la clave, la IP no se recupera probando todo IPv4. */
 function hashIp(ip: string): string {
-  return createHash("sha256").update(ip).digest("hex");
+  return createHmac("sha256", env.auditIpHmacKey).update(ip).digest("hex");
 }
 
 async function recordAudit(input: RecordAuditInput): Promise<void> {

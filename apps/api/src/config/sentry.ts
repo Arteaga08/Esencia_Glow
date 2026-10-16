@@ -1,5 +1,5 @@
 import * as Sentry from "@sentry/node";
-import type { ErrorEvent } from "@sentry/node";
+import type { Breadcrumb, ErrorEvent } from "@sentry/node";
 import { env } from "./env.js";
 
 /** Tiempo máximo (ms) que se espera a que Sentry vacíe su cola antes de morir. */
@@ -18,9 +18,34 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 /**
+ * Categorías de breadcrumb que se descartan completas: las de HTTP llevan la
+ * URL de cada llamada saliente (la de Pwned Passwords trae el prefijo SHA-1 de
+ * la contraseña en el path) y las de consola pueden traer cualquier dato que se
+ * haya impreso. El resto sale, pero sin query en su `data.url`.
+ */
+const DROPPED_BREADCRUMB_CATEGORIES = new Set(["http", "fetch", "console"]);
+
+/** Quita query y fragmento: `?search=<correo>` no debe salir del servidor. */
+function stripUrlQuery(url: string): string {
+  const cut = url.search(/[?#]/);
+  return cut === -1 ? url : url.slice(0, cut);
+}
+
+function scrubBreadcrumb(breadcrumb: Breadcrumb): Breadcrumb | null {
+  if (breadcrumb.category && DROPPED_BREADCRUMB_CATEGORIES.has(breadcrumb.category)) return null;
+  if (breadcrumb.type === "http") return null;
+  if (breadcrumb.data && typeof breadcrumb.data.url === "string") {
+    breadcrumb.data.url = stripUrlQuery(breadcrumb.data.url);
+  }
+  return breadcrumb;
+}
+
+/**
  * Red de seguridad antes de enviar: el evento de un error capturado a mano no
- * trae request, pero si alguna integración lo agregara, cookies, cabeceras y
- * cuerpos nunca deben salir del servidor.
+ * trae request, pero si alguna integración lo agregara, cookies, cabeceras,
+ * cuerpos y la query de la URL nunca deben salir del servidor. Los breadcrumbs
+ * pasan por el mismo filtro que `beforeBreadcrumb` por si alguno llegó antes de
+ * que el hook existiera.
  */
 function scrubEvent(event: ErrorEvent): ErrorEvent {
   if (event.request) {
@@ -28,6 +53,12 @@ function scrubEvent(event: ErrorEvent): ErrorEvent {
     delete event.request.headers;
     delete event.request.data;
     delete event.request.query_string;
+    if (event.request.url) event.request.url = stripUrlQuery(event.request.url);
+  }
+  if (event.breadcrumbs) {
+    event.breadcrumbs = event.breadcrumbs
+      .map(scrubBreadcrumb)
+      .filter((breadcrumb): breadcrumb is Breadcrumb => breadcrumb !== null);
   }
   delete event.user;
   return event;
@@ -45,7 +76,15 @@ function initSentry(): void {
     dsn: env.sentryDsn,
     environment: env.nodeEnv,
     release: env.sentryRelease,
-    dataCollection: { userInfo: false, httpBodies: [] },
+    dataCollection: {
+      userInfo: false,
+      httpBodies: [],
+      urlQueryParams: false,
+      // Explícito aunque no se active LocalVariables: en @sentry/node 11 el
+      // default es `true`, y una variable local puede ser un correo o un token.
+      stackFrameVariables: false,
+    },
+    beforeBreadcrumb: scrubBreadcrumb,
     beforeSend: scrubEvent,
   });
 }
@@ -93,4 +132,4 @@ async function flushSentry(): Promise<void> {
   }
 }
 
-export { initSentry, reportLoggedError, flushSentry, scrubEvent };
+export { initSentry, reportLoggedError, flushSentry, scrubEvent, scrubBreadcrumb };

@@ -15,7 +15,7 @@ const sentry = vi.hoisted(() => {
 vi.mock("@sentry/node", () => sentry);
 
 const { logger } = await import("../../src/config/logger.js");
-const { scrubEvent } = await import("../../src/config/sentry.js");
+const { scrubBreadcrumb, scrubEvent } = await import("../../src/config/sentry.js");
 
 describe("logger -> Sentry", () => {
   beforeEach(() => {
@@ -77,5 +77,36 @@ describe("scrubEvent", () => {
 
     expect(event.request).toEqual({ url: "https://api.esenciaglow.com.mx/api/v1/orders" });
     expect(event.user).toBeUndefined();
+  });
+
+  it("quita la query y el fragmento de request.url", () => {
+    const event = scrubEvent({
+      type: undefined,
+      request: { url: "https://api.esenciaglow.com.mx/api/v1/admin/customers?search=clienta%40example.com#x" },
+    });
+
+    expect(event.request?.url).toBe("https://api.esenciaglow.com.mx/api/v1/admin/customers");
+  });
+
+  it("descarta los breadcrumbs de http y consola y quita la query de los demás", () => {
+    const event = scrubEvent({
+      type: undefined,
+      breadcrumbs: [
+        { category: "http", data: { url: "https://api.pwnedpasswords.com/range/5BAA6" } },
+        { type: "http", category: "undici", data: { url: "https://api.resend.com/emails" } },
+        { category: "console", message: "clienta@example.com" },
+        { category: "navigation", data: { url: "/api/v1/admin/customers?search=clienta%40example.com" } },
+      ],
+    });
+
+    expect(event.breadcrumbs).toEqual([{ category: "navigation", data: { url: "/api/v1/admin/customers" } }]);
+  });
+});
+
+describe("scrubBreadcrumb", () => {
+  it("devuelve null para http/fetch/console y deja pasar el resto", () => {
+    expect(scrubBreadcrumb({ category: "fetch", data: { url: "https://x.test/?a=1" } })).toBeNull();
+    expect(scrubBreadcrumb({ category: "console", message: "x" })).toBeNull();
+    expect(scrubBreadcrumb({ category: "mongo", message: "find" })).toEqual({ category: "mongo", message: "find" });
   });
 });

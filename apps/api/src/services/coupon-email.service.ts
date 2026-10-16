@@ -41,7 +41,7 @@ async function sendCouponEmail(input: SendCouponEmailInput): Promise<SendEmailRe
         ...(input.expires ? { expires: input.expires } : {}),
         ...(input.message ? { message: input.message } : {}),
       },
-      ...(input.shopUrl ? { button: { label: "Ir a la tienda", url: escapeHtml(input.shopUrl) } } : {}),
+      ...(input.shopUrl ? { button: { label: "Ir a la tienda", url: input.shopUrl } } : {}),
       disclaimer: "Este cupón es personal. Si no lo quieres, ignora este mensaje.",
     }),
   });

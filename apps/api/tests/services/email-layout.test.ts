@@ -80,6 +80,20 @@ describe("services/email-layout — renderTransactionalEmail", () => {
     expect(html).toMatch(/<td[^>]*background-color[^>]*>/);
   });
 
+  it("escapa la URL y la etiqueta del botón: una comilla no cierra el href", () => {
+    const html = renderTransactionalEmail({
+      preheader: "x",
+      title: "x",
+      paragraphs: ["x"],
+      disclaimer: "x",
+      button: { label: "Rastrear <envío>", url: 'https://rastreo.example/?g=1&c=2" onclick="alert(1)' },
+    });
+
+    expect(html).toContain('href="https://rastreo.example/?g=1&amp;c=2&quot; onclick=&quot;alert(1)"');
+    expect(html).not.toContain('" onclick="');
+    expect(html).toContain("Rastrear &lt;envío&gt;");
+  });
+
   it("sin botón, no renderiza ningún <a>", () => {
     const html = renderTransactionalEmail({ preheader: "x", title: "x", paragraphs: ["x"], disclaimer: "x" });
     expect(html).not.toContain("<a ");
