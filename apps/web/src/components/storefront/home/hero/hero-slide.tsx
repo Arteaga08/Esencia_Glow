@@ -12,7 +12,15 @@ import type { PublicHomeHeroSlide } from "@esencia-glow/shared";
  */
 function HeroSlide({ slide, priority }: { slide: PublicHomeHeroSlide; priority: boolean }) {
   const { desktop, mobile = desktop } = slide.images;
-  const common = { alt: "", fill: true, sizes: "100vw", priority } as const;
+  // Con arte dirigido (<picture>) no sirve `preload`: bajaría las dos fotos. El slide
+  // visible pide `fetchPriority="high"` y carga eager; el resto, perezoso.
+  const common = {
+    alt: "",
+    fill: true,
+    sizes: "100vw",
+    loading: priority ? "eager" : "lazy",
+    fetchPriority: priority ? "high" : "auto",
+  } as const;
   const { props: desktopProps } = getImageProps({ ...common, src: desktop.url });
   const { props: mobileProps } = getImageProps({ ...common, src: mobile.url });
 

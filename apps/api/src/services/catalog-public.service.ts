@@ -184,10 +184,11 @@ async function getPublicProductBySlug(slug: string): Promise<PublicProduct> {
   const product = await Product.findOne(buildPublicProductMatch({ slug })).lean<LeanProduct>();
   if (!product) throw new AppError("Producto no encontrado", 404);
 
-  const category = await resolveCategoryRef(product.categoryId.toString());
-  const badge = product.badgeId
-    ? await Badge.findById(product.badgeId).lean<LeanBadge>()
-    : null;
+  // Categoría y badge no dependen entre sí: se piden a la vez.
+  const [category, badge] = await Promise.all([
+    resolveCategoryRef(product.categoryId.toString()),
+    product.badgeId ? Badge.findById(product.badgeId).lean<LeanBadge>() : null,
+  ]);
   return buildPublicProduct(product, category, badge ?? undefined);
 }
 

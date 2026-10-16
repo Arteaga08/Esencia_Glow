@@ -15,7 +15,7 @@ function ShelfCarousel({ items }: { items: ShelfItem[] }) {
     <SnapCarousel
       items={items}
       getKey={(item) => item.id}
-      renderItem={(item, position) => <ShelfCard item={item} priority={position < 4} />}
+      renderItem={(item) => <ShelfCard item={item} />}
       label="Productos"
       itemClassName="basis-[72%] sm:basis-[42%] lg:basis-[22.5%]"
       arrowTopClassName="top-[45cqw] sm:top-[26.25cqw] lg:top-[14.0625cqw]"

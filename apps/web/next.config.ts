@@ -6,6 +6,8 @@ const nextConfig: NextConfig = {
   // basePath. El panel nunca se indexa (ver metadata de robots en el layout
   // admin); esto es solo la config del framework, no reemplaza esa metadata.
   reactStrictMode: true,
+  // Sin la cabecera `X-Powered-By: Next.js`: no aporta nada y anuncia el framework.
+  poweredByHeader: false,
   // Las fotos del home (hero, etc.) las sube el panel a Cloudinary. Solo se
   // optimizan las de la cuenta de la tienda (ver cloudinary-image-pattern.ts);
   // sin CLOUDINARY_CLOUD_NAME el build y `next dev` fallan a propósito.
@@ -13,6 +15,10 @@ const nextConfig: NextConfig = {
     remotePatterns: [buildCloudinaryRemotePattern(process.env.CLOUDINARY_CLOUD_NAME)],
     // 90 solo para el banner de categoría (foto a todo el ancho); el resto usa el 75 por defecto.
     qualities: [75, 90],
+    // Las URLs de Cloudinary llevan la versión (`/v1790.../`): reemplazar una foto
+    // en el panel genera una URL nueva, así que la optimizada puede cachearse un
+    // mes (el default son 60 s y obliga a revalidar `/_next/image` casi siempre).
+    minimumCacheTTL: 60 * 60 * 24 * 31,
   },
   experimental: {
     // Mismo tope que el API al procesar subidas (upload.service.ts): 40 MP. El

@@ -9,11 +9,11 @@ const SIZES = "(min-width: 1024px) 25vw, (min-width: 640px) 42vw, 72vw";
  * Propuesta A (fiel a la referencia): foto cuadrada pegada a las vecinas, y debajo,
  * sobre la banda rosa, nombre, descripción y botón centrados.
  */
-function CategoryCardA({ category, priority }: { category: ShowcaseCategory; priority: boolean }) {
+function CategoryCardA({ category }: { category: ShowcaseCategory }) {
   return (
     <article className="flex h-full flex-col">
       <Link href={category.href} aria-label={category.name} tabIndex={-1} className="relative block aspect-square overflow-hidden">
-        <CategoryImage category={category} sizes={SIZES} priority={priority} />
+        <CategoryImage category={category} sizes={SIZES} />
       </Link>
       <div className="flex flex-1 flex-col items-center justify-between px-6 pt-5 text-center">
         <h3 className="type-shop-card-title text-foreground">{category.name}</h3>

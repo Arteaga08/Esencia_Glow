@@ -23,7 +23,7 @@ function CategorySection({ categories }: { categories: ShowcaseCategory[] }) {
       <SnapCarousel
         items={categories}
         getKey={(category) => category.id}
-        renderItem={(category, position) => <CategoryCard category={category} priority={position < 4} />}
+        renderItem={(category) => <CategoryCard category={category} />}
         label="Categorías"
         itemClassName="basis-[72%] sm:basis-[42%] lg:basis-1/4"
         arrowTopClassName="top-[36cqw] sm:top-[21cqw] lg:top-[12.5cqw]"
