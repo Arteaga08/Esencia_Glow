@@ -146,7 +146,8 @@ async function forgotPassword(email: string): Promise<void> {
   void sendPasswordResetEmail(user.email, raw);
 }
 
-async function resetPassword(rawToken: string, newPassword: string): Promise<void> {
+/** Devuelve el correo de la cuenta para que el controller libere sus límites de login. */
+async function resetPassword(rawToken: string, newPassword: string): Promise<string> {
   // Antes de consumir el token: una contraseña filtrada no debe quemar el enlace.
   await assertPasswordNotBreached(newPassword);
   const token = await consumeVerificationToken(rawToken, "password_reset");
@@ -164,6 +165,7 @@ async function resetPassword(rawToken: string, newPassword: string): Promise<voi
   await revokeAllForUser(user._id);
   await recordAudit({ action: AuthAction.PASSWORD_RESET, actorId: user._id, targetId: user._id });
   void sendPasswordChangedNotice(user.email);
+  return user.email;
 }
 
 /**
@@ -199,13 +201,15 @@ async function changePassword(
 }
 
 /** Usado por auth.service.register — mismo mecanismo de token que resendVerification. */
-async function issueVerificationTokenForRegistration(userId: Types.ObjectId | string): Promise<string> {
-  // Sin enfriamiento: registrarse de nuevo sobre una cuenta sin verificar
-  // reemplaza el enlace anterior (ver auth.service.register); lo limita el
-  // limitador por correo de la ruta.
-  const raw = await issueVerificationToken(userId, "email_verification", EMAIL_VERIFICATION_TTL_MS);
-  if (!raw) throw new Error("issueVerificationToken sin enfriamiento nunca devuelve null");
-  return raw;
+async function issueVerificationTokenForRegistration(userId: Types.ObjectId | string): Promise<string | null> {
+  // Con enfriamiento, igual que reenviar: registrarse una y otra vez sobre una
+  // cuenta sin verificar no puede bombardear la bandeja de esa persona (el
+  // limitador en memoria por sí solo se pierde al reiniciar). `null` = ya salió
+  // un enlace hace menos de 60 s, que sigue siendo válido: la contraseña la
+  // exige `verifyEmail` y es la que se acaba de guardar.
+  return issueVerificationToken(userId, "email_verification", EMAIL_VERIFICATION_TTL_MS, {
+    cooldownMs: TOKEN_COOLDOWN_MS,
+  });
 }
 
 export {

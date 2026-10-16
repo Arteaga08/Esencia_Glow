@@ -6,8 +6,10 @@ import { getCustomerSession } from "@/lib/storefront/customer-session";
 
 /** Resumen: próxima caja y último pedido; en móvil, la rejilla de accesos. */
 export default async function AccountHomePage() {
-  const session = await getCustomerSession();
-  if (!session) return null;
+  const state = await getCustomerSession();
+  // El layout ya resolvió los demás estados (SessionGate / reintentar).
+  if (state.status !== "authenticated") return null;
+  const { session } = state;
 
   const [account, subscription, orders] = await Promise.all([
     fetchAccountData<AccountDto>("/api/v1/account"),

@@ -50,7 +50,16 @@ async function resetAdminTwoFactor(
     { _id: admin._id },
     {
       $set: { "twoFactor.enabled": false },
-      $unset: { "twoFactor.secret": "", "twoFactor.pendingSince": "" },
+      // También limpia el bloqueo por intentos: este script es la salida de un
+      // admin que se quedó fuera por fallar el código demasiadas veces.
+      $unset: {
+        "twoFactor.secret": "",
+        "twoFactor.pendingSince": "",
+        "twoFactor.failedAttempts": "",
+        "twoFactor.failureWindowStart": "",
+        "twoFactor.lockedUntil": "",
+        "twoFactor.lastUsedStep": "",
+      },
     },
   );
   await revokeAllForUser(admin._id);

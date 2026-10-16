@@ -14,6 +14,7 @@ enum AuthAction {
   EMAIL_VERIFIED = "email_verified",
   TWO_FACTOR_ENABLED = "two_factor_enabled",
   TWO_FACTOR_DISABLED = "two_factor_disabled",
+  TWO_FACTOR_LOCKED = "two_factor_locked",
   SESSION_REUSE_DETECTED = "session_reuse_detected",
 }
 

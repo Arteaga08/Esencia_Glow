@@ -1,10 +1,9 @@
 import "server-only";
 import type { ApiResponse, PublicProduct, PublicVariantAvailability } from "@esencia-glow/shared";
 import { API_URL } from "../config";
+import { internalApiHeaders } from "../server-api";
 
-// Un minuto de caché para el producto; la disponibilidad se refresca más seguido.
-const PRODUCT_REVALIDATE_SECONDS = 60;
-const AVAILABILITY_REVALIDATE_SECONDS = 15;
+// Sin caché compartida: la URL la elige quien visita y la llamada lleva su IP (ver `fetch`).
 
 type ProductLookup =
   | { kind: "found"; product: PublicProduct }
@@ -19,7 +18,8 @@ type ProductLookup =
 async function getProduct(slug: string): Promise<ProductLookup> {
   try {
     const response = await fetch(`${API_URL}/api/v1/products/${encodeURIComponent(slug)}`, {
-      next: { revalidate: PRODUCT_REVALIDATE_SECONDS },
+      headers: await internalApiHeaders({ visitor: true }),
+      cache: "no-store",
     });
     if (response.status === 404) return { kind: "not-found" };
     if (!response.ok) return { kind: "error" };
@@ -37,7 +37,8 @@ async function getProduct(slug: string): Promise<ProductLookup> {
 async function getProductAvailability(slug: string): Promise<PublicVariantAvailability[]> {
   try {
     const response = await fetch(`${API_URL}/api/v1/products/${encodeURIComponent(slug)}/availability`, {
-      next: { revalidate: AVAILABILITY_REVALIDATE_SECONDS },
+      headers: await internalApiHeaders({ visitor: true }),
+      cache: "no-store",
     });
     if (!response.ok) return [];
     const payload = (await response.json()) as ApiResponse<PublicVariantAvailability[]>;

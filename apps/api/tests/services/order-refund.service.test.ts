@@ -10,6 +10,7 @@ import { markOrderPaid } from "../../src/services/order-payment.service.js";
 import { changeOrderStatus } from "../../src/services/order-admin-status.service.js";
 import { requestOrderRefund } from "../../src/services/order-refund.service.js";
 import { encryptSecret } from "../../src/utils/crypto.js";
+import { totpAtOffset } from "../helpers/totp.js";
 import { buildFakePaymentProvider } from "../helpers/fake-payment-provider.js";
 import { buildCreateOrderInput, randomUserId, resetCheckoutFixtureCounter, seedVariantWithStock } from "../helpers/checkout-fixtures.js";
 
@@ -235,7 +236,8 @@ describe("services/order-refund — requestOrderRefund", () => {
     expect(afterFailure!.payment.refundRequestedAt).toBeUndefined();
 
     const workingProvider = buildFakePaymentProvider();
-    await requestOrderRefund({ orderId: order._id.toString(), adminId, twoFactorCode: authenticator.generate(secret), provider: workingProvider });
+    // El código del primer intento ya se gastó (cada paso TOTP sirve una vez): el reintento usa el siguiente.
+    await requestOrderRefund({ orderId: order._id.toString(), adminId, twoFactorCode: totpAtOffset(secret, 1), provider: workingProvider });
     expect(workingProvider.refund).toHaveBeenCalledTimes(1);
   });
 

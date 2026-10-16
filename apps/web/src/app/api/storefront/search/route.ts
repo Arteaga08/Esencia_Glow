@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { searchProducts } from "@/lib/storefront/search";
+import { RATE_LIMITED, searchProducts } from "@/lib/storefront/search";
 import { SEARCH_MAX_LENGTH } from "@/lib/storefront/search-term";
 
 /**
@@ -7,11 +7,16 @@ import { SEARCH_MAX_LENGTH } from "@/lib/storefront/search-term";
  * servidor, se piden los productos al API: así el navegador no necesita
  * permiso de CORS ni conoce la dirección del API. Sin `q` responde los
  * productos que se muestran al abrir. El texto se acota aquí y se normaliza
- * en `searchProducts`.
+ * en `searchProducts`. Cada búsqueda con texto cuenta en la cuota de quien la
+ * hace (`searchProducts` reenvía su IP al API), no en la de todo el sitio.
  */
 export async function GET(request: NextRequest) {
   const term = (request.nextUrl.searchParams.get("q") ?? "").slice(0, SEARCH_MAX_LENGTH);
   const payload = await searchProducts(term);
+  // El límite es por visitante (el API recibe su IP): solo a quien abusa se le pide esperar.
+  if (payload === RATE_LIMITED) {
+    return Response.json({ message: "Demasiadas búsquedas. Espera un momento e inténtalo de nuevo." }, { status: 429 });
+  }
   if (!payload) {
     return Response.json({ message: "No pudimos buscar en este momento." }, { status: 502 });
   }

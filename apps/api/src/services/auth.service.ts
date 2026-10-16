@@ -83,7 +83,8 @@ function buildPublicUser(user: {
  *   enlace anterior muere (quien se registró primero y nunca verificó no tiene
  *   nada que perder; quien vuelve a intentarlo es casi siempre la dueña real).
  *   Aun así, verificar el correo exige la contraseña (ver `verifyEmail`), así
- *   que registrar el correo ajeno no sirve para tomar la cuenta.
+ *   que registrar el correo ajeno no sirve para tomar la cuenta. Si ya salió un
+ *   enlace hace menos de 60 s, no se manda otro (ese sigue vigente).
  * - Cuenta verificada: no cambia nada ni manda correo.
  *
  * La revisión de contraseña filtrada corre ANTES de tocar la base: una
@@ -123,7 +124,7 @@ async function register(input: RegisterInput): Promise<void> {
   }
 
   const rawToken = await issueVerificationTokenForRegistration(user._id);
-  void sendVerificationEmail(user.email, rawToken);
+  if (rawToken) void sendVerificationEmail(user.email, rawToken);
   await recordAudit({ action: AuthAction.REGISTER, actorId: user._id, targetId: user._id });
 }
 

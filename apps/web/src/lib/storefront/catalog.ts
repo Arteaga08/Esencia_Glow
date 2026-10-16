@@ -8,6 +8,7 @@ import type {
   PublicProductFacets,
 } from "@esencia-glow/shared";
 import { API_URL } from "../config";
+import { internalApiHeaders } from "../server-api";
 import { catalogFiltersToApiParams, type CatalogFilters } from "./catalog-filters";
 import { toShelfProduct, type ShelfItem } from "./shelf-item";
 
@@ -71,7 +72,11 @@ async function getCatalogPage(scope: CatalogScope, filters: CatalogFilters, page
     ...catalogFiltersToApiParams(filters),
   });
   try {
-    const response = await fetch(`${API_URL}/api/v1/products?${query}`, { next: { revalidate: CATALOG_REVALIDATE_SECONDS } });
+    // Los filtros y la página los elige quien visita: la llamada lleva su IP para
+    // que el API cuente SU cuota y no la de todo el servidor web (por eso `no-store`: con la IP
+    // en las cabeceras la caché compartida se fragmentaría sin servir a nadie).
+    const headers = await internalApiHeaders({ visitor: true });
+    const response = await fetch(`${API_URL}/api/v1/products?${query}`, { headers, cache: "no-store" });
     if (!response.ok) return null;
     const payload = (await response.json()) as ApiResponse<PublicProduct[]>;
     if (payload.status !== "success" || !payload.meta) return null;
@@ -93,6 +98,7 @@ async function getCatalogFacets(scope: CatalogScope = {}): Promise<PublicProduct
     const params = new URLSearchParams(scopeToParams(scope));
     const query = params.size > 0 ? `?${params}` : "";
     const response = await fetch(`${API_URL}/api/v1/products/facets${query}`, {
+      headers: await internalApiHeaders(),
       next: { revalidate: CATALOG_REVALIDATE_SECONDS },
     });
     if (!response.ok) return EMPTY_FACETS;

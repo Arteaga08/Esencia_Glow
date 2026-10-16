@@ -63,7 +63,12 @@ async function enableAdminTwoFactor(adminId: string): Promise<string> {
   const secret = authenticator.generateSecret();
   await User.updateOne(
     { _id: adminId },
-    { $set: { "twoFactor.secret": encryptSecret(secret), "twoFactor.enabled": true } },
+    {
+      $set: { "twoFactor.secret": encryptSecret(secret), "twoFactor.enabled": true },
+      // Secreto nuevo = pasos nuevos: sin esto el paso del enrolamiento previo
+      // (otro secreto) haría pasar por "ya usado" al primer código válido.
+      $unset: { "twoFactor.lastUsedStep": "" },
+    },
   );
   return secret;
 }

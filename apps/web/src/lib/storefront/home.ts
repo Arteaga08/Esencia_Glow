@@ -1,6 +1,7 @@
 import "server-only";
 import type { ApiResponse, PublicHomeContent } from "@esencia-glow/shared";
 import { API_URL } from "../config";
+import { internalApiHeaders } from "../server-api";
 
 // El contenido del home lo edita Manuel desde el panel: un minuto de caché
 // evita pegarle al API en cada visita y aun así se ve rápido un cambio.
@@ -13,6 +14,7 @@ const HOME_REVALIDATE_SECONDS = 60;
 async function getHomeContent(): Promise<PublicHomeContent | null> {
   try {
     const response = await fetch(`${API_URL}/api/v1/home`, {
+      headers: await internalApiHeaders(),
       next: { revalidate: HOME_REVALIDATE_SECONDS },
     });
     if (!response.ok) return null;

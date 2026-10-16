@@ -108,6 +108,7 @@ describe("config/env — tolerancia del webhook y umbral de reconciliación", ()
       STRIPE_SECRET_KEY: "sk_test_x",
       STRIPE_WEBHOOK_SECRET: "whsec_x",
       RESEND_API_KEY: "re_x",
+      INTERNAL_API_TOKEN: "t".repeat(40),
       CLOUDINARY_CLOUD_NAME: "cloud",
       CLOUDINARY_API_KEY: "key",
       CLOUDINARY_API_SECRET: "secret",
@@ -141,5 +142,42 @@ describe("config/env — REFRESH_TOKEN_TTL_DAYS", () => {
   it("'45' -> 45", async () => {
     const { env } = await importEnvWith({ REFRESH_TOKEN_TTL_DAYS: "45" });
     expect(env.refreshTokenTtlDays).toBe(45);
+  });
+});
+
+describe("config/env — INTERNAL_API_TOKEN", () => {
+  afterEach(() => {
+    vi.resetModules();
+  });
+
+  const productionBase = {
+    NODE_ENV: "production",
+    TRUST_PROXY_HOPS: "2",
+    CLIENT_URL: "https://www.esenciaglow.com",
+    STRIPE_SECRET_KEY: "sk_test_x",
+    STRIPE_WEBHOOK_SECRET: "whsec_x",
+    RESEND_API_KEY: "re_x",
+    CLOUDINARY_CLOUD_NAME: "cloud",
+    CLOUDINARY_API_KEY: "key",
+    CLOUDINARY_API_SECRET: "secret",
+  };
+
+  it("ausente fuera de producción -> undefined (el SSR no reenvía identidad en dev)", async () => {
+    const { env } = await importEnvWith({ INTERNAL_API_TOKEN: undefined });
+    expect(env.internalApiToken).toBeUndefined();
+  });
+
+  it("ausente en producción -> lanza", async () => {
+    await expect(importEnvWith({ ...productionBase, INTERNAL_API_TOKEN: undefined })).rejects.toThrow();
+  });
+
+  it("de menos de 32 caracteres en producción -> lanza", async () => {
+    await expect(importEnvWith({ ...productionBase, INTERNAL_API_TOKEN: "corto" })).rejects.toThrow();
+  });
+
+  it("de 32 caracteres o más en producción -> arranca con ese valor", async () => {
+    const token = "t".repeat(40);
+    const { env } = await importEnvWith({ ...productionBase, INTERNAL_API_TOKEN: token });
+    expect(env.internalApiToken).toBe(token);
   });
 });
