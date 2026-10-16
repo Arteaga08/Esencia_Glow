@@ -12,8 +12,9 @@ import { createOrder } from "../../src/services/order.service.js";
 import { markOrderPaid } from "../../src/services/order-payment.service.js";
 import { createAdminSession } from "../helpers/admin-session.js";
 import { buildCreateOrderInput, resetCheckoutFixtureCounter } from "../helpers/checkout-fixtures.js";
+import { serveAppForFile } from "../helpers/serve-app.js";
 
-const app = buildApp();
+const app = await serveAppForFile(buildApp());
 
 let seedCounter = 0;
 

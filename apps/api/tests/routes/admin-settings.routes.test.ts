@@ -4,8 +4,9 @@ import { describe, expect, it } from "vitest";
 import { buildApp } from "../../src/app.js";
 import { AuditLog } from "../../src/models/audit-log.model.js";
 import { createAdminSession, createCustomerSession } from "../helpers/admin-session.js";
+import { serveAppForFile } from "../helpers/serve-app.js";
 
-const app = buildApp();
+const app = await serveAppForFile(buildApp());
 
 describe("routes/admin-settings", () => {
   it("sin cookie responde 401", async () => {

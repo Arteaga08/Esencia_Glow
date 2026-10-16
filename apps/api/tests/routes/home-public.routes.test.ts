@@ -5,8 +5,9 @@ import { buildApp } from "../../src/app.js";
 import { Category } from "../../src/models/category.model.js";
 import { HomeContent } from "../../src/models/home-content.model.js";
 import { createAdminSession } from "../helpers/admin-session.js";
+import { serveAppForFile } from "../helpers/serve-app.js";
 
-const app = buildApp();
+const app = await serveAppForFile(buildApp());
 const ADMIN = "/api/v1/admin/home";
 
 type Agent = ReturnType<typeof request.agent>;

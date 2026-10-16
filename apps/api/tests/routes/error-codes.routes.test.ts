@@ -3,8 +3,9 @@ import request from "supertest";
 import { describe, expect, it } from "vitest";
 import { buildApp } from "../../src/app.js";
 import { createCustomerSession } from "../helpers/admin-session.js";
+import { serveAppForFile } from "../helpers/serve-app.js";
 
-const app = buildApp();
+const app = await serveAppForFile(buildApp());
 
 /** Un `code` estable permite al front decidir sin leer el texto del mensaje. */
 describe("routes — code estable en los errores", () => {

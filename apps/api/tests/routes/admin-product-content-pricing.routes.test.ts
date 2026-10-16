@@ -2,13 +2,14 @@ import request from "supertest";
 import { describe, expect, it } from "vitest";
 import { buildApp } from "../../src/app.js";
 import { createAdminSession } from "../helpers/admin-session.js";
+import { serveAppForFile } from "../helpers/serve-app.js";
 
 /**
  * Milestone 2.2.1: `listPrice` (precio de lista, solo presentación) y
  * `content` (ingredientes/pasos de rutina/modo de uso/beneficios). Ver
  * product.validator.ts y product-variant.service.ts.
  */
-const app = buildApp();
+const app = await serveAppForFile(buildApp());
 
 async function createCategory(agent: ReturnType<typeof request.agent>) {
   const response = await agent.post("/api/v1/admin/categories").send({ name: "Skincare" });

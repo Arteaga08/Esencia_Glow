@@ -4,8 +4,9 @@ import { describe, expect, it } from "vitest";
 import { buildApp } from "../../src/app.js";
 import { AuditLog } from "../../src/models/audit-log.model.js";
 import { createAdminSession, createCustomerSession } from "../helpers/admin-session.js";
+import { serveAppForFile } from "../helpers/serve-app.js";
 
-const app = buildApp();
+const app = await serveAppForFile(buildApp());
 
 /** Un día-ancla que garantiza que la PRÓXIMA ocurrencia caiga el mes que
  * viene (~27-31 días de margen, más que suficiente para el default de 15

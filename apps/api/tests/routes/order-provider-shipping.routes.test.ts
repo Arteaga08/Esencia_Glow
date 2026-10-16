@@ -10,8 +10,9 @@ import { __setShippingProviderForTests } from "../../src/services/shipping-provi
 import { createCustomerSession } from "../helpers/admin-session.js";
 import { CHECKOUT_DESTINATION } from "../helpers/checkout-fixtures.js";
 import { buildFakeShippingProvider } from "../helpers/fake-shipping-provider.js";
+import { serveAppForFile } from "../helpers/serve-app.js";
 
-const app = buildApp();
+const app = await serveAppForFile(buildApp());
 
 async function seedVariant() {
   const category = await Category.create({ name: "Cat Snap", slug: "cat-snap" });

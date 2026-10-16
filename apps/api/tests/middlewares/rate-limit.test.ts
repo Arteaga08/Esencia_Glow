@@ -1,7 +1,7 @@
 import express from "express";
-import request from "supertest";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type * as RateLimitModule from "../../src/middlewares/rate-limit.js";
+import { closeServedApps, serveApp } from "../helpers/serve-app.js";
 
 /**
  * `createRateLimiter` es no-op fuera de producción (ver el propio archivo) —
@@ -43,6 +43,7 @@ async function importRateLimitInProduction(): Promise<typeof RateLimitModule> {
 
 describe("middlewares/rate-limit — skip de healthcheck", () => {
   afterEach(() => {
+    closeServedApps();
     vi.resetModules();
   });
 
@@ -58,9 +59,10 @@ describe("middlewares/rate-limit — skip de healthcheck", () => {
     const app = express();
     app.use(limiter);
     app.get("/api/v1/health", (_req, res) => res.status(200).json({ ok: true }));
+    const api = await serveApp(app);
 
     for (let i = 0; i < 5; i += 1) {
-      const response = await request(app).get("/api/v1/health");
+      const response = await api.get("/api/v1/health");
       expect(response.status).toBe(200);
     }
   });
@@ -77,10 +79,11 @@ describe("middlewares/rate-limit — skip de healthcheck", () => {
     const app = express();
     app.use(limiter);
     app.get("/api/v1/otra-ruta", (_req, res) => res.status(200).json({ ok: true }));
+    const api = await serveApp(app);
 
-    await request(app).get("/api/v1/otra-ruta");
-    await request(app).get("/api/v1/otra-ruta");
-    const third = await request(app).get("/api/v1/otra-ruta");
+    await api.get("/api/v1/otra-ruta");
+    await api.get("/api/v1/otra-ruta");
+    const third = await api.get("/api/v1/otra-ruta");
 
     expect(third.status).toBe(429);
   });
@@ -97,12 +100,13 @@ describe("middlewares/rate-limit — skip de healthcheck", () => {
     });
     app.use(limiter);
     app.post("/cuenta", (_req, res) => res.status(200).json({ ok: true }));
+    const api = await serveApp(app);
 
     // Misma IP (supertest), dos usuarias: la cuota de una no afecta a la otra.
-    await request(app).post("/cuenta").set("x-user", "ana");
-    await request(app).post("/cuenta").set("x-user", "ana");
-    const anaThird = await request(app).post("/cuenta").set("x-user", "ana");
-    const bea = await request(app).post("/cuenta").set("x-user", "bea");
+    await api.post("/cuenta").set("x-user", "ana");
+    await api.post("/cuenta").set("x-user", "ana");
+    const anaThird = await api.post("/cuenta").set("x-user", "ana");
+    const bea = await api.post("/cuenta").set("x-user", "bea");
 
     expect(anaThird.status).toBe(429);
     expect(bea.status).toBe(200);

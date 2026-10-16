@@ -11,6 +11,7 @@ import { __setPaymentProviderForTests } from "../../src/services/payment-provide
 import { buildFakePaymentProvider } from "../helpers/fake-payment-provider.js";
 import { createAdminSession, createCustomerSession, enableAdminTwoFactor } from "../helpers/admin-session.js";
 import { buildCreateOrderInput, randomUserId, resetCheckoutFixtureCounter, seedVariantWithStock } from "../helpers/checkout-fixtures.js";
+import { serveAppForFile } from "../helpers/serve-app.js";
 
 /**
  * `POST /api/v1/admin/orders/:id/refund` — §5 del plan de 1.6.3. Step-up
@@ -18,7 +19,7 @@ import { buildCreateOrderInput, randomUserId, resetCheckoutFixtureCounter, seedV
  * ningún caso de error de esta suite deja registrada una llamada a
  * `provider.refund`.
  */
-const app = buildApp();
+const app = await serveAppForFile(buildApp());
 
 async function seedPaidOrder() {
   const userId = randomUserId();

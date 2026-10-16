@@ -8,6 +8,7 @@ import { VerificationToken } from "../../src/models/verification-token.model.js"
 import { hashToken } from "../../src/utils/crypto.js";
 import * as emailService from "../../src/services/email.service.js";
 import { __setPasswordBreachCheckerForTests } from "../../src/services/password-breach.service.js";
+import { serveAppForFile } from "../helpers/serve-app.js";
 
 // Los limiters son no-op fuera de producción: lo que se verifica aquí es que los
 // controllers LIBERAN las cubetas de login (el comportamiento del limiter ya lo
@@ -17,7 +18,7 @@ vi.mock("../../src/middlewares/rate-limit.js", async (importOriginal) => {
   return { ...actual, resetLoginLimits: vi.fn() };
 });
 
-const app = buildApp();
+const app = await serveAppForFile(buildApp());
 
 async function createVerifiedUser() {
   const email = `reset-${Date.now()}-${Math.random()}@example.com`;

@@ -1,10 +1,14 @@
 import { Writable } from "node:stream";
 import express from "express";
 import pino from "pino";
-import request from "supertest";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { redact } from "../../src/config/logger.js";
 import { buildHttpLogger } from "../../src/config/http-logger.js";
+import { closeServedApps, serveApp } from "../helpers/serve-app.js";
+
+// Servidor en 127.0.0.1 explícito (ver `serveApp`): supertest con la app
+// directa escucha en el comodín y en macOS otro proceso puede quedarse con la petición.
+afterEach(closeServedApps);
 
 /**
  * `config/http-logger.ts` reusa el `logger` singleton de `config/logger.ts`
@@ -49,8 +53,9 @@ function buildCapturingApp(): { app: express.Express; lines: () => unknown[] } {
 describe("config/http-logger — redacción", () => {
   it("no deja cookie ni Authorization en claro en el log de requests", async () => {
     const { app, lines } = buildCapturingApp();
+    const api = await serveApp(app);
 
-    await request(app)
+    await api
       .get("/api/v1/ruta-inexistente")
       .set("Cookie", "sessionId=super-secreto-de-sesion")
       .set("Authorization", "Bearer super-secreto-de-token");
@@ -66,8 +71,9 @@ describe("config/http-logger — redacción", () => {
 
   it("no deja en claro las cookies que la respuesta pone (Set-Cookie con tokens de sesión)", async () => {
     const { app, lines } = buildCapturingApp();
+    const api = await serveApp(app);
 
-    await request(app).post("/api/v1/auth/login");
+    await api.post("/api/v1/auth/login");
 
     const responseLine = lines().find((line) => "res" in line) as
       | { res: { headers: Record<string, unknown> } }
@@ -79,8 +85,9 @@ describe("config/http-logger — redacción", () => {
 
   it("no loguea las rutas de /health (ruido de healthcheck de Railway)", async () => {
     const { app, lines } = buildCapturingApp();
+    const api = await serveApp(app);
 
-    await request(app).get("/api/v1/health");
+    await api.get("/api/v1/health");
 
     expect(lines().find((line) => "req" in line)).toBeUndefined();
   });

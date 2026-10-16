@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { pngBuffer } from "../helpers/image-fixtures.js";
+import { serveAppForFile } from "../helpers/serve-app.js";
 
 const uploadMock = vi.fn();
 const destroyMock = vi.fn();
@@ -13,7 +14,7 @@ const { buildApp } = await import("../../src/app.js");
 const { Product } = await import("../../src/models/product.model.js");
 const { createAdminSession } = await import("../helpers/admin-session.js");
 
-const app = buildApp();
+const app = await serveAppForFile(buildApp());
 
 async function createProductWithCategory(agent: Awaited<ReturnType<typeof createAdminSession>>["agent"]) {
   const category = await agent.post("/api/v1/admin/categories").send({ name: "Skincare Coreano" });

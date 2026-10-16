@@ -10,8 +10,9 @@ import { createAdminSession, createCustomerSession } from "../helpers/admin-sess
 import { resetCheckoutFixtureCounter } from "../helpers/checkout-fixtures.js";
 import { buildFakeShippingProvider } from "../helpers/fake-shipping-provider.js";
 import { seedPaidOrder, seedShippingOrigin } from "../helpers/paid-order-fixtures.js";
+import { serveAppForFile } from "../helpers/serve-app.js";
 
-const app = buildApp();
+const app = await serveAppForFile(buildApp());
 
 describe("routes/admin-orders — guía de envío (label)", () => {
   beforeEach(async () => {

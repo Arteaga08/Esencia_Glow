@@ -6,8 +6,9 @@ import { VerificationToken } from "../../src/models/verification-token.model.js"
 import { hashToken } from "../../src/utils/crypto.js";
 import * as emailService from "../../src/services/email.service.js";
 import { __setPasswordBreachCheckerForTests } from "../../src/services/password-breach.service.js";
+import { serveAppForFile } from "../helpers/serve-app.js";
 
-const app = buildApp();
+const app = await serveAppForFile(buildApp());
 
 const BASE = { email: "ana@example.com", firstName: "Ana", lastName: "Pérez" };
 

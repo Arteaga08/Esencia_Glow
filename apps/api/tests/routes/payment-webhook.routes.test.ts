@@ -12,13 +12,14 @@ import { __setPaymentProviderForTests } from "../../src/services/payment-provide
 import { buildFakePaymentProvider } from "../helpers/fake-payment-provider.js";
 import { buildStripeEvent, signPayload } from "../helpers/stripe-webhook-fixtures.js";
 import { buildCreateOrderInput, randomUserId, resetCheckoutFixtureCounter, seedVariantWithStock } from "../helpers/checkout-fixtures.js";
+import { serveAppForFile } from "../helpers/serve-app.js";
 
 /**
  * `POST /api/v1/webhooks/stripe` — §9 del plan de 1.6.2. El router se monta
  * ANTES de `cors`/`express.json`/`verifyOrigin`/el limiter global (ver
  * `app.ts`): estos tests verifican justo eso, no solo la lógica de negocio.
  */
-const app = buildApp();
+const app = await serveAppForFile(buildApp());
 const WEBHOOK_URL = "/api/v1/webhooks/stripe";
 
 describe("routes/payment-webhook — POST /webhooks/stripe", () => {

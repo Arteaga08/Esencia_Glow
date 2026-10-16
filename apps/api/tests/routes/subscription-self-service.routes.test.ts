@@ -8,6 +8,7 @@ import type { SubscriptionProvider } from "../../src/services/subscription-provi
 import { buildFakeSubscriptionProvider } from "../helpers/fake-subscription-provider.js";
 import { createCustomerSession } from "../helpers/admin-session.js";
 import { seedManaged, seedPlanWithStripeRefs } from "../helpers/subscription-fixtures.js";
+import { serveAppForFile } from "../helpers/serve-app.js";
 
 /**
  * Autoservicio de la suscriptora por HTTP (Milestone 1.7.3). Lo que importa
@@ -18,7 +19,7 @@ import { seedManaged, seedPlanWithStripeRefs } from "../helpers/subscription-fix
  * está cubierta en los tests de servicio.
  */
 
-const app = buildApp();
+const app = await serveAppForFile(buildApp());
 const BASE = "/api/v1/subscriptions/me";
 
 let provider: SubscriptionProvider;

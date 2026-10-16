@@ -11,6 +11,7 @@ import {
   seedPublishedEdition,
   seedSubscriptionVariantWithStock,
 } from "../helpers/subscription-fixtures.js";
+import { serveAppForFile } from "../helpers/serve-app.js";
 import { startSubscription } from "../../src/services/subscription-seat.service.js";
 import { applyStatusTransition } from "../../src/services/subscription-seat.service.js";
 
@@ -20,7 +21,7 @@ import { applyStatusTransition } from "../../src/services/subscription-seat.serv
  * interno de estados.
  */
 
-const app = buildApp();
+const app = await serveAppForFile(buildApp());
 const PERIOD_START = new Date("2026-09-15T12:00:00Z");
 
 describe("routes/subscription — GET /me", () => {

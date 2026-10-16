@@ -7,8 +7,9 @@ import { Category } from "../../src/models/category.model.js";
 import { Inventory } from "../../src/models/inventory.model.js";
 import { Product } from "../../src/models/product.model.js";
 import { createCustomerSession } from "../helpers/admin-session.js";
+import { serveAppForFile } from "../helpers/serve-app.js";
 
-const app = buildApp();
+const app = await serveAppForFile(buildApp());
 let counter = 0;
 
 async function seedProduct(opts: { status?: ProductStatus; onHand?: number } = {}) {

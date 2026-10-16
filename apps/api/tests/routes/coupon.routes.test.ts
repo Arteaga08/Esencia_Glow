@@ -11,8 +11,9 @@ import { Product } from "../../src/models/product.model.js";
 import { createCustomerSession } from "../helpers/admin-session.js";
 import { resetCheckoutFixtureCounter } from "../helpers/checkout-fixtures.js";
 import { resetCouponFixtureCounter, seedCoupon } from "../helpers/coupon-fixtures.js";
+import { serveAppForFile } from "../helpers/serve-app.js";
 
-const app = buildApp();
+const app = await serveAppForFile(buildApp());
 
 let seedCounter = 0;
 

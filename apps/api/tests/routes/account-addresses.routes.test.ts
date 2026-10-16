@@ -2,8 +2,9 @@ import type request from "supertest";
 import { describe, expect, it } from "vitest";
 import { buildApp } from "../../src/app.js";
 import { createCustomerSession } from "../helpers/admin-session.js";
+import { serveAppForFile } from "../helpers/serve-app.js";
 
-const app = buildApp();
+const app = await serveAppForFile(buildApp());
 
 function address(label: string, overrides: Record<string, unknown> = {}) {
   return {

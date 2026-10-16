@@ -2,6 +2,7 @@ import request from "supertest";
 import { describe, expect, it } from "vitest";
 import { buildApp } from "../../src/app.js";
 import { createAdminSession } from "../helpers/admin-session.js";
+import { serveAppForFile } from "../helpers/serve-app.js";
 
 /**
  * Milestone 2.2.3: `listPrice`, `badgeId` y `content` en Bundle — los mismos
@@ -9,7 +10,7 @@ import { createAdminSession } from "../helpers/admin-session.js";
  * admin-product-content-pricing.routes.test.ts), reusando las mismas piezas
  * de validación (catalog-content.validator.ts).
  */
-const app = buildApp();
+const app = await serveAppForFile(buildApp());
 
 function sampleVariant(overrides: Partial<Record<string, unknown>> = {}) {
   return {

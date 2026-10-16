@@ -11,8 +11,9 @@ import { updateSubscriptionSettings } from "../../src/services/settings.service.
 import { __setSubscriptionProviderForTests } from "../../src/services/subscription-provider.js";
 import { buildFakeSubscriptionProvider } from "../helpers/fake-subscription-provider.js";
 import { seedPlanWithStripeRefs } from "../helpers/subscription-fixtures.js";
+import { serveAppForFile } from "../helpers/serve-app.js";
 
-const app = buildApp();
+const app = await serveAppForFile(buildApp());
 
 /** Calco de la misma función en `subscription-start.service.test.ts` y
  * `admin-subscription-enrollment.routes.test.ts`: un ancla lejos de "hoy"

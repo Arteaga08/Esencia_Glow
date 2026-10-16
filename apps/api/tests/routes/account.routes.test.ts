@@ -3,8 +3,9 @@ import { describe, expect, it } from "vitest";
 import { buildApp } from "../../src/app.js";
 import { User } from "../../src/models/user.model.js";
 import { createAdminSession, createCustomerSession } from "../helpers/admin-session.js";
+import { serveAppForFile } from "../helpers/serve-app.js";
 
-const app = buildApp();
+const app = await serveAppForFile(buildApp());
 
 describe("routes/account — acceso y perfil", () => {
   it("401 sin sesión", async () => {

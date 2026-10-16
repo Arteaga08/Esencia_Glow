@@ -10,8 +10,9 @@ import { startSubscription } from "../../src/services/subscription-seat.service.
 import { createAdminSession, createCustomerSession } from "../helpers/admin-session.js";
 import { resetCheckoutFixtureCounter } from "../helpers/checkout-fixtures.js";
 import { seedPlanWithStripeRefs, seedSubscribedAccount } from "../helpers/subscription-fixtures.js";
+import { serveAppForFile } from "../helpers/serve-app.js";
 
-const app = buildApp();
+const app = await serveAppForFile(buildApp());
 
 async function createCustomer(overrides: Partial<{ email: string; firstName: string; lastName: string }> = {}) {
   const suffix = `${Date.now()}-${Math.random()}`;
