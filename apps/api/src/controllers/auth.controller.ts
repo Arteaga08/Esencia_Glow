@@ -13,6 +13,7 @@ import {
   setAuthCookies,
   setPendingTwoFactorCookie,
 } from "../utils/cookies.js";
+import { resetLoginLimits } from "../middlewares/rate-limit.js";
 import { signAccessToken, verifyPendingEnrollmentToken, verifyPendingTwoFactorToken } from "../utils/jwt.js";
 import * as authService from "../services/auth.service.js";
 import * as accountService from "../services/account.service.js";
@@ -187,7 +188,10 @@ const forgotPassword = asyncHandler(async (req: Request, res: Response) => {
 });
 
 const resetPassword = asyncHandler(async (req: Request, res: Response) => {
-  await accountService.resetPassword(req.body.token, req.body.password);
+  const email = await accountService.resetPassword(req.body.token, req.body.password);
+  // Recuperar la cuenta es la salida de un bloqueo por intentos: sin liberar la
+  // cubeta, "inicia sesión con tu nueva contraseña" seguiría respondiendo 429.
+  resetLoginLimits(email, req);
   sendResponse(res, 200, "Contraseña actualizada. Inicia sesión con tu nueva contraseña.", null);
 });
 
@@ -210,6 +214,7 @@ const changePassword = asyncHandler(async (req: Request, res: Response) => {
     sessionVersion: user.sessionVersion,
   });
   setAccessCookie(res, accessToken);
+  resetLoginLimits(user.email, req);
 
   sendResponse(res, 200, "Contraseña actualizada.", null);
 });

@@ -22,6 +22,13 @@ interface TwoFactorSubdocument {
   secret?: string;
   enabled: boolean;
   pendingSince?: Date;
+  /** Intentos de código en la ventana actual (se cuentan ANTES de verificar). */
+  failedAttempts?: number;
+  failureWindowStart?: Date;
+  /** Mientras esté en el futuro, ningún código se verifica (ni el correcto). */
+  lockedUntil?: Date;
+  /** Último paso TOTP aceptado: un código de ese paso o anterior no se acepta de nuevo. */
+  lastUsedStep?: number;
 }
 
 interface BillingInfoAttrs {
@@ -68,6 +75,10 @@ const twoFactorSchema = new Schema<TwoFactorSubdocument>(
     secret: { type: String, select: false },
     enabled: { type: Boolean, default: false },
     pendingSince: { type: Date },
+    failedAttempts: { type: Number },
+    failureWindowStart: { type: Date },
+    lockedUntil: { type: Date },
+    lastUsedStep: { type: Number },
   },
   { _id: false },
 );

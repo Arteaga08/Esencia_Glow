@@ -1,13 +1,13 @@
 import "server-only";
 import type { ApiResponse, PaginationMeta, PublicBundle, PublicBundleAvailability, PublicBundleFacets, PublicProductFacets } from "@esencia-glow/shared";
 import { API_URL } from "../config";
+import { internalApiHeaders } from "../server-api";
 import { kitFiltersToApiParams, type CatalogFilters } from "./catalog-filters";
 import { CATALOG_PAGE_SIZE, type CatalogPage } from "./catalog";
 import { toShelfKit } from "./shelf-item";
 
-// Mismos tiempos que producto: el kit un minuto, la disponibilidad más seguido.
+// Solo las facetas (iguales para todos) se cachean un minuto; kits y disponibilidad llevan la IP de quien visita.
 const KIT_REVALIDATE_SECONDS = 60;
-const AVAILABILITY_REVALIDATE_SECONDS = 15;
 
 type KitLookup = { kind: "found"; bundle: PublicBundle } | { kind: "not-found" } | { kind: "error" };
 
@@ -19,7 +19,8 @@ type KitLookup = { kind: "found"; bundle: PublicBundle } | { kind: "not-found" }
 async function getKit(slug: string): Promise<KitLookup> {
   try {
     const response = await fetch(`${API_URL}/api/v1/bundles/${encodeURIComponent(slug)}`, {
-      next: { revalidate: KIT_REVALIDATE_SECONDS },
+      headers: await internalApiHeaders({ visitor: true }),
+      cache: "no-store",
     });
     if (response.status === 404) return { kind: "not-found" };
     if (!response.ok) return { kind: "error" };
@@ -37,7 +38,8 @@ async function getKit(slug: string): Promise<KitLookup> {
 async function getKitAvailability(slug: string): Promise<boolean> {
   try {
     const response = await fetch(`${API_URL}/api/v1/bundles/${encodeURIComponent(slug)}/availability`, {
-      next: { revalidate: AVAILABILITY_REVALIDATE_SECONDS },
+      headers: await internalApiHeaders({ visitor: true }),
+      cache: "no-store",
     });
     if (!response.ok) return true;
     const payload = (await response.json()) as ApiResponse<PublicBundleAvailability>;
@@ -55,7 +57,7 @@ async function getKitsPage(filters: CatalogFilters, page: number): Promise<Catal
     ...kitFiltersToApiParams(filters),
   });
   try {
-    const response = await fetch(`${API_URL}/api/v1/bundles?${query}`, { next: { revalidate: KIT_REVALIDATE_SECONDS } });
+    const response = await fetch(`${API_URL}/api/v1/bundles?${query}`, { headers: await internalApiHeaders({ visitor: true }), cache: "no-store" });
     if (!response.ok) return null;
     const payload = (await response.json()) as ApiResponse<PublicBundle[]>;
     if (payload.status !== "success" || !payload.meta) return null;
@@ -69,7 +71,7 @@ async function getKitsPage(filters: CatalogFilters, page: number): Promise<Catal
 async function getKitFacets(): Promise<PublicProductFacets> {
   const empty: PublicProductFacets = { brands: [], minPrice: null, maxPrice: null };
   try {
-    const response = await fetch(`${API_URL}/api/v1/bundles/facets`, { next: { revalidate: KIT_REVALIDATE_SECONDS } });
+    const response = await fetch(`${API_URL}/api/v1/bundles/facets`, { headers: await internalApiHeaders(), next: { revalidate: KIT_REVALIDATE_SECONDS } });
     if (!response.ok) return empty;
     const payload = (await response.json()) as ApiResponse<PublicBundleFacets>;
     return payload.status === "success" ? { brands: [], ...payload.data } : empty;

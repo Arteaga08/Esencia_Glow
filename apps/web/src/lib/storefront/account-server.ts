@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import type { ApiResponse, ApiSuccessResponse } from "@esencia-glow/shared";
 import { API_URL } from "../config";
 import { buildQueryString, type QueryParams } from "../api";
+import { internalApiHeaders } from "../server-api";
 
 /**
  * Lectura server-side de datos de Mi cuenta. A diferencia de `fetchServerJson`
@@ -23,7 +24,8 @@ async function fetchAccountData<TData, TMeta = never>(path: string, query?: Quer
 
   let response: Response;
   try {
-    response = await fetch(`${API_URL}${path}${buildQueryString(query)}`, { headers: { cookie: `access_token=${accessToken}` }, cache: "no-store" });
+    const headers = { cookie: `access_token=${accessToken}`, ...(await internalApiHeaders({ visitor: true })) };
+    response = await fetch(`${API_URL}${path}${buildQueryString(query)}`, { headers, cache: "no-store" });
   } catch {
     return { status: "error" };
   }

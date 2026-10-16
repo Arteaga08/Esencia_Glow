@@ -1,6 +1,7 @@
 import "server-only";
 import type { ApiResponse, PublicSubscriptionPlansResult } from "@esencia-glow/shared";
 import { API_URL } from "../config";
+import { internalApiHeaders } from "../server-api";
 
 // Un minuto de caché, igual que el resto del home.
 const PLAN_REVALIDATE_SECONDS = 60;
@@ -13,6 +14,7 @@ const PLAN_REVALIDATE_SECONDS = 60;
 async function getFeaturedPlan(): Promise<PublicSubscriptionPlansResult | null> {
   try {
     const response = await fetch(`${API_URL}/api/v1/subscription-plans`, {
+      headers: await internalApiHeaders(),
       next: { revalidate: PLAN_REVALIDATE_SECONDS },
     });
     if (!response.ok) return null;

@@ -48,6 +48,13 @@ function requireInProduction(key: string, nodeEnv: NodeEnv): string | undefined 
   return value;
 }
 
+/** `INTERNAL_API_TOKEN`: opcional fuera de producción, secreto largo en producción. */
+function readInternalApiToken(nodeEnv: NodeEnv): string | undefined {
+  if (nodeEnv === "production") return requireSecret("INTERNAL_API_TOKEN");
+  const value = process.env.INTERNAL_API_TOKEN;
+  return value && value.trim().length > 0 ? value : undefined;
+}
+
 /**
  * Entero positivo con default sano — para variables donde `0` o negativo
  * sería un error silencioso disfrazado de configuración válida (Milestone
@@ -147,6 +154,14 @@ function buildEnv() {
     // proxy de confianza) fuera de producción; en Railway+Cloudflare se
     // configura con el número real de saltos.
     trustProxyHops: readNonNegativeInt("TRUST_PROXY_HOPS", 0, nodeEnv),
+
+    // Secreto compartido con apps/web (Milestone de seguridad run-2, parte B).
+    // El servidor de Next llama a la API como un único cliente; con este token
+    // le "presta" la IP del visitante (`x-client-ip`) para que los limiters
+    // cuenten por visitante y no por el servidor web. Requerido en producción
+    // y largo, igual que un secreto de firma: quien lo conozca puede elegir la
+    // IP con la que se le contabiliza.
+    internalApiToken: readInternalApiToken(nodeEnv),
 
     // Suscripciones (Milestone 1.7.2a): minutos tras reclamar el cupo antes
     // de que el barrendero libere una cuenta `INCOMPLETE` que nunca completó

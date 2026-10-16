@@ -8,6 +8,7 @@ import { VerificationToken } from "../../src/models/verification-token.model.js"
 import { SubscriptionAccount } from "../../src/models/subscription-account.model.js";
 import { hashToken } from "../../src/utils/crypto.js";
 import * as emailService from "../../src/services/email.service.js";
+import { totpAtOffset } from "../helpers/totp.js";
 
 const app = buildApp();
 
@@ -302,7 +303,7 @@ describe("routes/auth — enrolamiento obligatorio de 2FA para admin sin 2FA", (
     // El dueño real de la cuenta sigue pudiendo loguearse con su código.
     const validLogin = await attackerAgent
       .post("/api/v1/auth/login/2fa")
-      .send({ code: authenticator.generate(originalSecret) });
+      .send({ code: totpAtOffset(originalSecret, 1) });
     expect(validLogin.status).toBe(200);
   });
 
@@ -349,7 +350,8 @@ describe("routes/auth — 2FA de dos pasos para admin (ya enrolado)", () => {
     const meBeforeTwoFactor = await secondAgent.get("/api/v1/auth/me");
     expect(meBeforeTwoFactor.status).toBe(401);
 
-    const nextCode = authenticator.generate(secret);
+    // El enrolamiento ya gastó el código de este paso: el login usa el siguiente.
+    const nextCode = totpAtOffset(secret, 1);
     const twoFactorResponse = await secondAgent
       .post("/api/v1/auth/login/2fa")
       .send({ code: nextCode });
@@ -377,7 +379,7 @@ describe("routes/auth — 2FA de dos pasos para admin (ya enrolado)", () => {
     // Con el código vigente sí puede reconfigurar.
     const withValidCode = await agent
       .post("/api/v1/auth/2fa/setup")
-      .send({ code: authenticator.generate(originalSecret) });
+      .send({ code: totpAtOffset(originalSecret, 1) });
     expect(withValidCode.status).toBe(200);
   });
 

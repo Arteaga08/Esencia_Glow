@@ -39,6 +39,29 @@ describe("scripts/reset-admin-two-factor — rescate cuando el admin perdió el 
     void session;
   });
 
+  it("también limpia un bloqueo por intentos fallidos (es la salida de un admin que se quedó fuera)", async () => {
+    const admin = await createEnrolledAdmin("admin-bloqueado@esenciaglow.mx");
+    await User.updateOne(
+      { _id: admin._id },
+      {
+        $set: {
+          "twoFactor.failedAttempts": 6,
+          "twoFactor.failureWindowStart": new Date(),
+          "twoFactor.lockedUntil": new Date(Date.now() + 10 * 60 * 1000),
+          "twoFactor.lastUsedStep": 123,
+        },
+      },
+    );
+
+    await resetAdminTwoFactor({ email: admin.email });
+
+    const reloaded = await User.findById(admin._id);
+    expect(reloaded?.twoFactor.failedAttempts).toBeUndefined();
+    expect(reloaded?.twoFactor.failureWindowStart).toBeUndefined();
+    expect(reloaded?.twoFactor.lockedUntil).toBeUndefined();
+    expect(reloaded?.twoFactor.lastUsedStep).toBeUndefined();
+  });
+
   it("con un correo que no es admin (o no existe) -> not-found, sin tocar nada", async () => {
     await User.create({
       email: "cliente@esenciaglow.mx",

@@ -29,6 +29,8 @@ const redact = {
     "*.client_secret",
     "*.twoFactorCode",
     'req.headers["stripe-signature"]',
+    // Secreto compartido web -> API: nunca debe quedar en un log.
+    'req.headers["x-internal-token"]',
     // pino-http serializa los headers de la respuesta: sin esto, el JWT de
     // acceso y el refresh token en claro que pone el login quedarían en logs.
     'res.headers["set-cookie"]',

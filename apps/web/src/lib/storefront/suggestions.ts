@@ -1,6 +1,7 @@
 import "server-only";
 import type { ApiResponse, PublicProduct } from "@esencia-glow/shared";
 import { API_URL } from "../config";
+import { internalApiHeaders } from "../server-api";
 import { getCatalogFacets } from "./catalog";
 import { getCategoryTree } from "./categories";
 import { toShelfProduct, type ShelfItem } from "./shelf-item";
@@ -17,7 +18,7 @@ const BRAND_SCORE = 3;
 async function fetchProducts(query: Record<string, string>): Promise<ShelfItem[]> {
   const params = new URLSearchParams({ limit: String(CANDIDATES_PER_SOURCE), ...query });
   try {
-    const response = await fetch(`${API_URL}/api/v1/products?${params}`, { next: { revalidate: SUGGESTIONS_REVALIDATE_SECONDS } });
+    const response = await fetch(`${API_URL}/api/v1/products?${params}`, { headers: await internalApiHeaders(), next: { revalidate: SUGGESTIONS_REVALIDATE_SECONDS } });
     if (!response.ok) return [];
     const payload = (await response.json()) as ApiResponse<PublicProduct[]>;
     if (payload.status !== "success") return [];

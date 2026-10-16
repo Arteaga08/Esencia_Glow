@@ -1,6 +1,7 @@
 import "server-only";
 import type { ApiResponse, PublicBundle, PublicProduct } from "@esencia-glow/shared";
 import { API_URL } from "../config";
+import { internalApiHeaders } from "../server-api";
 import { toShelfKit, toShelfProduct, type ShelfItem } from "./shelf-item";
 
 // Un minuto de caché, igual que el home: se ve rápido un cambio del panel.
@@ -11,7 +12,7 @@ const SPOTLIGHT_LIMIT = 4;
 
 async function fetchList<T>(path: string): Promise<T[]> {
   try {
-    const response = await fetch(`${API_URL}/api/v1/${path}`, { next: { revalidate: SHELF_REVALIDATE_SECONDS } });
+    const response = await fetch(`${API_URL}/api/v1/${path}`, { headers: await internalApiHeaders(), next: { revalidate: SHELF_REVALIDATE_SECONDS } });
     if (!response.ok) return [];
     const payload = (await response.json()) as ApiResponse<T[]>;
     return payload.status === "success" ? payload.data : [];

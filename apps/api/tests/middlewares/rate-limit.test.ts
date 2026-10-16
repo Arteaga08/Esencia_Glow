@@ -20,6 +20,7 @@ async function importRateLimitInProduction(): Promise<typeof RateLimitModule> {
     STRIPE_WEBHOOK_SECRET: "whsec_x",
     RESEND_API_KEY: "re_x",
     TRUST_PROXY_HOPS: "0",
+    INTERNAL_API_TOKEN: "i".repeat(40),
     CLOUDINARY_CLOUD_NAME: "cloud",
     CLOUDINARY_API_KEY: "key",
     CLOUDINARY_API_SECRET: "secret",

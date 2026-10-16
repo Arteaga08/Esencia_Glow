@@ -1,6 +1,7 @@
 import rateLimit, { MemoryStore, type Options } from "express-rate-limit";
-import type { NextFunction, Request, Response } from "express";
+import type { NextFunction, Request, RequestHandler, Response } from "express";
 import { env } from "../config/env.js";
+import { clientIpKey, isTrustedServerRequest } from "../utils/client-ip.js";
 import { PENDING_TWO_FACTOR_COOKIE_NAME } from "../utils/cookies.js";
 import { verifyPendingEnrollmentToken } from "../utils/jwt.js";
 
@@ -12,6 +13,11 @@ interface RateLimiterConfig {
    * por identidad autenticada (`refundRateLimiter`) pasa esto — nunca al
    * revés, porque un endpoint público sin sesión no tiene con qué. */
   keyGenerator?: (req: Request) => string;
+  /** Tope de la cubeta del servidor web cuando pide datos cacheados SIN visitante
+   * detrás (ver `isServerCacheRequest`). Sin esto, esas peticiones comparten la
+   * cuota de cualquier otro cliente por IP; con él tienen cubeta propia y más
+   * holgada, así vaciarla nunca afecta a un visitante (ni a las sesiones). */
+  serverCacheMax?: number;
   /** Excluir rutas de la cuota (Milestone 1.10: el healthcheck de Railway,
    * que solo el limiter global necesita eximir). */
   skip?: (req: Request) => boolean;
@@ -19,6 +25,27 @@ interface RateLimiterConfig {
    * cuota. Para login, donde una red compartida (NAT móvil, oficina) no debe
    * quedarse sin acceso por la gente que sí acierta su contraseña. */
   skipSuccessfulRequests?: boolean;
+}
+
+/** Middleware de rate limit; `resetKey` borra la cuenta de una llave (no-op fuera de producción). */
+type RateLimiter = RequestHandler & { resetKey: (key: string) => void };
+
+/** Llave de la cubeta compartida del servidor web (peticiones sin visitante). */
+const SERVER_CACHE_KEY = "web-server-cache";
+
+/** Petición del servidor web sin visitante detrás (datos cacheados, iguales para todos). */
+function isServerCacheRequest(req: Request): boolean {
+  return isTrustedServerRequest(req, env.internalApiToken);
+}
+
+/**
+ * Llave por IP del visitante: IPv6 agrupada por /56 y, si el servidor web la
+ * presta, la IP real. Las peticiones del servidor web sin visitante van a su
+ * propia cubeta.
+ */
+function ipKey(req: Request): string {
+  if (isServerCacheRequest(req)) return SERVER_CACHE_KEY;
+  return clientIpKey(req, env.internalApiToken);
 }
 
 /**
@@ -29,23 +56,30 @@ interface RateLimiterConfig {
  *
  * Rutas admin nunca pasan por aquí: su barrera es auth + rol, no throttling.
  */
-function createRateLimiter(config: RateLimiterConfig) {
+function createRateLimiter(config: RateLimiterConfig): RateLimiter {
   if (!env.isProduction) {
-    return (_req: Request, _res: Response, next: NextFunction): void => next();
+    return Object.assign((_req: Request, _res: Response, next: NextFunction): void => next(), {
+      resetKey: (_key: string): void => {},
+    });
   }
 
   return rateLimit({
     windowMs: config.windowMs,
-    max: config.max,
+    limit: (req: Request) => (isServerCacheRequest(req) ? (config.serverCacheMax ?? config.max) : config.max),
     standardHeaders: true,
     legacyHeaders: false,
     store: new MemoryStore(),
     message: { status: "fail", message: config.message },
-    ...(config.keyGenerator ? { keyGenerator: config.keyGenerator } : {}),
+    // Sin `keyGenerator` propio el limiter cuenta por IP del visitante (nunca el
+    // default de la librería: no conoce la IP prestada por el servidor web).
+    keyGenerator: config.keyGenerator ?? ipKey,
     ...(config.skip ? { skip: config.skip } : {}),
     ...(config.skipSuccessfulRequests ? { skipSuccessfulRequests: true } : {}),
   } satisfies Partial<Options>);
 }
+
+/** Peticiones del servidor web (revalidación de caché de Next) por 15 min: ~10x un visitante. */
+const SERVER_CACHE_GLOBAL_MAX = 3000;
 
 /**
  * Backstop global: cubre cualquier ruta que no tenga un limiter dedicado.
@@ -59,6 +93,7 @@ const globalRateLimiter = createRateLimiter({
   windowMs: 15 * 60 * 1000,
   max: 300,
   message: "Demasiadas solicitudes, intenta de nuevo más tarde.",
+  serverCacheMax: SERVER_CACHE_GLOBAL_MAX,
   skip: (req) => req.path.startsWith("/api/v1/health"),
 });
 
@@ -74,48 +109,96 @@ const loginRateLimiter = createRateLimiter({
   skipSuccessfulRequests: true,
 });
 
-/** Clave por correo del body (normalizado), con la IP como respaldo si no viene uno usable. */
-function emailKeyGenerator(req: Request): string {
+/** Correo del body recortado y en minúsculas; `null` si no viene uno usable. */
+function normalizedBodyEmail(req: Request): string | null {
   const raw = (req.body as { email?: unknown } | undefined)?.email;
   // Normalizar ANTES de medir: el validador de Joi recorta antes de su max(254),
   // así que un correo rellenado con espacios llega limpio al handler; si aquí se
   // midiera el valor crudo, caería a la IP y rodearía el límite por cuenta.
   const email = typeof raw === "string" ? raw.trim().toLowerCase() : "";
-  if (email.length > 0 && email.length <= 254) return `email:${email}`;
-  return req.ip ?? "unknown";
+  return email.length > 0 && email.length <= 254 ? email : null;
+}
+
+/** Clave por correo del body (normalizado), con la IP como respaldo si no viene uno usable. */
+function emailKeyGenerator(req: Request): string {
+  const email = normalizedBodyEmail(req);
+  return email ? `email:${email}` : ipKey(req);
 }
 
 /**
- * Login, por cuenta: 5 fallos en 15 min por correo, desde cualquier IP. Frena
- * el ataque distribuido (muchas IPs, una cuenta) que el límite por IP no ve.
- * Costo asumido: alguien puede bloquear 15 min el login de una cuenta ajena;
- * quien la dueña legítima tiene "olvidé mi contraseña", que no pasa por aquí.
+ * Clave por correo + IP: la cuota de una cuenta se gasta solo desde la IP que
+ * la usa. Así alguien que escribe el correo de otra persona llena SU cubeta, no
+ * la de la dueña (que entra desde otra IP).
+ */
+function emailAndIpKeyGenerator(req: Request): string {
+  const email = normalizedBodyEmail(req);
+  return email ? `email:${email}|${ipKey(req)}` : ipKey(req);
+}
+
+/**
+ * Login, por cuenta y por IP: 5 fallos en 15 min por correo desde la MISMA IP.
+ * Frena adivinar una contraseña sin que un extraño pueda dejar fuera a la
+ * dueña: sus fallos solo llenan la cubeta de su propia IP.
  */
 const loginAccountRateLimiter = createRateLimiter({
   windowMs: 15 * 60 * 1000,
   max: 5,
   message: "Demasiados intentos con esta cuenta, intenta de nuevo en 15 minutos o recupera tu contraseña.",
+  keyGenerator: emailAndIpKeyGenerator,
+  skipSuccessfulRequests: true,
+});
+
+/**
+ * Login, techo por correo desde CUALQUIER IP: 30 fallos en 15 min. Es el freno
+ * contra el ataque distribuido (muchas IPs, una cuenta) que la cubeta correo+IP
+ * no ve. Alto a propósito: un atacante necesita 30 intentos fallidos para
+ * estorbar, y restablecer o cambiar la contraseña lo reinicia (`resetLoginLimits`).
+ */
+const loginEmailCeilingRateLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  message: "Demasiados intentos con esta cuenta, intenta de nuevo en 15 minutos o recupera tu contraseña.",
   keyGenerator: emailKeyGenerator,
   skipSuccessfulRequests: true,
 });
 
+/**
+ * Tras restablecer o cambiar la contraseña, la dueña debe poder entrar: libera
+ * sus cubetas de login (correo+IP de esta petición y el techo por correo). Los
+ * intentos de otro atacante en otras IPs seguirán contando en su propia cubeta.
+ */
+function resetLoginLimits(email: string, req: Request): void {
+  const normalized = email.trim().toLowerCase();
+  loginAccountRateLimiter.resetKey(`email:${normalized}|${ipKey(req)}`);
+  loginEmailCeilingRateLimiter.resetKey(`email:${normalized}`);
+}
+
 /** Clave por usuaria autenticada (el limiter va DESPUÉS de `protect`), con la IP como respaldo. */
 function userKeyGenerator(req: Request): string {
-  return req.user?.id ?? req.ip ?? "unknown";
+  return req.user?.id ?? ipKey(req);
 }
 
 /**
  * Acciones que MANDAN un correo (registro, reenviar verificación, olvidé mi
- * contraseña): 3 por correo cada 15 min, sin importar la IP. Es el freno contra
- * bombardear una bandeja ajena desde muchas IPs. La respuesta 429 depende solo
- * del correo escrito, nunca de si la cuenta existe.
+ * contraseña): 3 por correo y por IP cada 15 min. Cada acción tiene su propia
+ * cubeta — con una compartida, agotar el registro dejaba sin "olvidé mi
+ * contraseña" a la dueña del correo. Por correo+IP, no solo por correo, para
+ * que un extraño no pueda gastar la cuota ajena; el tope por bandeja lo da el
+ * enfriamiento de 60 s en BD de cada token. La respuesta 429 depende solo de lo
+ * escrito, nunca de si la cuenta existe.
  */
-const emailActionRateLimiter = createRateLimiter({
-  windowMs: 15 * 60 * 1000,
-  max: 3,
-  message: "Demasiadas solicitudes para este correo, intenta de nuevo en unos minutos.",
-  keyGenerator: emailKeyGenerator,
-});
+function createEmailActionRateLimiter(): RateLimiter {
+  return createRateLimiter({
+    windowMs: 15 * 60 * 1000,
+    max: 3,
+    message: "Demasiadas solicitudes para este correo, intenta de nuevo en unos minutos.",
+    keyGenerator: emailAndIpKeyGenerator,
+  });
+}
+
+const registerEmailRateLimiter = createEmailActionRateLimiter();
+const resendVerificationEmailRateLimiter = createEmailActionRateLimiter();
+const forgotPasswordEmailRateLimiter = createEmailActionRateLimiter();
 
 /**
  * `PATCH /auth/password`: adivinar la contraseña actual con una sesión ya
@@ -155,11 +238,11 @@ const twoFactorEnrollmentRateLimiter = createRateLimiter({
   message: "Demasiados intentos, intenta de nuevo más tarde.",
   keyGenerator: (req) => {
     const token = req.cookies?.[PENDING_TWO_FACTOR_COOKIE_NAME] as string | undefined;
-    if (!token) return req.ip ?? "unknown";
+    if (!token) return ipKey(req);
     try {
       return verifyPendingEnrollmentToken(token).sub;
     } catch {
-      return req.ip ?? "unknown";
+      return ipKey(req);
     }
   },
 });
@@ -180,6 +263,7 @@ const catalogRateLimiter = createRateLimiter({
   windowMs: 15 * 60 * 1000,
   max: 500,
   message: "Demasiadas solicitudes, intenta de nuevo más tarde.",
+  serverCacheMax: SERVER_CACHE_GLOBAL_MAX,
 });
 
 /**
@@ -331,13 +415,18 @@ const paymentMethodRateLimiter = createRateLimiter({
   keyGenerator: userKeyGenerator,
 });
 
+export type { RateLimiter };
 export {
   createRateLimiter,
   userKeyGenerator,
   globalRateLimiter,
   loginRateLimiter,
   loginAccountRateLimiter,
-  emailActionRateLimiter,
+  loginEmailCeilingRateLimiter,
+  resetLoginLimits,
+  registerEmailRateLimiter,
+  resendVerificationEmailRateLimiter,
+  forgotPasswordEmailRateLimiter,
   passwordChangeRateLimiter,
   refreshRateLimiter,
   twoFactorEnrollmentRateLimiter,

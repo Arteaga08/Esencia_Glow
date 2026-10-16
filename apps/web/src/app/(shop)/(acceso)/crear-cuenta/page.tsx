@@ -9,8 +9,8 @@ export const metadata: Metadata = { title: "Crear cuenta — Esencia Glow" };
 export default async function RegisterPage({ searchParams }: { searchParams: Promise<{ redirect?: string | string[] }> }) {
   const redirectTo = resolveRedirect((await searchParams).redirect);
 
-  const session = await getCustomerSession();
-  if (session && session.user.role === "customer") redirect(redirectTo);
+  const state = await getCustomerSession();
+  if (state.status === "authenticated" && state.session.user.role === "customer") redirect(redirectTo);
 
   const loginHref = redirectTo === "/mi-cuenta" ? "/ingresar" : `/ingresar?redirect=${encodeURIComponent(redirectTo)}`;
   return <RegisterFlow loginHref={loginHref} />;

@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import type { ApiErrorResponse, ApiResponse, ApiSuccessResponse } from "@esencia-glow/shared";
 import { API_URL } from "./config";
 import { buildQueryString, type QueryParams } from "./api";
+import { internalApiHeaders } from "./server-api";
 
 /**
  * Generaliza el fetch server-side que `getSession()` (lib/session.ts) hacía
@@ -36,7 +37,7 @@ async function fetchServerJson<TData, TMeta = never>(
   let response: Response;
   try {
     response = await fetch(`${API_URL}${path}${buildQueryString(query)}`, {
-      headers: { cookie: `access_token=${accessToken}` },
+      headers: { cookie: `access_token=${accessToken}`, ...(await internalApiHeaders({ visitor: true })) },
       cache: "no-store",
     });
   } catch {

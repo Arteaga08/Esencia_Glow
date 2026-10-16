@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { WarningCircle } from "@phosphor-icons/react/ssr";
 import type { PublicOrder } from "@esencia-glow/shared";
 import { SessionGate } from "@/components/storefront/account/session-gate";
+import { SessionUnavailable } from "@/components/ui/session-unavailable";
 import { OrderDone } from "@/components/storefront/checkout/order-done";
 import { CTA_SECONDARY } from "@/components/storefront/cart/cta-styles";
 import { fetchAccountData } from "@/lib/storefront/account-server";
@@ -21,9 +22,17 @@ export const metadata: Metadata = {
  */
 export default async function OrderConfirmationPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [session, order] = await Promise.all([getCustomerSession(), fetchAccountData<PublicOrder>(`/api/v1/orders/${encodeURIComponent(id)}`)]);
+  const [state, order] = await Promise.all([getCustomerSession(), fetchAccountData<PublicOrder>(`/api/v1/orders/${encodeURIComponent(id)}`)]);
 
-  if (!session || order.status === "unauthorized") return <SessionGate />;
+  if (state.status === "unavailable") {
+    return (
+      <main className="mx-auto max-w-5xl px-4 pt-28 pb-32 md:px-8">
+        <SessionUnavailable />
+      </main>
+    );
+  }
+  if (state.status === "anonymous" || order.status === "unauthorized") return <SessionGate />;
+  const { session } = state;
   if (order.status === "notFound") notFound();
 
   if (order.status === "error") {

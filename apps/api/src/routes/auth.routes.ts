@@ -7,11 +7,14 @@ import { protect } from "../middlewares/protect.js";
 import { restrictTo } from "../middlewares/restrict-to.js";
 import {
   createRateLimiter,
-  emailActionRateLimiter,
+  forgotPasswordEmailRateLimiter,
   loginAccountRateLimiter,
+  loginEmailCeilingRateLimiter,
   loginRateLimiter,
   passwordChangeRateLimiter,
   refreshRateLimiter,
+  registerEmailRateLimiter,
+  resendVerificationEmailRateLimiter,
   twoFactorEnrollmentRateLimiter,
 } from "../middlewares/rate-limit.js";
 import {
@@ -56,8 +59,15 @@ const tokenActionRateLimiter = createRateLimiter({
 
 const router = Router();
 
-router.post("/register", registerRateLimiter, emailActionRateLimiter, validate(registerSchema), authController.register);
-router.post("/login", loginRateLimiter, loginAccountRateLimiter, validate(loginSchema), authController.login);
+router.post("/register", registerRateLimiter, registerEmailRateLimiter, validate(registerSchema), authController.register);
+router.post(
+  "/login",
+  loginRateLimiter,
+  loginAccountRateLimiter,
+  loginEmailCeilingRateLimiter,
+  validate(loginSchema),
+  authController.login,
+);
 router.post(
   "/login/2fa",
   loginRateLimiter,
@@ -90,14 +100,14 @@ router.post(
 router.post(
   "/resend-verification",
   forgotPasswordRateLimiter,
-  emailActionRateLimiter,
+  resendVerificationEmailRateLimiter,
   validate(emailOnlySchema),
   authController.resendVerification,
 );
 router.post(
   "/forgot-password",
   forgotPasswordRateLimiter,
-  emailActionRateLimiter,
+  forgotPasswordEmailRateLimiter,
   validate(emailOnlySchema),
   authController.forgotPassword,
 );
