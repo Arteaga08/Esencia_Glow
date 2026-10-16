@@ -25,15 +25,20 @@ interface PreviewCouponInput {
  * $10 MXN del total (`MIN_PAYABLE_TOTAL_CENTS`). Un cupón que dejara el
  * subtotal casi en cero se acepta en la vista previa y `createOrder` lo
  * rechaza con COUPON_MIN_NOT_MET, que el checkout pinta en el campo del cupón.
+ *
+ * El carrito se resuelve ANTES de buscar el código (auditoría run-2, hallazgo
+ * 17): si fuera al revés, solo un código existente llegaría a resolver el
+ * carrito, y un carrito inválido respondería distinto según el código exista o
+ * no — un oráculo para adivinar cupones desactivados, programados o ajenos.
  */
 async function previewCoupon(input: PreviewCouponInput): Promise<CouponPreview> {
+  const resolved = await resolveCartLines(input.lines);
+  const subtotalCents = resolved.reduce((sum, line) => sum + line.lineTotalCents, 0);
+
   const coupon = await Coupon.findOne({ code: normalizeCouponCode(input.code) });
   if (!coupon) {
     throw new AppError("Ese código no existe o ya no está disponible.", 409, undefined, ErrorCode.COUPON_INVALID);
   }
-
-  const resolved = await resolveCartLines(input.lines);
-  const subtotalCents = resolved.reduce((sum, line) => sum + line.lineTotalCents, 0);
 
   assertCouponApplicable(coupon, { userId: input.userId, subtotalCents, now: input.now ?? new Date() });
 

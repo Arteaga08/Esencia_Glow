@@ -4,15 +4,11 @@ import { describe, expect, it } from "vitest";
 import { AuthAction } from "@esencia-glow/shared";
 import { AuditLog } from "../../src/models/audit-log.model.js";
 import { User } from "../../src/models/user.model.js";
-import { Session } from "../../src/models/session.model.js";
 import {
-  disableTwoFactor,
   enableTwoFactor,
   ensureEnrollmentSecret,
-  setupTwoFactor,
   verifyTwoFactorCode,
 } from "../../src/services/two-factor.service.js";
-import { issueSession } from "../../src/services/session.service.js";
 import { totpAtOffset } from "../helpers/totp.js";
 
 async function createUser() {
@@ -26,9 +22,9 @@ async function createUser() {
 }
 
 describe("services/two-factor — activación en dos pasos", () => {
-  it("setup genera un secreto pendiente (enabled: false) y no lo expone en claro", async () => {
+  it("el enrolamiento genera un secreto pendiente (enabled: false) y no lo expone en claro", async () => {
     const user = await createUser();
-    const setup = await setupTwoFactor(user._id);
+    const setup = await ensureEnrollmentSecret(user._id);
 
     expect(setup.otpauthUrl).toContain("otpauth://totp/");
     expect(setup.qrCodeDataUrl).toMatch(/^data:image\/png;base64,/);
@@ -41,7 +37,7 @@ describe("services/two-factor — activación en dos pasos", () => {
 
   it("enable con un código inválido no activa 2FA", async () => {
     const user = await createUser();
-    await setupTwoFactor(user._id);
+    await ensureEnrollmentSecret(user._id);
 
     await expect(enableTwoFactor(user._id, "000000")).rejects.toThrow();
 
@@ -51,7 +47,7 @@ describe("services/two-factor — activación en dos pasos", () => {
 
   it("enable con un código válido activa 2FA", async () => {
     const user = await createUser();
-    const setup = await setupTwoFactor(user._id);
+    const setup = await ensureEnrollmentSecret(user._id);
     const validCode = authenticator.generate(setup.secret);
 
     await enableTwoFactor(user._id, validCode);
@@ -62,7 +58,7 @@ describe("services/two-factor — activación en dos pasos", () => {
 
   it("verifyTwoFactorCode valida contra el secreto ya activado", async () => {
     const user = await createUser();
-    const setup = await setupTwoFactor(user._id);
+    const setup = await ensureEnrollmentSecret(user._id);
     await enableTwoFactor(user._id, totpAtOffset(setup.secret, -1));
 
     // El servicio no acepta dos veces el mismo paso: se usa el siguiente.
@@ -71,44 +67,6 @@ describe("services/two-factor — activación en dos pasos", () => {
     await expect(verifyTwoFactorCode(user._id, "111111")).rejects.toThrow();
   });
 
-  it("setup con 2FA ya activado exige el código actual antes de reemplazar el secreto", async () => {
-    const user = await createUser();
-    const firstSetup = await setupTwoFactor(user._id);
-    await enableTwoFactor(user._id, totpAtOffset(firstSetup.secret, -1));
-
-    await expect(setupTwoFactor(user._id)).rejects.toThrow();
-    await expect(setupTwoFactor(user._id, "000000")).rejects.toThrow();
-
-    const untouched = await User.findById(user._id);
-    expect(untouched?.twoFactor.enabled).toBe(true);
-
-    const codeForResetup = totpAtOffset(firstSetup.secret, 0);
-    const secondSetup = await setupTwoFactor(user._id, codeForResetup);
-    expect(secondSetup.secret).not.toBe(firstSetup.secret);
-
-    const reloaded = await User.findById(user._id);
-    expect(reloaded?.twoFactor.enabled).toBe(false);
-  });
-
-  it("disable exige un código válido y revoca todas las sesiones activas", async () => {
-    const user = await createUser();
-    const setup = await setupTwoFactor(user._id);
-    await enableTwoFactor(user._id, totpAtOffset(setup.secret, -1));
-
-    const session = await issueSession(user._id);
-
-    await expect(disableTwoFactor(user._id, "000000")).rejects.toThrow();
-
-    const codeForDisable = totpAtOffset(setup.secret, 0);
-    await disableTwoFactor(user._id, codeForDisable);
-
-    const reloaded = await User.findById(user._id);
-    expect(reloaded?.twoFactor.enabled).toBe(false);
-
-    const sessionDoc = await Session.findOne({ userId: user._id });
-    expect(sessionDoc?.revokedAt).toBeDefined();
-    void session;
-  });
 });
 
 describe("services/two-factor — ensureEnrollmentSecret (enrolamiento pre-auth)", () => {
@@ -149,7 +107,7 @@ describe("services/two-factor — ensureEnrollmentSecret (enrolamiento pre-auth)
 
   it("se rehúsa si la cuenta ya tiene 2FA activo", async () => {
     const user = await createUser();
-    const setup = await setupTwoFactor(user._id);
+    const setup = await ensureEnrollmentSecret(user._id);
     await enableTwoFactor(user._id, authenticator.generate(setup.secret));
 
     await expect(ensureEnrollmentSecret(user._id)).rejects.toThrow();
@@ -159,7 +117,7 @@ describe("services/two-factor — ensureEnrollmentSecret (enrolamiento pre-auth)
 /** Cuenta con 2FA ya activo; devuelve el secreto en claro para generar códigos. */
 async function createUserWithTwoFactor() {
   const user = await createUser();
-  const setup = await setupTwoFactor(user._id);
+  const setup = await ensureEnrollmentSecret(user._id);
   await enableTwoFactor(user._id, totpAtOffset(setup.secret, -1));
   return { user, secret: setup.secret };
 }
@@ -174,13 +132,13 @@ describe("services/two-factor — límite de intentos por cuenta", () => {
     await expect(verifyTwoFactorCode(user._id, totpAtOffset(secret, 0))).rejects.toMatchObject({ statusCode: 429 });
   });
 
-  it("el bloqueo vale para todos los caminos que verifican el código (enable, disable, setup)", async () => {
-    const { user, secret } = await createUserWithTwoFactor();
-    for (let i = 0; i < 5; i += 1) await verifyTwoFactorCode(user._id, "000000").catch(() => undefined);
+  it("el bloqueo también vale para el enrolamiento (enable con secreto pendiente)", async () => {
+    const user = await createUser();
+    const setup = await ensureEnrollmentSecret(user._id);
+    for (let i = 0; i < 5; i += 1) await enableTwoFactor(user._id, "000000").catch(() => undefined);
 
-    const good = totpAtOffset(secret, 0);
-    await expect(disableTwoFactor(user._id, good)).rejects.toMatchObject({ statusCode: 429 });
-    await expect(setupTwoFactor(user._id, good)).rejects.toMatchObject({ statusCode: 429 });
+    await expect(enableTwoFactor(user._id, totpAtOffset(setup.secret, 0))).rejects.toMatchObject({ statusCode: 429 });
+    expect((await User.findById(user._id))?.twoFactor.enabled).toBe(false);
   });
 
   it("los fallos de caminos distintos suman en el mismo contador (login/2fa + reembolso)", async () => {
@@ -188,8 +146,8 @@ describe("services/two-factor — límite de intentos por cuenta", () => {
 
     await expect(verifyTwoFactorCode(user._id, "000000")).rejects.toThrow();
     await expect(verifyTwoFactorCode(user._id, "111111")).rejects.toThrow();
-    await expect(disableTwoFactor(user._id, "222222")).rejects.toThrow();
-    await expect(setupTwoFactor(user._id, "333333")).rejects.toThrow();
+    await expect(verifyTwoFactorCode(user._id, "222222")).rejects.toThrow();
+    await expect(verifyTwoFactorCode(user._id, "333333")).rejects.toThrow();
     await expect(verifyTwoFactorCode(user._id, "444444")).rejects.toThrow();
 
     await expect(verifyTwoFactorCode(user._id, totpAtOffset(secret, 0))).rejects.toMatchObject({ statusCode: 429 });
@@ -255,13 +213,12 @@ describe("services/two-factor — límite de intentos por cuenta", () => {
 });
 
 describe("services/two-factor — un código aceptado no se acepta otra vez", () => {
-  it("el mismo código no sirve dos veces (ni en otro camino)", async () => {
+  it("el mismo código no sirve dos veces", async () => {
     const { user, secret } = await createUserWithTwoFactor();
     const code = totpAtOffset(secret, 0);
 
     await expect(verifyTwoFactorCode(user._id, code)).resolves.toBeUndefined();
     await expect(verifyTwoFactorCode(user._id, code)).rejects.toMatchObject({ statusCode: 401 });
-    await expect(disableTwoFactor(user._id, code)).rejects.toMatchObject({ statusCode: 401 });
   });
 
   it("un código de un paso anterior al último aceptado tampoco sirve", async () => {
@@ -280,13 +237,6 @@ describe("services/two-factor — un código aceptado no se acepta otra vez", ()
     await expect(verifyTwoFactorCode(user._id, totpAtOffset(secret, 1))).rejects.toMatchObject({ statusCode: 429 });
   });
 
-  it("al reconfigurar con un secreto nuevo, el contador de pasos empieza de cero", async () => {
-    const { user, secret } = await createUserWithTwoFactor();
-    const second = await setupTwoFactor(user._id, totpAtOffset(secret, 1));
-
-    // Activar con el secreto NUEVO funciona aunque el paso coincida con el último del viejo.
-    await expect(enableTwoFactor(user._id, totpAtOffset(second.secret, 1))).resolves.toBeUndefined();
-  });
 });
 
 describe("services/two-factor — enable sobre una cuenta con 2FA ya activo", () => {

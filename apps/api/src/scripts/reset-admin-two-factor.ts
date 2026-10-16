@@ -9,14 +9,13 @@ import { recordAudit } from "../services/audit.service.js";
 
 /**
  * Rescate para el enrolamiento obligatorio de 2FA de admins (Milestone 2.1):
- * `/2fa/disable` está tras `protect`, así que si el único admin de la cuenta
- * enrola en un dispositivo que después pierde (o nunca llega a terminar el
- * enrolamiento), queda fuera de su propia cuenta para siempre — no hay
- * ningún otro camino de recuperación. Este script resetea el 2FA de un admin
- * por correo, sin exigir una sesión ya autenticada, y revoca sus sesiones
- * activas por el mismo motivo que `disableTwoFactor` en two-factor.service.ts:
- * si el dispositivo perdido tenía una sesión viva, resetear el 2FA sin
- * revocarla la dejaría utilizable.
+ * no hay reconfiguración ni desactivación del 2FA por API (auditoría run-2,
+ * hallazgo 16), así que si el único admin de la cuenta enrola en un
+ * dispositivo que después pierde (o nunca llega a terminar el enrolamiento),
+ * este script —o crear otro admin con `seed:admin:prod`— es el camino de
+ * recuperación. Resetea el 2FA de un admin por correo, sin exigir una sesión
+ * ya autenticada, y revoca sus sesiones activas: si el dispositivo perdido
+ * tenía una sesión viva, resetear el 2FA sin revocarla la dejaría utilizable.
  *
  * Correrlo requiere acceso directo al servidor/infra (Railway run, SSH), lo
  * que ya es la barrera de autorización — no hay verificación adicional

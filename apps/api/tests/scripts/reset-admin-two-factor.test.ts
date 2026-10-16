@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { User } from "../../src/models/user.model.js";
 import { Session } from "../../src/models/session.model.js";
 import { issueSession } from "../../src/services/session.service.js";
-import { enableTwoFactor, setupTwoFactor } from "../../src/services/two-factor.service.js";
+import { enableTwoFactor, ensureEnrollmentSecret } from "../../src/services/two-factor.service.js";
 import { resetAdminTwoFactor } from "../../src/scripts/reset-admin-two-factor.js";
 
 async function createEnrolledAdmin(email: string) {
@@ -16,7 +16,7 @@ async function createEnrolledAdmin(email: string) {
     role: UserRole.ADMIN,
     emailVerified: true,
   });
-  const setup = await setupTwoFactor(admin._id);
+  const setup = await ensureEnrollmentSecret(admin._id);
   await enableTwoFactor(admin._id, authenticator.generate(setup.secret));
   return admin;
 }

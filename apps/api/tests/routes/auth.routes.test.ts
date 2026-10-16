@@ -361,35 +361,23 @@ describe("routes/auth — 2FA de dos pasos para admin (ya enrolado)", () => {
     expect(meAfterTwoFactor.status).toBe(200);
   });
 
-  it("con 2FA ya activo, /2fa/setup exige el código vigente antes de reemplazar el secreto", async () => {
+  // Auditoría run-2, hallazgo 16: reconfigurar dejaba la cuenta sin factor activo y
+  // enrolable con solo la contraseña. Ninguna pantalla usa estas rutas: el 2FA solo
+  // se configura en el enrolamiento obligatorio del login y se recupera con
+  // `2fa:reset-admin` o creando otro admin con `seed:admin:prod`.
+  it("ya no existen /2fa/setup, /2fa/enable ni /2fa/disable, ni con sesión admin", async () => {
     const { email, userId } = await registerAndVerify();
     await User.updateOne({ _id: userId }, { $set: { role: "admin" } });
-    const { agent, secret: originalSecret } = await bootstrapAdminWithTwoFactor(email, "Contrasena1");
+    const { agent, secret } = await bootstrapAdminWithTwoFactor(email, "Contrasena1");
 
-    // Sesión robada intenta re-enrolar 2FA sin el código actual.
-    const withoutCode = await agent.post("/api/v1/auth/2fa/setup");
-    expect(withoutCode.status).toBe(401);
-
-    const withWrongCode = await agent.post("/api/v1/auth/2fa/setup").send({ code: "000000" });
-    expect(withWrongCode.status).toBe(401);
+    for (const path of ["/api/v1/auth/2fa/setup", "/api/v1/auth/2fa/enable", "/api/v1/auth/2fa/disable"]) {
+      const response = await agent.post(path).send({ code: totpAtOffset(secret, 1) });
+      expect(response.status).toBe(404);
+    }
 
     const untouched = await User.findById(userId);
     expect(untouched?.twoFactor.enabled).toBe(true);
-
-    // Con el código vigente sí puede reconfigurar.
-    const withValidCode = await agent
-      .post("/api/v1/auth/2fa/setup")
-      .send({ code: totpAtOffset(originalSecret, 1) });
-    expect(withValidCode.status).toBe(200);
-  });
-
-  it("un cliente (no-admin) no puede llamar a los endpoints de 2fa/setup", async () => {
-    const { email } = await registerAndVerify();
-    const agent = request.agent(app);
-    await agent.post("/api/v1/auth/login").send({ email, password: "Contrasena1" });
-
-    const response = await agent.post("/api/v1/auth/2fa/setup");
-    expect(response.status).toBe(403);
+    expect((await agent.get("/api/v1/auth/me")).status).toBe(200);
   });
 });
 

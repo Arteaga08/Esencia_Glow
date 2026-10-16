@@ -113,6 +113,27 @@ describe("routes — POST /coupons/validate", () => {
     expect(new Set(bodies.map((res) => res.body.message)).size).toBe(1);
   });
 
+  // Auditoría run-2, hallazgo 17: con un carrito inválido, el error del carrito no
+  // puede depender de si el código existe (antes, solo un código existente llegaba
+  // a resolver el carrito y respondía ITEM_UNAVAILABLE en vez de COUPON_INVALID).
+  it("con un carrito inválido, el error es el mismo exista o no el código", async () => {
+    const { agent } = await createCustomerSession(app);
+    const inactive = await seedCoupon({ isActive: false });
+    const scheduled = await seedCoupon({ startsAt: new Date(Date.now() + 86_400_000) });
+    const foreign = await seedCoupon({ kind: CouponKind.PERSONAL, assignedUserId: new Types.ObjectId(), maxCustomers: 1 });
+    const codes = ["NOEXISTE", inactive.code, scheduled.code, foreign.code];
+
+    for (const itemType of ["product", "bundle"] as const) {
+      const lines = [{ itemType, itemId: new Types.ObjectId().toString(), quantity: 1 }];
+      const bodies = await Promise.all(codes.map((code) => validate(agent, { code, lines })));
+
+      expect(new Set(bodies.map((res) => res.status)).size).toBe(1);
+      expect(new Set(bodies.map((res) => res.body.code)).size).toBe(1);
+      expect(new Set(bodies.map((res) => res.body.message)).size).toBe(1);
+      expect(bodies[0]!.body.code).not.toBe(ErrorCode.COUPON_INVALID);
+    }
+  });
+
   it("vencido, mínimo no alcanzado, agotado y ya usado traen su propio código", async () => {
     const variantId = await seedProduct();
     const { agent, userId } = await createCustomerSession(app);

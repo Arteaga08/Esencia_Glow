@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { User } from "../../src/models/user.model.js";
 import { Session } from "../../src/models/session.model.js";
 import { issueSession } from "../../src/services/session.service.js";
-import { enableTwoFactor, setupTwoFactor } from "../../src/services/two-factor.service.js";
+import { enableTwoFactor, ensureEnrollmentSecret } from "../../src/services/two-factor.service.js";
 import { revokeAdminsWithoutTwoFactor } from "../../src/scripts/revoke-admins-without-2fa.js";
 
 async function createAdmin(email: string) {
@@ -24,7 +24,7 @@ describe("scripts/revoke-admins-without-2fa — paso de despliegue del enrolamie
     const sessionWithout = await issueSession(withoutTwoFactor._id);
 
     const withTwoFactor = await createAdmin("con-2fa@esenciaglow.mx");
-    const setup = await setupTwoFactor(withTwoFactor._id);
+    const setup = await ensureEnrollmentSecret(withTwoFactor._id);
     await enableTwoFactor(withTwoFactor._id, authenticator.generate(setup.secret));
     const sessionWith = await issueSession(withTwoFactor._id);
 
@@ -43,7 +43,7 @@ describe("scripts/revoke-admins-without-2fa — paso de despliegue del enrolamie
 
   it("sin admins sin 2FA -> revokedCount 0, sin tocar nada", async () => {
     const withTwoFactor = await createAdmin("solo-con-2fa@esenciaglow.mx");
-    const setup = await setupTwoFactor(withTwoFactor._id);
+    const setup = await ensureEnrollmentSecret(withTwoFactor._id);
     await enableTwoFactor(withTwoFactor._id, authenticator.generate(setup.secret));
 
     const result = await revokeAdminsWithoutTwoFactor();

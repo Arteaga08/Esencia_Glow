@@ -72,29 +72,9 @@ const changePasswordSchema = Joi.object({
   newPassword: passwordSchema,
 });
 
-const twoFactorCodeSchema = Joi.object({
-  code: Joi.string().trim().length(6).pattern(/^\d+$/).required().messages({
-    "string.length": "El código debe tener 6 dígitos",
-    "string.pattern.base": "El código debe ser numérico",
-  }),
-});
-
-// El código solo es obligatorio cuando la cuenta ya tiene 2FA activado, algo
-// que el validator no puede saber (depende del estado en BD); esa exigencia
-// la aplica el servicio, aquí solo se valida el formato si viene.
-const twoFactorSetupSchema = Joi.object({
-  code: Joi.string().trim().length(6).pattern(/^\d+$/).optional().messages({
-    "string.length": "El código debe tener 6 dígitos",
-    "string.pattern.base": "El código debe ser numérico",
-  }),
-}).default({});
-
-// Body vacío a propósito: a diferencia de `twoFactorSetupSchema` (setup
-// AUTENTICADO, que acepta un `code` opcional para reconfigurar 2FA ya
-// activo), este es el paso pre-auth de enrolamiento OBLIGATORIO — nunca debe
-// poder derivar a esa rama de reconfiguración, así que ni siquiera declara
-// el campo (con `stripUnknown` de `validate()`, cualquier `code` que llegue
-// se descarta antes de tocar el service).
+// Body vacío a propósito: es el paso pre-auth de enrolamiento OBLIGATORIO y no
+// recibe nada del cliente (con `stripUnknown` de `validate()`, cualquier campo
+// que llegue se descarta antes de tocar el service).
 const twoFactorEnrollmentSetupSchema = Joi.object({}).default({});
 
 export {
@@ -105,7 +85,5 @@ export {
   verifyEmailSchema,
   resetPasswordSchema,
   changePasswordSchema,
-  twoFactorCodeSchema,
-  twoFactorSetupSchema,
   twoFactorEnrollmentSetupSchema,
 };

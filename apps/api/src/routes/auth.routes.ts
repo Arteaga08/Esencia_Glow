@@ -1,10 +1,7 @@
 import { Router } from "express";
-import { UserRole } from "@esencia-glow/shared";
 import * as authController from "../controllers/auth.controller.js";
-import * as twoFactorController from "../controllers/two-factor.controller.js";
 import { validate } from "../middlewares/validate.js";
 import { protect } from "../middlewares/protect.js";
-import { restrictTo } from "../middlewares/restrict-to.js";
 import {
   createRateLimiter,
   forgotPasswordEmailRateLimiter,
@@ -23,10 +20,8 @@ import {
   loginSchema,
   registerSchema,
   resetPasswordSchema,
-  twoFactorCodeSchema,
   twoFactorEnrollmentSetupSchema,
   twoFactorLoginSchema,
-  twoFactorSetupSchema,
   verifyEmailSchema,
 } from "../validators/auth.validator.js";
 
@@ -123,28 +118,6 @@ router.patch(
   passwordChangeRateLimiter,
   validate(changePasswordSchema),
   authController.changePassword,
-);
-
-router.post(
-  "/2fa/setup",
-  protect,
-  restrictTo(UserRole.ADMIN),
-  validate(twoFactorSetupSchema),
-  twoFactorController.setup,
-);
-router.post(
-  "/2fa/enable",
-  protect,
-  restrictTo(UserRole.ADMIN),
-  validate(twoFactorCodeSchema),
-  twoFactorController.enable,
-);
-router.post(
-  "/2fa/disable",
-  protect,
-  restrictTo(UserRole.ADMIN),
-  validate(twoFactorCodeSchema),
-  twoFactorController.disable,
 );
 
 export { router as authRoutes };
