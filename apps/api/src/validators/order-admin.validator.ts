@@ -31,11 +31,13 @@ const ADMIN_REACHABLE_STATUSES = [
   OrderStatus.DELIVERED,
 ] as const;
 
-// Solo http/https: sin scheme allow-list, Joi.uri() acepta cualquier esquema
+// Solo https: sin scheme allow-list, Joi.uri() acepta cualquier esquema
 // sintácticamente válido (javascript:, data:), y sanitizeInput no lo neutraliza
 // fuera de un atributo HTML — el valor se sirve tal cual al cliente en
 // order-dto.ts. Mismo criterio que HREF_PATTERN en home-content.validator.ts.
-const TRACKING_URL_SCHEMES = ["http", "https"];
+// Sin http (endurecimiento post run-2): el enlace llega al correo de la clienta
+// y un http:// se puede alterar en el camino.
+const TRACKING_URL_SCHEMES = ["https"];
 
 const shipmentSchema = Joi.object({
   carrier: Joi.string()

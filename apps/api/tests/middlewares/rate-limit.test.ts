@@ -21,6 +21,7 @@ async function importRateLimitInProduction(): Promise<typeof RateLimitModule> {
     RESEND_API_KEY: "re_x",
     TRUST_PROXY_HOPS: "0",
     INTERNAL_API_TOKEN: "i".repeat(40),
+    AUDIT_IP_HMAC_KEY: "a".repeat(40),
     CLOUDINARY_CLOUD_NAME: "cloud",
     CLOUDINARY_API_KEY: "key",
     CLOUDINARY_API_SECRET: "secret",

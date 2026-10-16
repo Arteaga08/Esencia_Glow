@@ -89,6 +89,19 @@ function readNonNegativeInt(key: string, defaultValue: number, nodeEnv: NodeEnv)
   return parsed;
 }
 
+/**
+ * Clave del HMAC de IPs de auditoría solo para dev/test: la IP hasheada con
+ * ella no protege nada, pero en esos entornos no hay IPs reales que proteger.
+ */
+const DEV_AUDIT_IP_HMAC_KEY = "dev-only-audit-ip-hmac-key-not-for-production";
+
+/** `AUDIT_IP_HMAC_KEY`: secreto largo en producción; fuera de ella, la clave fija de dev. */
+function readAuditIpHmacKey(nodeEnv: NodeEnv): string {
+  if (nodeEnv === "production") return requireSecret("AUDIT_IP_HMAC_KEY");
+  const value = process.env.AUDIT_IP_HMAC_KEY;
+  return value && value.trim().length > 0 ? value : DEV_AUDIT_IP_HMAC_KEY;
+}
+
 function buildEnv() {
   const nodeEnv = readNodeEnv();
 
@@ -162,6 +175,12 @@ function buildEnv() {
     // y largo, igual que un secreto de firma: quien lo conozca puede elegir la
     // IP con la que se le contabiliza.
     internalApiToken: readInternalApiToken(nodeEnv),
+
+    // Clave del HMAC con que se guarda la IP en el audit log (endurecimiento
+    // post run-2). Un SHA-256 sin clave de una IPv4 se revierte probando las
+    // 2^32 direcciones; con HMAC hace falta además esta clave. Requerida en
+    // producción; cambiarla deja de empatar los `ipHash` ya guardados.
+    auditIpHmacKey: readAuditIpHmacKey(nodeEnv),
 
     // Suscripciones (Milestone 1.7.2a): minutos tras reclamar el cupo antes
     // de que el barrendero libere una cuenta `INCOMPLETE` que nunca completó

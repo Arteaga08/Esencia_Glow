@@ -11,6 +11,7 @@ import {
   type EmailOrderBlock,
   type EmailStatus,
 } from "./email-blocks.js";
+import { escapeHtml } from "../utils/escape-html.js";
 
 /**
  * Shell HTML compartido de todo correo transaccional (Milestone 3.6,
@@ -21,10 +22,10 @@ import {
  * tablas, CSS en línea, botón en una `<td>`, preheader oculto, cuerpo de
  * 16px y `disclaimer` siempre.
  *
- * `title`/`paragraphs`/`preheader`/`disclaimer`/`button.url` ya deben venir
- * escapados por el caller; los bloques opcionales (`status`, `facts`,
- * `order`, `guide`, `coupon`) son texto plano y se escapan en
- * `email-blocks.ts`.
+ * `title`/`paragraphs`/`preheader`/`disclaimer` ya deben venir escapados por
+ * el caller (los párrafos pueden traer `<strong>`); `button` y los bloques
+ * opcionales (`status`, `facts`, `order`, `guide`, `coupon`) son texto plano
+ * y se escapan aquí o en `email-blocks.ts`.
  */
 interface EmailButton {
   label: string;
@@ -50,12 +51,14 @@ interface RenderTransactionalEmailInput {
 /** Botón "a prueba de balas": fondo, borde y radio en la `<td>`; el `<a>` solo
  * lleva texto y relleno (Outlook/Word ignora el radio en un `<a>`). */
 function renderButton(button: EmailButton): string {
+  // La URL va dentro de un atributo: sin escapar, una comilla en un
+  // `trackingUrl` o `hostedVoucherUrl` cerraría el `href`.
   return `
     <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 8px;">
       <tr>
         <td align="center" bgcolor="${C.rose}" style="background-color:${C.rose};border:1px solid ${C.roseAction};border-radius:6px;">
-          <a href="${button.url}" style="display:block;padding:15px 28px;font-family:${F.mono};font-size:14px;line-height:1.2;letter-spacing:0.1em;text-transform:uppercase;color:${C.ink};text-decoration:none;">
-            ${button.label}
+          <a href="${escapeHtml(button.url)}" style="display:block;padding:15px 28px;font-family:${F.mono};font-size:14px;line-height:1.2;letter-spacing:0.1em;text-transform:uppercase;color:${C.ink};text-decoration:none;">
+            ${escapeHtml(button.label)}
           </a>
         </td>
       </tr>
