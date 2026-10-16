@@ -13,8 +13,8 @@ const nextConfig: NextConfig = {
   // sin CLOUDINARY_CLOUD_NAME el build y `next dev` fallan a propósito.
   images: {
     remotePatterns: [buildCloudinaryRemotePattern(process.env.CLOUDINARY_CLOUD_NAME)],
-    // 90 solo para el banner de categoría (foto a todo el ancho); el resto usa el 75 por defecto.
-    qualities: [75, 90],
+    // 85 solo para el banner de categoría y los encabezados de listado (foto a todo el ancho); el resto usa el 75 por defecto.
+    qualities: [75, 85],
     // Las URLs de Cloudinary llevan la versión (`/v1790.../`): reemplazar una foto
     // en el panel genera una URL nueva, así que la optimizada puede cachearse un
     // mes (el default son 60 s y obliga a revalidar `/_next/image` casi siempre).
