@@ -51,6 +51,9 @@ jobs:
           # `next build` del web falla sin la cuenta de Cloudinary (next.config.ts,
           # auditoría run-2, hallazgo 14). El nombre de la cuenta no es secreto.
           CLOUDINARY_CLOUD_NAME: ozpexdfc
+          # `next build` también aborta sin la URL del API (apps/web/src/lib/config.ts).
+          # En CI nadie la llama: basta un valor público de ejemplo.
+          NEXT_PUBLIC_API_URL: http://localhost:4000
 
       - name: Auditoría de dependencias de producción
         run: pnpm audit --prod --audit-level high
