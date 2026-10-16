@@ -9,7 +9,7 @@ import {
   login,
 } from "../../src/services/auth.service.js";
 import { verifyPendingEnrollmentToken } from "../../src/utils/jwt.js";
-import { enableTwoFactor, setupTwoFactor } from "../../src/services/two-factor.service.js";
+import { enableTwoFactor, ensureEnrollmentSecret } from "../../src/services/two-factor.service.js";
 
 const PASSWORD = "Contrasena1";
 
@@ -46,7 +46,7 @@ describe("services/auth — login() decide sesión vs. segundo factor vs. enrola
 
   it("un admin con 2FA activo mantiene el flujo existente (twoFactorRequired)", async () => {
     const user = await createUser({ role: UserRole.ADMIN });
-    const setup = await setupTwoFactor(user._id);
+    const setup = await ensureEnrollmentSecret(user._id);
     await enableTwoFactor(user._id, authenticator.generate(setup.secret));
 
     const result = await login({ email: user.email, password: PASSWORD }, {});

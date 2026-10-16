@@ -62,7 +62,7 @@ ignora cualquier `.env`/`.env.*` real y re-permite explícitamente los `.example
 | `ADMIN_ALERT_EMAIL` | Opcional, siempre | Milestone 1.7.2a: destino de la alerta por correo cuando la caja de un ciclo sale con edición o inventario faltante. Sin configurar, se degrada a loguear |
 | `SENTRY_DSN` | Opcional, siempre | Error tracking. Su ausencia no bloquea nada |
 | `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` / `SEED_ADMIN_ROLE` | Opcional, siempre | Solo los lee `pnpm --filter @esencia-glow/api seed:admin`, nunca el server |
-| `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` | Fail-fast en producción | `uploadService` (Milestone 1.3). En dev, su ausencia hace que los endpoints de imagen respondan `503` |
+| `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` | Fail-fast en producción | `uploadService` (Milestone 1.3). En dev, su ausencia hace que los endpoints de imagen respondan `503`. `CLOUDINARY_CLOUD_NAME` también la exige `apps/web` (`next.config.ts`) en dev, build y CI: el optimizador de imágenes solo acepta fotos de esa cuenta |
 | `CLOUDINARY_FOLDER` | Con default | Carpeta raíz en Cloudinary. Default `esencia-glow/<NODE_ENV>` |
 
 En **desarrollo**, las variables marcadas "fail-fast en producción" son opcionales: el server

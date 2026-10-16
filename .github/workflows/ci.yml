@@ -47,6 +47,10 @@ jobs:
 
       - name: Verificar (typecheck + lint + build + test)
         run: pnpm verify
+        env:
+          # `next build` del web falla sin la cuenta de Cloudinary (next.config.ts,
+          # auditoría run-2, hallazgo 14). El nombre de la cuenta no es secreto.
+          CLOUDINARY_CLOUD_NAME: ozpexdfc
 
       - name: Auditoría de dependencias de producción
         run: pnpm audit --prod --audit-level high

@@ -5,13 +5,18 @@ import { AuthAction } from "@esencia-glow/shared";
 import { User } from "../models/user.model.js";
 import { AppError } from "../utils/app-error.js";
 import { decryptSecret, encryptSecret } from "../utils/crypto.js";
-import { revokeAllForUser } from "./session.service.js";
 import { recordAudit } from "./audit.service.js";
 
 /**
  * 2FA TOTP para cuentas admin (BACKEND_SECURITY_GUIDELINES.md §2). Secreto
- * cifrado at-rest, activación en dos pasos, login y desactivación exigen
- * código válido, desactivar revoca todas las sesiones activas.
+ * cifrado at-rest, activación en dos pasos y login con código válido.
+ *
+ * El 2FA solo se configura en el enrolamiento obligatorio del login
+ * (`ensureEnrollmentSecret` + `enableTwoFactor`). No hay reconfiguración ni
+ * desactivación por API (auditoría run-2, hallazgo 16: reconfigurar apagaba el
+ * factor activo antes de confirmar el nuevo y dejaba la cuenta enrolable con
+ * solo la contraseña). Para recuperar una cuenta: `2fa:reset-admin`, o crear
+ * otro admin con `seed:admin:prod`.
  */
 
 // `window: 1` acepta también el código del período TOTP adyacente (±30s),
@@ -40,49 +45,8 @@ interface SetupResult {
 }
 
 /**
- * El label del QR es el email del usuario — se resuelve aquí, no lo decide el
- * caller. Si la cuenta ya tiene 2FA activado, exige el código vigente antes
- * de reemplazar el secreto: si no, una sesión robada podría re-enrolar 2FA
- * con un secreto propio y burlar el step-up de reembolsos.
- */
-async function setupTwoFactor(
-  userId: Types.ObjectId | string,
-  code?: string,
-): Promise<SetupResult> {
-  const user = await User.findById(userId).select("+twoFactor.secret");
-  if (!user) throw new AppError("Usuario no encontrado", 404);
-
-  if (user.twoFactor.enabled) {
-    if (!code) {
-      throw new AppError("Se requiere el código actual para reconfigurar 2FA", 401);
-    }
-    await assertValidCode(user._id, decryptSecret(user.twoFactor.secret!), code);
-  }
-
-  const secret = authenticator.generateSecret();
-  const otpauthUrl = authenticator.keyuri(user.email, ISSUER, secret);
-  const qrCodeDataUrl = await QRCode.toDataURL(otpauthUrl);
-
-  // Secreto nuevo = contador de pasos nuevo (los pasos del secreto viejo no aplican).
-  await User.updateOne(
-    { _id: userId },
-    {
-      $set: {
-        "twoFactor.secret": encryptSecret(secret),
-        "twoFactor.enabled": false,
-        "twoFactor.pendingSince": new Date(),
-      },
-      $unset: { "twoFactor.lastUsedStep": "" },
-    },
-  );
-
-  return { secret, otpauthUrl, qrCodeDataUrl };
-}
-
-/**
- * Variante de `setupTwoFactor` para el enrolamiento OBLIGATORIO pre-auth de
- * un admin sin 2FA (auth.service.ts, login de dos pasos forzado). A
- * diferencia de `setupTwoFactor`, es idempotente: si ya hay un secreto
+ * Secreto para el enrolamiento OBLIGATORIO pre-auth de un admin sin 2FA
+ * (auth.service.ts, login de dos pasos forzado). Es idempotente: si ya hay un secreto
  * pendiente (`enabled: false`) generado hace menos de 15 minutos, lo reusa en
  * vez de rotarlo. Sin esto, cualquier recarga de la pantalla de enrolamiento
  * —o alguien con solo la contraseña, en un endpoint sin sesión— podría llamar
@@ -90,9 +54,7 @@ async function setupTwoFactor(
  * que seguiría siendo válido: un DoS que lo deja fuera de su propia cuenta,
  * porque sin 2FA tampoco hay sesión.
  *
- * Nunca toca una cuenta que ya tiene 2FA activo — esa reconfiguración sigue
- * siendo exclusiva de `setupTwoFactor`, detrás de `protect` y con el código
- * vigente.
+ * Nunca toca una cuenta que ya tiene 2FA activo.
  */
 async function ensureEnrollmentSecret(userId: Types.ObjectId | string): Promise<SetupResult> {
   const user = await User.findById(userId).select("+twoFactor.secret");
@@ -271,33 +233,5 @@ async function verifyTwoFactorCode(userId: Types.ObjectId | string, code: string
   await assertValidCode(userId, secret, code);
 }
 
-/**
- * Exige un código válido (no basta con estar autenticado) y revoca todas las
- * sesiones activas: si un atacante ya tenía una sesión robada, apagar el 2FA
- * no debe dejarle esa sesión utilizable.
- */
-async function disableTwoFactor(userId: Types.ObjectId | string, code: string): Promise<void> {
-  const { secret, enabled } = await loadDecryptedSecret(userId);
-  if (!enabled) throw new AppError("2FA no está activado para esta cuenta", 400);
-  await assertValidCode(userId, secret, code);
-
-  await User.updateOne(
-    { _id: userId },
-    {
-      $set: { "twoFactor.enabled": false },
-      $unset: {
-        "twoFactor.secret": "",
-        "twoFactor.pendingSince": "",
-        "twoFactor.failedAttempts": "",
-        "twoFactor.failureWindowStart": "",
-        "twoFactor.lockedUntil": "",
-        "twoFactor.lastUsedStep": "",
-      },
-    },
-  );
-  await revokeAllForUser(userId);
-  await recordAudit({ action: AuthAction.TWO_FACTOR_DISABLED, actorId: userId, targetId: userId });
-}
-
-export { setupTwoFactor, ensureEnrollmentSecret, enableTwoFactor, verifyTwoFactorCode, disableTwoFactor };
+export { ensureEnrollmentSecret, enableTwoFactor, verifyTwoFactorCode };
 export type { SetupResult };
