@@ -20,7 +20,7 @@ function CatalogBanner({ found }: { found: CatalogCategory }) {
       <CategoryImage
         category={{ id: category.id, name: category.name, href: "", image: image ? { url: image.url, alt: image.alt } : undefined }}
         sizes="100vw"
-        quality={90}
+        quality={85}
         priority
       />
       <div className="relative mx-auto w-full max-w-shell px-4 pb-6 md:px-8 md:pb-10 xl:px-12">

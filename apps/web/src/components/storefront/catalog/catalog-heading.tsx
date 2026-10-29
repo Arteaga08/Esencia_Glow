@@ -28,7 +28,7 @@ function CatalogHeading({ title, description, image }: CatalogHeadingProps) {
 
   return (
     <section className="relative isolate flex min-h-[24rem] items-end bg-blush md:min-h-[32rem]">
-      <Image src={image.url} alt={image.alt ?? ""} fill sizes="100vw" quality={90} priority className="object-cover" />
+      <Image src={image.url} alt={image.alt ?? ""} fill sizes="100vw" quality={85} priority className="object-cover" />
       <div className="relative mx-auto w-full max-w-shell px-4 pb-6 md:px-8 md:pb-10 xl:px-12">
         <div className="max-w-xl rounded-md bg-blush/85 p-6 backdrop-blur-xl backdrop-saturate-150 md:p-8">
           <Breadcrumb trail={[{ name: title }]} />
