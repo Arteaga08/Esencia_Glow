@@ -59,7 +59,7 @@ function ShelfCard({ item, priority = false, compact = false }: { item: ShelfIte
         {item.brand || item.kind === "kit" ? (
           <p className="mb-1 font-mono text-label uppercase text-muted-foreground-strong">{item.brand ?? "Kit"}</p>
         ) : null}
-        <div className="flex items-baseline justify-between gap-3">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3">
           <h3 className="text-subtitle text-foreground">
             <Link href={item.href}>{item.name}</Link>
           </h3>

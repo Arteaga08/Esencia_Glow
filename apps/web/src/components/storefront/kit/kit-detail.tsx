@@ -18,7 +18,7 @@ function KitDetail({ kit }: { kit: KitView }) {
         <Breadcrumb trail={[{ name: "Kits", href: "/kits" }, { name: kit.name }]} />
       </div>
 
-      <section className="mx-auto grid max-w-shell gap-8 px-4 pb-16 md:px-8 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)] lg:gap-14 xl:px-12">
+      <section className="mx-auto grid max-w-shell grid-cols-[minmax(0,1fr)] gap-8 px-4 pb-16 md:px-8 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)] lg:gap-14 xl:px-12">
         <ProductGallery images={kit.images} />
         <div className="lg:sticky lg:top-28 lg:self-start">
           <KitPurchasePanel kit={kit} />
