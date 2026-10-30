@@ -27,6 +27,7 @@ function HeroSlide({ slide, priority }: { slide: PublicHomeHeroSlide; priority: 
   return (
     <Link
       href={slide.ctaHref ?? "/"}
+      aria-label={slide.title ? undefined : "Esencia Glow: ver más"}
       className="absolute inset-0 block focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-ring"
     >
       <picture>
@@ -38,7 +39,7 @@ function HeroSlide({ slide, priority }: { slide: PublicHomeHeroSlide; priority: 
         className="absolute inset-x-0 bottom-0 h-[45%] bg-gradient-to-t from-accent via-accent/70 to-transparent md:hidden"
       />
       <div className="absolute inset-x-0 bottom-0 mx-auto max-w-shell px-4 pb-20 md:px-8 md:pb-24 xl:px-12">
-        <h2 className="text-hero max-w-3xl text-foreground">{slide.title}</h2>
+        {slide.title ? <h2 className="text-hero max-w-3xl text-foreground">{slide.title}</h2> : null}
         {slide.subtitle ? <p className="mt-3 max-w-xl text-subtitle text-foreground">{slide.subtitle}</p> : null}
       </div>
     </Link>

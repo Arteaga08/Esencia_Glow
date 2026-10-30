@@ -67,7 +67,7 @@ function renderButton(button: EmailButton): string {
 
 function renderHeader(): string {
   if (EMAIL_LOGO_DATA_URI) {
-    return `<img src="${EMAIL_LOGO_DATA_URI}" alt="${EMAIL_BRAND_NAME}" style="height:32px;" />`;
+    return `<img src="${EMAIL_LOGO_DATA_URI}" alt="${EMAIL_BRAND_NAME}" width="140" style="display:block;width:140px;height:auto;border:0;" />`;
   }
   return `<span style="font-family:${F.sans};font-size:20px;font-weight:600;color:${C.ink};">${EMAIL_BRAND_NAME} <span style="font-size:13px;color:${C.butterText};">&#10022;</span></span>`;
 }

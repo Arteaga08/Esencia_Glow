@@ -9,7 +9,7 @@ const AUTOPLAY_MS = 5000;
 
 interface HeroCarouselSlide {
   id: string;
-  title: string;
+  title?: string;
   node: ReactNode;
 }
 
@@ -122,7 +122,7 @@ function HeroCarousel({ slides }: { slides: HeroCarouselSlide[] }) {
         <HeroProgress
           count={count}
           index={index}
-          labels={slides.map((slide) => slide.title)}
+          labels={slides.map((slide, position) => slide.title ?? `Diapositiva ${position + 1}`)}
           onSelect={go}
         />
       ) : null}

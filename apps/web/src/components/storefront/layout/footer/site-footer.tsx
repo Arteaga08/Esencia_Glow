@@ -3,14 +3,14 @@ import { buildFooterColumns } from "@/lib/storefront/footer-links";
 import { FooterAccordion } from "./footer-accordion";
 import { FooterColumn } from "./footer-column";
 import { FooterSocial } from "./footer-social";
-import { FooterWordmark } from "./footer-wordmark";
+import { FooterLogo } from "./footer-logo";
 import { NewsletterForm } from "./newsletter-form";
 
 /**
- * Footer del storefront (bloque 10 del home). Tinta café. En escritorio: nombre
- * de la marca en rosa arriba, cuatro columnas y una fila final con correo,
- * créditos y redes. En móvil: correo, acordeones, redes, la marca a todo el
- * ancho y los créditos; el orden cambia con `order` para no duplicar el
+ * Footer del storefront (bloque 10 del home). Tinta café. En escritorio: logo
+ * de la marca arriba, cuatro columnas y una fila final con correo,
+ * créditos y redes. En móvil: correo, acordeones, redes, el logo y
+ * los créditos; el orden cambia con `order` para no duplicar el
  * formulario, y la fila final usa `contents` para que sus hijos se ordenen en
  * el footer. `--surface-bg` se declara para que el campo se pinte sobre el
  * fondo oscuro.
@@ -20,8 +20,8 @@ async function SiteFooter() {
 
   return (
     <footer className="flex flex-col overflow-x-clip bg-foreground text-background [--surface-bg:var(--color-foreground)]">
-      <div className="order-4 mx-auto w-full max-w-shell px-4 pb-8 pt-4 md:px-8 lg:order-1 lg:pb-0 lg:pt-20 xl:px-12">
-        <FooterWordmark className="text-primary" />
+      <div className="order-4 mx-auto w-full max-w-shell px-4 pb-8 pt-4 md:px-8 lg:order-1 lg:pb-0 lg:pt-8 xl:px-12">
+        <FooterLogo />
       </div>
 
       <div className="order-2 lg:order-2">

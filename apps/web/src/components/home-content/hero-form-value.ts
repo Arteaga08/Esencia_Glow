@@ -55,7 +55,7 @@ function toFormValue(hero: AdminHomeHero): HeroFormValue {
     slides: hero.slides.map((slide) => ({
       key: nextKey(),
       id: slide.id,
-      title: slide.title,
+      title: slide.title ?? "",
       subtitle: slide.subtitle ?? "",
       ctaHref: slide.ctaHref ?? "",
       isActive: slide.isActive,
@@ -74,7 +74,7 @@ function toPayload(value: HeroFormValue, version: number) {
     isActive: value.isActive,
     slides: value.slides.map((slide) => ({
       ...(slide.id ? { id: slide.id } : {}),
-      title: slide.title.trim(),
+      ...(slide.title.trim() ? { title: slide.title.trim() } : {}),
       ...(slide.subtitle.trim() ? { subtitle: slide.subtitle.trim() } : {}),
       ctaHref: slide.ctaHref.trim(),
       isActive: slide.isActive,
@@ -86,8 +86,7 @@ function toPayload(value: HeroFormValue, version: number) {
 function validateSlide(slide: HeroSlideDraft): Record<string, string> {
   const errors: Record<string, string> = {};
   const limits = HOME_CONTENT_LIMITS;
-  if (!slide.title.trim()) errors.title = "Escribe el título del slide.";
-  else if (slide.title.trim().length > limits.titleMax)
+  if (slide.title.trim().length > limits.titleMax)
     errors.title = `Máximo ${limits.titleMax} caracteres.`;
   if (slide.subtitle.trim().length > limits.subtitleMax)
     errors.subtitle = `Máximo ${limits.subtitleMax} caracteres.`;

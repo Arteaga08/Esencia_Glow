@@ -30,7 +30,7 @@ interface HomeAnnouncementAttrs extends HomeSectionBaseAttrs {
 
 interface HomeHeroSlideAttrs {
   _id: Types.ObjectId;
-  title: string;
+  title?: string;
   subtitle?: string;
   ctaLabel?: string;
   ctaHref?: string;
@@ -134,7 +134,7 @@ const announcementSchema = new Schema<HomeAnnouncementAttrs>(
 
 const heroSlideSchema = new Schema<HomeHeroSlideAttrs>(
   {
-    title: { type: String, required: true, trim: true, maxlength: 120 },
+    title: { type: String, trim: true, maxlength: 120 },
     subtitle: { type: String, trim: true, maxlength: 240 },
     ctaLabel: { type: String, trim: true, maxlength: 40 },
     ctaHref: { type: String, trim: true, maxlength: 500 },

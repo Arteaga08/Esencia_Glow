@@ -60,7 +60,7 @@ function buildHero(doc: HomeContentAttrs): PublicHomeContent["hero"] {
     return [
       {
         id: slide._id.toString(),
-        title: slide.title,
+        ...(slide.title ? { title: slide.title } : {}),
         ...(slide.subtitle ? { subtitle: slide.subtitle } : {}),
         ...(slide.ctaLabel ? { ctaLabel: slide.ctaLabel } : {}),
         ...(slide.ctaHref ? { ctaHref: slide.ctaHref } : {}),

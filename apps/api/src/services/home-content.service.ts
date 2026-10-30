@@ -111,7 +111,7 @@ async function updateAnnouncement(input: AnnouncementInput): Promise<AdminHomeAn
 
 interface HeroSlideInput {
   id?: string;
-  title: string;
+  title?: string;
   subtitle?: string;
   ctaLabel?: string;
   ctaHref?: string;

@@ -56,7 +56,7 @@ function HeroSlideFields({ slide, position, errors, onChange, onRemove }: HeroSl
       <div className="grid gap-5 md:grid-cols-2">
         <div className="flex flex-col gap-4">
           <Input
-            label="Título"
+            label="Título (opcional)"
             placeholder="Protector solar Sunprise"
             value={slide.title}
             onChange={(event) => onChange({ title: event.target.value })}

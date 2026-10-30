@@ -32,7 +32,7 @@ interface AdminHomeAnnouncement extends HomeSectionMeta {
 
 interface AdminHomeHeroSlide {
   id: string;
-  title: string;
+  title?: string;
   subtitle?: string;
   ctaLabel?: string;
   ctaHref?: string;
@@ -149,7 +149,7 @@ interface AdminHomeContent {
 
 interface PublicHomeHeroSlide {
   id: string;
-  title: string;
+  title?: string;
   subtitle?: string;
   ctaLabel?: string;
   ctaHref?: string;
