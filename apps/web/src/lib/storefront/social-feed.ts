@@ -21,14 +21,14 @@ interface SocialPhoto {
   href: string;
 }
 
-const PROFILE = "https://www.instagram.com/esenciaglow";
-const SOCIAL_HANDLE = "@esenciaglow";
+const PROFILE = "https://www.instagram.com/esenciaglow.oficial";
+const SOCIAL_HANDLE = "@esenciaglow.oficial";
 const SOCIAL_HASHTAG = "#EsenciaGlow";
 
 const SOCIAL_NETWORKS: SocialNetwork[] = [
   { key: "instagram", label: "Instagram", handle: SOCIAL_HANDLE, href: PROFILE },
-  { key: "tiktok", label: "TikTok", handle: SOCIAL_HANDLE, href: "https://www.tiktok.com/@esenciaglow" },
-  { key: "facebook", label: "Facebook", handle: "Esencia Glow", href: "https://www.facebook.com/esenciaglow" },
+  { key: "tiktok", label: "TikTok", handle: SOCIAL_HANDLE, href: "https://www.tiktok.com/@esenciaglow.oficial" },
+  { key: "facebook", label: "Facebook", handle: "Esencia Glow", href: "https://www.facebook.com/esenciaglowoficial" },
 ];
 
 const CLOUD = "https://res.cloudinary.com/ozpexdfc/image/upload";

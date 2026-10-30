@@ -2,47 +2,47 @@ import { getCategoryTree } from "@/lib/storefront/categories";
 import { buildFooterColumns } from "@/lib/storefront/footer-links";
 import { FooterAccordion } from "./footer-accordion";
 import { FooterColumn } from "./footer-column";
-import { FooterSocial } from "./footer-social";
 import { FooterLogo } from "./footer-logo";
+import { FooterSocial } from "./footer-social";
 import { NewsletterForm } from "./newsletter-form";
 
 /**
- * Footer del storefront (bloque 10 del home). Tinta café. En escritorio: logo
- * de la marca arriba, cuatro columnas y una fila final con correo,
- * créditos y redes. En móvil: correo, acordeones, redes, el logo y
- * los créditos; el orden cambia con `order` para no duplicar el
- * formulario, y la fila final usa `contents` para que sus hijos se ordenen en
- * el footer. `--surface-bg` se declara para que el campo se pinte sobre el
- * fondo oscuro.
+ * Footer del storefront (bloque 10 del home). Tinta. Dos zonas: a la izquierda
+ * el logo centrado con su frase y el correo; a la derecha las cuatro columnas
+ * en rejilla de 2x2 (desde `lg`). En móvil las columnas pasan a acordeón bajo
+ * el bloque de marca. Fila final con créditos y redes. `--surface-bg` se
+ * declara para que el campo se pinte sobre el fondo oscuro.
  */
 async function SiteFooter() {
   const columns = buildFooterColumns(await getCategoryTree());
 
   return (
     <footer className="flex flex-col overflow-x-clip bg-foreground text-background [--surface-bg:var(--color-foreground)]">
-      <div className="order-4 mx-auto w-full max-w-shell px-4 pb-8 pt-4 md:px-8 lg:order-1 lg:pb-0 lg:pt-8 xl:px-12">
-        <FooterLogo />
-      </div>
+      <div className="mx-auto grid w-full max-w-shell gap-10 px-4 pb-10 pt-12 md:px-8 lg:grid-cols-12 lg:gap-16 lg:pb-16 lg:pt-16 xl:px-12">
+        <div className="flex flex-col items-center text-center lg:col-span-5">
+          <FooterLogo />
+          <p className="mt-2 max-w-sm text-subtitle text-background/80">Skincare y lifestyle con suscripción curada.</p>
+          <div className="mt-8 w-full max-w-md text-left">
+            <NewsletterForm tone="dark" />
+          </div>
+        </div>
 
-      <div className="order-2 lg:order-2">
-        <FooterAccordion columns={columns} />
-        <div className="mx-auto hidden max-w-shell grid-cols-4 gap-x-6 px-8 py-14 lg:grid xl:px-12">
+        <div className="hidden grid-cols-2 gap-x-8 gap-y-12 lg:col-span-7 lg:grid lg:pt-6 xl:pl-10">
           {columns.map((column) => (
             <FooterColumn key={column.title} column={column} tone="dark" />
           ))}
         </div>
       </div>
 
-      <div className="contents lg:order-3 lg:block lg:border-t lg:border-background/30">
-        <div className="contents lg:mx-auto lg:grid lg:max-w-shell lg:grid-cols-[minmax(0,1fr)_auto_auto] lg:items-end lg:gap-12 lg:px-8 lg:py-8 xl:px-12">
-          <div className="order-1 w-full max-w-xl px-4 pt-8 lg:order-none lg:max-w-xl lg:p-0">
-            <NewsletterForm tone="dark" />
-          </div>
-          <div className="order-5 px-4 pb-8 text-body-sm text-background/80 lg:order-none lg:p-0 lg:pb-7">
+      <FooterAccordion columns={columns} />
+
+      <div className="border-t border-background/30">
+        <div className="mx-auto flex w-full max-w-shell flex-col gap-3 px-4 py-6 md:px-8 lg:flex-row lg:items-center lg:justify-between xl:px-12">
+          <div className="text-body-sm text-background/80">
             <p>© 2026 Esencia Glow</p>
             <p className="mt-1">Desarrollado por Vidix Studio</p>
           </div>
-          <div className="order-3 px-3 lg:order-none lg:p-0 lg:pb-5">
+          <div className="-ml-3 lg:ml-0">
             <FooterSocial tone="dark" />
           </div>
         </div>

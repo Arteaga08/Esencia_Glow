@@ -18,9 +18,9 @@ function BrandLogo({ onNavigate }: { onNavigate?: () => void }) {
         alt=""
         width={1050}
         height={627}
-        sizes="140px"
+        sizes="112px"
         priority
-        className="h-14 w-auto xl:h-[4.25rem]"
+        className="h-12 w-auto xl:h-14"
       />
     </Link>
   );

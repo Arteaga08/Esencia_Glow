@@ -12,8 +12,8 @@ function FooterLogo() {
       alt=""
       width={1050}
       height={627}
-      sizes="(min-width: 1024px) 480px, 288px"
-      className="mx-auto block h-auto w-72 select-none lg:w-[30rem]"
+      sizes="(min-width: 1024px) 256px, 160px"
+      className="mx-auto block h-auto w-40 select-none lg:w-64"
     />
   );
 }
