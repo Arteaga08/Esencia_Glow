@@ -20,9 +20,12 @@ interface SavedCardProps {
 }
 
 function SavedCard({ item, removing, onRemove }: SavedCardProps) {
+  const isKit = item.itemType === "bundle";
+  const href = isKit ? `/kit/${item.slug}` : `/producto/${item.slug}`;
+
   return (
     <li className="flex flex-col rounded-md border border-border-strong bg-surface p-3">
-      <Link href={`/producto/${item.slug}`} className="block">
+      <Link href={href} className="block">
         <div className={`relative aspect-[4/5] overflow-hidden rounded-md bg-muted ${item.available ? "" : "opacity-60"}`}>
           {item.image ? (
             <Image src={item.image.url} alt="" fill sizes="(min-width: 1280px) 20vw, (min-width: 640px) 33vw, 50vw" className="object-cover" />
@@ -44,8 +47,8 @@ function SavedCard({ item, removing, onRemove }: SavedCardProps) {
           </p>
           {item.available ? null : <Badge color="warning">Sin existencias</Badge>}
         </div>
-        <Link href={`/producto/${item.slug}`} className={`${CTA_PRIMARY} mt-3 !h-11 w-full`}>
-          Ver producto
+        <Link href={href} className={`${CTA_PRIMARY} mt-3 !h-11 w-full`}>
+          {isKit ? "Ver kit" : "Ver producto"}
         </Link>
         <button type="button" onClick={onRemove} disabled={removing} className={`${ROW_ACTION} mt-1 gap-1.5 self-start`}>
           <Star size={16} weight="fill" aria-hidden="true" />
@@ -56,7 +59,7 @@ function SavedCard({ item, removing, onRemove }: SavedCardProps) {
   );
 }
 
-/** Guardados: tarjetas con foto, o estado vacío. Quitar es inmediato; se guarda desde la ficha de producto. */
+/** Guardados: tarjetas con foto, o estado vacío. Quitar es inmediato; se guarda desde la ficha de producto o de kit. */
 function SavedSection({ initial }: { initial: WishlistItem[] }) {
   const [items, setItems] = useState(initial);
   const [removingId, setRemovingId] = useState<string | null>(null);

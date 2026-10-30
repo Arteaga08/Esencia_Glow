@@ -73,7 +73,7 @@ function PurchasePanel({ product }: { product: ProductView }) {
         />
       ) : null}
 
-      <div className="flex gap-3">
+      <div className="flex flex-wrap justify-between gap-3 sm:flex-nowrap">
         <QuantityStepper
           size="lg"
           value={quantity}
@@ -90,9 +90,9 @@ function PurchasePanel({ product }: { product: ProductView }) {
           available={variant.available}
           ariaLabel={`Agregar ${quantity} ${product.name}, ${variant.label}`}
           size="lg"
-          className="flex-1"
+          className="order-last basis-full sm:order-none sm:flex-1 sm:basis-0"
         />
-        <SaveButton size="lg" productId={product.id} slug={product.slug} name={product.name} />
+        <SaveButton size="lg" itemId={product.id} slug={product.slug} name={product.name} />
       </div>
       {limitNotice ? <FieldError message={limitNotice} /> : null}
       {CHECKOUT_MODE === "whatsapp" ? <DeliveryInfo /> : null}

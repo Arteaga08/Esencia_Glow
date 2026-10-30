@@ -239,11 +239,12 @@ export type {
 export {
   MAX_ADDRESSES,
   MAX_WISHLIST_ITEMS,
+  WISHLIST_ITEM_TYPES,
   CFDI_USES,
   FISCAL_REGIMES,
   RFC_PATTERN,
 } from "./constants/account.js";
-export type { FiscalOption } from "./constants/account.js";
+export type { FiscalOption, WishlistItemType } from "./constants/account.js";
 export type {
   AccountProfile,
   SavedAddress,

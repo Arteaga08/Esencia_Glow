@@ -1,5 +1,5 @@
 import type { Types } from "mongoose";
-import type { AccountDto, BillingInfo, SavedAddress } from "@esencia-glow/shared";
+import type { AccountDto, BillingInfo, SavedAddress, WishlistItemType } from "@esencia-glow/shared";
 import type { MexicanState } from "@esencia-glow/shared";
 import type { BillingInfoAttrs } from "../models/user.model.js";
 import type { SavedAddressAttrs } from "../models/saved-address.schema.js";
@@ -19,7 +19,7 @@ interface LeanAccountUser {
   city?: string;
   addresses?: Array<SavedAddressAttrs & { _id: Types.ObjectId }>;
   billingInfo?: BillingInfoAttrs;
-  wishlist?: Array<{ itemId: Types.ObjectId }>;
+  wishlist?: Array<{ itemType: WishlistItemType; itemId: Types.ObjectId }>;
 }
 
 function buildSavedAddress(address: SavedAddressAttrs & { _id: Types.ObjectId }): SavedAddress {

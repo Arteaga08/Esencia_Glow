@@ -3,7 +3,7 @@
 import { Star } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import type { WishlistMembership } from "@esencia-glow/shared";
+import type { WishlistItemType, WishlistMembership } from "@esencia-glow/shared";
 import { ApiRequestError } from "@/lib/api";
 import { accountRequest } from "@/lib/storefront/account-api";
 import { classifyError } from "@/lib/storefront/auth-errors";
@@ -11,7 +11,9 @@ import { clearAnonymous, isKnownAnonymous, markAnonymous } from "@/lib/storefron
 import { FOCUS } from "./product-styles";
 
 interface SaveButtonProps {
-  productId: string;
+  /** Producto o kit; un producto por default. */
+  itemType?: WishlistItemType;
+  itemId: string;
   slug: string;
   name: string;
   /** `lg` acompaña al botón de agregar dominante (14). */
@@ -24,14 +26,17 @@ type SaveState = "unknown" | "unsaved" | "saved";
 // (estrella vacía / mandar a ingresar con regreso aquí), no `accountRequest`.
 const QUIET = { redirectOnFailure: false } as const;
 
+/** Ficha a la que regresa la clienta tras ingresar. */
+const DETAIL_PATH: Record<WishlistItemType, string> = { product: "/producto", bundle: "/kit" };
+
 /**
- * Estrella de "guardar" de la ficha de producto (Mi cuenta → Guardados). Sin
- * sesión no pide nada al API de entrada (ver `session-hint`). Con el access
- * token vencido refresca en silencio (`accountRequest`): solo si el refresco
- * también falla se marca anónima y, al tocarla, manda a ingresar con
- * `?redirect=` de regreso a este producto.
+ * Estrella de "guardar" de la ficha de producto o de kit (Mi cuenta →
+ * Guardados). Sin sesión no pide nada al API de entrada (ver `session-hint`).
+ * Con el access token vencido refresca en silencio (`accountRequest`): solo si
+ * el refresco también falla se marca anónima y, al tocarla, manda a ingresar
+ * con `?redirect=` de regreso a esta ficha.
  */
-function SaveButton({ productId, slug, name, size = "md" }: SaveButtonProps) {
+function SaveButton({ itemType = "product", itemId, slug, name, size = "md" }: SaveButtonProps) {
   const router = useRouter();
   const [state, setState] = useState<SaveState>("unknown");
   const [busy, setBusy] = useState(false);
@@ -43,7 +48,7 @@ function SaveButton({ productId, slug, name, size = "md" }: SaveButtonProps) {
     // Sin sesión ya conocida no se pregunta al API (ver `session-hint`).
     const lookup: Promise<SaveState> = isKnownAnonymous()
       ? Promise.resolve("unsaved")
-      : accountRequest<WishlistMembership>(`/api/v1/account/wishlist?itemId=${productId}`, QUIET)
+      : accountRequest<WishlistMembership>(`/api/v1/account/wishlist?itemType=${itemType}&itemId=${itemId}`, QUIET)
           .then((result): SaveState => {
             clearAnonymous();
             return result.data.saved ? "saved" : "unsaved";
@@ -60,10 +65,10 @@ function SaveButton({ productId, slug, name, size = "md" }: SaveButtonProps) {
     return () => {
       cancelled = true;
     };
-  }, [productId]);
+  }, [itemType, itemId]);
 
   function goToLogin() {
-    router.push(`/ingresar?redirect=${encodeURIComponent(`/producto/${slug}`)}`);
+    router.push(`/ingresar?redirect=${encodeURIComponent(`${DETAIL_PATH[itemType]}/${slug}`)}`);
   }
 
   async function handleClick() {
@@ -72,11 +77,11 @@ function SaveButton({ productId, slug, name, size = "md" }: SaveButtonProps) {
     setMessage("");
     try {
       if (state === "saved") {
-        await accountRequest(`/api/v1/account/wishlist/product/${productId}`, { method: "DELETE", ...QUIET });
+        await accountRequest(`/api/v1/account/wishlist/${itemType}/${itemId}`, { method: "DELETE", ...QUIET });
         setState("unsaved");
         setMessage("Quitado de guardados");
       } else {
-        await accountRequest("/api/v1/account/wishlist", { method: "POST", body: { itemType: "product", itemId: productId }, ...QUIET });
+        await accountRequest("/api/v1/account/wishlist", { method: "POST", body: { itemType, itemId }, ...QUIET });
         setState("saved");
         setMessage("Guardado en tu cuenta");
       }

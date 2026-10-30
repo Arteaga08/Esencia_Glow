@@ -1,5 +1,5 @@
 import Joi from "joi";
-import { CFDI_USES, FISCAL_REGIMES, RFC_PATTERN } from "@esencia-glow/shared";
+import { CFDI_USES, FISCAL_REGIMES, RFC_PATTERN, WISHLIST_ITEM_TYPES } from "@esencia-glow/shared";
 import { customerShippingAddressSchema } from "./shipping.validator.js";
 
 /**
@@ -88,15 +88,18 @@ const billingInfoSchema = Joi.object({
   postalCode: postalCode().required(),
 }).messages(MESSAGES);
 
+const wishlistItemType = Joi.string().valid(...WISHLIST_ITEM_TYPES);
+
 const addWishlistItemSchema = Joi.object({
-  itemType: Joi.string().valid("product").required(),
+  itemType: wishlistItemType.required(),
   itemId: objectId.required(),
 }).messages(MESSAGES);
 
-const wishlistQuerySchema = Joi.object({ itemId: objectId }).messages(MESSAGES);
+// Sin `itemType` se asume producto: así respondía antes de que existieran los kits guardados.
+const wishlistQuerySchema = Joi.object({ itemType: wishlistItemType.default("product"), itemId: objectId }).messages(MESSAGES);
 
 const wishlistParamSchema = Joi.object({
-  itemType: Joi.string().valid("product").required(),
+  itemType: wishlistItemType.required(),
   itemId: objectId.required(),
 });
 

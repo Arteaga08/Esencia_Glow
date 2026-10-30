@@ -1,6 +1,6 @@
 import bcrypt from "bcrypt";
 import { Schema, model, type HydratedDocument, type Model, type Types } from "mongoose";
-import { CFDI_USES, FISCAL_REGIMES, RFC_PATTERN, UserRole } from "@esencia-glow/shared";
+import { CFDI_USES, FISCAL_REGIMES, RFC_PATTERN, UserRole, WISHLIST_ITEM_TYPES, type WishlistItemType } from "@esencia-glow/shared";
 import { savedAddressSchema, type SavedAddressAttrs } from "./saved-address.schema.js";
 
 /**
@@ -46,7 +46,7 @@ interface BillingInfoAttrs {
 }
 
 interface WishlistEntryAttrs {
-  itemType: "product";
+  itemType: WishlistItemType;
   itemId: Types.ObjectId;
   addedAt: Date;
 }
@@ -114,7 +114,7 @@ const billingInfoSchema = new Schema<BillingInfoAttrs>(
 
 const wishlistEntrySchema = new Schema<WishlistEntryAttrs>(
   {
-    itemType: { type: String, enum: ["product"], required: true },
+    itemType: { type: String, enum: WISHLIST_ITEM_TYPES, required: true },
     itemId: { type: Schema.Types.ObjectId, required: true },
     addedAt: { type: Date, default: Date.now },
   },

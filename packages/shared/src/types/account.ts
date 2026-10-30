@@ -1,3 +1,4 @@
+import type { WishlistItemType } from "../constants/account.js";
 import type { PublicShippingAddress } from "./shipping.js";
 
 /**
@@ -39,24 +40,24 @@ interface AccountDto {
   wishlistCount: number;
 }
 
-/** Un guardado ya hidratado contra el catálogo vivo. */
+/** Un guardado ya hidratado contra el catálogo vivo: un producto o un kit. */
 interface WishlistItem {
-  itemType: "product";
+  itemType: WishlistItemType;
   itemId: string;
   slug: string;
   name: string;
   brand?: string;
   image?: { url: string; alt?: string };
-  /** Centavos del precio más bajo entre las variantes activas. */
+  /** Centavos del precio más bajo entre las variantes activas; en un kit, su precio. */
   priceCents: number;
   listPriceCents?: number;
-  /** Etiqueta de la variante más barata (p. ej. "30 ml"). */
+  /** Etiqueta de la variante más barata (p. ej. "30 ml"); en un kit, "N productos". */
   variantLabel?: string;
   available: boolean;
   addedAt: string;
 }
 
-/** Respuesta de `GET /account/wishlist?itemId=`: ¿está guardado este producto? */
+/** Respuesta de `GET /account/wishlist?itemType=&itemId=`: ¿está guardado este producto o kit? */
 interface WishlistMembership {
   saved: boolean;
 }

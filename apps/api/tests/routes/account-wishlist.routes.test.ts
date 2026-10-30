@@ -1,8 +1,9 @@
-import { ProductStatus } from "@esencia-glow/shared";
+import { BundleStatus, ProductStatus } from "@esencia-glow/shared";
 import { Types } from "mongoose";
 import request from "supertest";
 import { describe, expect, it, vi } from "vitest";
 import { buildApp } from "../../src/app.js";
+import { Bundle } from "../../src/models/bundle.model.js";
 import { Category } from "../../src/models/category.model.js";
 import { Inventory } from "../../src/models/inventory.model.js";
 import { Product } from "../../src/models/product.model.js";
@@ -38,6 +39,30 @@ async function seedProduct(opts: { status?: ProductStatus; onHand?: number } = {
   return product;
 }
 
+/** Kit de 3 unidades de un solo componente: con `onHand < 3` no se puede armar. Sin foto propia. */
+async function seedBundle(opts: { status?: BundleStatus; onHand?: number } = {}) {
+  const product = await seedProduct({ onHand: opts.onHand ?? 5 });
+  await Product.updateOne(
+    { _id: product._id },
+    {
+      $set: {
+        images: [
+          { url: "https://res.cloudinary.com/demo/image/upload/componente.jpg", publicId: "demo/componente", width: 800, height: 1000, format: "jpg", bytes: 1000 },
+        ],
+      },
+    },
+  );
+  return Bundle.create({
+    name: `Kit WL${counter}`,
+    slug: `kit-wl${counter}`,
+    description: "d",
+    price: 89900,
+    listPrice: 104700,
+    items: [{ productId: product._id, variantId: product.variants[0]!._id, quantity: 3 }],
+    status: opts.status ?? BundleStatus.ACTIVE,
+  });
+}
+
 async function storedWishlistLength(userId: string): Promise<number> {
   const { User } = await import("../../src/models/user.model.js");
   const user = await User.findById(userId).select("wishlist").lean<{ wishlist?: unknown[] }>();
@@ -46,6 +71,8 @@ async function storedWishlistLength(userId: string): Promise<number> {
 
 const add = (agent: ReturnType<typeof request.agent>, itemId: string) =>
   agent.post("/api/v1/account/wishlist").send({ itemType: "product", itemId });
+const addBundle = (agent: ReturnType<typeof request.agent>, itemId: string) =>
+  agent.post("/api/v1/account/wishlist").send({ itemType: "bundle", itemId });
 
 describe("routes/account/wishlist — guardados", () => {
   it("401 sin sesión", async () => {
@@ -188,9 +215,10 @@ describe("routes/account/wishlist — guardados", () => {
     expect((await add(agent, draft._id.toString())).status).toBe(404);
   });
 
-  it("400 con itemType distinto de product o id mal formado", async () => {
+  it("400 con itemType distinto de product/bundle o id mal formado", async () => {
     const { agent } = await createCustomerSession(app);
-    expect((await agent.post("/api/v1/account/wishlist").send({ itemType: "bundle", itemId: "64b000000000000000000000" })).status).toBe(400);
+    expect((await agent.post("/api/v1/account/wishlist").send({ itemType: "plan", itemId: "64b000000000000000000000" })).status).toBe(400);
+    expect((await agent.get("/api/v1/account/wishlist?itemType=plan&itemId=64b000000000000000000000")).status).toBe(400);
     expect((await add(agent, "nope")).status).toBe(400);
   });
 
@@ -211,5 +239,90 @@ describe("routes/account/wishlist — guardados", () => {
     const product = await seedProduct();
 
     expect((await add(agent, product._id.toString())).status).toBe(409);
+  });
+});
+
+describe("routes/account/wishlist — kits guardados", () => {
+  it("guarda un kit y lo hidrata con su precio, sus unidades y la foto de un componente", async () => {
+    const { agent } = await createCustomerSession(app);
+    const bundle = await seedBundle();
+    expect((await addBundle(agent, bundle._id.toString())).status).toBe(201);
+
+    const res = await agent.get("/api/v1/account/wishlist");
+    expect(res.body.data).toHaveLength(1);
+    expect(res.body.data[0]).toMatchObject({
+      itemType: "bundle",
+      itemId: bundle._id.toString(),
+      slug: bundle.slug,
+      name: bundle.name,
+      priceCents: 89900,
+      listPriceCents: 104700,
+      variantLabel: "3 productos",
+      available: true,
+      image: { url: "https://res.cloudinary.com/demo/image/upload/componente.jpg" },
+    });
+    expect((await agent.get("/api/v1/account")).body.data.wishlistCount).toBe(1);
+  });
+
+  it("GET ?itemType=bundle responde saved y no lo confunde con un producto", async () => {
+    const { agent } = await createCustomerSession(app);
+    const bundle = await seedBundle();
+    await addBundle(agent, bundle._id.toString());
+
+    expect((await agent.get(`/api/v1/account/wishlist?itemType=bundle&itemId=${bundle._id}`)).body.data).toEqual({ saved: true });
+    // Sin itemType se asume producto.
+    expect((await agent.get(`/api/v1/account/wishlist?itemId=${bundle._id}`)).body.data).toEqual({ saved: false });
+  });
+
+  it("quita un kit por su ruta de tipo bundle", async () => {
+    const { agent } = await createCustomerSession(app);
+    const bundle = await seedBundle();
+    await addBundle(agent, bundle._id.toString());
+
+    expect((await agent.delete(`/api/v1/account/wishlist/bundle/${bundle._id}`)).status).toBe(200);
+    expect((await agent.get("/api/v1/account/wishlist")).body.data).toHaveLength(0);
+  });
+
+  it("marca no disponible un kit con un componente sin stock", async () => {
+    const { agent } = await createCustomerSession(app);
+    const bundle = await seedBundle({ onHand: 1 });
+    await addBundle(agent, bundle._id.toString());
+
+    expect((await agent.get("/api/v1/account/wishlist")).body.data[0].available).toBe(false);
+  });
+
+  it("404 al guardar un kit en borrador o inexistente", async () => {
+    const { agent } = await createCustomerSession(app);
+    const draft = await seedBundle({ status: BundleStatus.DRAFT });
+
+    expect((await addBundle(agent, draft._id.toString())).status).toBe(404);
+    expect((await addBundle(agent, "64b000000000000000000000")).status).toBe(404);
+  });
+
+  it("oculta un kit despublicado sin borrar el guardado y poda uno que ya no existe", async () => {
+    const { agent, userId } = await createCustomerSession(app);
+    const hidden = await seedBundle();
+    const gone = await seedBundle();
+    await addBundle(agent, hidden._id.toString());
+    await addBundle(agent, gone._id.toString());
+
+    await Bundle.updateOne({ _id: hidden._id }, { $set: { status: BundleStatus.ARCHIVED } });
+    await Bundle.deleteOne({ _id: gone._id });
+
+    expect((await agent.get("/api/v1/account/wishlist")).body.data).toHaveLength(0);
+    expect((await agent.get("/api/v1/account")).body.data.wishlistCount).toBe(0);
+    await vi.waitFor(async () => expect(await storedWishlistLength(userId)).toBe(1));
+  });
+
+  it("lista productos y kits juntos, lo más reciente primero", async () => {
+    const { agent } = await createCustomerSession(app);
+    const product = await seedProduct();
+    const bundle = await seedBundle();
+    await add(agent, product._id.toString());
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    await addBundle(agent, bundle._id.toString());
+
+    const types = (await agent.get("/api/v1/account/wishlist")).body.data.map((item: { itemType: string }) => item.itemType);
+    expect(types).toEqual(["bundle", "product"]);
   });
 });

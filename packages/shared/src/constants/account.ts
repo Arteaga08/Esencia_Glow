@@ -7,6 +7,9 @@
 const MAX_ADDRESSES = 5;
 /** Guardados: tope por usuaria; se hidrata contra el catálogo vivo en cada lectura. */
 const MAX_WISHLIST_ITEMS = 50;
+/** Lo que se puede guardar: un producto o un kit (paquete). */
+const WISHLIST_ITEM_TYPES = ["product", "bundle"] as const;
+type WishlistItemType = (typeof WISHLIST_ITEM_TYPES)[number];
 
 interface FiscalOption {
   value: string;
@@ -30,5 +33,5 @@ const FISCAL_REGIMES: readonly FiscalOption[] = [
 /** RFC de persona física (13) o moral (12), en mayúsculas. */
 const RFC_PATTERN = /^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/;
 
-export { MAX_ADDRESSES, MAX_WISHLIST_ITEMS, CFDI_USES, FISCAL_REGIMES, RFC_PATTERN };
-export type { FiscalOption };
+export { MAX_ADDRESSES, MAX_WISHLIST_ITEMS, WISHLIST_ITEM_TYPES, CFDI_USES, FISCAL_REGIMES, RFC_PATTERN };
+export type { FiscalOption, WishlistItemType };

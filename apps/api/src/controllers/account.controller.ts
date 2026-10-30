@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import type { WishlistItemType } from "@esencia-glow/shared";
 import { asyncHandler } from "../utils/async-handler.js";
 import { sendResponse } from "../utils/send-response.js";
 import * as profileService from "../services/account-profile.service.js";
@@ -51,7 +52,8 @@ const deleteBillingInfo = asyncHandler(async (req: Request, res: Response) => {
 
 const listWishlist = asyncHandler(async (req: Request, res: Response) => {
   const itemId = req.query.itemId as string | undefined;
-  if (itemId) return sendResponse(res, 200, "OK", await wishlistService.isWishlisted(userId(req), "product", itemId));
+  const itemType = req.query.itemType as WishlistItemType;
+  if (itemId) return sendResponse(res, 200, "OK", await wishlistService.isWishlisted(userId(req), itemType, itemId));
   sendResponse(res, 200, "OK", await wishlistService.listWishlist(userId(req)));
 });
 
@@ -61,7 +63,7 @@ const addWishlistItem = asyncHandler(async (req: Request, res: Response) => {
 });
 
 const removeWishlistItem = asyncHandler(async (req: Request, res: Response) => {
-  await wishlistService.removeWishlistItem(userId(req), req.params.itemType as "product", req.params.itemId as string);
+  await wishlistService.removeWishlistItem(userId(req), req.params.itemType as WishlistItemType, req.params.itemId as string);
   sendResponse(res, 200, "Quitado de guardados.", null);
 });
 
