@@ -11,6 +11,7 @@ import "dotenv/config";
  */
 
 type NodeEnv = "development" | "production" | "test";
+type CheckoutMode = "stripe" | "whatsapp";
 
 const MIN_SECRET_LENGTH = 32;
 
@@ -46,6 +47,19 @@ function requireInProduction(key: string, nodeEnv: NodeEnv): string | undefined 
     throw new Error(`Falta la variable de entorno requerida en producción: ${key}`);
   }
   return value;
+}
+
+/**
+ * `CHECKOUT_MODE`: cómo se cierra una compra (mismo criterio que
+ * `NEXT_PUBLIC_CHECKOUT_MODE` del web). Default `stripe` para que olvidar la
+ * variable nunca relaje en silencio lo que se exige en producción; un valor
+ * desconocido no arranca el server.
+ */
+function readCheckoutMode(): CheckoutMode {
+  const raw = process.env.CHECKOUT_MODE;
+  if (raw === undefined || raw.trim().length === 0) return "stripe";
+  if (raw === "stripe" || raw === "whatsapp") return raw;
+  throw new Error(`CHECKOUT_MODE inválido: "${raw}". Debe ser stripe o whatsapp.`);
 }
 
 /** `INTERNAL_API_TOKEN`: opcional fuera de producción, secreto largo en producción. */
@@ -104,6 +118,10 @@ function readAuditIpHmacKey(nodeEnv: NodeEnv): string {
 
 function buildEnv() {
   const nodeEnv = readNodeEnv();
+  const checkoutMode = readCheckoutMode();
+  // En modo `whatsapp` no hay cobro en línea: Stripe queda opcional incluso en
+  // producción, y sin llaves los pagos y el webhook responden 503 como en dev.
+  const stripeEnv: NodeEnv = checkoutMode === "stripe" ? nodeEnv : "development";
 
   const port = Number(process.env.PORT ?? 4000);
   if (Number.isNaN(port) || port <= 0) {
@@ -141,8 +159,10 @@ function buildEnv() {
     // Integraciones de las que depende un flujo de negocio central (pagos,
     // correo transaccional del flujo de auth): requeridas en producción,
     // opcionales en dev — su ausencia en dev responde 503, nunca finge éxito.
-    stripeSecretKey: requireInProduction("STRIPE_SECRET_KEY", nodeEnv),
-    stripeWebhookSecret: requireInProduction("STRIPE_WEBHOOK_SECRET", nodeEnv),
+    // Stripe solo se exige en producción con `CHECKOUT_MODE=stripe`.
+    checkoutMode,
+    stripeSecretKey: requireInProduction("STRIPE_SECRET_KEY", stripeEnv),
+    stripeWebhookSecret: requireInProduction("STRIPE_WEBHOOK_SECRET", stripeEnv),
     resendApiKey: requireInProduction("RESEND_API_KEY", nodeEnv),
     // Remitente de correo transaccional. En dev, sin dominio verificado en
     // Resend, se usa el remitente sandbox que Resend permite sin configurar.

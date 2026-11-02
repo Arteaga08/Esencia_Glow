@@ -45,8 +45,9 @@ ignora cualquier `.env`/`.env.*` real y re-permite explícitamente los `.example
 | `MONGODB_URI` | Fail-fast, siempre | Atlas SRV (`mongodb+srv://…`). Debe incluir el **nombre de base explícito** en el path (`/esencia_glow_dev`), antes del `?` |
 | `CLIENT_URL` | Fail-fast en producción | Whitelist de CORS/CSRF. Default `localhost:3000` (tienda) en dev; el panel se sirve bajo `/admin` del mismo origen |
 | `COOKIE_DOMAIN` | Opcional, siempre | Milestone 2.1: alcance de dominio de las cookies de sesión. Sin ella, host-only (alcanza en dev, front y API comparten `localhost`); en producción, con front en `www.<dominio>` y API en `api.<dominio>`, hace falta `.<dominio>` para que el guard de sesión server-side del dashboard reciba la cookie. No debilita `sameSite: "strict"` (mismo sitio registrable) |
-| `STRIPE_SECRET_KEY` | Fail-fast en producción | Requerida para el flujo de pagos (Milestone 1.6) |
-| `STRIPE_WEBHOOK_SECRET` | Fail-fast en producción | Verificación de firma del webhook de Stripe |
+| `CHECKOUT_MODE` | Con default, fail-fast si es inválida | `stripe` (default) o `whatsapp`, mismo valor que `NEXT_PUBLIC_CHECKOUT_MODE` del web. En `whatsapp` las llaves de Stripe dejan de ser obligatorias en producción y, sin ellas, los pagos y el webhook responden `503` |
+| `STRIPE_SECRET_KEY` | Fail-fast en producción con `CHECKOUT_MODE=stripe` | Requerida para el flujo de pagos (Milestone 1.6) |
+| `STRIPE_WEBHOOK_SECRET` | Fail-fast en producción con `CHECKOUT_MODE=stripe` | Verificación de firma del webhook de Stripe |
 | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Solo `apps/web` | Milestone 3.4b: llave **publicable** de Stripe (`pk_…`), la única que puede estar en el navegador. Va en `apps/web/.env.local`, no en la API. Se ignora cualquier valor que no empiece con `pk_` (una `sk_` pegada por error no se usa). Sin ella el checkout dice que los pagos con tarjeta no están disponibles, sin tumbar la tienda |
 | `NEXT_PUBLIC_CHECKOUT_MODE` | Solo `apps/web` | Cómo se cierra una compra: `whatsapp` (default) o `stripe`. En `whatsapp` no hay cobro en línea: la clienta elige entrega (recoger gratis, domicilio local $50 o envío nacional por acordar) y el pedido viaja como mensaje de WhatsApp a la dueña, sin crear pedido ni apartar inventario. En `stripe` vuelve el checkout con tarjeta y cotización de Skydropx (requiere las llaves de Stripe y el API con proveedor real). Cualquier otro valor cae en `whatsapp`. El número de WhatsApp vive en `apps/web/src/lib/storefront/contact.ts` (hoy provisional) |
 | `STRIPE_WEBHOOK_TOLERANCE_SECONDS` | Con default, fail-fast si es inválida | Tolerancia de timestamp del webhook (anti-replay). Default `300` (5 min). Debe ser un entero positivo — `0` o negativo no arranca el server |
@@ -873,8 +874,8 @@ veces por hábito resetee en silencio la contraseña del admin real). Pasos:
 - **Skydropx (Milestone 1.9b)**: sigue bloqueado (faltan datos fiscales de Manuel). Las rutas de
   cotización/guía que lo necesitan responden `503` en producción hasta que se resuelva — no es un
   bug, es el estado esperado mientras 1.9b no esté implementado.
-- **Sentry**: `SENTRY_DSN` se lee en `config/env.ts` pero el paquete de Sentry **no está
-  instalado** — dejar la variable vacía. Instalarlo es trabajo de otra sesión, no de este runbook.
+- **Sentry**: el API ya trae `@sentry/node` (`apps/api/src/config/sentry.ts`); se activa al
+  poner `SENTRY_DSN` en Railway, y sin ella no manda nada. El web (`apps/web`) todavía no tiene Sentry.
 
 ### 8. Verificación post-deploy
 

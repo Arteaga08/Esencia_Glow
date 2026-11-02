@@ -89,7 +89,7 @@ describe("config/env — tolerancia del webhook y umbral de reconciliación", ()
       importEnvWith({
         NODE_ENV: "production",
         TRUST_PROXY_HOPS: undefined,
-        CLIENT_URL: "https://www.esenciaglow.com",
+        CLIENT_URL: "https://www.esenciaglow.com.mx",
         STRIPE_SECRET_KEY: "sk_test_x",
         STRIPE_WEBHOOK_SECRET: "whsec_x",
         RESEND_API_KEY: "re_x",
@@ -104,7 +104,7 @@ describe("config/env — tolerancia del webhook y umbral de reconciliación", ()
     const { env } = await importEnvWith({
       NODE_ENV: "production",
       TRUST_PROXY_HOPS: "2",
-      CLIENT_URL: "https://www.esenciaglow.com",
+      CLIENT_URL: "https://www.esenciaglow.com.mx",
       STRIPE_SECRET_KEY: "sk_test_x",
       STRIPE_WEBHOOK_SECRET: "whsec_x",
       RESEND_API_KEY: "re_x",
@@ -154,7 +154,7 @@ describe("config/env — INTERNAL_API_TOKEN", () => {
   const productionBase = {
     NODE_ENV: "production",
     TRUST_PROXY_HOPS: "2",
-    CLIENT_URL: "https://www.esenciaglow.com",
+    CLIENT_URL: "https://www.esenciaglow.com.mx",
     STRIPE_SECRET_KEY: "sk_test_x",
     STRIPE_WEBHOOK_SECRET: "whsec_x",
     RESEND_API_KEY: "re_x",
@@ -192,7 +192,7 @@ describe("config/env — AUDIT_IP_HMAC_KEY", () => {
   const productionBase = {
     NODE_ENV: "production",
     TRUST_PROXY_HOPS: "2",
-    CLIENT_URL: "https://www.esenciaglow.com",
+    CLIENT_URL: "https://www.esenciaglow.com.mx",
     STRIPE_SECRET_KEY: "sk_test_x",
     STRIPE_WEBHOOK_SECRET: "whsec_x",
     RESEND_API_KEY: "re_x",
@@ -219,5 +219,47 @@ describe("config/env — AUDIT_IP_HMAC_KEY", () => {
     const key = "k".repeat(40);
     const { env } = await importEnvWith({ ...productionBase, AUDIT_IP_HMAC_KEY: key });
     expect(env.auditIpHmacKey).toBe(key);
+  });
+});
+
+describe("config/env — CHECKOUT_MODE", () => {
+  afterEach(() => {
+    vi.resetModules();
+  });
+
+  const productionWithoutStripe = {
+    NODE_ENV: "production",
+    TRUST_PROXY_HOPS: "2",
+    CLIENT_URL: "https://www.esenciaglow.com.mx",
+    STRIPE_SECRET_KEY: undefined,
+    STRIPE_WEBHOOK_SECRET: undefined,
+    RESEND_API_KEY: "re_x",
+    INTERNAL_API_TOKEN: "t".repeat(40),
+    AUDIT_IP_HMAC_KEY: "a".repeat(40),
+    CLOUDINARY_CLOUD_NAME: "cloud",
+    CLOUDINARY_API_KEY: "key",
+    CLOUDINARY_API_SECRET: "secret",
+  };
+
+  it("ausente -> stripe (olvidarla nunca relaja lo que exige producción)", async () => {
+    const { env } = await importEnvWith({ CHECKOUT_MODE: undefined });
+    expect(env.checkoutMode).toBe("stripe");
+  });
+
+  it("'oxxo' -> lanza (valor desconocido)", async () => {
+    await expect(importEnvWith({ CHECKOUT_MODE: "oxxo" })).rejects.toThrow();
+  });
+
+  it("ausente en producción sin llaves de Stripe -> lanza", async () => {
+    await expect(importEnvWith({ ...productionWithoutStripe, CHECKOUT_MODE: undefined })).rejects.toThrow(
+      /STRIPE_SECRET_KEY/,
+    );
+  });
+
+  it("'whatsapp' en producción sin llaves de Stripe -> arranca con Stripe sin configurar", async () => {
+    const { env } = await importEnvWith({ ...productionWithoutStripe, CHECKOUT_MODE: "whatsapp" });
+    expect(env.checkoutMode).toBe("whatsapp");
+    expect(env.stripeSecretKey).toBeUndefined();
+    expect(env.stripeWebhookSecret).toBeUndefined();
   });
 });
