@@ -14,7 +14,7 @@ async function importRateLimitInProduction(): Promise<typeof RateLimitModule> {
   const previous: Record<string, string | undefined> = {};
   const overrides: Record<string, string> = {
     NODE_ENV: "production",
-    CLIENT_URL: "https://www.esenciaglow.com",
+    CLIENT_URL: "https://www.esenciaglow.com.mx",
     STRIPE_SECRET_KEY: "sk_test_x",
     STRIPE_WEBHOOK_SECRET: "whsec_x",
     RESEND_API_KEY: "re_x",
