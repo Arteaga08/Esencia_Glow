@@ -2,16 +2,18 @@
 # y puede arrastrar binarios nativos compilados para el host equivocado.
 **/node_modules
 **/dist
+**/.next
 **/coverage
 **/.turbo
 **/*.tsbuildinfo
 
 # Secretos: nunca deben hornearse en la imagen. Los .example son solo
 # referencia (sin valores reales) y sí pueden ir, pero no hace falta que
-# vayan — el Dockerfile no los usa.
-.env
-.env.*
-*.env
+# vayan — ningún Dockerfile los usa. Con `**/` también se excluyen los de
+# apps/api y apps/web (el patrón sin prefijo solo cubría la raíz).
+**/.env
+**/.env.*
+**/*.env
 
 # Tests, no aportan nada a la imagen de producción.
 **/tests
@@ -30,5 +32,5 @@
 
 # Documentación y artefactos de despliegue que no debe ver el build.
 README.md
-Dockerfile
+**/Dockerfile
 .dockerignore
