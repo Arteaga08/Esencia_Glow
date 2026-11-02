@@ -40,12 +40,13 @@ const STATIC_COLUMNS: FooterColumn[] = [
       { label: "Política de cookies", href: "/cookies" },
     ],
   },
+  // Mientras la suscripción no se venda, los tres enlaces llevan a la página de "Próximamente".
   {
     title: "Suscripción",
     links: [
       { label: "Cómo funciona", href: "/suscripcion" },
-      { label: "Planes", href: "/suscripcion#planes" },
-      { label: "Mi suscripción", href: "/mi-cuenta/suscripcion" },
+      { label: "Planes", href: "/suscripcion" },
+      { label: "Mi suscripción", href: "/suscripcion" },
     ],
   },
 ];

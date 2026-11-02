@@ -4,14 +4,12 @@ import { FooterAccordion } from "./footer-accordion";
 import { FooterColumn } from "./footer-column";
 import { FooterLogo } from "./footer-logo";
 import { FooterSocial } from "./footer-social";
-import { NewsletterForm } from "./newsletter-form";
 
 /**
  * Footer del storefront (bloque 10 del home). Tinta. Dos zonas: a la izquierda
- * el logo centrado con su frase y el correo; a la derecha las cuatro columnas
- * en rejilla de 2x2 (desde `lg`). En móvil las columnas pasan a acordeón bajo
- * el bloque de marca. Fila final con créditos y redes. `--surface-bg` se
- * declara para que el campo se pinte sobre el fondo oscuro.
+ * el logo centrado con su frase; a la derecha las cuatro columnas en rejilla
+ * de 2x2 (desde `lg`). En móvil las columnas pasan a acordeón bajo el bloque
+ * de marca. Fila final con créditos y redes. Sin boletín: no se va a usar.
  */
 async function SiteFooter() {
   const columns = buildFooterColumns(await getCategoryTree());
@@ -22,9 +20,6 @@ async function SiteFooter() {
         <div className="flex flex-col items-center text-center lg:col-span-5">
           <FooterLogo />
           <p className="mt-2 max-w-sm text-subtitle text-background/80">Skincare y lifestyle con suscripción curada.</p>
-          <div className="mt-8 w-full max-w-md text-left">
-            <NewsletterForm tone="dark" />
-          </div>
         </div>
 
         <div className="hidden grid-cols-2 gap-x-8 gap-y-12 lg:col-span-7 lg:grid lg:pt-6 xl:pl-10">

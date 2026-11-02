@@ -19,7 +19,7 @@ function FooterAccordion({ columns }: { columns: FooterColumn[] }) {
           </summary>
           <ul className="flex flex-col px-4 pb-4">
             {column.links.map((link) => (
-              <li key={link.href}>
+              <li key={link.label}>
                 <Link
                   href={link.href}
                   className="inline-flex min-h-11 items-center type-shop-cta text-background/80 underline-offset-4 hover:text-background hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"

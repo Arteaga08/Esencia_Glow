@@ -1,15 +1,10 @@
-import type { MySubscription } from "@esencia-glow/shared";
-import { LoadFailure } from "@/components/storefront/account/shared/load-failure";
-import { SectionTitle } from "@/components/storefront/account/shared/section-title";
-import { SubscriptionSection } from "@/components/storefront/account/sections/subscription-section";
-import { fetchAccountData } from "@/lib/storefront/account-server";
+import { redirect } from "next/navigation";
 
-export default async function SubscriptionPage() {
-  const result = await fetchAccountData<{ subscription: MySubscription | null }>("/api/v1/subscriptions/me");
-  return (
-    <>
-      <SectionTitle>Mi suscripción</SectionTitle>
-      {result.status === "ok" ? <SubscriptionSection initial={result.data.subscription} /> : <LoadFailure status={result.status} what="tu suscripción" />}
-    </>
-  );
+/**
+ * Mientras la suscripción no se venda, "Mi suscripción" lleva a la página de
+ * "Próximamente". Para reactivarla, volver a pintar aquí `SubscriptionSection`
+ * con `fetchAccountData("/api/v1/subscriptions/me")`, como antes de este cambio.
+ */
+export default function SubscriptionPage() {
+  redirect("/suscripcion");
 }
