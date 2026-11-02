@@ -774,8 +774,9 @@ distribuido.
 
 ## Runbook de deploy (Milestone 1.10 — Railway + Atlas + Cloudflare)
 
-Stack de hosting decidido con Manuel: **Railway** (API, una sola instancia), **MongoDB Atlas**
-(BD) y **Cloudflare** (dominio + Pages para el front, cuando exista). CI en GitHub Actions
+Stack de hosting decidido con Manuel: **Railway** (dos servicios, `api` y `web`, una sola instancia
+cada uno), **MongoDB Atlas** (BD) y **Cloudflare** (dominio y DNS; el front ya no va en Pages: es
+SSR con `cookies()` y Workers/OpenNext no funcionó con Next 16). CI en GitHub Actions
 (`.github/workflows/ci.yml`) corre `pnpm verify` + `pnpm audit --prod --audit-level high` en cada
 PR y push a `main`; Railway espera a que ese workflow esté en verde antes de desplegar.
 
@@ -792,39 +793,58 @@ PR y push a `main`; Railway espera a que ese workflow esté en verde antes de de
 - `MONGODB_URI` final: `mongodb+srv://<usuario>:<password-url-encoded>@<cluster>.xxxxx.mongodb.net/esencia_glow?retryWrites=true&w=majority`
   — el nombre de la base va explícito en el path, antes del `?` (ver tabla de variables arriba).
 
-### 2. Railway — configuración del servicio (dashboard, sin `railway.json`)
+### 2. Railway — configuración de los servicios (dashboard, sin `railway.json`)
 
 La configuración vive en el dashboard de Railway, no en un archivo del repo: la doc oficial de
 Railway deprecó "Config as Code" (`railway.json`/`railway.toml`) a favor de su nueva
 Infrastructure as Code (`.railway/railway.ts`), con los archivos viejos dejando de funcionar el
 **2026-12-01**. Su sucesor no documenta (a la fecha de este runbook) cómo apuntar a un Dockerfile
-ni la política de reinicio, así que escribirlo habría sido inventar API. Configurar a mano:
+ni la política de reinicio, así que escribirlo habría sido inventar API. Configurar a mano.
+
+Los dos servicios salen del mismo repo y se construyen con la **raíz como contexto**; cada uno
+apunta a su Dockerfile con la variable `RAILWAY_DOCKERFILE_PATH`.
+
+**Servicio `api`:**
 
 | Ajuste | Valor |
 |---|---|
-| Builder | Dockerfile (el `Dockerfile` de la raíz del repo) |
+| Builder | Dockerfile, con la variable `RAILWAY_DOCKERFILE_PATH=apps/api/Dockerfile` |
 | Pre-deploy command | `node dist/scripts/sync-indexes.js` — la imagen final no trae pnpm instalado (solo runtime de Node), así que se invoca el script compilado directo, no vía `pnpm run` — ver §5 |
 | Healthcheck path | `/api/v1/health/ready` |
 | Restart policy | On failure |
 | Réplicas | **1** (ver la nota de Redis más abajo antes de subir este número) |
-| Variables | Todas las de `apps/api/.env.production.example`, con valores reales — nunca copiar ese archivo tal cual, es solo la lista de nombres |
+| Variables | Todas las de `apps/api/.env.production.example`, con valores reales — nunca copiar ese archivo tal cual, es solo la lista de nombres. Incluye `INTERNAL_API_TOKEN` (el mismo valor que en `web`) |
+
+**Servicio `web`** (`apps/web`: tienda y panel `/admin` en un solo servicio Next):
+
+| Ajuste | Valor |
+|---|---|
+| Builder | Dockerfile, con la variable `RAILWAY_DOCKERFILE_PATH=apps/web/Dockerfile` |
+| Healthcheck path | `/api/health` (liveness pura: no llama a la API, así el web no se reinicia en cadena si la API se reinicia) |
+| Restart policy | On failure |
+| Réplicas | **1** |
+| Variables **de build** | `NEXT_PUBLIC_API_URL=https://api.<dominio>`, `NEXT_PUBLIC_CHECKOUT_MODE` (`whatsapp` o `stripe`), `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` (solo con `stripe`; la `pk_`, nunca la `sk_`) y `CLOUDINARY_CLOUD_NAME` (mismo valor que en la API). Next las fija al compilar: cambiar una exige **redesplegar** y el `ARG` correspondiente del Dockerfile |
+| Variables **de ejecución** | `INTERNAL_API_TOKEN` (32+ caracteres, idéntico al de la API) y `TRUST_PROXY_HOPS` (≥ 1, ver §4). Sin ellas el servidor no arranca (`instrumentation.ts`) |
 
 ### 3. Cloudflare — dominio y DNS
 
-- Dominio comprado en Cloudflare. `www.<dominio>` → el front (`apps/web`: tienda y panel `/admin`
-  en **un solo servicio**, no existe todavía; ver la nota de runtime abajo). `api.<dominio>` → CNAME al dominio de Railway, en modo **DNS-only (nube gris,
-  no naranja)** — con el proxy de Cloudflare activado ahí se suma un salto extra delante de la API
-  que `TRUST_PROXY_HOPS` no esperaría, y el rate limiting por IP se rompe.
+- Dominio comprado en Cloudflare. `www.<dominio>` → CNAME al dominio de Railway del servicio
+  `web`, con **proxy activado (nube naranja)**: Cloudflare cachea los estáticos y filtra tráfico
+  delante del front. `api.<dominio>` → CNAME al dominio de Railway del servicio `api`, en modo
+  **DNS-only (nube gris, no naranja)** — con el proxy de Cloudflare activado ahí se suma un salto
+  extra delante de la API que `TRUST_PROXY_HOPS` no esperaría, y el rate limiting por IP se rompe.
+- **Rate limit en Cloudflare para el web:** regla sobre `/api/storefront/*` y `/categoria`
+  (búsqueda y filtros, las rutas que más trabajo le piden al API).
 - **Por qué front y API van en el mismo dominio registrable:** la cookie de sesión es
   `SameSite=strict` (`BACKEND_SECURITY_GUIDELINES.md`). Con el front en `*.pages.dev` y la API en
   `*.up.railway.app` (dominios registrables distintos) el navegador nunca manda la cookie en las
   peticiones del front a la API y el login no funciona. `www.<dominio>` + `api.<dominio>` comparten
   dominio registrable (`<dominio>`) y sí funcionan.
-- `CLIENT_URL=https://www.<dominio>` en las variables de Railway.
+- `CLIENT_URL=https://www.<dominio>` y `COOKIE_DOMAIN=.<dominio>` en las variables del servicio `api`.
 
 ### 4. Confirmar `TRUST_PROXY_HOPS` tras el primer deploy
 
-`.env.production.example` propone `2` (Railway + Cloudflare DNS-only en `api.` sigue sumando su
+**API.** `.env.production.example` propone `2` (Railway + Cloudflare DNS-only en `api.` sigue sumando su
 propio salto interno) pero es una estimación, no un valor verificado. Después del primer deploy:
 
 1. Hacer una petición real a `api.<dominio>`.
@@ -834,10 +854,15 @@ propio salto interno) pero es una estimación, no un valor verificado. Después 
    `TRUST_PROXY_HOPS` y redesplegar — un valor de más deja los rate limiters por IP falsificables
    (cualquiera puede inyectar un `X-Forwarded-For` falso en el salto que sobra).
 
+**Web.** Mismo procedimiento con el `TRUST_PROXY_HOPS` del servicio `web` (de ahí toma la IP del
+visitante, `apps/web/src/lib/visitor-ip.ts`). Con Cloudflare en nube naranja delante de Railway se
+espera `2`, pero es una estimación: compararlo contra la IP real registrando `x-forwarded-for`.
+
 ### 5. Orden del deploy
 
 1. CI (`pnpm verify` + `pnpm audit --prod --audit-level high`) en verde sobre el commit a desplegar.
-2. Railway construye la imagen (`Dockerfile` de la raíz).
+2. Railway construye las imágenes (`apps/api/Dockerfile` y `apps/web/Dockerfile`). Desplegar
+   **primero la API** y, cuando esté sana, el `web`: el front necesita al API para renderizar.
 3. **Pre-deploy**: corre el script de índices (`apps/api/src/scripts/sync-indexes.ts`,
    `createIndexes()` por modelo — solo agrega, nunca borra; `diffIndexes()` reporta sobrantes, que
    se borran solo con `--prune` explícito, corrido a mano y nunca en el pre-deploy automático).
@@ -1024,8 +1049,8 @@ pnpm dev        # API (:4000) + web (:3000: tienda en `/`, panel en `/admin`) ju
 ```
 
 Nota de despliegue: el front es un solo servicio Next con SSR y `cookies()`, así que necesita un
-runtime de servidor (un host Node como Railway, u OpenNext sobre Workers de Cloudflare); Cloudflare
-Pages estático no alcanza. Está por decidirse al desplegar el front.
+runtime de servidor. Va en Railway como servicio `web`, en un contenedor Node
+(`apps/web/Dockerfile`, salida `standalone`); ver el runbook de deploy.
 
 `pnpm dev:api` / `pnpm dev:web` siguen disponibles por separado (dos terminales) cuando conviene ver
 los logs de cada uno sin el prefijo `[api]`/`[web]` de `concurrently`. Requiere un admin sembrado

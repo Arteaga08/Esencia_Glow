@@ -1,7 +1,14 @@
+import { fileURLToPath } from "node:url";
 import type { NextConfig } from "next";
 import { buildCloudinaryRemotePattern } from "./src/lib/cloudinary-image-pattern";
 
 const nextConfig: NextConfig = {
+  // Salida mínima para la imagen de Docker (apps/web/Dockerfile): `.next/standalone`
+  // trae solo los archivos que el servidor realmente usa, sin el node_modules
+  // completo. La raíz del trazado es la del monorepo (dos niveles arriba) para que
+  // entren `packages/shared` y el node_modules de pnpm, que viven fuera de apps/web.
+  output: "standalone",
+  outputFileTracingRoot: fileURLToPath(new URL("../..", import.meta.url)),
   // El panel vive físicamente bajo src/app/admin (rutas /admin/...), sin
   // basePath. El panel nunca se indexa (ver metadata de robots en el layout
   // admin); esto es solo la config del framework, no reemplaza esa metadata.
