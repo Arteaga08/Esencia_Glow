@@ -89,7 +89,7 @@ function Overview(props: OverviewProps) {
             <>
               <p className="mt-4 text-section-title text-foreground">Aún no tienes una caja</p>
               <p className="mt-1 max-w-[44ch] text-body text-foreground/80">Cada mes elegimos una caja de skincare para ti y te la enviamos a casa.</p>
-              <Link href="/" className={`${CTA_SECONDARY} mt-6 self-start`}>
+              <Link href="/suscripcion" className={`${CTA_SECONDARY} mt-6 self-start`}>
                 Conocer la suscripción
               </Link>
             </>

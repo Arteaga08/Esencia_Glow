@@ -15,7 +15,7 @@ function FooterColumn({ column, tone = "light" }: { column: FooterColumnData; to
       <h3 className={`text-section-title ${titleColor}`}>{column.title}</h3>
       <ul className="mt-4 flex flex-col">
         {column.links.map((link) => (
-          <li key={link.href}>
+          <li key={link.label}>
             <Link
               href={link.href}
               className={`inline-flex min-h-9 items-center type-shop-cta underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring motion-reduce:transition-none ${linkColor}`}

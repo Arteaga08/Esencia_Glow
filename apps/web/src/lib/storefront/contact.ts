@@ -16,7 +16,14 @@ function buildWhatsappHref(number: string, message: string): string {
   return `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
 }
 
+/** "526623298458" → "662 329 8458": el número como se lee en los textos. */
+function formatWhatsappNumber(number: string): string {
+  const local = number.slice(-10);
+  return `${local.slice(0, 3)} ${local.slice(3, 6)} ${local.slice(6)}`;
+}
+
 const STORE_WHATSAPP_HREF = buildWhatsappHref(STORE_WHATSAPP_NUMBER, STORE_WHATSAPP_MESSAGE);
+const STORE_WHATSAPP_DISPLAY = formatWhatsappNumber(STORE_WHATSAPP_NUMBER);
 const ADVICE_WHATSAPP_HREF = buildWhatsappHref(ADVICE_WHATSAPP_NUMBER, ADVICE_WHATSAPP_MESSAGE);
 
 /** WhatsApp de la tienda con un mensaje ya escrito (el pedido de la clienta). */
@@ -24,4 +31,4 @@ function whatsappHref(message: string): string {
   return buildWhatsappHref(STORE_WHATSAPP_NUMBER, message);
 }
 
-export { STORE_WHATSAPP_HREF, ADVICE_WHATSAPP_HREF, whatsappHref };
+export { STORE_WHATSAPP_HREF, STORE_WHATSAPP_DISPLAY, ADVICE_WHATSAPP_HREF, whatsappHref };
