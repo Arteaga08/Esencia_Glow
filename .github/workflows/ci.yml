@@ -54,6 +54,9 @@ jobs:
           # `next build` también aborta sin la URL del API (apps/web/src/lib/config.ts).
           # En CI nadie la llama: basta un valor público de ejemplo.
           NEXT_PUBLIC_API_URL: http://localhost:4000
+          # Fail-fast de contact.ts: sin los dos números, `next build` aborta. Valores de ejemplo.
+          NEXT_PUBLIC_STORE_WHATSAPP: "526620000000"
+          NEXT_PUBLIC_ADVICE_WHATSAPP: "526620000000"
 
       - name: Auditoría de dependencias de producción
         run: pnpm audit --prod --audit-level high
