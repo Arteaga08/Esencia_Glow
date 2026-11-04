@@ -40,7 +40,7 @@ RUN pnpm --filter @esencia-glow/shared build && pnpm --filter @esencia-glow/web 
 # --- runtime: imagen final, mínima -----------------------------------------
 # `output: "standalone"` deja en .next/standalone el servidor ya trazado, con la
 # misma estructura del monorepo (apps/web/server.js). Next no copia `.next/static`
-# ahí; se agrega a mano. No existe apps/web/public.
+# ahí; se agrega a mano, igual que `public/` (logo en /brand/logo.png).
 FROM node:22-bookworm-slim AS runtime
 ENV NODE_ENV=production
 # Escuchar en todas las interfaces (el default solo atiende al contenedor mismo);
@@ -49,6 +49,7 @@ ENV HOSTNAME=0.0.0.0
 WORKDIR /app
 COPY --from=build --chown=node:node /app/apps/web/.next/standalone ./
 COPY --from=build --chown=node:node /app/apps/web/.next/static ./apps/web/.next/static
+COPY --from=build --chown=node:node /app/apps/web/public ./apps/web/public
 # Usuario sin privilegios — la imagen base ya trae el usuario "node".
 USER node
 EXPOSE 3000
