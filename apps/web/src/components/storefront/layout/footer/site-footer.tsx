@@ -7,8 +7,8 @@ import { FooterSocial } from "./footer-social";
 
 /**
  * Footer del storefront (bloque 10 del home). Tinta. Dos zonas: a la izquierda
- * el logo centrado con su frase; a la derecha las cuatro columnas en rejilla
- * de 2x2 (desde `lg`). En móvil las columnas pasan a acordeón bajo el bloque
+ * el logo centrado con su frase; a la derecha las tres columnas en rejilla
+ * de dos (desde `lg`). En móvil las columnas pasan a acordeón bajo el bloque
  * de marca. Fila final con créditos y redes. Sin boletín: no se va a usar.
  */
 async function SiteFooter() {

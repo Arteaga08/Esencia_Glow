@@ -82,6 +82,17 @@ describe("routes/products — marcas Más vendido y Novedad", () => {
     expect(all.body.data.brands).toEqual(["Cosrx", "Isntree"]);
   });
 
+  it("las facetas con ?newArrival=true solo cubren las novedades", async () => {
+    const { agent } = await createAdminSession(app);
+    const category = await Category.create({ name: "Sueros", slug: "sueros", isActive: true });
+    await createProduct(agent, category.id, "Sérum A", "SER-A1", { isNewArrival: true, brand: "Cosrx" });
+    await createProduct(agent, category.id, "Sérum B", "SER-B1", { brand: "Isntree" });
+
+    const newArrivals = await request(app).get("/api/v1/products/facets?newArrival=true");
+
+    expect(newArrivals.body.data.brands).toEqual(["Cosrx"]);
+  });
+
   it("la marca se guarda, se edita y se expone en el catálogo público", async () => {
     const { agent } = await createAdminSession(app);
     const category = await Category.create({ name: "Sueros", slug: "sueros", isActive: true });

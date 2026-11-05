@@ -13,7 +13,7 @@ const subLinkClass =
 
 /**
  * Menú móvil a pantalla completa bajo la barra. Cada categoría con hijos
- * es un acordeón (una abierta a la vez) y Ofertas cierra la lista, que es
+ * es un acordeón (una abierta a la vez) y la lista es
  * lo único que se desplaza: el pie (WhatsApp y redes) queda
  * fijo al fondo. Cerrado queda `inert` y fuera del flujo de tabulación.
  */
@@ -103,11 +103,6 @@ function MobileMenu({
               </li>
             );
           })}
-          <li>
-            <Link href="/ofertas" onClick={onNavigate} className={rowClass}>
-              Ofertas
-            </Link>
-          </li>
         </ul>
       </nav>
       <MobileMenuFooter />

@@ -25,7 +25,7 @@ function SpotlightSection({ title, subtitle, href, items, cover, coverSide, tone
 
         <div className="relative lg:hidden">
           <SpotlightCover cover={cover} className="aspect-[4/7] rounded-md" />
-          <div className="relative -mx-4 -mt-[30dvh]">
+          <div className="relative -mx-4 -mt-[30svh]">
             <SpotlightCarousel items={items} label={title} />
           </div>
         </div>

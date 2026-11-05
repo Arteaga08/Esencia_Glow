@@ -27,6 +27,12 @@ const BESTSELLER_COPY: CatalogCopy = {
   emptyTitle: "Aún no hay productos más vendidos",
 };
 
+const NEW_ARRIVAL_COPY: CatalogCopy = {
+  ...PRODUCT_COPY,
+  emptyTitle: "Aún no hay novedades",
+  emptyDescription: "Vuelve pronto o explora el catálogo por categoría.",
+};
+
 const SALE_COPY: CatalogCopy = {
   ...PRODUCT_COPY,
   emptyTitle: "Por ahora no hay ofertas",
@@ -49,5 +55,5 @@ const BRAND_COPY: CatalogCopy = {
   emptyDescription: "Vuelve pronto o explora el catálogo por categoría.",
 };
 
-export { PRODUCT_COPY, BESTSELLER_COPY, SALE_COPY, KIT_COPY, BRAND_COPY };
+export { PRODUCT_COPY, BESTSELLER_COPY, NEW_ARRIVAL_COPY, SALE_COPY, KIT_COPY, BRAND_COPY };
 export type { CatalogCopy };
