@@ -8,7 +8,7 @@ const itemClass =
   "relative inline-flex min-h-11 items-center gap-1 whitespace-nowrap rounded-sm px-3 text-subtitle text-foreground transition-colors duration-[var(--duration-fast)] after:absolute after:inset-x-3 after:bottom-1.5 after:h-px after:origin-left after:scale-x-0 after:bg-foreground after:transition-transform after:duration-[var(--duration-base)] after:ease-out-quart hover:after:scale-x-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring motion-reduce:transition-none motion-reduce:after:transition-none";
 
 /**
- * Navegación de escritorio: categorías padre + Ofertas. Todas son enlaces a
+ * Navegación de escritorio: categorías padre. Todas son enlaces a
  * su página (ver todo de la categoría). Las que tienen subcategorías además
  * despliegan el panel: con el mouse por intención (`pointerenter`) y con el
  * teclado al recibir el foco; en táctil el toque navega directo.
@@ -66,11 +66,6 @@ function MainNav({
             </li>
           );
         })}
-        <li onPointerEnter={() => onActivate(null)}>
-          <Link href="/ofertas" onClick={onNavigate} className={itemClass}>
-            Ofertas
-          </Link>
-        </li>
       </ul>
     </nav>
   );

@@ -2,7 +2,7 @@ import type { PublicCategoryNode } from "@esencia-glow/shared";
 
 /**
  * Columnas de enlaces del footer. Casi todas las rutas de destino todavía no
- * existen (mismo criterio que el navbar con /buscar, /cuenta, /ofertas): se
+ * existen (mismo criterio que el navbar con /buscar y /cuenta): se
  * pintan ya para que el footer quede completo cuando lleguen las páginas.
  */
 
@@ -20,7 +20,6 @@ const SHOP_CATEGORY_LIMIT = 4;
 
 const SHOP_FIXED_LINKS: FooterLink[] = [
   { label: "Kits", href: "/kits" },
-  { label: "Ofertas", href: "/ofertas" },
 ];
 
 const STATIC_COLUMNS: FooterColumn[] = [
@@ -40,18 +39,9 @@ const STATIC_COLUMNS: FooterColumn[] = [
       { label: "Política de cookies", href: "/cookies" },
     ],
   },
-  // Mientras la suscripción no se venda, los tres enlaces llevan a la página de "Próximamente".
-  {
-    title: "Suscripción",
-    links: [
-      { label: "Cómo funciona", href: "/suscripcion" },
-      { label: "Planes", href: "/suscripcion" },
-      { label: "Mi suscripción", href: "/suscripcion" },
-    ],
-  },
 ];
 
-/** Columna "Tienda": categorías raíz reales (máx. 4) + Kits y Ofertas. */
+/** Columna "Tienda": categorías raíz reales (máx. 4) + Kits. */
 function buildShopColumn(categories: PublicCategoryNode[]): FooterColumn {
   const categoryLinks = categories.slice(0, SHOP_CATEGORY_LIMIT).map((category) => ({
     label: category.name,
@@ -60,7 +50,7 @@ function buildShopColumn(categories: PublicCategoryNode[]): FooterColumn {
   return { title: "Tienda", links: [...categoryLinks, ...SHOP_FIXED_LINKS] };
 }
 
-/** Las cuatro columnas, en el orden en que se muestran. */
+/** Las tres columnas, en el orden en que se muestran. */
 function buildFooterColumns(categories: PublicCategoryNode[]): FooterColumn[] {
   return [buildShopColumn(categories), ...STATIC_COLUMNS];
 }
