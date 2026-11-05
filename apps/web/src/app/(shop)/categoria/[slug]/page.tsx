@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { CatalogBanner } from "@/components/storefront/catalog/catalog-banner";
 import { CatalogBrowser } from "@/components/storefront/catalog/catalog-browser";
+import { CategoryPills } from "@/components/storefront/catalog/category-pills";
 import { SuggestedProducts } from "@/components/storefront/catalog/suggested-products";
 import { ErrorState } from "@/components/ui/error-state";
 import { getCategoryTree } from "@/lib/storefront/categories";
@@ -48,16 +49,10 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
   return (
     <main className="pt-16 xl:pt-20">
       <CatalogBanner found={found} />
+      <CategoryPills root={found.root} currentSlug={slug} className="mx-auto max-w-shell px-4 pt-6 md:px-8 xl:px-12" />
       {catalogPage ? (
         <>
-          <CatalogBrowser
-            pathname={pathname}
-            filters={filters}
-            facets={facets}
-            items={catalogPage.items}
-            meta={catalogPage.meta}
-            categoryNav={{ root: found.root, currentSlug: slug }}
-          />
+          <CatalogBrowser pathname={pathname} filters={filters} facets={facets} items={catalogPage.items} meta={catalogPage.meta} />
           <SuggestedProducts
             categorySlug={slug}
             activeBrands={filters.brands}
