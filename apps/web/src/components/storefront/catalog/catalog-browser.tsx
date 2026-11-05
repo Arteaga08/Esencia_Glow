@@ -1,6 +1,6 @@
 "use client";
 
-import type { PaginationMeta, PublicProductFacets } from "@esencia-glow/shared";
+import type { PaginationMeta, PublicCategoryNode, PublicProductFacets } from "@esencia-glow/shared";
 import type { CatalogFilters } from "@/lib/storefront/catalog-filters";
 import type { ShelfItem } from "@/lib/storefront/shelf-item";
 import { ActiveFilters } from "./active-filters";
@@ -17,6 +17,8 @@ interface CatalogBrowserProps {
   items: ShelfItem[];
   meta: PaginationMeta;
   copy?: CatalogCopy;
+  /** Solo en el catálogo de una categoría: alimenta el selector de subcategoría de la barra. */
+  categoryNav?: { root: PublicCategoryNode; currentSlug: string };
 }
 
 /**
@@ -24,14 +26,14 @@ interface CatalogBrowserProps {
  * productos ya vienen filtrados del servidor; mientras llega la respuesta de
  * un cambio de filtro la rejilla se atenúa para que se note que está cargando.
  */
-function CatalogBrowser({ pathname, filters: committed, facets, items, meta, copy = PRODUCT_COPY }: CatalogBrowserProps) {
+function CatalogBrowser({ pathname, filters: committed, facets, items, meta, copy = PRODUCT_COPY, categoryNav }: CatalogBrowserProps) {
   const state = useCatalogNavigation(committed, pathname);
 
   return (
     <>
       <div className="sticky top-16 z-30 mt-6 border-y border-border bg-background xl:top-20">
         <div className="mx-auto max-w-shell px-4 py-3 md:px-8 xl:px-12">
-          <FilterToolbar state={state} facets={facets} total={meta.total} copy={copy} />
+          <FilterToolbar state={state} facets={facets} total={meta.total} copy={copy} categoryNav={categoryNav} />
         </div>
       </div>
 
