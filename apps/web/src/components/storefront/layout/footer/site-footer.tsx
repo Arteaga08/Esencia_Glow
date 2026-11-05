@@ -9,7 +9,7 @@ import { FooterSocial } from "./footer-social";
  * Footer del storefront (bloque 10 del home). Tinta. Dos zonas: a la izquierda
  * el logo centrado con su frase; a la derecha las tres columnas en rejilla
  * de dos (desde `lg`). En móvil las columnas pasan a acordeón bajo el bloque
- * de marca. Fila final con créditos y redes. Sin boletín: no se va a usar.
+ * de marca. Fila final con redes a la izquierda y créditos a la derecha. Sin boletín: no se va a usar.
  */
 async function SiteFooter() {
   const columns = buildFooterColumns(await getCategoryTree());
@@ -32,13 +32,13 @@ async function SiteFooter() {
       <FooterAccordion columns={columns} />
 
       <div className="border-t border-background/30">
-        <div className="mx-auto flex w-full max-w-shell flex-col gap-3 px-4 py-6 md:px-8 lg:flex-row lg:items-center lg:justify-between xl:px-12">
-          <div className="text-body-sm text-background/80">
+        <div className="mx-auto flex w-full max-w-shell items-center justify-between gap-4 px-4 py-6 md:px-8 xl:px-12">
+          <div className="-ml-3">
+            <FooterSocial tone="dark" />
+          </div>
+          <div className="text-right text-body-sm text-background/80">
             <p>© 2026 Esencia Glow</p>
             <p className="mt-1">Desarrollado por Vidix Studio</p>
-          </div>
-          <div className="-ml-3 lg:ml-0">
-            <FooterSocial tone="dark" />
           </div>
         </div>
       </div>
