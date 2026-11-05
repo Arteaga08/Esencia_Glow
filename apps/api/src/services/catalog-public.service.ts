@@ -44,6 +44,7 @@ interface PublicProductFacetsScope {
   categorySlug?: string;
   brands?: string[];
   bestseller?: boolean;
+  newArrival?: boolean;
   onSale?: boolean;
 }
 
@@ -158,6 +159,7 @@ async function getPublicProductFacets(scope: PublicProductFacetsScope = {}): Pro
     brands: scope.brands,
     publicOnly: true,
     isBestseller: scope.bestseller,
+    isNewArrival: scope.newArrival,
     onSale: scope.onSale,
   });
 

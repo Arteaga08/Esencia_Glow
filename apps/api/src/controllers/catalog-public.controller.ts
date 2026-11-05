@@ -29,16 +29,18 @@ const listProducts = asyncHandler(async (req: Request, res: Response) => {
 });
 
 const getProductFacets = asyncHandler(async (req: Request, res: Response) => {
-  const { category, brand, bestseller, onSale } = req.query as {
+  const { category, brand, bestseller, newArrival, onSale } = req.query as {
     category?: string;
     brand?: string;
     bestseller?: boolean;
+    newArrival?: boolean;
     onSale?: boolean;
   };
   const facets = await catalogPublicService.getPublicProductFacets({
     categorySlug: category,
     brands: brand ? [brand] : undefined,
     bestseller,
+    newArrival,
     onSale,
   });
   sendResponse(res, 200, "Facetas obtenidas.", facets);

@@ -42,6 +42,7 @@ interface CatalogScope {
   /** Nombre de la marca (el mismo texto que `Product.brand`). */
   brand?: string;
   bestseller?: boolean;
+  newArrival?: boolean;
   onSale?: boolean;
 }
 
@@ -55,6 +56,7 @@ function scopeToParams(scope: CatalogScope): Record<string, string> {
     ...(scope.category ? { category: scope.category } : {}),
     ...(scope.brand ? { brand: scope.brand } : {}),
     ...(scope.bestseller ? { bestseller: "true" } : {}),
+    ...(scope.newArrival ? { newArrival: "true" } : {}),
     ...(scope.onSale ? { onSale: "true" } : {}),
   };
 }
