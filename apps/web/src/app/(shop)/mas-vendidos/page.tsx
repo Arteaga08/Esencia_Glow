@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { buildPageMetadata } from "@/lib/seo/page-metadata";
 import { redirect } from "next/navigation";
 import { CatalogBrowser } from "@/components/storefront/catalog/catalog-browser";
 import { BESTSELLER_COPY } from "@/components/storefront/catalog/catalog-copy";
@@ -12,10 +13,11 @@ import { getHomeContent } from "@/lib/storefront/home";
 const PATHNAME = "/mas-vendidos";
 const SCOPE = { bestseller: true } as const;
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildPageMetadata({
   title: "Más vendidos | Esencia Glow",
-  description: "Los productos favoritos de nuestras clientas.",
-};
+  description: "Los productos de skincare favoritos de nuestras clientas en Esencia Glow: los más pedidos, elegidos con cuidado.",
+  path: "/mas-vendidos",
+});
 
 interface BestsellersPageProps {
   searchParams: Promise<RawSearchParams>;

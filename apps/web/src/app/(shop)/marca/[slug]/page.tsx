@@ -4,6 +4,7 @@ import { CatalogBrowser } from "@/components/storefront/catalog/catalog-browser"
 import { BRAND_COPY } from "@/components/storefront/catalog/catalog-copy";
 import { CatalogHeading } from "@/components/storefront/catalog/catalog-heading";
 import { ErrorState } from "@/components/ui/error-state";
+import { buildPageMetadata } from "@/lib/seo/page-metadata";
 import { getBrandBySlug } from "@/lib/storefront/brands";
 import { catalogFiltersToQuery, parseCatalogFilters, parsePage, type RawSearchParams } from "@/lib/storefront/catalog-filters";
 import { getCatalogFacets, getCatalogPage } from "@/lib/storefront/catalog";
@@ -13,14 +14,20 @@ interface BrandPageProps {
   searchParams: Promise<RawSearchParams>;
 }
 
-export async function generateMetadata({ params }: BrandPageProps): Promise<Metadata> {
-  const { slug } = await params;
+export async function generateMetadata({ params, searchParams }: BrandPageProps): Promise<Metadata> {
+  const [{ slug }, rawSearchParams] = await Promise.all([params, searchParams]);
   const brand = await getBrandBySlug(slug);
   if (!brand) return { title: "Marca no encontrada" };
-  return {
+  // Mismo criterio que la categoría: las vistas filtradas o de la página 2 en adelante no se indexan.
+  const isFilteredView = catalogFiltersToQuery({ ...parseCatalogFilters(rawSearchParams), brands: [] }) !== "" || parsePage(rawSearchParams) > 1;
+  const logo = brand.logo;
+  return buildPageMetadata({
     title: `${brand.name} | Esencia Glow`,
-    description: `Los productos de ${brand.name} en Esencia Glow.`,
-  };
+    description: `Compra los productos de ${brand.name} en Esencia Glow: skincare y lifestyle elegido con cuidado.`,
+    path: `/marca/${brand.slug}`,
+    image: logo ? { url: logo.url, width: logo.width, height: logo.height, alt: logo.alt ?? brand.name } : undefined,
+    noIndex: isFilteredView,
+  });
 }
 
 /**

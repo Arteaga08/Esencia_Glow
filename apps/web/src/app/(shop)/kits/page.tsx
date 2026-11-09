@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { buildPageMetadata } from "@/lib/seo/page-metadata";
 import { redirect } from "next/navigation";
 import { CatalogBrowser } from "@/components/storefront/catalog/catalog-browser";
 import { KIT_COPY } from "@/components/storefront/catalog/catalog-copy";
@@ -11,10 +12,11 @@ import { getKitFacets, getKitsPage } from "@/lib/storefront/kit";
 
 const PATHNAME = "/kits";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildPageMetadata({
   title: "Kits | Esencia Glow",
   description: "Rutinas completas de Esencia Glow en un solo kit, a un mejor precio.",
-};
+  path: "/kits",
+});
 
 interface KitsPageProps {
   searchParams: Promise<RawSearchParams>;

@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { KitDetail } from "@/components/storefront/kit/kit-detail";
+import { JsonLdScript } from "@/components/seo/json-ld";
 import { ErrorState } from "@/components/ui/error-state";
+import { buildBreadcrumbJsonLd, buildProductJsonLd } from "@/lib/seo/json-ld";
+import { buildPageMetadata } from "@/lib/seo/page-metadata";
 import { getKit, getKitAvailability } from "@/lib/storefront/kit";
 import { toKitView } from "@/lib/storefront/kit-view";
 
@@ -16,11 +19,12 @@ export async function generateMetadata({ params }: KitPageProps): Promise<Metada
 
   const { bundle } = lookup;
   const image = bundle.images[0] ?? bundle.items.find((item) => item.image)?.image;
-  return {
+  return buildPageMetadata({
     title: `${bundle.name} | Esencia Glow`,
     description: bundle.description,
-    openGraph: image ? { images: [{ url: image.url, width: image.width, height: image.height }] } : undefined,
-  };
+    path: `/kit/${bundle.slug}`,
+    image: image ? { url: image.url, width: image.width, height: image.height, alt: image.alt ?? bundle.name } : undefined,
+  });
 }
 
 /**
@@ -40,5 +44,28 @@ export default async function KitPage({ params }: KitPageProps) {
     );
   }
 
-  return <KitDetail kit={toKitView(lookup.bundle, available)} />;
+  const view = toKitView(lookup.bundle, available);
+  const path = `/kit/${view.slug}`;
+
+  return (
+    <>
+      <JsonLdScript
+        data={buildProductJsonLd({
+          name: view.name,
+          description: view.description,
+          path,
+          imageUrls: view.images.map((image) => image.url),
+          variants: [{ priceCents: view.priceCents, available: view.available }],
+        })}
+      />
+      <JsonLdScript
+        data={buildBreadcrumbJsonLd([
+          { name: "Inicio", path: "/" },
+          { name: "Kits", path: "/kits" },
+          { name: view.name, path },
+        ])}
+      />
+      <KitDetail kit={view} />
+    </>
+  );
 }

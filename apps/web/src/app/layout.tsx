@@ -1,10 +1,18 @@
 import type { Metadata, Viewport } from "next";
+import { SITE_NAME, SITE_URL } from "../lib/seo/site-url";
 import { fontVariables } from "./fonts";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  // Base para que la URL de `og:image` salga absoluta (WhatsApp/Instagram la exigen).
+  metadataBase: new URL(SITE_URL),
   title: "Esencia Glow",
   description: "Skincare y lifestyle con suscripción curada.",
+  openGraph: {
+    siteName: SITE_NAME,
+    locale: "es_MX",
+    type: "website",
+  },
 };
 
 // Color de la barra del navegador en móvil (Safari en iPhone, Chrome en Android):

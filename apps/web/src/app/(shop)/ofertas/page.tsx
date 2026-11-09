@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { buildPageMetadata } from "@/lib/seo/page-metadata";
 import { redirect } from "next/navigation";
 import { CatalogBrowser } from "@/components/storefront/catalog/catalog-browser";
 import { SALE_COPY } from "@/components/storefront/catalog/catalog-copy";
@@ -11,10 +12,11 @@ import { getHomeContent } from "@/lib/storefront/home";
 const PATHNAME = "/ofertas";
 const SCOPE = { onSale: true } as const;
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildPageMetadata({
   title: "Ofertas | Esencia Glow",
-  description: "Productos con precio rebajado por tiempo limitado.",
-};
+  description: "Productos de skincare y lifestyle con precio rebajado por tiempo limitado en Esencia Glow. Aprovecha antes de que se agoten.",
+  path: "/ofertas",
+});
 
 interface SalePageProps {
   searchParams: Promise<RawSearchParams>;

@@ -4,7 +4,10 @@ import { CatalogBanner } from "@/components/storefront/catalog/catalog-banner";
 import { CatalogBrowser } from "@/components/storefront/catalog/catalog-browser";
 import { CategoryPills } from "@/components/storefront/catalog/category-pills";
 import { SuggestedProducts } from "@/components/storefront/catalog/suggested-products";
+import { JsonLdScript } from "@/components/seo/json-ld";
 import { ErrorState } from "@/components/ui/error-state";
+import { buildBreadcrumbJsonLd } from "@/lib/seo/json-ld";
+import { buildPageMetadata } from "@/lib/seo/page-metadata";
 import { getCategoryTree } from "@/lib/storefront/categories";
 import { catalogFiltersToQuery, parseCatalogFilters, parsePage, type RawSearchParams } from "@/lib/storefront/catalog-filters";
 import { findCatalogCategory, getCatalogFacets, getCatalogPage } from "@/lib/storefront/catalog";
@@ -14,14 +17,20 @@ interface CategoryPageProps {
   searchParams: Promise<RawSearchParams>;
 }
 
-export async function generateMetadata({ params }: CategoryPageProps): Promise<Metadata> {
-  const { slug } = await params;
+export async function generateMetadata({ params, searchParams }: CategoryPageProps): Promise<Metadata> {
+  const [{ slug }, rawSearchParams] = await Promise.all([params, searchParams]);
   const found = findCatalogCategory(await getCategoryTree(), slug);
   if (!found) return { title: "Categoría no encontrada" };
-  return {
+  const image = found.category.image;
+  // La canónica es la categoría sin filtros; las vistas filtradas o de la página 2 en adelante no se indexan.
+  const isFilteredView = catalogFiltersToQuery(parseCatalogFilters(rawSearchParams)) !== "" || parsePage(rawSearchParams) > 1;
+  return buildPageMetadata({
     title: `${found.category.name} | Esencia Glow`,
-    description: found.category.description || `Compra ${found.category.name} en Esencia Glow.`,
-  };
+    description: found.category.description || `Compra ${found.category.name} en Esencia Glow: skincare y lifestyle elegido con cuidado.`,
+    path: `/categoria/${slug}`,
+    image: image ? { url: image.url, width: image.width, height: image.height, alt: image.alt ?? found.category.name } : undefined,
+    noIndex: isFilteredView,
+  });
 }
 
 /**
@@ -48,6 +57,13 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
 
   return (
     <main className="pt-16 xl:pt-20">
+      <JsonLdScript
+        data={buildBreadcrumbJsonLd([
+          { name: "Inicio", path: "/" },
+          ...(found.parent ? [{ name: found.parent.name, path: `/categoria/${found.parent.slug}` }] : []),
+          { name: found.category.name, path: pathname },
+        ])}
+      />
       <CatalogBanner found={found} />
       <CategoryPills root={found.root} currentSlug={slug} className="mx-auto max-w-shell px-4 pt-6 md:px-8 xl:px-12" />
       {catalogPage ? (

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { buildPageMetadata } from "@/lib/seo/page-metadata";
 import { redirect } from "next/navigation";
 import { CatalogBrowser } from "@/components/storefront/catalog/catalog-browser";
 import { NEW_ARRIVAL_COPY } from "@/components/storefront/catalog/catalog-copy";
@@ -10,10 +11,11 @@ import { getCatalogFacets, getCatalogPage } from "@/lib/storefront/catalog";
 const PATHNAME = "/novedades";
 const SCOPE = { newArrival: true } as const;
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildPageMetadata({
   title: "Novedades | Esencia Glow",
-  description: "Lo más nuevo que llegó a Esencia Glow.",
-};
+  description: "Descubre lo último que llegó a Esencia Glow: skincare y lifestyle recién agregados, elegidos para ti.",
+  path: "/novedades",
+});
 
 interface NewArrivalsPageProps {
   searchParams: Promise<RawSearchParams>;

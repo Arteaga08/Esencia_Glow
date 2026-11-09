@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
+import { buildPageMetadata } from "@/lib/seo/page-metadata";
 import { LegalPage } from "@/components/storefront/legal/legal-page";
 import { TermsContent } from "@/components/storefront/legal/terms-content";
 import { LEGAL_DETAILS } from "@/lib/storefront/legal/legal-details";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildPageMetadata({
   title: "Términos y condiciones | Esencia Glow",
   description: "Condiciones para comprar en Esencia Glow: cómo se hace un pedido, precios, pago, cupones y cancelaciones.",
-};
+  path: "/terminos",
+});
 
 export default function TermsPage() {
   return (

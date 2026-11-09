@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ProductDetail } from "@/components/storefront/product/product-detail";
+import { JsonLdScript } from "@/components/seo/json-ld";
 import { ErrorState } from "@/components/ui/error-state";
+import { buildBreadcrumbJsonLd, buildProductJsonLd } from "@/lib/seo/json-ld";
+import { buildPageMetadata } from "@/lib/seo/page-metadata";
 import { getProduct, getProductAvailability } from "@/lib/storefront/product";
 import { toProductView } from "@/lib/storefront/product-view";
 
@@ -16,11 +19,12 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
 
   const { product } = lookup;
   const image = product.images[0];
-  return {
+  return buildPageMetadata({
     title: `${product.name} | Esencia Glow`,
     description: product.shortDescription || product.description,
-    openGraph: image ? { images: [{ url: image.url, width: image.width, height: image.height }] } : undefined,
-  };
+    path: `/producto/${product.slug}`,
+    image: image ? { url: image.url, width: image.width, height: image.height, alt: image.alt ?? product.name } : undefined,
+  });
 }
 
 /**
@@ -40,5 +44,29 @@ export default async function ProductPage({ params }: ProductPageProps) {
     );
   }
 
-  return <ProductDetail product={toProductView(lookup.product, availability)} />;
+  const view = toProductView(lookup.product, availability);
+  const path = `/producto/${view.slug}`;
+
+  return (
+    <>
+      <JsonLdScript
+        data={buildProductJsonLd({
+          name: view.name,
+          description: view.description,
+          path,
+          imageUrls: view.images.map((image) => image.url),
+          brand: view.brand,
+          variants: view.variants.map((variant) => ({ priceCents: variant.priceCents, available: variant.available })),
+        })}
+      />
+      <JsonLdScript
+        data={buildBreadcrumbJsonLd([
+          { name: "Inicio", path: "/" },
+          { name: view.category.name, path: `/categoria/${view.category.slug}` },
+          { name: view.name, path },
+        ])}
+      />
+      <ProductDetail product={view} />
+    </>
+  );
 }

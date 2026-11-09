@@ -1,4 +1,9 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
+import { JsonLdScript } from "../../components/seo/json-ld";
+import { buildOrganizationJsonLd, buildWebSiteJsonLd } from "../../lib/seo/json-ld";
+import { buildPageMetadata } from "../../lib/seo/page-metadata";
+import { SOCIAL_NETWORKS } from "../../lib/storefront/social-feed";
 import { AdviceBlock } from "../../components/storefront/home/advice/advice-block";
 import { BrandMarqueeBlock } from "../../components/storefront/home/brands/brand-marquee-block";
 import { CategoryBlock } from "../../components/storefront/home/categories/category-block";
@@ -14,6 +19,12 @@ import { ShelfSkeleton } from "../../components/storefront/states/shelf-skeleton
 import { SpotlightPairSkeleton } from "../../components/storefront/states/spotlight-skeleton";
 import { SubscriptionSkeleton } from "../../components/storefront/states/subscription-skeleton";
 
+export const metadata: Metadata = buildPageMetadata({
+  title: "Esencia Glow | Skincare y lifestyle con belleza elegida para ti",
+  description: "Tienda en línea de skincare y lifestyle con productos elegidos con cuidado y una suscripción curada. Envíos a todo México.",
+  path: "/",
+});
+
 // Cada bloque que pide datos lleva su propio <Suspense>: los que ya cargaron se
 // pintan sin esperar a los demás, y el skeleton ocupa la misma caja que el
 // bloque real. Las redes (bloque 9) son estáticas y no necesitan skeleton, y la
@@ -22,6 +33,8 @@ import { SubscriptionSkeleton } from "../../components/storefront/states/subscri
 export default function HomePage() {
   return (
     <main>
+      <JsonLdScript data={buildOrganizationJsonLd(SOCIAL_NETWORKS.map((network) => network.href))} />
+      <JsonLdScript data={buildWebSiteJsonLd()} />
       <Suspense fallback={<HeroSkeleton />}>
         <HeroSection />
       </Suspense>
