@@ -62,3 +62,4 @@ Thumbs.db
 !.vscode/extensions.json
 *.swp
 *.swo
+apps/web/next-env.d.ts
