@@ -42,7 +42,14 @@ function ProductCard({
 
   return (
     <div className="overflow-hidden rounded-lg border border-border-strong bg-surface">
-      <div className="relative aspect-square overflow-hidden bg-muted">
+      {/* La foto también lleva al editor. Fuera del orden de tabulación y oculta
+          al lector: "Editar" ya cubre teclado y lector, sin duplicar el enlace. */}
+      <Link
+        href={ADMIN_ROUTES.product(product.id)}
+        tabIndex={-1}
+        aria-hidden="true"
+        className="relative block aspect-square cursor-pointer overflow-hidden bg-muted"
+      >
         {photo ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -68,7 +75,7 @@ function ProductCard({
             Archivado
           </div>
         ) : null}
-      </div>
+      </Link>
       <div className="p-3">
         {brand ? (
           <p className="truncate font-mono text-label uppercase tracking-[0.06em] text-muted-foreground-strong">

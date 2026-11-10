@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { apiRequest } from "../../lib/api";
+import { refreshSession } from "../../lib/storefront/account-api";
 import { Skeleton } from "../ui/skeleton";
 import { ADMIN_HOME_PATH } from "../../lib/admin-routes";
 
@@ -53,18 +53,24 @@ function SilentRefreshGate({ children }: { children: ReactNode }) {
     if (!attempted.current) {
       attempted.current = true;
 
-      apiRequest("/api/v1/auth/refresh", { method: "POST", authenticated: true })
-        .then(() => {
-          if (cancelledRef.current) return;
-          router.replace(ADMIN_HOME_PATH);
-          router.refresh();
-        })
-        .catch(() => {
+      // `refreshSession` y no un `POST /auth/refresh` directo: con dos pestañas
+      // del panel (o panel + tienda, comparten cookie) que vencen a la vez, dos
+      // refrescos con el mismo token se leían como reuso y el API revocaba la
+      // sesión entera — el operador tenía que volver a entrar con contraseña y
+      // 2FA. `refreshSession` los pone en fila entre pestañas y no repite el
+      // refresco si otra pestaña ya lo hizo.
+      void refreshSession().then((ok) => {
+        if (cancelledRef.current) return;
+        if (!ok) {
           // Sin refresh_token, o ya expiró: no hay nada que refrescar — se
           // muestra el login normal, sin mensaje de error (no fue un intento
           // fallido del operador, fue esta comprobación silenciosa).
-          if (!cancelledRef.current) setState("show-login");
-        });
+          setState("show-login");
+          return;
+        }
+        router.replace(ADMIN_HOME_PATH);
+        router.refresh();
+      });
     }
 
     return () => {

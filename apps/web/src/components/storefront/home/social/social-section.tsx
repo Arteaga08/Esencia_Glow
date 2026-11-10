@@ -36,7 +36,7 @@ function SocialSection() {
         />
       </div>
 
-      <div className="mx-auto mt-10 flex max-w-shell flex-wrap justify-center gap-3 px-4">
+      <div className="mx-auto mt-10 flex max-w-shell justify-center gap-2 px-4 sm:gap-3">
         {SOCIAL_NETWORKS.map((network) => (
           <NetworkLink key={network.key} network={network} />
         ))}
