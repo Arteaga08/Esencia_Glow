@@ -6,23 +6,24 @@ import { FooterLogo } from "./footer-logo";
 import { FooterSocial } from "./footer-social";
 
 /**
- * Footer del storefront (bloque 10 del home). Tinta. Dos zonas: a la izquierda
- * el logo centrado con su frase; a la derecha las tres columnas en rejilla
- * de dos (desde `lg`). En móvil las columnas pasan a acordeón bajo el bloque
- * de marca. Fila final con redes a la izquierda y créditos a la derecha. Sin boletín: no se va a usar.
+ * Footer del storefront (bloque 10 del home). Tinta. Todo el texto alineado a
+ * la izquierda: arriba la frase de marca, con el logo chico en la esquina
+ * superior derecha; debajo las tres columnas en fila (desde `lg`). En móvil
+ * las columnas pasan a acordeón. Fila final con créditos a la izquierda y
+ * redes a la derecha, en diagonal con el logo. Sin boletín: no se va a usar.
  */
 async function SiteFooter() {
   const columns = buildFooterColumns(await getCategoryTree());
 
   return (
     <footer className="flex flex-col overflow-x-clip bg-foreground text-background [--surface-bg:var(--color-foreground)]">
-      <div className="mx-auto grid w-full max-w-shell gap-10 px-4 pb-10 pt-12 md:px-8 lg:grid-cols-12 lg:gap-16 lg:pb-16 lg:pt-16 xl:px-12">
-        <div className="flex flex-col items-center text-center lg:col-span-5">
+      <div className="mx-auto w-full max-w-shell px-4 pb-10 pt-10 md:px-8 lg:pb-16 lg:pt-14 xl:px-12">
+        <div className="flex items-start justify-between gap-8">
+          <p className="max-w-sm text-subtitle text-background/80">Skincare y lifestyle con suscripción curada.</p>
           <FooterLogo />
-          <p className="mt-2 max-w-sm text-subtitle text-background/80">Skincare y lifestyle con suscripción curada.</p>
         </div>
 
-        <div className="hidden grid-cols-2 gap-x-8 gap-y-12 lg:col-span-7 lg:grid lg:pt-6 xl:pl-10">
+        <div className="mt-14 hidden grid-cols-3 gap-x-12 lg:grid">
           {columns.map((column) => (
             <FooterColumn key={column.title} column={column} tone="dark" />
           ))}
@@ -33,12 +34,12 @@ async function SiteFooter() {
 
       <div className="border-t border-background/30">
         <div className="mx-auto flex w-full max-w-shell items-center justify-between gap-4 px-4 py-6 md:px-8 xl:px-12">
-          <div className="-ml-3">
-            <FooterSocial tone="dark" />
-          </div>
-          <div className="text-right text-body-sm text-background/80">
+          <div className="text-body-sm text-background/80">
             <p>© 2026 Esencia Glow</p>
             <p className="mt-1">Desarrollado por Vidix Studio</p>
+          </div>
+          <div className="-mr-3">
+            <FooterSocial tone="dark" />
           </div>
         </div>
       </div>
