@@ -19,6 +19,7 @@ import {
 } from "@dnd-kit/sortable";
 import { ArrowLeft, FolderSimple, PencilSimple, Plus, Trash } from "@phosphor-icons/react";
 import { apiRequest, ApiRequestError } from "@/lib/admin-api";
+import { revalidateCategoryTree } from "@/lib/storefront/revalidate-categories";
 import { useToast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -111,6 +112,7 @@ export default function SubcategoriesPage() {
         authenticated: true,
         body: { parentId, ids: reordered },
       });
+      await revalidateCategoryTree().catch(() => undefined);
     } catch (error) {
       setChildren(previous);
       toast({
@@ -129,6 +131,7 @@ export default function SubcategoriesPage() {
         authenticated: true,
         body: { isActive: nextActive },
       });
+      await revalidateCategoryTree().catch(() => undefined);
       setChildren((current) => current?.map((c) => (c.id === category.id ? response.data : c)) ?? current);
     } catch (error) {
       toast({
@@ -158,6 +161,7 @@ export default function SubcategoriesPage() {
         method: "DELETE",
         authenticated: true,
       });
+      await revalidateCategoryTree().catch(() => undefined);
       setChildren((current) => current?.filter((c) => c.id !== deleteTarget.id) ?? current);
       toast({ variant: "success", title: "Subcategoría borrada", description: deleteTarget.name });
       setDeleteTarget(null);
