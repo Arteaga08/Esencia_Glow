@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { apiRequest, ApiRequestError } from "@/lib/admin-api";
+import { revalidateCategoryTree } from "@/lib/storefront/revalidate-categories";
 import { useToast } from "@/components/ui/toast";
 import type { AdminCategory } from "@/lib/types/admin-catalog";
 
@@ -125,6 +126,8 @@ function CategoryFormModalBody({
         });
         category = response.data;
       }
+
+      await revalidateCategoryTree().catch(() => undefined);
 
       toast({
         variant: "success",

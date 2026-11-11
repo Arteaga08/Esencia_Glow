@@ -2,6 +2,7 @@ import "server-only";
 import type { ApiResponse, PublicCategoryNode } from "@esencia-glow/shared";
 import { API_URL } from "../config";
 import { internalApiHeaders } from "../server-api";
+import { CATEGORY_TREE_TAG } from "./category-tree-tag";
 
 // El árbol cambia poco (lo edita Manuel desde el panel): cinco minutos de
 // caché evitan una llamada al API por cada navegación.
@@ -16,7 +17,7 @@ async function getCategoryTree(): Promise<PublicCategoryNode[]> {
   try {
     const response = await fetch(`${API_URL}/api/v1/categories`, {
       headers: await internalApiHeaders(),
-      next: { revalidate: CATEGORY_TREE_REVALIDATE_SECONDS },
+      next: { revalidate: CATEGORY_TREE_REVALIDATE_SECONDS, tags: [CATEGORY_TREE_TAG] },
     });
     if (!response.ok) return [];
     const payload = (await response.json()) as ApiResponse<PublicCategoryNode[]>;
