@@ -1,5 +1,5 @@
 import type { AdminHomeHero } from "@esencia-glow/shared";
-import { apiRequest } from "@/lib/api";
+import { apiRequest } from "@/lib/admin-api";
 import type { HeroFormValue, HeroImageSlot, HeroSlideDraft } from "./hero-form-value";
 import { toFormValue, toPayload } from "./hero-form-value";
 

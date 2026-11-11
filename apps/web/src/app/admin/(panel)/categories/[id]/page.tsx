@@ -18,7 +18,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { ArrowLeft, FolderSimple, PencilSimple, Plus, Trash } from "@phosphor-icons/react";
-import { apiRequest, ApiRequestError } from "@/lib/api";
+import { apiRequest, ApiRequestError } from "@/lib/admin-api";
 import { useToast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";

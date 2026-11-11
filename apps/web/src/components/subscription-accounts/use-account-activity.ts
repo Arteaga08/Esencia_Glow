@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { apiRequest, ApiRequestError } from "@/lib/api";
+import { apiRequest, ApiRequestError } from "@/lib/admin-api";
 import type { AdminSubscriptionAccountActivityEntry } from "@/lib/types/admin-subscription";
 
 /** Bitácora de UNA cuenta (`GET /admin/subscriptions/:id/activity`),

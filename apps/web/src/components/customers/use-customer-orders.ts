@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { AdminOrder, PaginationMeta } from "@esencia-glow/shared";
-import { apiRequest, ApiRequestError } from "@/lib/api";
+import { apiRequest, ApiRequestError } from "@/lib/admin-api";
 
 const CUSTOMER_ORDERS_PAGE_LIMIT = 10;
 

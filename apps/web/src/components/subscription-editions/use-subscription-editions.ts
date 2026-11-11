@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { EditionStatus } from "@esencia-glow/shared";
-import { apiRequest, ApiRequestError } from "@/lib/api";
+import { apiRequest, ApiRequestError } from "@/lib/admin-api";
 import type { AdminSubscriptionEdition } from "@/lib/types/admin-subscription";
 
 /** Tope del backend (`parseListQuery`, MAX_LIMIT=100). Con 3 planes eso

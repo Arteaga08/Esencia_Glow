@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { apiRequest, ApiRequestError } from "@/lib/api";
+import { apiRequest, ApiRequestError } from "@/lib/admin-api";
 
 interface AdminSubscriptionPlanOption {
   id: string;

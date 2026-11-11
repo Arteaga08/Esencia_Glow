@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { apiRequest, ApiRequestError } from "@/lib/api";
+import { apiRequest, ApiRequestError } from "@/lib/admin-api";
 import type { AdminSubscriptionPlan } from "@/lib/types/admin-subscription";
 
 /** Tope del backend (`parseListQuery`, MAX_LIMIT=100): el catálogo de planes

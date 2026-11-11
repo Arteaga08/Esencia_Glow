@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { TopCustomersPeriod, TopCustomersResult, TopCustomersSort } from "@esencia-glow/shared";
-import { apiRequest, ApiRequestError } from "@/lib/api";
+import { apiRequest, ApiRequestError } from "@/lib/admin-api";
 
 /**
  * Ranking `GET /admin/customers/top` (Milestone 2.6.1). Al cambiar periodo o

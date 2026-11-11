@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ORDER_PRIORITY_LABELS, OrderPriority, OrderStatus, type AdminOrder } from "@esencia-glow/shared";
-import { apiRequest } from "@/lib/api";
+import { apiRequest } from "@/lib/admin-api";
 import { useToast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";

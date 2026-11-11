@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Plus, Trash, WarningCircle } from "@phosphor-icons/react";
-import { apiRequest } from "@/lib/api";
+import { apiRequest } from "@/lib/admin-api";
 import { Card } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";

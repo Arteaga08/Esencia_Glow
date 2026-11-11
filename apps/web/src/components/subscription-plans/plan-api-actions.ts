@@ -1,4 +1,4 @@
-import { apiRequest } from "@/lib/api";
+import { apiRequest } from "@/lib/admin-api";
 import type { AdminSubscriptionPlan } from "@/lib/types/admin-subscription";
 import type { PlanEditorActions } from "./plan-editor";
 

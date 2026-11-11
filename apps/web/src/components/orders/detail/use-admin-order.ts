@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { AdminOrder } from "@esencia-glow/shared";
-import { apiRequest, ApiRequestError } from "@/lib/api";
+import { apiRequest, ApiRequestError } from "@/lib/admin-api";
 
 /** Dueño del `AdminOrder` del detalle. Como toda escritura del backend
  * devuelve el pedido completo releído, "refrescar" tras una acción es

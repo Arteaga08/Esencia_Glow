@@ -8,7 +8,7 @@ import { Button, getButtonClassName } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { FieldError } from "@/components/ui/field-error";
 import { useToast } from "@/components/ui/toast";
-import { apiRequest, ApiRequestError } from "@/lib/api";
+import { apiRequest, ApiRequestError } from "@/lib/admin-api";
 import { ADMIN_ROUTES } from "@/lib/admin-routes";
 import { EMPTY_COUPON_FORM, toCouponInput, type CouponFormValues } from "@/lib/coupon-form";
 import { CouponFormFields } from "./coupon-form-fields";

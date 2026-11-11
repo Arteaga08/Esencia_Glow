@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { FieldError } from "@/components/ui/field-error";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
-import { apiRequest } from "@/lib/api";
+import { apiRequest } from "@/lib/admin-api";
 import type { PanelVariantRow } from "@/lib/types/admin-inventory";
 import { handleInventoryError } from "./handle-inventory-error";
 

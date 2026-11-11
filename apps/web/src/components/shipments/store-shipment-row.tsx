@@ -16,7 +16,7 @@ import { Badge, type BadgeColorValue } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
 import { useToast } from "@/components/ui/toast";
-import { apiRequest } from "@/lib/api";
+import { apiRequest } from "@/lib/admin-api";
 import { formatShortDate } from "@/lib/format-date";
 import type { AdminShipmentRow } from "@/lib/types/admin-shipment";
 import { handleShipmentError } from "./handle-shipment-error";

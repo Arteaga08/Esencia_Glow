@@ -72,11 +72,14 @@ function refreshSession(): Promise<boolean> {
   return refreshInFlight;
 }
 
-function goToLogin(): void {
+/** Pantalla de ingreso de la tienda; el panel pasa la suya (`loginPath`). */
+const STOREFRONT_LOGIN_PATH = "/ingresar";
+
+function goToLogin(loginPath: string = STOREFRONT_LOGIN_PATH): void {
   const here = `${window.location.pathname}${window.location.search}`;
   // Navegación completa a propósito: fuera de React y sin dejar datos autenticados en memoria.
   // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-  window.location.assign(`/ingresar?redirect=${encodeURIComponent(here)}`);
+  window.location.assign(`${loginPath}?redirect=${encodeURIComponent(here)}`);
 }
 
 interface AccountRequestOptions extends Omit<RequestInit, "body"> {
@@ -88,6 +91,8 @@ interface AccountRequestOptions extends Omit<RequestInit, "body"> {
    * expulsar a nadie). Por defecto se manda a ingresar.
    */
   redirectOnFailure?: boolean;
+  /** Pantalla de ingreso a la que mandar si la sesión no se recupera (el panel usa la suya). */
+  loginPath?: string;
 }
 
 /** 401 sin `code` = el access token venció (o no hay sesión). */
@@ -97,7 +102,7 @@ function isExpiredSession(error: unknown): error is ApiRequestError {
 
 async function accountRequest<TData, TMeta = never>(
   path: string,
-  { redirectOnFailure = true, ...options }: AccountRequestOptions = {},
+  { redirectOnFailure = true, loginPath, ...options }: AccountRequestOptions = {},
 ): Promise<ApiSuccessResponse<TData, TMeta extends never ? never : TMeta>> {
   try {
     return await apiRequest<TData, TMeta>(path, { ...options, authenticated: true });
@@ -111,7 +116,7 @@ async function accountRequest<TData, TMeta = never>(
         if (!isExpiredSession(retryError)) throw retryError;
       }
     }
-    if (redirectOnFailure) goToLogin();
+    if (redirectOnFailure) goToLogin(loginPath);
     throw error;
   }
 }

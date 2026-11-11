@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { PaginationMeta, ReservationStatus } from "@esencia-glow/shared";
-import { apiRequest, ApiRequestError } from "@/lib/api";
+import { apiRequest, ApiRequestError } from "@/lib/admin-api";
 import type { AdminReservation } from "@/lib/types/admin-inventory";
 
 const RESERVATION_PAGE_LIMIT = 10;

@@ -10,7 +10,7 @@ import { Badge, type BadgeColorValue } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
 import { useToast } from "@/components/ui/toast";
-import { apiRequest } from "@/lib/api";
+import { apiRequest } from "@/lib/admin-api";
 import type { AdminSubscriptionShipment } from "@/lib/types/admin-subscription";
 import { handleShipmentError } from "./handle-shipment-error";
 import { SubscriptionShipModal } from "./subscription-ship-modal";

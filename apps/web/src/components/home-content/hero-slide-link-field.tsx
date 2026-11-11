@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { PaginationMeta } from "@esencia-glow/shared";
-import { apiRequest } from "@/lib/api";
+import { apiRequest } from "@/lib/admin-api";
 import type { AdminProduct } from "@/lib/types/admin-catalog";
 import { ProductPicker } from "@/components/bundles/product-picker";
 import { FieldError } from "@/components/ui/field-error";

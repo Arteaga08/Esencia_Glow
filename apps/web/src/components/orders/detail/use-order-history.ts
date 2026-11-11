@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { AdminOrderTracking } from "@esencia-glow/shared";
-import { apiRequest, ApiRequestError } from "@/lib/api";
+import { apiRequest, ApiRequestError } from "@/lib/admin-api";
 import type { OrderActivityEntry } from "./merge-order-timeline";
 
 /**

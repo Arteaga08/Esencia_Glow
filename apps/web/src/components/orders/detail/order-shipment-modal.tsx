@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { SHIPPING_CARRIER_LABELS, ShippingCarrier, OrderStatus, type AdminOrder } from "@esencia-glow/shared";
-import { apiRequest } from "@/lib/api";
+import { apiRequest } from "@/lib/admin-api";
 import { useToast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

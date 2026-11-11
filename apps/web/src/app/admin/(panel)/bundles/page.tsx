@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Gift, Plus } from "@phosphor-icons/react";
 import type { PaginationMeta } from "@esencia-glow/shared";
-import { apiRequest, ApiRequestError } from "@/lib/api";
+import { apiRequest, ApiRequestError } from "@/lib/admin-api";
 import { useToast } from "@/components/ui/toast";
 import { getButtonClassName } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { SHIPPING_LABEL_STATUS_LABELS, type AdminOrder } from "@esencia-glow/shared";
-import { apiRequest } from "@/lib/api";
+import { apiRequest } from "@/lib/admin-api";
 import { useToast } from "@/components/ui/toast";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

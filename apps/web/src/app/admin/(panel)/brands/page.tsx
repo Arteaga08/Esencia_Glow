@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { PencilSimple, Plus, Storefront, Trash } from "@phosphor-icons/react";
 import type { PaginationMeta } from "@esencia-glow/shared";
-import { apiRequest, ApiRequestError } from "@/lib/api";
+import { apiRequest, ApiRequestError } from "@/lib/admin-api";
 import { useToast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";

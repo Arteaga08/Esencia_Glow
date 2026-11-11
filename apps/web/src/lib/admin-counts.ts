@@ -1,5 +1,5 @@
 import type { PaginationMeta } from "@esencia-glow/shared";
-import { apiRequest } from "@/lib/api";
+import { apiRequest } from "@/lib/admin-api";
 
 /**
  * Total de un listado admin sin traer filas: `limit: 1` y se lee `meta.total`.

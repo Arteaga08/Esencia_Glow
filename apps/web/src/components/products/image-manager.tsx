@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { ArrowDown, ArrowUp, Image as ImageIcon, Trash } from "@phosphor-icons/react";
-import { apiRequest, ApiRequestError } from "@/lib/api";
+import { apiRequest, ApiRequestError } from "@/lib/admin-api";
 import { useToast } from "@/components/ui/toast";
 import type { AdminProductImage } from "@/lib/types/admin-catalog";
 

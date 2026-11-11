@@ -18,7 +18,7 @@ import { useToast } from "@/components/ui/toast";
 import { useDebouncedValue } from "@/components/inventory/use-debounced-value";
 import { CouponStatusCell } from "@/components/coupons/coupon-status-cell";
 import { useCouponList } from "@/components/coupons/use-coupon-list";
-import { apiRequest, ApiRequestError } from "@/lib/api";
+import { apiRequest, ApiRequestError } from "@/lib/admin-api";
 import { ADMIN_ROUTES } from "@/lib/admin-routes";
 import { describeCouponDiscount, describeCouponUsage, describeCouponValidity } from "@/lib/coupon-labels";
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { apiRequest, ApiRequestError } from "@/lib/api";
+import { apiRequest, ApiRequestError } from "@/lib/admin-api";
 import type { AdminSubscriptionAccountDetail } from "@/lib/types/admin-subscription";
 
 /**

@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import type { AdminOrder } from "@esencia-glow/shared";
-import { apiRequest, ApiRequestError } from "@/lib/api";
+import { apiRequest, ApiRequestError } from "@/lib/admin-api";
 import { useToast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
 import { FieldError } from "@/components/ui/field-error";

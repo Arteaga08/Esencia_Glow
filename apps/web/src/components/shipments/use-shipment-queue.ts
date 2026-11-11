@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { PaginationMeta, ShipmentQueue } from "@esencia-glow/shared";
-import { apiRequest, ApiRequestError } from "@/lib/api";
+import { apiRequest, ApiRequestError } from "@/lib/admin-api";
 import type { AdminShipmentRow } from "@/lib/types/admin-shipment";
 
 const SECTION_PAGE_LIMIT = 10;
