@@ -1,5 +1,5 @@
 import type { AdminHomeAnnouncement } from "@esencia-glow/shared";
-import { apiRequest } from "@/lib/api";
+import { apiRequest } from "@/lib/admin-api";
 import { toPayload, type AnnouncementFormValue } from "./announcement-form-value";
 
 /** Guarda el aviso (`PUT /admin/home/announcement`). Un 400/409 se lanza tal cual. */

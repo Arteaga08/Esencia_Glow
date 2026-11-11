@@ -5,7 +5,7 @@ import {
   SubscriptionStatus,
   type OrderStatusGroup,
 } from "@esencia-glow/shared";
-import { apiRequest, ApiRequestError } from "@/lib/api";
+import { apiRequest, ApiRequestError } from "@/lib/admin-api";
 import { fetchTotal } from "@/lib/admin-counts";
 
 /**

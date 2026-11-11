@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { AppSettings, SubscriptionSettings } from "@esencia-glow/shared";
-import { apiRequest, ApiRequestError } from "@/lib/api";
+import { apiRequest, ApiRequestError } from "@/lib/admin-api";
 
 /**
  * Ventana de inscripciones + día de cobro (Milestone 2.7a) — lectura vía el

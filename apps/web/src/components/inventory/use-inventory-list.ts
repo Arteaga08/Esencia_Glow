@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { PaginationMeta, StockStatus } from "@esencia-glow/shared";
-import { apiRequest, ApiRequestError } from "@/lib/api";
+import { apiRequest, ApiRequestError } from "@/lib/admin-api";
 import type { InventoryListData, PanelProductRow } from "@/lib/types/admin-inventory";
 
 /** Orden que acepta el backend (`PANEL_SORT_FIELDS`); cualquier otro caería

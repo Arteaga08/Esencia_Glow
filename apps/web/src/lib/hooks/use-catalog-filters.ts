@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { apiRequest } from "@/lib/api";
+import { apiRequest } from "@/lib/admin-api";
 import type { AdminBadge, AdminBrand, AdminCategory } from "@/lib/types/admin-catalog";
 
 interface CategoryOption {

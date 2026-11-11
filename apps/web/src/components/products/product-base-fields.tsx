@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { TagInput } from "@/components/ui/tag-input";
-import { apiRequest } from "@/lib/api";
+import { apiRequest } from "@/lib/admin-api";
 import { useCatalogFilters } from "@/lib/hooks/use-catalog-filters";
 import type { AdminProductChannel } from "@/lib/types/admin-catalog";
 

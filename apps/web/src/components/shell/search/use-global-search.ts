@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { AdminCustomerListItem, AdminOrder, PaginationMeta } from "@esencia-glow/shared";
-import { apiRequest } from "@/lib/api";
+import { apiRequest } from "@/lib/admin-api";
 import type { AdminProduct } from "@/lib/types/admin-catalog";
 import { mergeOrders } from "./merge-orders";
 

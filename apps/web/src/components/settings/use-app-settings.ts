@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { AppSettings, CommerceSettings, ShippingSettings } from "@esencia-glow/shared";
-import { apiRequest, ApiRequestError } from "@/lib/api";
+import { apiRequest, ApiRequestError } from "@/lib/admin-api";
 
 /**
  * Lectura del singleton completo `GET /admin/settings` (Milestone 2.8),

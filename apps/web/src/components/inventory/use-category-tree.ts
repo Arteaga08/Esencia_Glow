@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { apiRequest, ApiRequestError } from "@/lib/api";
+import { apiRequest, ApiRequestError } from "@/lib/admin-api";
 import type { AdminCategory } from "@/lib/types/admin-catalog";
 
 /** Mismo tope que la pantalla de Categorías: la jerarquía completa cabe en

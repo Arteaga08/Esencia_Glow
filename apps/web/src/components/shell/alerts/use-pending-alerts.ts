@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { StockStatus, SubscriptionStatus, type OrderStatusGroup } from "@esencia-glow/shared";
 import { fetchTotal } from "@/lib/admin-counts";
-import { apiRequest } from "@/lib/api";
+import { apiRequest } from "@/lib/admin-api";
 import { buildAlertRows, totalAlerts, type AlertCounts, type AlertRow } from "./build-alerts";
 
 // Mientras la pestaña está visible, la campana se refresca cada 2 minutos.

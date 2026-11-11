@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { MagnifyingGlass } from "@phosphor-icons/react";
 import type { PaginationMeta } from "@esencia-glow/shared";
-import { apiRequest } from "@/lib/api";
+import { apiRequest } from "@/lib/admin-api";
 import type { AdminProduct, AdminProductAvailability } from "@/lib/types/admin-catalog";
 
 const RESULT_LIMIT = 6;

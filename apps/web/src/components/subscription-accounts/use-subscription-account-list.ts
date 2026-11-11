@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { PaginationMeta, SubscriptionStatus } from "@esencia-glow/shared";
-import { apiRequest, ApiRequestError } from "@/lib/api";
+import { apiRequest, ApiRequestError } from "@/lib/admin-api";
 import type { AdminSubscriptionAccountListItem } from "@/lib/types/admin-subscription";
 
 const SUBSCRIPTION_ACCOUNT_PAGE_LIMIT = 20;

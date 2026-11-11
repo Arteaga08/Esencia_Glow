@@ -1,5 +1,5 @@
 import type { AdminHomeAdvice } from "@esencia-glow/shared";
-import { apiRequest } from "@/lib/api";
+import { apiRequest } from "@/lib/admin-api";
 import { toFormValue, toPayload, type AdviceFormValue } from "./advice-form-value";
 
 const PATH = "/api/v1/admin/home/advice";

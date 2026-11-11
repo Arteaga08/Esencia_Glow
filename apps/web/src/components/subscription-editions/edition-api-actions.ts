@@ -1,4 +1,4 @@
-import { apiRequest } from "@/lib/api";
+import { apiRequest } from "@/lib/admin-api";
 import type { AdminSubscriptionEdition } from "@/lib/types/admin-subscription";
 import type { CreateEditionBody } from "./create-edition-form";
 import type { EditionEditorActions } from "./edition-editor";

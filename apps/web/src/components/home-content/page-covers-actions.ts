@@ -1,5 +1,5 @@
 import type { AdminHomeOfferBanner, AdminHomePageCovers } from "@esencia-glow/shared";
-import { apiRequest } from "@/lib/api";
+import { apiRequest } from "@/lib/admin-api";
 import { PAGE_COVERS, toFormValue, type PageCoversFormValue } from "./page-covers-form-value";
 
 const PATH = "/api/v1/admin/home";

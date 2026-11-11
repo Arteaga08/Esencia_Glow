@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
 import { useToast } from "@/components/ui/toast";
-import { apiRequest } from "@/lib/api";
+import { apiRequest } from "@/lib/admin-api";
 import { formatDateTime } from "@/lib/format-date";
 import type { AdminReservation } from "@/lib/types/admin-inventory";
 import { handleInventoryError } from "./handle-inventory-error";

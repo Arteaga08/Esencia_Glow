@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { AdminOrder, AdminOrderInternalNote } from "@esencia-glow/shared";
-import { apiRequest, ApiRequestError } from "@/lib/api";
+import { apiRequest, ApiRequestError } from "@/lib/admin-api";
 
 /** Notas internas: sub-recurso propio, no vive en el `AdminOrder` (que solo
  * trae `internalNotesCount`). `addNote` hace el POST (que devuelve el
