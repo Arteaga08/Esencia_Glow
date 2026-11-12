@@ -19,7 +19,7 @@ function BrandMarqueeSection({ brands }: { brands: PublicBrand[] }) {
       <h2 id="brand-marquee-title" className="sr-only">
         Marcas
       </h2>
-      <Marquee seconds={Math.max(40, brands.length * 5)} className="py-8 md:py-10">
+      <Marquee seconds={Math.max(40, brands.length * 5)} className="py-6 md:py-8">
         {brands.map((brand) => (
           <Link key={brand.id} href={`/marca/${brand.slug}`} className={LINK_CLASS}>
             {brand.logo ? (
@@ -28,9 +28,9 @@ function BrandMarqueeSection({ brands }: { brands: PublicBrand[] }) {
                 alt={brand.name}
                 width={brand.logo.width}
                 height={brand.logo.height}
-                sizes="224px"
+                sizes="160px"
                 draggable={false}
-                className="h-12 w-auto max-w-56 object-contain brightness-0 transition-opacity duration-[var(--duration-base)] ease-out-quart hover:opacity-70 md:h-16"
+                className="h-7 w-auto max-w-36 object-contain brightness-0 transition-opacity duration-[var(--duration-base)] ease-out-quart hover:opacity-70 md:h-10 md:max-w-40"
               />
             ) : (
               <span className="type-shop-card-title whitespace-nowrap text-foreground">{brand.name}</span>
