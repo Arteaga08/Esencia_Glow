@@ -219,12 +219,13 @@ describe("routes/admin-home — hero (contenido de slides)", () => {
     expect(dup.status).toBe(400);
   });
 
-  it("un slide sin ctaHref → 400 (todo el slide es el enlace)", async () => {
+  it("un slide sin ctaHref → 200 (el enlace es opcional; sin él es solo imagen)", async () => {
     const { agent } = await createAdminSession(app);
     const response = await agent
       .put(`${BASE}/hero`)
       .send({ version: 0, isActive: true, slides: [{ title: "A", isActive: true }] });
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(200);
+    expect(response.body.data.slides[0].ctaHref).toBeUndefined();
   });
 
   it("ctaLabel ya no se guarda en el hero (se descarta)", async () => {

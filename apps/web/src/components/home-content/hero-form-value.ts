@@ -76,7 +76,7 @@ function toPayload(value: HeroFormValue, version: number) {
       ...(slide.id ? { id: slide.id } : {}),
       ...(slide.title.trim() ? { title: slide.title.trim() } : {}),
       ...(slide.subtitle.trim() ? { subtitle: slide.subtitle.trim() } : {}),
-      ctaHref: slide.ctaHref.trim(),
+      ...(slide.ctaHref.trim() ? { ctaHref: slide.ctaHref.trim() } : {}),
       isActive: slide.isActive,
     })),
   };
@@ -91,8 +91,8 @@ function validateSlide(slide: HeroSlideDraft): Record<string, string> {
   if (slide.subtitle.trim().length > limits.subtitleMax)
     errors.subtitle = `Máximo ${limits.subtitleMax} caracteres.`;
   const href = slide.ctaHref.trim();
-  if (!href) errors.ctaHref = "Elige el producto al que lleva el slide.";
-  else if (href.length > limits.hrefMax || !HREF_PATTERN.test(href)) {
+  // El enlace es opcional: vacío = el slide es solo imagen.
+  if (href && (href.length > limits.hrefMax || !HREF_PATTERN.test(href))) {
     errors.ctaHref = "Ese enlace no es válido. Elige un producto para reemplazarlo.";
   }
   return errors;

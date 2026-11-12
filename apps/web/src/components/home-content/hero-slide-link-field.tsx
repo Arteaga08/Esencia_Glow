@@ -37,7 +37,7 @@ function slugFromHref(href: string): string | null {
 function HeroSlideLinkField({
   href,
   error,
-  hint = "Al tocar el slide, la clienta llega a este producto.",
+  hint = "Si eliges uno, al tocar el slide la clienta llega a este producto. Si no, el slide es solo imagen.",
   onChange,
 }: HeroSlideLinkFieldProps) {
   const [selected, setSelected] = useState<AdminProduct | null>(null);
@@ -77,9 +77,21 @@ function HeroSlideLinkField({
         selectedProduct={resolved}
         onChange={handlePick}
         channel="store"
-        label="Producto al que lleva"
+        label="Producto al que lleva (opcional)"
         onlyActive
       />
+      {href ? (
+        <button
+          type="button"
+          onClick={() => {
+            setSelected(null);
+            onChange("");
+          }}
+          className="cursor-pointer self-start text-body-sm text-muted-foreground underline underline-offset-2 hover:text-foreground"
+        >
+          Quitar enlace
+        </button>
+      ) : null}
       {error ? (
         <FieldError message={error} />
       ) : (

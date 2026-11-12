@@ -41,8 +41,8 @@ const heroSlideSchema = Joi.object({
   id: optionalItemId,
   title: Joi.string().trim().min(1).max(LIMITS.titleMax),
   subtitle: Joi.string().trim().max(LIMITS.subtitleMax),
-  // Todo el slide es el enlace (sin botón): la URL es obligatoria y no hay texto de botón.
-  ctaHref: hrefField.required(),
+  // Si lleva enlace, todo el slide es el enlace (sin botón); sin enlace, el slide es solo imagen.
+  ctaHref: hrefField,
   isActive: Joi.boolean().required(),
 });
 
