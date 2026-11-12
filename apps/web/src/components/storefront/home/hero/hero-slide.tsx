@@ -3,7 +3,7 @@ import Link from "next/link";
 import type { PublicHomeHeroSlide } from "@esencia-glow/shared";
 
 /**
- * Un slide del hero: toda la superficie es el enlace (como Etude, sin botón).
+ * Un slide del hero: si lleva enlace, toda la superficie es el enlace (como Etude, sin botón).
  * Arte dirigido con `<picture>`: la foto vertical de móvil por defecto y la
  * horizontal de escritorio desde `md` (si no subieron la de móvil, la de
  * escritorio sirve para ambos). El texto va en tinta (`text-foreground`); en
@@ -24,12 +24,8 @@ function HeroSlide({ slide, priority }: { slide: PublicHomeHeroSlide; priority: 
   const { props: desktopProps } = getImageProps({ ...common, src: desktop.url });
   const { props: mobileProps } = getImageProps({ ...common, src: mobile.url });
 
-  return (
-    <Link
-      href={slide.ctaHref ?? "/"}
-      aria-label={slide.title ? undefined : "Esencia Glow: ver más"}
-      className="absolute inset-0 block focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-ring"
-    >
+  const content = (
+    <>
       <picture>
         <source media="(min-width: 768px)" srcSet={desktopProps.srcSet} sizes="100vw" />
         <img {...mobileProps} alt="" draggable={false} className="object-cover" />
@@ -42,6 +38,18 @@ function HeroSlide({ slide, priority }: { slide: PublicHomeHeroSlide; priority: 
         {slide.title ? <h2 className="text-hero max-w-3xl text-foreground">{slide.title}</h2> : null}
         {slide.subtitle ? <p className="mt-3 max-w-xl text-subtitle text-foreground">{slide.subtitle}</p> : null}
       </div>
+    </>
+  );
+
+  // Sin enlace el slide es solo imagen; con enlace, toda la superficie lo es.
+  if (!slide.ctaHref) return <div className="absolute inset-0 block">{content}</div>;
+  return (
+    <Link
+      href={slide.ctaHref}
+      aria-label={slide.title ? undefined : "Esencia Glow: ver más"}
+      className="absolute inset-0 block focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-ring"
+    >
+      {content}
     </Link>
   );
 }
