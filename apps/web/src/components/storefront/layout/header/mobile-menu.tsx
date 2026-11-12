@@ -81,7 +81,7 @@ function MobileMenu({
                     {category.children.map((child) => (
                       <li key={child.id}>
                         <Link
-                          href={`/categoria/${category.slug}/${child.slug}`}
+                          href={`/categoria/${child.slug}`}
                           onClick={onNavigate}
                           className={subLinkClass}
                         >
