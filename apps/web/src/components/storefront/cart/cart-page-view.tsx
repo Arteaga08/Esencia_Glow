@@ -3,7 +3,6 @@
 import { CHECKOUT_CTA_LABEL } from "@/lib/storefront/checkout/checkout-mode";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
-import { maxQuantityFor } from "@/lib/storefront/cart/cart-store";
 import { removeCartItem, setCartQuantity, useCart } from "@/lib/storefront/cart/use-cart";
 import { useResolvedCart } from "@/lib/storefront/cart/use-resolved-cart";
 import { CartEmpty } from "./cart-empty";
@@ -52,7 +51,7 @@ function CartPageView() {
                 <CartLineRow
                   key={line.key}
                   line={line}
-                  maxQuantity={maxQuantityFor(line.itemType)}
+                  maxQuantity={line.maxQuantity}
                   onQuantityChange={(quantity) => setCartQuantity(line.key, quantity)}
                   onRemove={() => removeCartItem(line.key)}
                 />

@@ -20,6 +20,9 @@ const MAX_ORDER_LINES = 50;
  * a sus componentes — `MAX_LINE_QUANTITY` (inventory.ts) cubre esas. */
 const MAX_BUNDLE_QUANTITY = 20;
 
+/** Tope de unidades de una misma variante por línea del carrito (selector de la tienda). */
+const MAX_PRODUCT_QUANTITY = 10;
+
 /** Un array de bitácora sin techo es un DoS del documento contra sí mismo. */
 const MAX_STATUS_HISTORY = 50;
 
@@ -61,6 +64,7 @@ export {
   DEFAULT_COMMERCE_SETTINGS,
   MAX_ORDER_LINES,
   MAX_BUNDLE_QUANTITY,
+  MAX_PRODUCT_QUANTITY,
   MAX_STATUS_HISTORY,
   MAX_INTERNAL_NOTES,
   PACKAGING_TARE_GRAMS,

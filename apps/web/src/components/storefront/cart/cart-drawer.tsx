@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { X } from "@phosphor-icons/react";
 import { formatMoneyMXN } from "@/lib/format-money";
-import { maxQuantityFor } from "@/lib/storefront/cart/cart-store";
 import { removeCartItem, setCartQuantity, useCart } from "@/lib/storefront/cart/use-cart";
 import { closeCartPanel, useCartPanelOpen } from "@/lib/storefront/cart/use-cart-panel";
 import { useResolvedCart } from "@/lib/storefront/cart/use-resolved-cart";
@@ -123,7 +122,7 @@ function CartDrawer() {
                   key={line.key}
                   line={line}
                   size="sm"
-                  maxQuantity={maxQuantityFor(line.itemType)}
+                  maxQuantity={line.maxQuantity}
                   onQuantityChange={(quantity) => setCartQuantity(line.key, quantity)}
                   onRemove={() => removeCartItem(line.key)}
                 />

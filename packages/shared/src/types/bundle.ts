@@ -44,6 +44,8 @@ interface PublicBundle {
  * `PublicVariantAvailability`, nunca el conteo real. */
 interface PublicBundleAvailability {
   isAvailable: boolean;
+  /** Kits que se pueden pedir hoy, topados en `MAX_BUNDLE_QUANTITY`: nunca el stock real. */
+  maxQuantity?: number;
 }
 
 /** Rango de precio de los paquetes publicados (centavos), para los atajos del filtro. */

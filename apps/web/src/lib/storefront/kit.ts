@@ -9,6 +9,12 @@ import { toShelfKit } from "./shelf-item";
 // Solo las facetas (iguales para todos) se cachean un minuto; kits y disponibilidad llevan la IP de quien visita.
 const KIT_REVALIDATE_SECONDS = 60;
 
+/** `maxQuantity` ausente = sin dato: rige el máximo fijo. */
+interface KitAvailability {
+  available: boolean;
+  maxQuantity?: number;
+}
+
 type KitLookup = { kind: "found"; bundle: PublicBundle } | { kind: "not-found" } | { kind: "error" };
 
 /**
@@ -32,20 +38,22 @@ async function getKit(slug: string): Promise<KitLookup> {
 }
 
 /**
- * Si el kit se puede armar hoy. Si el API no responde devuelve `true`: la
+ * Si el kit se puede armar hoy. Si el API no responde devuelve disponible: la
  * página no bloquea la compra por eso, la reserva real decide al pagar.
  */
-async function getKitAvailability(slug: string): Promise<boolean> {
+async function getKitAvailability(slug: string): Promise<KitAvailability> {
   try {
     const response = await fetch(`${API_URL}/api/v1/bundles/${encodeURIComponent(slug)}/availability`, {
       headers: await internalApiHeaders({ visitor: true }),
       cache: "no-store",
     });
-    if (!response.ok) return true;
+    if (!response.ok) return { available: true };
     const payload = (await response.json()) as ApiResponse<PublicBundleAvailability>;
-    return payload.status === "success" ? payload.data.isAvailable : true;
+    if (payload.status !== "success") return { available: true };
+    const { isAvailable, maxQuantity } = payload.data;
+    return { available: isAvailable, ...(maxQuantity === undefined ? {} : { maxQuantity }) };
   } catch {
-    return true;
+    return { available: true };
   }
 }
 
@@ -81,4 +89,4 @@ async function getKitFacets(): Promise<PublicProductFacets> {
 }
 
 export { getKit, getKitAvailability, getKitsPage, getKitFacets };
-export type { KitLookup };
+export type { KitLookup, KitAvailability };

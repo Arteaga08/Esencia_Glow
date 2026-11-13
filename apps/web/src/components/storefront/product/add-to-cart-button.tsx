@@ -14,6 +14,8 @@ interface AddToCartButtonProps {
   /** Línea que se agrega: variante (o kit) con su snapshot para pintar al instante. */
   item: CartItemInput;
   quantity: number;
+  /** Piezas disponibles hoy; el carrito no pasa de ahí. Sin dato rige el máximo fijo. */
+  maxQuantity?: number;
   totalCents: number;
   available: boolean;
   /** Texto accesible completo, p. ej. "Agregar 2 Sérum Vitamina C, 30 ml". */
@@ -30,7 +32,7 @@ interface AddToCartButtonProps {
  * si topó un límite no lo abre y deja el aviso a quien lo usa (`onResult`).
  * Estados: reposo, agregado (palomita) y agotado (deshabilitado con texto).
  */
-function AddToCartButton({ item, quantity, totalCents, available, ariaLabel, onResult, className = "", size = "md" }: AddToCartButtonProps) {
+function AddToCartButton({ item, quantity, maxQuantity, totalCents, available, ariaLabel, onResult, className = "", size = "md" }: AddToCartButtonProps) {
   const [added, setAdded] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -41,7 +43,7 @@ function AddToCartButton({ item, quantity, totalCents, available, ariaLabel, onR
   }, []);
 
   function handleClick() {
-    const result = addCartItem(item, quantity);
+    const result = addCartItem(item, quantity, maxQuantity);
     onResult?.(result);
     if (!result.changed) return;
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { MAX_PRODUCT_QUANTITY } from "@esencia-glow/shared";
 import { CHECKOUT_MODE } from "@/lib/storefront/checkout/checkout-mode";
 import { FieldError } from "@/components/ui/field-error";
 import { describeAddOutcome } from "@/lib/storefront/cart/add-outcome-copy";
@@ -30,6 +31,10 @@ function PurchasePanel({ product }: { product: ProductView }) {
 
   const variant = product.variants.find((candidate) => candidate.id === variantId) ?? firstAvailable;
   if (!variant) return null;
+
+  // Nunca más piezas de las que hay hoy (ni más del máximo por línea).
+  const maxQuantity = Math.min(variant.maxQuantity ?? MAX_PRODUCT_QUANTITY, MAX_PRODUCT_QUANTITY);
+  const selectedQuantity = Math.max(1, Math.min(quantity, maxQuantity));
 
   const cartItem: CartItemInput = {
     itemType: "product",
@@ -76,7 +81,8 @@ function PurchasePanel({ product }: { product: ProductView }) {
       <div className="flex flex-wrap justify-between gap-3 sm:flex-nowrap">
         <QuantityStepper
           size="lg"
-          value={quantity}
+          value={selectedQuantity}
+          max={maxQuantity}
           onChange={(next) => {
             setQuantity(next);
             setLimitNotice(null);
@@ -84,11 +90,12 @@ function PurchasePanel({ product }: { product: ProductView }) {
         />
         <AddToCartButton
           item={cartItem}
-          quantity={quantity}
-          onResult={(result) => setLimitNotice(describeAddOutcome(result.outcome, "product"))}
-          totalCents={variant.priceCents * quantity}
+          quantity={selectedQuantity}
+          maxQuantity={maxQuantity}
+          onResult={(result) => setLimitNotice(describeAddOutcome(result.outcome, "product", maxQuantity))}
+          totalCents={variant.priceCents * selectedQuantity}
           available={variant.available}
-          ariaLabel={`Agregar ${quantity} ${product.name}, ${variant.label}`}
+          ariaLabel={`Agregar ${selectedQuantity} ${product.name}, ${variant.label}`}
           size="lg"
           className="order-last basis-full sm:order-none sm:flex-1 sm:basis-0"
         />

@@ -19,6 +19,8 @@ interface ProductViewVariant {
   /** Precio tachado, solo presentación. */
   listPriceCents?: number;
   available: boolean;
+  /** Piezas que se pueden pedir hoy (topadas); sin dato, el máximo fijo del carrito. */
+  maxQuantity?: number;
 }
 
 type ContentKey = "benefits" | "routineSteps" | "usage" | "ingredients";
@@ -66,6 +68,9 @@ function toProductView(
   availability: PublicVariantAvailability[],
 ): ProductView {
   const unavailable = new Set(availability.filter((entry) => !entry.isAvailable).map((entry) => entry.variantId));
+  const maxByVariant = new Map(
+    availability.flatMap((entry) => (entry.maxQuantity === undefined ? [] : [[entry.variantId, entry.maxQuantity] as const])),
+  );
 
   return {
     id: product.id,
@@ -87,6 +92,7 @@ function toProductView(
       priceCents: variant.price,
       listPriceCents: variant.listPrice && variant.listPrice > variant.price ? variant.listPrice : undefined,
       available: !unavailable.has(variant.id),
+      ...(maxByVariant.has(variant.id) ? { maxQuantity: maxByVariant.get(variant.id) } : {}),
     })),
     sections: toSections(product.content),
     skinTypes: product.skinTypes ?? [],

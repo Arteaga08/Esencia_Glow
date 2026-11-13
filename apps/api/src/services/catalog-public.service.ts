@@ -1,4 +1,5 @@
 import type { Types } from "mongoose";
+import { MAX_PRODUCT_QUANTITY } from "@esencia-glow/shared";
 import type {
   ListQuery,
   PaginationMeta,
@@ -218,6 +219,7 @@ async function getPublicVariantAvailability(slug: string): Promise<PublicVariant
       variantId: variant._id.toString(),
       sku: variant.sku,
       isAvailable: row !== undefined && row.onHand - row.reserved > 0,
+      maxQuantity: row ? Math.min(Math.max(0, row.onHand - row.reserved), MAX_PRODUCT_QUANTITY) : 0,
     };
   });
 }

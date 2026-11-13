@@ -22,6 +22,8 @@ interface CartRowLine {
   quantity: number;
   image?: { url: string; alt: string };
   available: boolean;
+  /** El tope lo pone la disponibilidad y no el máximo por línea (cambia el aviso). */
+  limitedByStock?: boolean;
 }
 
 interface CartLineRowProps {
@@ -82,7 +84,7 @@ function CartLineRow({ line, size = "md", maxQuantity = 10, onQuantityChange, on
             </button>
             {line.available && line.quantity >= maxQuantity ? (
               <p role="status" className="basis-full text-body-sm text-muted-foreground-strong">
-                Máximo {maxQuantity} por pedido.
+                {line.limitedByStock ? `Solo hay ${maxQuantity} disponible${maxQuantity === 1 ? "" : "s"}.` : `Máximo ${maxQuantity} por pedido.`}
               </p>
             ) : null}
           </div>

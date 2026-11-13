@@ -1,5 +1,6 @@
 import {
   BundleStatus,
+  MAX_BUNDLE_QUANTITY,
   type ListQuery,
   type PaginationMeta,
   type PublicBundle,
@@ -107,7 +108,7 @@ async function getPublicBundleAvailability(slug: string): Promise<PublicBundleAv
   if (!bundle) throw new AppError("Paquete no encontrado", 404);
 
   const possible = await computeBundleAvailability(bundle.items);
-  return { isAvailable: possible > 0 };
+  return { isAvailable: possible > 0, maxQuantity: Math.min(possible, MAX_BUNDLE_QUANTITY) };
 }
 
 export { listPublicBundles, getPublicBundleBySlug, getPublicBundleAvailability, getPublicBundleFacets };

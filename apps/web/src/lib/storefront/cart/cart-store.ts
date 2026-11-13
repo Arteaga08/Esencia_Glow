@@ -1,4 +1,4 @@
-import { MAX_BUNDLE_QUANTITY, MAX_ORDER_LINES } from "@esencia-glow/shared";
+import { MAX_BUNDLE_QUANTITY, MAX_ORDER_LINES, MAX_PRODUCT_QUANTITY } from "@esencia-glow/shared";
 
 /**
  * Carrito de la tienda: funciones PURAS sobre un arreglo inmutable. No toca
@@ -47,8 +47,6 @@ interface AddResult {
 
 const STORAGE_KEY = "esencia-glow:cart:v1";
 const STORAGE_VERSION = 1;
-// Mismo tope del selector de cantidad de la ficha de producto.
-const MAX_PRODUCT_QUANTITY = 10;
 
 const EMPTY_CART: Cart = Object.freeze([]);
 
@@ -64,15 +62,20 @@ function clampQuantity(itemType: CartItemType, quantity: number): number {
   return Math.min(Math.max(quantity, 1), maxQuantityFor(itemType));
 }
 
-function addLine(cart: Cart, input: CartItemInput, quantity = 1): AddResult {
+/**
+ * `limit` es el tope por disponibilidad que conoce quien agrega (nunca sube el
+ * máximo por línea, solo lo baja); sin él rige el máximo fijo del tipo.
+ */
+function addLine(cart: Cart, input: CartItemInput, quantity = 1, limit?: number): AddResult {
   if (!Number.isInteger(quantity) || quantity < 1) return { cart, outcome: "ignored" };
 
   const key = lineKey(input.itemType, input.itemId);
   const existing = cart.find((line) => lineKey(line.itemType, line.itemId) === key);
-  const max = maxQuantityFor(input.itemType);
+  const max = Math.min(maxQuantityFor(input.itemType), limit ?? Infinity);
 
   if (!existing) {
     if (cart.length >= MAX_ORDER_LINES) return { cart, outcome: "full" };
+    if (max < 1) return { cart, outcome: "capped" };
     const next = Math.min(quantity, max);
     return {
       cart: [...cart, { ...input, quantity: next }],

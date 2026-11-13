@@ -126,6 +126,8 @@ interface PublicVariantAvailability {
   variantId: string;
   sku: string;
   isAvailable: boolean;
+  /** Unidades que se pueden pedir hoy, topadas en `MAX_PRODUCT_QUANTITY`: nunca el stock real. */
+  maxQuantity?: number;
 }
 
 export type {

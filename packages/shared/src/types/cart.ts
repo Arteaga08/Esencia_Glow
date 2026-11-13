@@ -23,6 +23,8 @@ interface PublicCartLine {
   itemType: "product" | "bundle";
   itemId: string;
   available: boolean;
+  /** Unidades que se pueden pedir hoy, topadas en el máximo por línea: nunca el stock real. */
+  maxQuantity?: number;
   slug?: string;
   name?: string;
   brand?: string;

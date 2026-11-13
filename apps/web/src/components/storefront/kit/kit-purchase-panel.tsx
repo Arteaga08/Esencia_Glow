@@ -26,6 +26,10 @@ function KitPurchasePanel({ kit }: { kit: KitView }) {
   // Aviso de tope del carrito, pegado a la fila de compra.
   const [limitNotice, setLimitNotice] = useState<string | null>(null);
 
+  // Nunca más kits de los que se pueden armar hoy (ni más del máximo por línea).
+  const maxQuantity = Math.min(kit.maxQuantity ?? MAX_BUNDLE_QUANTITY, MAX_BUNDLE_QUANTITY);
+  const selectedQuantity = Math.max(1, Math.min(quantity, maxQuantity));
+
   const cartItem: CartItemInput = {
     itemType: "bundle",
     itemId: kit.id,
@@ -56,8 +60,8 @@ function KitPurchasePanel({ kit }: { kit: KitView }) {
       <div className="flex flex-wrap justify-between gap-3 sm:flex-nowrap">
         <QuantityStepper
           size="lg"
-          value={quantity}
-          max={MAX_BUNDLE_QUANTITY}
+          value={selectedQuantity}
+          max={maxQuantity}
           onChange={(next) => {
             setQuantity(next);
             setLimitNotice(null);
@@ -65,11 +69,12 @@ function KitPurchasePanel({ kit }: { kit: KitView }) {
         />
         <AddToCartButton
           item={cartItem}
-          quantity={quantity}
-          onResult={(result) => setLimitNotice(describeAddOutcome(result.outcome, "bundle"))}
-          totalCents={kit.priceCents * quantity}
+          quantity={selectedQuantity}
+          maxQuantity={maxQuantity}
+          onResult={(result) => setLimitNotice(describeAddOutcome(result.outcome, "bundle", maxQuantity))}
+          totalCents={kit.priceCents * selectedQuantity}
           available={kit.available}
-          ariaLabel={`Agregar ${quantity} ${kit.name}`}
+          ariaLabel={`Agregar ${selectedQuantity} ${kit.name}`}
           size="lg"
           className="order-last basis-full sm:order-none sm:flex-1 sm:basis-0"
         />

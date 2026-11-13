@@ -79,9 +79,9 @@ interface AddToCartResult {
   changed: boolean;
 }
 
-function addCartItem(input: CartItemInput, quantity = 1): AddToCartResult {
+function addCartItem(input: CartItemInput, quantity = 1, limit?: number): AddToCartResult {
   const current = readCart();
-  const result = addLine(current, input, quantity);
+  const result = addLine(current, input, quantity, limit);
   const changed = result.cart !== current;
   if (changed) writeCart(result.cart);
   return { outcome: result.outcome, changed };

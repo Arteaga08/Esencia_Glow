@@ -1,5 +1,5 @@
 import { DEFAULT_COMMERCE_SETTINGS, type PublicCartLine } from "@esencia-glow/shared";
-import { lineKey, type Cart, type CartItemType } from "./cart-store";
+import { lineKey, maxQuantityFor, type Cart, type CartItemType } from "./cart-store";
 
 /**
  * Lo que pinta el panel y la página del carrito: lo guardado en el navegador
@@ -22,6 +22,10 @@ interface CartLineView {
   image?: { url: string; alt: string };
   slug?: string;
   available: boolean;
+  /** Tope del selector: lo que hay hoy, sin pasar del máximo por línea. */
+  maxQuantity?: number;
+  /** El tope lo pone la disponibilidad y no el máximo por línea (cambia el aviso). */
+  limitedByStock?: boolean;
 }
 
 interface CartTotals {
@@ -60,6 +64,9 @@ function buildCartView(cart: Cart, live: readonly PublicCartLine[] | null): Cart
     const brand = hasData ? fresh.brand : line.snapshot.brand;
     const slug = (hasData ? fresh.slug : undefined) ?? line.snapshot.slug;
 
+    const fixedMax = maxQuantityFor(line.itemType);
+    const maxQuantity = Math.min(fresh?.maxQuantity ?? fixedMax, fixedMax);
+
     return {
       key,
       itemType: line.itemType,
@@ -74,6 +81,8 @@ function buildCartView(cart: Cart, live: readonly PublicCartLine[] | null): Cart
       ...(image ? { image: { url: image.url, alt: image.alt ?? name } } : {}),
       ...(slug ? { slug } : {}),
       available: fresh ? fresh.available : true,
+      maxQuantity,
+      limitedByStock: maxQuantity < fixedMax,
     };
   });
 }

@@ -33,7 +33,7 @@ export async function generateMetadata({ params }: KitPageProps): Promise<Metada
  */
 export default async function KitPage({ params }: KitPageProps) {
   const { slug } = await params;
-  const [lookup, available] = await Promise.all([getKit(slug), getKitAvailability(slug)]);
+  const [lookup, availability] = await Promise.all([getKit(slug), getKitAvailability(slug)]);
 
   if (lookup.kind === "not-found") notFound();
   if (lookup.kind === "error") {
@@ -44,7 +44,7 @@ export default async function KitPage({ params }: KitPageProps) {
     );
   }
 
-  const view = toKitView(lookup.bundle, available);
+  const view = toKitView(lookup.bundle, availability);
   const path = `/kit/${view.slug}`;
 
   return (

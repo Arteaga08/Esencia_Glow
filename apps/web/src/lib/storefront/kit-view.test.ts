@@ -63,7 +63,7 @@ describe("toKitView", () => {
 
   it("sin dato de disponibilidad se asume disponible", () => {
     expect(toKitView(bundle()).available).toBe(true);
-    expect(toKitView(bundle(), false).available).toBe(false);
+    expect(toKitView(bundle(), { available: false }).available).toBe(false);
   });
 
   it("solo incluye los bloques de contenido que traen algo", () => {

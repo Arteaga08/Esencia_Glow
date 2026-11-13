@@ -31,6 +31,8 @@ interface KitView {
   /** "N productos": suma de unidades de todas las piezas. */
   unitsLabel: string;
   available: boolean;
+  /** Kits que se pueden pedir hoy (topados); sin dato, el máximo fijo del carrito. */
+  maxQuantity?: number;
   items: KitViewItem[];
   sections: ProductViewSection[];
 }
@@ -50,7 +52,7 @@ function countUnits(bundle: PublicBundle): number {
 }
 
 /** Sin dato de disponibilidad se asume disponible: la reserva real decide al pagar. */
-function toKitView(bundle: PublicBundle, available = true): KitView {
+function toKitView(bundle: PublicBundle, availability: { available: boolean; maxQuantity?: number } = { available: true }): KitView {
   const units = countUnits(bundle);
   const own = bundle.images.map((image) => ({
     url: image.url,
@@ -74,7 +76,8 @@ function toKitView(bundle: PublicBundle, available = true): KitView {
     priceCents: bundle.price,
     listPriceCents: bundle.listPrice && bundle.listPrice > bundle.price ? bundle.listPrice : undefined,
     unitsLabel: `${units} ${units === 1 ? "producto" : "productos"}`,
-    available,
+    available: availability.available,
+    ...(availability.maxQuantity === undefined ? {} : { maxQuantity: availability.maxQuantity }),
     items: bundle.items.map((item) => {
       const { name, presentation } = splitItemName(item.name);
       return {

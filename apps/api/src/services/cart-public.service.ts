@@ -1,4 +1,4 @@
-import { BundleStatus, ProductChannel, ProductStatus, type PublicCartLine, type ResolveCartLineInput } from "@esencia-glow/shared";
+import { BundleStatus, MAX_BUNDLE_QUANTITY, MAX_PRODUCT_QUANTITY, ProductChannel, ProductStatus, type PublicCartLine, type ResolveCartLineInput } from "@esencia-glow/shared";
 import { Inventory } from "../models/inventory.model.js";
 import { computeBundleAvailability } from "./bundle-availability.service.js";
 import {
@@ -61,6 +61,7 @@ function resolveProductLine(
     itemType: "product",
     itemId: line.itemId,
     available: (stock.get(line.itemId) ?? 0) > 0,
+    maxQuantity: Math.min(stock.get(line.itemId) ?? 0, MAX_PRODUCT_QUANTITY),
     slug: product.slug,
     name: product.name,
     ...(product.brand ? { brand: product.brand } : {}),
@@ -92,10 +93,13 @@ async function resolveBundleLine(
   const image = toImage(bundle.images[0] ?? components.find(({ product }) => product?.images[0])?.product?.images[0]);
   const units = bundle.items.reduce((sum, item) => sum + item.quantity, 0);
 
+  const possible = await computeBundleAvailability(bundle.items);
+
   return {
     itemType: "bundle",
     itemId: line.itemId,
-    available: (await computeBundleAvailability(bundle.items)) > 0,
+    available: possible > 0,
+    maxQuantity: Math.min(possible, MAX_BUNDLE_QUANTITY),
     slug: bundle.slug,
     name: bundle.name,
     variantLabel: `${units} ${units === 1 ? "producto" : "productos"}`,
