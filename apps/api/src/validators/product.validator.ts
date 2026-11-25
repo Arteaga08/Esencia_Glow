@@ -175,6 +175,9 @@ const updateProductSchema = Joi.object({
   isBestseller: Joi.boolean().messages({
     "boolean.base": "Más vendido debe ser verdadero o falso",
   }),
+  isBestsellerPinned: Joi.boolean().messages({
+    "boolean.base": "Fijar al inicio debe ser verdadero o falso",
+  }),
   isNewArrival: Joi.boolean().messages({
     "boolean.base": "Novedad debe ser verdadero o falso",
   }),

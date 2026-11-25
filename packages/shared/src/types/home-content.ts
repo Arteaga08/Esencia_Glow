@@ -1,5 +1,6 @@
 import type { HomeBenefitIcon } from "../enums/home-benefit-icon.js";
 import type { HomePageCoverKey } from "../enums/home-section.js";
+import type { PublicBundle } from "./bundle.js";
 import type { PublicCategory, PublicProduct, PublicProductImage } from "./catalog.js";
 
 /**
@@ -87,13 +88,24 @@ interface AdminHomeBenefits extends HomeSectionMeta {
 
 /**
  * Portada de un bloque del home (Novedades o Kits, bloque 5): título,
- * subtítulo y dos fotos. Las cuatro tarjetas NO se guardan aquí: salen del
- * catálogo (productos con `isNewArrival`, paquetes publicados).
+ * subtítulo, dos fotos y las tarjetas elegidas. `itemIds` son ids de producto
+ * (Novedades) o de paquete (Kits), en el orden en que se muestran; vacío
+ * significa "automático" (los más recientes).
  */
 interface AdminHomeSpotlight extends HomeSectionMeta {
   title: string;
   subtitle?: string;
   images: Partial<HomeHeroSlideImages>;
+  itemIds: string[];
+}
+
+/** Resumen de una tarjeta elegida, lo que pinta la lista ordenable del editor. */
+interface AdminHomeSpotlightItem {
+  id: string;
+  name: string;
+  imageUrl?: string;
+  /** `false` si el producto/paquete ya no se publica (borrador, archivado…): el home lo omite. */
+  isPublished: boolean;
 }
 
 /**
@@ -148,6 +160,16 @@ interface PublicHomeSpotlight {
   images: HomeHeroSlideImages<PublicProductImage>;
 }
 
+/** Novedades: portada más hasta cuatro productos publicados. */
+interface PublicHomeNewArrivals extends PublicHomeSpotlight {
+  products: PublicProduct[];
+}
+
+/** Kits: portada más hasta cuatro paquetes publicados. */
+interface PublicHomeKits extends PublicHomeSpotlight {
+  bundles: PublicBundle[];
+}
+
 /** Sin foto de escritorio, frase, botón o enlace no se publica: todo viene. */
 interface PublicHomeOfferBanner {
   text: string;
@@ -170,8 +192,8 @@ interface PublicHomeContent {
   };
   testimonials?: { items: Omit<AdminHomeTestimonial, "isActive">[] };
   benefits?: { items: Omit<AdminHomeBenefit, "isActive">[] };
-  newArrivals?: PublicHomeSpotlight;
-  kits?: PublicHomeSpotlight;
+  newArrivals?: PublicHomeNewArrivals;
+  kits?: PublicHomeKits;
   offerBanner?: PublicHomeOfferBanner;
   /** Foto del encabezado de /ofertas. Se publica aunque el banner del home esté apagado. */
   salePage?: { image: PublicProductImage };
@@ -194,10 +216,13 @@ export type {
   AdminHomeBenefit,
   AdminHomeBenefits,
   AdminHomeSpotlight,
+  AdminHomeSpotlightItem,
   AdminHomeOfferBanner,
   AdminHomePageCovers,
   AdminHomeContent,
   PublicHomeSpotlight,
+  PublicHomeNewArrivals,
+  PublicHomeKits,
   PublicHomeOfferBanner,
   PublicHomeHeroSlide,
   PublicHomeContent,

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { HOME_CONTENT_LIMITS } from "@esencia-glow/shared";
 import { FieldError } from "@/components/ui/field-error";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -19,6 +20,8 @@ interface ProductBaseFieldsValue {
   categoryId: string | null;
   badgeId: string | null;
   isBestseller: boolean;
+  /** Solo se edita en productos ya creados (`canPin`). */
+  isBestsellerPinned: boolean;
   isNewArrival: boolean;
   skinTypes: string[];
   channel: AdminProductChannel;
@@ -28,6 +31,8 @@ interface ProductBaseFieldsProps {
   value: ProductBaseFieldsValue;
   onChange: (patch: Partial<ProductBaseFieldsValue>) => void;
   errors?: Record<string, string>;
+  /** Fijar al inicio solo existe al editar: un producto recién creado aún no tiene lugar en Más vendidos. */
+  canPin?: boolean;
 }
 
 const CHANNEL_OPTIONS = [
@@ -44,7 +49,7 @@ const CHANNEL_HELPERS: Record<AdminProductChannel, string> = {
 
 /** Datos base del producto — el cascarón. Variantes, fotos y contenido
  * editorial viven en sus propios bloques del editor, no aquí. */
-function ProductBaseFields({ value, onChange, errors }: ProductBaseFieldsProps) {
+function ProductBaseFields({ value, onChange, errors, canPin = false }: ProductBaseFieldsProps) {
   const { categoryOptions, badgeOptions, brandOptions } = useCatalogFilters();
   const skinTypeSuggestions = useSkinTypeSuggestions();
 
@@ -116,15 +121,27 @@ function ProductBaseFields({ value, onChange, errors }: ProductBaseFieldsProps) 
         />
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <MerchandisingToggle
-          label="Más vendido"
-          helper="Aparece en el carrusel de Más vendidos del inicio de la tienda."
-          checked={value.isBestseller}
-          onChange={(checked) => onChange({ isBestseller: checked })}
-        />
+        <div className="flex flex-col gap-3">
+          <MerchandisingToggle
+            label="Más vendido"
+            helper={`Aparece en Más vendidos, en el inicio y en su página. Máximo ${HOME_CONTENT_LIMITS.maxBestsellers} productos a la vez.`}
+            checked={value.isBestseller}
+            onChange={(checked) => onChange({ isBestseller: checked, ...(checked ? {} : { isBestsellerPinned: false }) })}
+            error={errors?.isBestseller}
+          />
+          {canPin && value.isBestseller ? (
+            <MerchandisingToggle
+              label="Fijar al inicio"
+              helper="Sale primero en Más vendidos. Si fijas varios, el último que fijes va arriba; el resto se ordena por más recientes."
+              checked={value.isBestsellerPinned}
+              onChange={(checked) => onChange({ isBestsellerPinned: checked })}
+              error={errors?.isBestsellerPinned}
+            />
+          ) : null}
+        </div>
         <MerchandisingToggle
           label="Novedad"
-          helper="Se muestra en Novedades de la tienda. Máximo 4 productos a la vez."
+          helper="Muestra la etiqueta Novedad en la tarjeta del producto. Las 4 tarjetas del inicio se eligen en Contenido del home."
           checked={value.isNewArrival}
           onChange={(checked) => onChange({ isNewArrival: checked })}
           error={errors?.isNewArrival}

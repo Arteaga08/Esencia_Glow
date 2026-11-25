@@ -87,6 +87,8 @@ interface HomeBenefitsAttrs extends HomeSectionBaseAttrs {
 interface HomeSpotlightAttrs extends HomeSectionBaseAttrs {
   title?: string;
   subtitle?: string;
+  /** Ids de producto (Novedades) o de paquete (Kits), en orden de aparición. */
+  itemIds?: Types.ObjectId[];
   images?: { desktop?: HomeImageAttrs; mobile?: HomeImageAttrs };
 }
 
@@ -206,6 +208,8 @@ const spotlightSchema = new Schema<HomeSpotlightAttrs>(
     ...baseFields,
     title: { type: String, trim: true, maxlength: 120 },
     subtitle: { type: String, trim: true, maxlength: 240 },
+    // Sin `ref`: apunta a Product en Novedades y a Bundle en Kits.
+    itemIds: { type: [Schema.Types.ObjectId] },
     images: {
       type: new Schema({ desktop: { type: mediaImageSchema }, mobile: { type: mediaImageSchema } }, { _id: false }),
     },

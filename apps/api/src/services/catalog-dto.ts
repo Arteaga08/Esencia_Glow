@@ -201,6 +201,7 @@ interface LeanProduct {
   status: string;
   isBestseller?: boolean;
   isNewArrival?: boolean;
+  bestsellerPinnedAt?: Date;
   // Sin backfill: un producto anterior a este campo no lo trae.
   skinTypes?: string[];
   channel: ProductChannel;
@@ -226,6 +227,7 @@ interface AdminProduct {
   badgeId: string | null;
   status: string;
   isBestseller: boolean;
+  isBestsellerPinned: boolean;
   isNewArrival: boolean;
   skinTypes: string[];
   channel: ProductChannel;
@@ -300,6 +302,7 @@ function buildAdminProduct(product: LeanProduct): AdminProduct {
     badgeId: product.badgeId ? product.badgeId.toString() : null,
     status: product.status,
     isBestseller: product.isBestseller ?? false,
+    isBestsellerPinned: Boolean(product.bestsellerPinnedAt),
     isNewArrival: product.isNewArrival ?? false,
     skinTypes: product.skinTypes ?? [],
     channel: product.channel,

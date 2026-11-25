@@ -34,6 +34,17 @@ async function fetchProductsByIds(productIds: string[]): Promise<Map<string, Lea
   return new Map(products.map((product) => [product._id.toString(), product]));
 }
 
+/** Documentos de paquete -> `PublicBundle[]` (productos y badges en una query por lote). Conserva el orden recibido. */
+async function buildPublicBundles(documents: LeanBundle[]): Promise<PublicBundle[]> {
+  const [productById, badgeById] = await Promise.all([
+    fetchProductsByIds(documents.flatMap((bundle) => bundle.items.map((item) => item.productId.toString()))),
+    resolveBadgeRefs(documents.map((bundle) => bundle.badgeId)),
+  ]);
+  return documents.map((bundle) =>
+    buildPublicBundle(bundle, productById, bundle.badgeId ? badgeById.get(bundle.badgeId.toString()) : undefined),
+  );
+}
+
 interface ListPublicBundlesInput extends ListQuery {
   minPrice?: number;
   maxPrice?: number;
@@ -62,17 +73,7 @@ async function listPublicBundles(
     Bundle.countDocuments(filter),
   ]);
 
-  const [productById, badgeById] = await Promise.all([
-    fetchProductsByIds(documents.flatMap((bundle) => bundle.items.map((item) => item.productId.toString()))),
-    resolveBadgeRefs(documents.map((bundle) => bundle.badgeId)),
-  ]);
-
-  return {
-    bundles: documents.map((bundle) =>
-      buildPublicBundle(bundle, productById, bundle.badgeId ? badgeById.get(bundle.badgeId.toString()) : undefined),
-    ),
-    meta: buildMeta(total, input),
-  };
+  return { bundles: await buildPublicBundles(documents), meta: buildMeta(total, input) };
 }
 
 async function getPublicBundleBySlug(slug: string): Promise<PublicBundle> {
@@ -110,5 +111,5 @@ async function getPublicBundleAvailability(slug: string): Promise<PublicBundleAv
   return { isAvailable: possible > 0 };
 }
 
-export { listPublicBundles, getPublicBundleBySlug, getPublicBundleAvailability, getPublicBundleFacets };
+export { listPublicBundles, buildPublicBundles, getPublicBundleBySlug, getPublicBundleAvailability, getPublicBundleFacets };
 export type { ListPublicBundlesInput };

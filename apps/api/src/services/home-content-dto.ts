@@ -133,6 +133,7 @@ function buildSpotlight(doc: HomeContentAttrs | null, key: HomeSpotlightKey): Ad
       ...(section?.images?.desktop ? { desktop: buildImageDto(section.images.desktop) } : {}),
       ...(section?.images?.mobile ? { mobile: buildImageDto(section.images.mobile) } : {}),
     },
+    itemIds: (section?.itemIds ?? []).map((id) => id.toString()),
   };
 }
 

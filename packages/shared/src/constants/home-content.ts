@@ -10,8 +10,10 @@ const HOME_CONTENT_LIMITS = {
   maxFeaturedCategories: 8,
   maxTestimonials: 12,
   maxBenefits: 6,
-  /** Novedades del home (bloque 5): la rejilla 2×2 muestra exactamente cuatro. */
-  maxNewArrivals: 4,
+  /** Tarjetas de Novedades y de Kits del home (bloque 5): la rejilla 2×2 muestra exactamente cuatro. */
+  maxSpotlightItems: 4,
+  /** Productos marcados como Más vendido: es lo que cabe en el carrusel del home. */
+  maxBestsellers: 12,
   announcementTextMax: 120,
   /** Frase de la cinta del banner de oferta (bloque 8): se lee de corrido mientras se desplaza. */
   offerTextMax: 80,

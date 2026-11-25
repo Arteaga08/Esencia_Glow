@@ -80,6 +80,8 @@ interface UpdateProductInput {
   categoryId?: string;
   badgeId?: string | null;
   isBestseller?: boolean;
+  /** Fijar al inicio de Más vendidos; solo tiene sentido en un producto marcado como más vendido. */
+  isBestsellerPinned?: boolean;
   isNewArrival?: boolean;
   skinTypes?: string[];
   status?: ProductStatus;
@@ -133,30 +135,31 @@ async function resolveCategoryIds(categoryId: string): Promise<Types.ObjectId[]>
  * — se extrae del input antes de construir el documento.
  */
 /**
- * La rejilla de Novedades del home muestra exactamente cuatro productos. Una
- * novedad "ocupa lugar" mientras tenga la marca, no esté archivada y se venda
- * en la tienda (un producto solo de suscripción nunca sale en el home, así que
- * no puede quitarle el lugar a uno que sí); marcar
- * una quinta responde 409 en vez de dejar una que el home nunca mostraría.
- * Un solo operador edita el catálogo: no hace falta bloqueo transaccional.
+ * El carrusel de Más vendidos del home muestra como máximo
+ * `HOME_CONTENT_LIMITS.maxBestsellers`. Un más vendido "ocupa lugar" mientras
+ * tenga la marca, no esté archivado y se venda en la tienda (un producto solo
+ * de suscripción nunca sale en el home, así que no puede quitarle el lugar a
+ * uno que sí); marcar uno más responde 409 en vez de dejar uno que el carrusel
+ * nunca mostraría. Un solo operador edita el catálogo: no hace falta bloqueo
+ * transaccional.
  */
-async function assertNewArrivalSlotFree(excludeId?: string): Promise<void> {
+async function assertBestsellerSlotFree(excludeId?: string): Promise<void> {
   const taken = await Product.countDocuments({
-    isNewArrival: true,
+    isBestseller: true,
     status: { $ne: ProductStatus.ARCHIVED },
     channel: { $ne: ProductChannel.SUBSCRIPTION },
     ...(excludeId ? { _id: { $ne: excludeId } } : {}),
   });
-  if (taken >= HOME_CONTENT_LIMITS.maxNewArrivals) {
-    const message = `Ya hay ${HOME_CONTENT_LIMITS.maxNewArrivals} novedades. Quita la marca de otro producto antes de marcar este.`;
-    // `errors` deja que el panel pegue el mensaje al interruptor de Novedad.
-    throw new AppError(message, 409, { isNewArrival: message });
+  if (taken >= HOME_CONTENT_LIMITS.maxBestsellers) {
+    const message = `Ya hay ${HOME_CONTENT_LIMITS.maxBestsellers} productos como Más vendido. Quita la marca de otro antes de marcar este.`;
+    // `errors` deja que el panel pegue el mensaje al interruptor de Más vendido.
+    throw new AppError(message, 409, { isBestseller: message });
   }
 }
 
-function takesNewArrivalSlot(product: ProductDocument): boolean {
+function takesBestsellerSlot(product: ProductDocument): boolean {
   return (
-    product.isNewArrival && product.status !== ProductStatus.ARCHIVED && product.channel !== ProductChannel.SUBSCRIPTION
+    product.isBestseller && product.status !== ProductStatus.ARCHIVED && product.channel !== ProductChannel.SUBSCRIPTION
   );
 }
 
@@ -164,7 +167,7 @@ async function createProduct(input: CreateProductInput): Promise<ProductDocument
   await assertCategoryExists(input.categoryId);
   if (input.badgeId) await assertBadgeExists(input.badgeId);
   const brandName = input.brandId ? await resolveBrandName(input.brandId) : undefined;
-  if (input.isNewArrival && input.channel !== ProductChannel.SUBSCRIPTION) await assertNewArrivalSlotFree();
+  if (input.isBestseller && input.channel !== ProductChannel.SUBSCRIPTION) await assertBestsellerSlotFree();
 
   const stockBySku = new Map(
     input.variants
@@ -249,9 +252,27 @@ async function assertChannelChangeAllowed(product: ProductDocument, nextChannel:
   }
 }
 
+/**
+ * Fijar vive junto a la marca de Más vendido: quitar la marca también desfija
+ * (volver a marcarlo lo deja sin fijar), y fijar un producto que no es más
+ * vendido es un error del formulario, no un dato que guardar.
+ */
+function applyBestsellerPin(product: ProductDocument, input: UpdateProductInput): void {
+  if (input.isBestseller === false || input.isBestsellerPinned === false) {
+    product.bestsellerPinnedAt = undefined;
+    return;
+  }
+  if (input.isBestsellerPinned !== true) return;
+  if (!product.isBestseller) {
+    const message = "Marca el producto como Más vendido antes de fijarlo al inicio.";
+    throw new AppError(message, 400, { isBestsellerPinned: message });
+  }
+  product.bestsellerPinnedAt ??= new Date();
+}
+
 async function updateProduct(id: string, input: UpdateProductInput): Promise<ProductDocument> {
   const product = await getProductDocument(id);
-  const occupiedSlot = takesNewArrivalSlot(product);
+  const occupiedSlot = takesBestsellerSlot(product);
 
   if (input.categoryId !== undefined) {
     await assertCategoryExists(input.categoryId);
@@ -266,6 +287,7 @@ async function updateProduct(id: string, input: UpdateProductInput): Promise<Pro
     product.slug = slugify(input.name);
   }
   if (input.isBestseller !== undefined) product.isBestseller = input.isBestseller;
+  applyBestsellerPin(product, input);
   if (input.isNewArrival !== undefined) product.isNewArrival = input.isNewArrival;
   if (input.skinTypes !== undefined) product.skinTypes = input.skinTypes;
   if (input.description !== undefined) product.description = input.description;
@@ -283,7 +305,7 @@ async function updateProduct(id: string, input: UpdateProductInput): Promise<Pro
     product.content = { ...product.content, ...input.content } as ProductContentAttrs;
   }
 
-  if (takesNewArrivalSlot(product) && !occupiedSlot) await assertNewArrivalSlotFree(id);
+  if (takesBestsellerSlot(product) && !occupiedSlot) await assertBestsellerSlotFree(id);
 
   await product.save();
   return product;

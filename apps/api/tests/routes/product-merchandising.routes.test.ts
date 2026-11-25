@@ -95,42 +95,53 @@ describe("routes/products — marcas Más vendido y Novedad", () => {
   });
 });
 
-describe("routes/products — tope de 4 novedades", () => {
-  async function seedFourNewArrivals(agent: Agent, categoryId: string) {
+describe("routes/products — Novedad sin tope", () => {
+  it("permite marcar más de cuatro novedades (la selección del home vive en el editor del home)", async () => {
+    const { agent } = await createAdminSession(app);
+    const category = await Category.create({ name: "Sueros", slug: "sueros", isActive: true });
+
+    for (const n of [1, 2, 3, 4, 5]) {
+      const created = await createProduct(agent, category.id, `Novedad ${n}`, `NOV-${n}`, { isNewArrival: true });
+      expect(created.status).toBe(201);
+    }
+  });
+});
+
+describe("routes/products — tope de 12 más vendidos", () => {
+  async function seedBestsellers(agent: Agent, categoryId: string, count: number) {
     const ids: string[] = [];
-    for (const n of [1, 2, 3, 4]) {
-      const created = await createProduct(agent, categoryId, `Novedad ${n}`, `NOV-${n}`, { isNewArrival: true });
+    for (let n = 1; n <= count; n += 1) {
+      const created = await createProduct(agent, categoryId, `Vendido ${n}`, `VEN-${n}`, { isBestseller: true });
       ids.push(created.body.data.id as string);
     }
     return ids;
   }
 
-  it("el quinto producto marcado al crear responde 409", async () => {
+  it("el decimotercero marcado al crear responde 409 con el error pegado al campo", async () => {
     const { agent } = await createAdminSession(app);
     const category = await Category.create({ name: "Sueros", slug: "sueros", isActive: true });
-    await seedFourNewArrivals(agent, category.id);
+    await seedBestsellers(agent, category.id, 12);
 
-    const fifth = await agent.post("/api/v1/admin/products").send({
-      name: "Novedad 5",
+    const thirteenth = await agent.post("/api/v1/admin/products").send({
+      name: "Vendido 13",
       description: "Desc",
       categoryId: category.id,
-      isNewArrival: true,
-      variants: [{ sku: "NOV-5", name: "30 ml", price: 34900, weightGrams: 150 }],
+      isBestseller: true,
+      variants: [{ sku: "VEN-13", name: "30 ml", price: 34900, weightGrams: 150 }],
     });
 
-    expect(fifth.status).toBe(409);
-    expect(fifth.body.message).toContain("4 novedades");
-    expect(fifth.body.errors.isNewArrival).toContain("4 novedades");
+    expect(thirteenth.status).toBe(409);
+    expect(thirteenth.body.errors.isBestseller).toContain("12");
   });
 
-  it("marcar un quinto por PATCH responde 409, pero re-guardar uno ya marcado no", async () => {
+  it("marcar uno más por PATCH responde 409, pero re-guardar uno ya marcado no", async () => {
     const { agent } = await createAdminSession(app);
     const category = await Category.create({ name: "Sueros", slug: "sueros", isActive: true });
-    const [first] = await seedFourNewArrivals(agent, category.id);
+    const [first] = await seedBestsellers(agent, category.id, 12);
     const extra = await createProduct(agent, category.id, "Sérum extra", "EXT-1");
 
-    const blocked = await agent.patch(`/api/v1/admin/products/${extra.body.data.id}`).send({ isNewArrival: true });
-    const resaved = await agent.patch(`/api/v1/admin/products/${first}`).send({ isNewArrival: true, brandId: await ensureBrand(agent, "Anua") });
+    const blocked = await agent.patch(`/api/v1/admin/products/${extra.body.data.id}`).send({ isBestseller: true });
+    const resaved = await agent.patch(`/api/v1/admin/products/${first}`).send({ isBestseller: true, shortDescription: "Nueva" });
 
     expect(blocked.status).toBe(409);
     expect(resaved.status).toBe(200);
@@ -139,26 +150,90 @@ describe("routes/products — tope de 4 novedades", () => {
   it("quitar la marca o archivar un producto libera el lugar", async () => {
     const { agent } = await createAdminSession(app);
     const category = await Category.create({ name: "Sueros", slug: "sueros", isActive: true });
-    const [first, second] = await seedFourNewArrivals(agent, category.id);
+    const [first, second] = await seedBestsellers(agent, category.id, 12);
     const extra = await createProduct(agent, category.id, "Sérum extra", "EXT-1");
-    const markExtra = () => agent.patch(`/api/v1/admin/products/${extra.body.data.id}`).send({ isNewArrival: true });
+    const markExtra = () => agent.patch(`/api/v1/admin/products/${extra.body.data.id}`).send({ isBestseller: true });
 
-    await agent.patch(`/api/v1/admin/products/${first}`).send({ isNewArrival: false });
+    await agent.patch(`/api/v1/admin/products/${first}`).send({ isBestseller: false });
     expect((await markExtra()).status).toBe(200);
 
-    expect((await agent.patch(`/api/v1/admin/products/${second}`).send({ isNewArrival: true })).status).toBe(200);
+    expect((await agent.patch(`/api/v1/admin/products/${second}`).send({ isBestseller: true })).status).toBe(200);
     await agent.delete(`/api/v1/admin/products/${second}`);
     const another = await createProduct(agent, category.id, "Sérum otro", "OTR-1");
-    expect((await agent.patch(`/api/v1/admin/products/${another.body.data.id}`).send({ isNewArrival: true })).status).toBe(200);
+    expect((await agent.patch(`/api/v1/admin/products/${another.body.data.id}`).send({ isBestseller: true })).status).toBe(200);
   });
 
-  it("un producto solo de suscripción no ocupa lugar (nunca sale en el home)", async () => {
+  it("un producto solo de suscripción no ocupa lugar", async () => {
     const { agent } = await createAdminSession(app);
     const category = await Category.create({ name: "Sueros", slug: "sueros", isActive: true });
-    await createProduct(agent, category.id, "Solo caja", "BOX-1", { isNewArrival: true, channel: "subscription" });
+    await createProduct(agent, category.id, "Solo caja", "BOX-1", { isBestseller: true, channel: "subscription" });
 
-    const ids = await seedFourNewArrivals(agent, category.id);
+    const ids = await seedBestsellers(agent, category.id, 12);
 
-    expect(ids).toHaveLength(4);
+    expect(ids).toHaveLength(12);
+  });
+});
+
+describe("routes/products — fijar un más vendido al inicio", () => {
+  const names = (response: { body: { data: { name: string }[] } }) => response.body.data.map((p) => p.name);
+
+  it("los fijados salen primero y el resto por más recientes", async () => {
+    const { agent } = await createAdminSession(app);
+    const category = await Category.create({ name: "Sueros", slug: "sueros", isActive: true });
+    const a = await createProduct(agent, category.id, "A", "SKU-A", { isBestseller: true });
+    await createProduct(agent, category.id, "B", "SKU-B", { isBestseller: true });
+    await createProduct(agent, category.id, "C", "SKU-C", { isBestseller: true });
+    const d = await createProduct(agent, category.id, "D", "SKU-D", { isBestseller: true });
+
+    expect(names(await request(app).get("/api/v1/products?bestseller=true&sort=-createdAt"))).toEqual(["D", "C", "B", "A"]);
+
+    await agent.patch(`/api/v1/admin/products/${a.body.data.id}`).send({ isBestsellerPinned: true });
+    expect(names(await request(app).get("/api/v1/products?bestseller=true&sort=-createdAt"))).toEqual(["A", "D", "C", "B"]);
+
+    await agent.patch(`/api/v1/admin/products/${d.body.data.id}`).send({ isBestsellerPinned: true });
+    expect(names(await request(app).get("/api/v1/products?bestseller=true&sort=-createdAt"))).toEqual(["D", "A", "C", "B"]);
+  });
+
+  it("con otro orden (precio) el fijado no se antepone", async () => {
+    const { agent } = await createAdminSession(app);
+    const category = await Category.create({ name: "Sueros", slug: "sueros", isActive: true });
+    const a = await createProduct(agent, category.id, "A", "SKU-A", {
+      isBestseller: true,
+      variants: [{ sku: "SKU-A", name: "30 ml", price: 90000, weightGrams: 150 }],
+    });
+    await createProduct(agent, category.id, "B", "SKU-B", { isBestseller: true });
+    await agent.patch(`/api/v1/admin/products/${a.body.data.id}`).send({ isBestsellerPinned: true });
+
+    const byPrice = await request(app).get("/api/v1/products?bestseller=true&sort=minPrice");
+
+    expect(names(byPrice)).toEqual(["B", "A"]);
+  });
+
+  it("se expone como isBestsellerPinned y quitar Más vendido también lo desfija", async () => {
+    const { agent } = await createAdminSession(app);
+    const category = await Category.create({ name: "Sueros", slug: "sueros", isActive: true });
+    const created = await createProduct(agent, category.id, "A", "SKU-A", { isBestseller: true });
+    expect(created.body.data.isBestsellerPinned).toBe(false);
+    const url = `/api/v1/admin/products/${created.body.data.id}`;
+
+    const pinned = await agent.patch(url).send({ isBestsellerPinned: true });
+    expect(pinned.body.data.isBestsellerPinned).toBe(true);
+
+    const unmarked = await agent.patch(url).send({ isBestseller: false });
+    expect(unmarked.body.data.isBestsellerPinned).toBe(false);
+
+    const remarked = await agent.patch(url).send({ isBestseller: true });
+    expect(remarked.body.data.isBestsellerPinned).toBe(false);
+  });
+
+  it("fijar un producto que no es más vendido responde 400 con el error pegado al campo", async () => {
+    const { agent } = await createAdminSession(app);
+    const category = await Category.create({ name: "Sueros", slug: "sueros", isActive: true });
+    const created = await createProduct(agent, category.id, "A", "SKU-A");
+
+    const response = await agent.patch(`/api/v1/admin/products/${created.body.data.id}`).send({ isBestsellerPinned: true });
+
+    expect(response.status).toBe(400);
+    expect(response.body.errors.isBestsellerPinned).toBeTruthy();
   });
 });

@@ -49,6 +49,7 @@ export default function NewProductPage() {
     categoryId: null,
     badgeId: null,
     isBestseller: false,
+    isBestsellerPinned: false,
     isNewArrival: false,
     skinTypes: [],
     channel: "store",
