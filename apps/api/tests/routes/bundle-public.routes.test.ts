@@ -177,7 +177,7 @@ describe("routes/bundle-public — listado y detalle", () => {
       const response = await request(app).get("/api/v1/bundles/rutina-completa/availability");
 
       expect(response.status).toBe(200);
-      expect(response.body.data).toEqual({ isAvailable: true });
+      expect(response.body.data).toEqual({ isAvailable: true, maxQuantity: 5 });
     });
 
     it("responde isAvailable: false sin stock de sus componentes", async () => {
@@ -187,7 +187,7 @@ describe("routes/bundle-public — listado y detalle", () => {
       const response = await request(app).get("/api/v1/bundles/rutina-completa/availability");
 
       expect(response.status).toBe(200);
-      expect(response.body.data).toEqual({ isAvailable: false });
+      expect(response.body.data).toEqual({ isAvailable: false, maxQuantity: 0 });
     });
 
     it("un bundle archivado responde 404", async () => {
