@@ -114,6 +114,7 @@ export default function EditProductPage() {
           categoryId: p.categoryId,
           badgeId: p.badgeId,
           isBestseller: p.isBestseller,
+          isBestsellerPinned: p.isBestsellerPinned,
           isNewArrival: p.isNewArrival,
           skinTypes: p.skinTypes,
           channel: p.channel,
@@ -153,6 +154,7 @@ export default function EditProductPage() {
           categoryId: base.categoryId,
           badgeId: base.badgeId,
           isBestseller: base.isBestseller,
+          isBestsellerPinned: base.isBestsellerPinned,
           isNewArrival: base.isNewArrival,
           skinTypes: base.skinTypes,
           channel: base.channel,
@@ -323,7 +325,7 @@ export default function EditProductPage() {
 
       <form id="edit-product-form" onSubmit={handleSaveBase} className="flex flex-col gap-6">
         <Card>
-          <ProductBaseFields value={base} onChange={handleBaseChange} errors={baseErrors} />
+          <ProductBaseFields value={base} onChange={handleBaseChange} errors={baseErrors} canPin />
         </Card>
 
         <Card>

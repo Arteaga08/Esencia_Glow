@@ -1,18 +1,19 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { AdminHomeSpotlight } from "@esencia-glow/shared";
+import type { AdminHomeSpotlight, AdminHomeSpotlightItem } from "@esencia-glow/shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FieldError } from "@/components/ui/field-error";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/toast";
-import { ApiRequestError } from "@/lib/api";
+import { ApiRequestError, apiRequest } from "@/lib/api";
 import { EditorSurface } from "./editor-surface";
 import type { HeroImageSlot as Slot } from "./hero-form-value";
 import { HeroImageSlot } from "./hero-image-slot";
 import { saveSpotlight } from "./spotlight-actions";
+import { SpotlightItemsField } from "./spotlight-items-field";
 import {
   fingerprint,
   hasDesktopImage,
@@ -35,10 +36,9 @@ interface SpotlightEditorProps {
 }
 
 /**
- * Editor de la portada de Novedades o Kits (bloque 5 del home): título,
- * subtítulo y dos fotos (escritorio y móvil), con un solo Guardar. Las
- * tarjetas no se editan aquí: salen del catálogo. Un 409 significa que otra
- * persona editó el bloque: se avisa y no se pisa nada.
+ * Editor de Novedades o Kits (bloque 5 del home): título, subtítulo, dos fotos
+ * (escritorio y móvil) y las tarjetas elegidas, con un solo Guardar. Un 409
+ * significa que otra persona editó el bloque: se avisa y no se pisa nada.
  */
 function SpotlightEditor({ meta, section, onSaved, embedded = false, onDirtyChange }: SpotlightEditorProps) {
   const { toast } = useToast();
@@ -49,6 +49,31 @@ function SpotlightEditor({ meta, section, onSaved, embedded = false, onDirtyChan
   const [formError, setFormError] = useState<string | null>(null);
   const [showErrors, setShowErrors] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [loadingItems, setLoadingItems] = useState(section.itemIds.length > 0);
+
+  // Los nombres y fotos de lo ya guardado no viajan en el contenido del home:
+  // se piden aparte, una vez, y no cambian `baseline` (solo cuentan los ids).
+  useEffect(() => {
+    if (section.itemIds.length === 0) return;
+    let cancelled = false;
+    apiRequest<AdminHomeSpotlightItem[]>(`/api/v1/admin/home/spotlights/${meta.slug}/items`, { authenticated: true })
+      .then((response) => {
+        if (cancelled) return;
+        const loaded = Object.fromEntries(response.data.map((item) => [item.id, item]));
+        setValue((current) => ({ ...current, summaries: { ...loaded, ...current.summaries } }));
+      })
+      .catch(() => {
+        // Sin nombres la lista sigue funcionando (el orden y los ids son lo que se guarda).
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingItems(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // Solo al montar: `section` cambia al guardar y esos nombres ya los tiene `value`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const dirty = fingerprint(value) !== baseline;
   useEffect(() => {
@@ -161,6 +186,15 @@ function SpotlightEditor({ meta, section, onSaved, embedded = false, onDirtyChan
             />
           </div>
         </div>
+
+        <SpotlightItemsField
+          kind={meta.itemKind}
+          itemIds={value.itemIds}
+          summaries={value.summaries}
+          loading={loadingItems}
+          onChange={(itemIds, summaries) => setValue((c) => ({ ...c, itemIds, summaries }))}
+          error={errors.itemIds}
+        />
 
         {!hasDesktopImage(value) ? (
           <FieldError message="Sin foto de escritorio este bloque no se publica en la tienda." />

@@ -66,7 +66,7 @@ async function saveSpotlight(
     }
   }
 
-  return { section, value: toFormValue(section, meta) };
+  return { section, value: toFormValue(section, meta, value.summaries) };
 }
 
 export { saveSpotlight };

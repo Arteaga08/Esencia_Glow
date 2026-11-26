@@ -130,7 +130,11 @@ async function listPublicProducts(
     isNewArrival: input.newArrival,
     onSale: input.onSale,
   });
-  const sort = resolveSort(input.sort, PUBLIC_PRODUCT_SORT_FIELDS, "createdAt");
+  const resolvedSort = resolveSort(input.sort, PUBLIC_PRODUCT_SORT_FIELDS, "createdAt");
+  // Los fijados al inicio solo mandan cuando se ordena por fecha; con precio o
+  // nombre gana el criterio que la clienta eligió.
+  const sort =
+    input.bestseller && "createdAt" in resolvedSort ? { bestsellerPinnedAt: -1 as const, ...resolvedSort } : resolvedSort;
 
   const [documents, total] = await Promise.all([
     Product.find(filter)

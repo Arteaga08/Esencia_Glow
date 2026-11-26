@@ -16,6 +16,7 @@ import {
 } from "@esencia-glow/shared";
 import type { HomeHeroSlideAttrs } from "../models/home-section.schemas.js";
 import { Category } from "../models/category.model.js";
+import { Bundle } from "../models/bundle.model.js";
 import { Product } from "../models/product.model.js";
 import { AppError } from "../utils/app-error.js";
 import { assertVersionMatches, readHomeContent, writeSection, type SectionWrite } from "./home-content-store.js";
@@ -85,7 +86,7 @@ function resolveItems<TInput extends { id?: string }, TExisting extends { _id: T
   });
 }
 
-async function assertAllExist(model: typeof Product | typeof Category, ids: string[], label: string): Promise<void> {
+async function assertAllExist(model: typeof Product | typeof Category | typeof Bundle, ids: string[], label: string): Promise<void> {
   if (ids.length === 0) return;
   const found = await model.countDocuments({ _id: { $in: ids } });
   if (found !== ids.length) throw new AppError(`Uno o más ${label} no existen.`, 400);
@@ -281,18 +282,24 @@ async function updateBenefits(input: BenefitsInput): Promise<AdminHomeBenefits> 
 interface SpotlightInput extends SectionInput {
   title: string;
   subtitle?: string;
+  itemIds: string[];
 }
 
 /**
- * Novedades y Kits (bloque 5): título y subtítulo del bloque. Las fotos tienen
- * su propio endpoint (`home-image.service.ts`), y las tarjetas salen del
- * catálogo, no de aquí.
+ * Novedades y Kits (bloque 5): título, subtítulo y las tarjetas elegidas
+ * (productos en Novedades, paquetes en Kits). Las fotos tienen su propio
+ * endpoint (`home-image.service.ts`).
  */
 async function updateSpotlight(section: HomeSpotlightKey, input: SpotlightInput): Promise<AdminHomeSpotlight> {
+  const isKits = section === HomeSectionKey.KITS;
+  await assertAllExist(isKits ? Bundle : Product, input.itemIds, isKits ? "paquetes" : "productos");
   const doc = await writeSection(
     section,
     input.version,
-    contentWrite({ isActive: input.isActive, title: input.title }, { subtitle: input.subtitle }),
+    contentWrite(
+      { isActive: input.isActive, title: input.title, itemIds: input.itemIds.map((id) => new Types.ObjectId(id)) },
+      { subtitle: input.subtitle },
+    ),
   );
   return buildSpotlight(doc, section);
 }

@@ -4,6 +4,7 @@ import { asyncHandler } from "../utils/async-handler.js";
 import { sendResponse } from "../utils/send-response.js";
 import { SPOTLIGHT_BY_SLUG } from "../utils/home-spotlight.js";
 import * as homeContentService from "../services/home-content.service.js";
+import { listAdminSpotlightItems } from "../services/home-spotlight-items.service.js";
 import { recordAudit } from "../services/audit.service.js";
 
 const get = asyncHandler(async (_req: Request, res: Response) => {
@@ -119,8 +120,15 @@ const updateSpotlight = asyncHandler(async (req: Request<{ section: string }>, r
   sendResponse(res, 200, "Bloque del home actualizado.", result);
 });
 
+/** Resumen de las tarjetas elegidas de Novedades o Kits, para la lista ordenable del editor. */
+const listSpotlightItems = asyncHandler(async (req: Request<{ section: string }>, res: Response) => {
+  const items = await listAdminSpotlightItems(SPOTLIGHT_BY_SLUG[req.params.section]!);
+  sendResponse(res, 200, "Tarjetas del bloque obtenidas.", items);
+});
+
 export {
   updateSpotlight,
+  listSpotlightItems,
   updateOfferBanner,
   updateAdvice,
   get,

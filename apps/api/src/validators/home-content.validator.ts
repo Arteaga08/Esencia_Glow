@@ -109,6 +109,16 @@ const updateSpotlightSchema = Joi.object({
   isActive: Joi.boolean().required(),
   title: Joi.string().trim().min(1).max(LIMITS.titleMax).required(),
   subtitle: Joi.string().trim().max(LIMITS.subtitleMax),
+  // Ausente = sin selección (el home muestra los más recientes).
+  itemIds: Joi.array()
+    .items(objectId)
+    .max(LIMITS.maxSpotlightItems)
+    .unique()
+    .default([])
+    .messages({
+      "array.max": `Máximo ${LIMITS.maxSpotlightItems} tarjetas.`,
+      "array.unique": "Hay tarjetas repetidas.",
+    }),
 });
 
 /** Banner de oferta: la frase, el botón y su enlace son obligatorios (el banner sin ellos no tiene sentido). */

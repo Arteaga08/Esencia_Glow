@@ -45,6 +45,10 @@ interface ProductAttrs {
   // una propiedad reservada de los documentos de Mongoose.
   isBestseller: boolean;
   isNewArrival: boolean;
+  // Más vendido "fijado al inicio": la fecha en que se fijó. Presente = fijado
+  // (los fijados van primero, el más reciente arriba); ausente = no fijado. Se
+  // usa una fecha y no un booleano para no necesitar backfill.
+  bestsellerPinnedAt?: Date;
   // Tipos de piel recomendados, texto libre ("Seca", "Mixta"…). No hay catálogo
   // aparte: las sugerencias del panel salen de un `distinct` sobre este campo.
   skinTypes: string[];
@@ -92,6 +96,7 @@ const productSchema = new Schema<ProductAttrs, ProductModel>(
     },
     isBestseller: { type: Boolean, default: false },
     isNewArrival: { type: Boolean, default: false },
+    bestsellerPinnedAt: { type: Date },
     skinTypes: { type: [{ type: String, trim: true, maxlength: 40 }], default: [] },
     images: { type: [mediaImageSchema], default: [] },
     variants: { type: [productVariantSchema], default: [] },
@@ -111,7 +116,7 @@ productSchema.index({ status: 1, channel: 1, createdAt: -1 });
 productSchema.index({ status: 1, categoryId: 1, minPrice: 1 });
 productSchema.index({ status: 1, categoryId: 1, brand: 1 });
 productSchema.index({ brandId: 1 });
-productSchema.index({ status: 1, isBestseller: 1, createdAt: -1 });
+productSchema.index({ status: 1, isBestseller: 1, bestsellerPinnedAt: -1, createdAt: -1 });
 productSchema.index({ status: 1, isNewArrival: 1, createdAt: -1 });
 productSchema.index({ name: 1 });
 

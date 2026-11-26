@@ -63,6 +63,11 @@ router.put(
 );
 router.put("/testimonials", validate(updateTestimonialsSchema), homeContentController.updateTestimonials);
 router.put("/benefits", validate(updateBenefitsSchema), homeContentController.updateBenefits);
+router.get(
+  "/spotlights/:section/items",
+  validate(spotlightParamsSchema, "params"),
+  homeContentController.listSpotlightItems,
+);
 router.put(
   "/spotlights/:section",
   validate(spotlightParamsSchema, "params"),

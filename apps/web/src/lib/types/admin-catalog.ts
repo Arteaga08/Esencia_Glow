@@ -48,6 +48,7 @@ interface AdminProduct {
   categoryId: string;
   badgeId: string | null;
   isBestseller: boolean;
+  isBestsellerPinned: boolean;
   isNewArrival: boolean;
   skinTypes: string[];
   status: AdminProductStatus;

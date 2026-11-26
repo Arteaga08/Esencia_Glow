@@ -1,7 +1,6 @@
 import type { PublicHomeSpotlight } from "@esencia-glow/shared";
 import { getHomeContent } from "../../../../lib/storefront/home";
-import { getNewArrivals, getShelfKits, SPOTLIGHT_LIMIT } from "../../../../lib/storefront/shelf";
-import type { ShelfItem } from "../../../../lib/storefront/shelf-item";
+import { toShelfKit, toShelfProduct, type ShelfItem } from "../../../../lib/storefront/shelf-item";
 import { SpotlightSection } from "./spotlight-section";
 
 /** Un bloque se pinta solo con foto de escritorio publicada (la trae el API) y al menos una tarjeta. */
@@ -27,15 +26,14 @@ function renderSpotlight(
 
 /**
  * Bloque 5 del home: Novedades (portada a la derecha) y Kits (portada a la
- * izquierda). Texto y fotos vienen del panel (Contenido del home); las cuatro
- * tarjetas, del catálogo. Si el API cae, ninguno de los dos se pinta.
+ * izquierda). Texto, fotos y las cuatro tarjetas de cada uno vienen del panel
+ * (Contenido del home); el API ya las trae resueltas y en orden. Si el API
+ * cae, ninguno de los dos se pinta.
  */
 async function SpotlightBlock() {
-  const [home, newArrivals, kits] = await Promise.all([
-    getHomeContent(),
-    getNewArrivals(),
-    getShelfKits(SPOTLIGHT_LIMIT),
-  ]);
+  const home = await getHomeContent();
+  const newArrivals = (home?.newArrivals?.products ?? []).filter((p) => p.variants.length > 0).map(toShelfProduct);
+  const kits = (home?.kits?.bundles ?? []).map(toShelfKit);
 
   return (
     <>

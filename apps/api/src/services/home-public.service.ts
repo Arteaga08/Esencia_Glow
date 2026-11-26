@@ -1,4 +1,3 @@
-import type { Types } from "mongoose";
 import {
   HomeSectionKey,
   type HomePageCoverKey,
@@ -6,6 +5,8 @@ import {
   type PublicHomeContent,
   type PublicHomeHeroSlide,
   type PublicHomeAdvice,
+  type PublicHomeKits,
+  type PublicHomeNewArrivals,
   type PublicHomeOfferBanner,
   type PublicProductImage,
   type PublicHomeSpotlight,
@@ -16,9 +17,11 @@ import { Product } from "../models/product.model.js";
 import { AppError } from "../utils/app-error.js";
 import { logger } from "../config/logger.js";
 import { buildPublicProductMatch } from "../utils/build-product-filter.js";
+import { inSavedOrder } from "../utils/in-saved-order.js";
 import { buildImageDto, buildPublicCategory, type LeanCategory, type LeanProduct } from "./catalog-dto.js";
 import { buildPublicProductsWithRefs } from "./catalog-public.service.js";
 import { readHomeContent } from "./home-content-store.js";
+import { resolvePublicNewArrivals, resolvePublicKits } from "./home-spotlight-items.service.js";
 
 /**
  * Lectura pública del home (Milestone 1.8). Filtra AL SERVIR, nunca al
@@ -37,10 +40,22 @@ import { readHomeContent } from "./home-content-store.js";
  * Un GET nunca escribe: sin documento devuelve `{}`.
  */
 
-/** Reordena `docs` según `orderedIds`, descartando los ids que ya no resuelven. */
-function inSavedOrder<T extends { _id: Types.ObjectId }>(orderedIds: Types.ObjectId[], docs: T[]): T[] {
-  const byId = new Map(docs.map((doc) => [doc._id.toString(), doc]));
-  return orderedIds.flatMap((id) => byId.get(id.toString()) ?? []);
+/**
+ * Un producto cuya categoría ya no existe (dato inconsistente) hace que el
+ * helper del catálogo responda 404. En el home eso no puede tumbar la página
+ * entera: se omite SOLO esa sección y se deja rastro. Cualquier otro error
+ * (p. ej. la DB caída) sí se propaga.
+ */
+async function omitIfCategoryMissing<T>(build: () => Promise<T>, label: string): Promise<T | undefined> {
+  try {
+    return await build();
+  } catch (error) {
+    if (error instanceof AppError && error.statusCode === 404) {
+      logger.warn({ err: error }, `Sección de ${label} omitida: producto sin categoría resoluble`);
+      return undefined;
+    }
+    throw error;
+  }
 }
 
 function buildAnnouncement(doc: HomeContentAttrs): PublicHomeContent["announcement"] {
@@ -78,20 +93,11 @@ async function buildFeaturedProducts(doc: HomeContentAttrs): Promise<PublicHomeC
 
   const found = await Product.find(buildPublicProductMatch({ _id: { $in: section.productIds } })).lean<LeanProduct[]>();
 
-  let products;
-  try {
-    products = await buildPublicProductsWithRefs(inSavedOrder(section.productIds, found));
-  } catch (error) {
-    // Un producto cuya categoría ya no existe (dato inconsistente) hace que el
-    // helper del catálogo responda 404. En el home eso no puede tumbar la
-    // página entera: se omite SOLO esta sección y se deja rastro. Cualquier
-    // otro error (p. ej. la DB caída) sí se propaga.
-    if (error instanceof AppError && error.statusCode === 404) {
-      logger.warn({ err: error }, "Sección de productos destacados omitida: producto sin categoría resoluble");
-      return undefined;
-    }
-    throw error;
-  }
+  const products = await omitIfCategoryMissing(
+    () => buildPublicProductsWithRefs(inSavedOrder(section.productIds!, found)),
+    "productos destacados",
+  );
+  if (!products) return undefined;
 
   return products.length > 0 ? { ...(section.title ? { title: section.title } : {}), products } : undefined;
 }
@@ -139,6 +145,25 @@ function buildSpotlight(doc: HomeContentAttrs, key: HomeSpotlightKey): PublicHom
     ...(section.subtitle ? { subtitle: section.subtitle } : {}),
     images: { desktop, ...(mobile ? { mobile } : {}) },
   };
+}
+
+/** Novedades: portada publicada más sus tarjetas; sin ninguna tarjeta posible no se publica. */
+async function buildNewArrivals(doc: HomeContentAttrs): Promise<PublicHomeNewArrivals | undefined> {
+  const cover = buildSpotlight(doc, HomeSectionKey.NEW_ARRIVALS);
+  if (!cover) return undefined;
+  const products = await omitIfCategoryMissing(
+    () => resolvePublicNewArrivals(doc.newArrivals?.itemIds ?? []),
+    "novedades",
+  );
+  return products && products.length > 0 ? { ...cover, products } : undefined;
+}
+
+/** Kits: portada publicada más sus paquetes; sin ninguno posible no se publica. */
+async function buildKits(doc: HomeContentAttrs): Promise<PublicHomeKits | undefined> {
+  const cover = buildSpotlight(doc, HomeSectionKey.KITS);
+  if (!cover) return undefined;
+  const bundles = await omitIfCategoryMissing(() => resolvePublicKits(doc.kits?.itemIds ?? []), "kits");
+  return bundles && bundles.length > 0 ? { ...cover, bundles } : undefined;
 }
 
 /** Banner de oferta: sin foto de escritorio, frase, botón o enlace no se publica. */
@@ -204,9 +229,11 @@ async function getPublicHomeContent(): Promise<PublicHomeContent> {
   const doc = await readHomeContent();
   if (!doc) return {};
 
-  const [featuredProducts, featuredCategories] = await Promise.all([
+  const [featuredProducts, featuredCategories, newArrivals, kits] = await Promise.all([
     buildFeaturedProducts(doc),
     buildFeaturedCategories(doc),
+    buildNewArrivals(doc),
+    buildKits(doc),
   ]);
 
   const candidates: PublicHomeContent = {
@@ -217,8 +244,8 @@ async function getPublicHomeContent(): Promise<PublicHomeContent> {
     subscriptionPromo: buildSubscriptionPromo(doc),
     testimonials: buildTestimonials(doc),
     benefits: buildBenefits(doc),
-    newArrivals: buildSpotlight(doc, HomeSectionKey.NEW_ARRIVALS),
-    kits: buildSpotlight(doc, HomeSectionKey.KITS),
+    newArrivals,
+    kits,
     offerBanner: buildOfferBanner(doc),
     advice: buildAdvice(doc),
     salePage: buildSalePage(doc),
